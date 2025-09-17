@@ -20,12 +20,12 @@ export default function About() {
           className="text-4xl md:text-5xl font-extrabold mb-10 bg-clip-text text-transparent bg-gradient-to-r from-blue-500 via-purple-500 to-yellow-400"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.1 }}
+          transition={{ duration: 0.4 }}
         >
           About OnclickWise
         </motion.h2>
 
-        {/* TEXTO PRINCIPAL COM ANIMAÇÃO */}
+        {/* TEXTO PRINCIPAL (entrada suave, sem loop infinito) */}
         <motion.p
           className="text-lg md:text-xl leading-relaxed text-gray-700 dark:text-gray-300"
           initial="hidden"
@@ -33,7 +33,7 @@ export default function About() {
           variants={{
             hidden: {},
             visible: {
-              transition: { staggerChildren: 0.02 }, // mais rápido
+              transition: { staggerChildren: 0.015 }, // rápido e natural
             },
           }}
         >
@@ -42,24 +42,16 @@ export default function About() {
               key={i}
               className="inline-block mr-2"
               variants={{
-                hidden: { opacity: 0, y: 8 },
+                hidden: { opacity: 0, y: 10 },
                 visible: {
                   opacity: 1,
                   y: 0,
-                  color: [
-                    "#3B82F6", // azul
-                    "#A855F7", // roxo
-                    "#FACC15", // amarelo
-                    "#FFFFFF", // branco (dark)
-                  ],
                 },
               }}
               transition={{
-                duration: 0.6, // mais curto que 1.2
-                ease: "easeInOut",
-                repeat: Infinity,
-                repeatType: "mirror",
-                delay: i * 0.02, // menos delay → mais legível
+                duration: 0.3,
+                ease: "easeOut",
+                delay: i * 0.015,
               }}
             >
               {word}
@@ -72,7 +64,7 @@ export default function About() {
           className="mt-12 text-2xl font-semibold text-blue-600 dark:text-yellow-400"
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.8, delay: 1.2 }}
+          transition={{ duration: 0.6, delay: 1 }}
         >
           Our innovation is dedicated to you.
         </motion.div>
@@ -82,12 +74,12 @@ export default function About() {
       <motion.div
         className="absolute -top-20 -left-20 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl"
         animate={{ x: [0, 30, 0], y: [0, 20, 0] }}
-        transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+        transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
       />
       <motion.div
         className="absolute -bottom-20 -right-20 w-96 h-96 bg-yellow-400/20 rounded-full blur-3xl"
         animate={{ x: [0, -30, 0], y: [0, -20, 0] }}
-        transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
+        transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
       />
     </section>
   )

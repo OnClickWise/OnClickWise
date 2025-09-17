@@ -34,7 +34,7 @@ export function LogoTicker() {
 
         {/* TÍTULO */}
         <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 dark:text-white mb-12">
-          Companies that already use <span className="text-blue-600">LeadWise</span>
+          Companies that already use <span className="text-blue-600">OnclickWise</span>
         </h2>
 
         {/* CARROSSEL */}

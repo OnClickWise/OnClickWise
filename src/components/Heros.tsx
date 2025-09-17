@@ -52,7 +52,7 @@ export default function Hero() {
           >
             <button className="flex items-center gap-2 px-6 py-3 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-lg shadow-md transition">
               <Rocket className="w-5 h-5 text-yellow-400" />
-              Get Started
+              Get Started Today
             </button>
             <button className="flex items-center gap-2 px-6 py-3 rounded-full border border-yellow-400 text-yellow-500 hover:bg-yellow-400 hover:text-black font-semibold text-lg shadow-md transition">
               Learn More
