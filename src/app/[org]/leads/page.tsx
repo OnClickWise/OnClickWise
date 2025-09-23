@@ -84,6 +84,7 @@ export default function LeadsPage({
   const fileInputRef = React.useRef<HTMLInputElement | null>(null)
   const [isImportOpen, setIsImportOpen] = React.useState(false)
   const [isDragActive, setIsDragActive] = React.useState(false)
+  const [duplicateWarning, setDuplicateWarning] = React.useState<string | null>(null)
 
   const [name, setName] = React.useState("")
   const [email, setEmail] = React.useState("")
@@ -164,7 +165,16 @@ export default function LeadsPage({
         source,
         status,
       }
-      setLeads((prev) => [newLead, ...prev])
+      setLeads((prev) => {
+        const existing = buildSignatureSet(prev)
+        const sig = makeLeadSignature({ name: newLead.name, email: newLead.email, phone: newLead.phone, source: newLead.source, status: newLead.status })
+        if (existing.has(sig)) {
+          setDuplicateWarning(`Lead "${newLead.name}" already exists and was not added.`)
+          setTimeout(() => setDuplicateWarning(null), 4000)
+          return prev
+        }
+        return [newLead, ...prev]
+      })
     }
     resetForm()
   }
@@ -302,6 +312,18 @@ export default function LeadsPage({
     return null
   }
 
+  function makeLeadSignature(l: Omit<Lead, "id">): string {
+    return `${l.name}||${l.email}||${l.phone}||${l.source}||${l.status}`
+  }
+
+  function buildSignatureSet(items: Lead[]): Set<string> {
+    const s = new Set<string>()
+    for (const l of items) {
+      s.add(makeLeadSignature({ name: l.name, email: l.email, phone: l.phone, source: l.source, status: l.status }))
+    }
+    return s
+  }
+
   function mapRowsToLeads(rows: Record<string, unknown>[]): Lead[] {
     if (rows.length === 0) return []
     const sampleRow = rows[0]
@@ -350,7 +372,25 @@ export default function LeadsPage({
         const text = await file.text()
         const data = JSON.parse(text) as Record<string, unknown>[]
         const imported = mapRowsToLeads(Array.isArray(data) ? data : [])
-        if (imported.length > 0) setLeads((prev) => [...imported, ...prev])
+      if (imported.length > 0) setLeads((prev) => {
+        const existing = buildSignatureSet(prev)
+        const uniqueToAdd: Lead[] = []
+        let duplicatesCount = 0
+        for (const l of imported) {
+          const sig = makeLeadSignature({ name: l.name, email: l.email, phone: l.phone, source: l.source, status: l.status })
+          if (!existing.has(sig)) {
+            existing.add(sig)
+            uniqueToAdd.push(l)
+          } else {
+            duplicatesCount++
+          }
+        }
+        if (duplicatesCount > 0) {
+          setDuplicateWarning(`${duplicatesCount} duplicate lead(s) were skipped during import.`)
+          setTimeout(() => setDuplicateWarning(null), 4000)
+        }
+        return uniqueToAdd.length ? [...uniqueToAdd, ...prev] : prev
+      })
         return
       }
       // CSV, XLSX, XLS, ODS via SheetJS
@@ -360,7 +400,27 @@ export default function LeadsPage({
       const worksheet = workbook.Sheets[sheetName]
       const rows: Record<string, unknown>[] = XLSX.utils.sheet_to_json(worksheet, { defval: "" })
       const imported = mapRowsToLeads(rows)
-      if (imported.length > 0) setLeads((prev) => [...imported, ...prev])
+      if (imported.length > 0) {
+        setLeads((prev) => {
+          const existing = buildSignatureSet(prev)
+          const uniqueToAdd: Lead[] = []
+          let duplicatesCount = 0
+          for (const l of imported) {
+            const sig = makeLeadSignature({ name: l.name, email: l.email, phone: l.phone, source: l.source, status: l.status })
+            if (!existing.has(sig)) {
+              existing.add(sig)
+              uniqueToAdd.push(l)
+            } else {
+              duplicatesCount++
+            }
+          }
+          if (duplicatesCount > 0) {
+            setDuplicateWarning(`${duplicatesCount} duplicate lead(s) were skipped during import.`)
+            setTimeout(() => setDuplicateWarning(null), 4000)
+          }
+          return uniqueToAdd.length ? [...uniqueToAdd, ...prev] : prev
+        })
+      }
     } catch (err) {
       console.error(err)
       alert("Failed to import file. Please check the file format and content.")
@@ -370,7 +430,11 @@ export default function LeadsPage({
   }
 
   function exportData(format: "xlsx" | "csv" | "ods" | "json") {
-    const data = filteredLeads.map(lead => ({
+    const selectedIds = selectedLeads
+    const baseList = selectedIds.size > 0
+      ? leads.filter(l => selectedIds.has(l.id))
+      : filteredLeads
+    const data = baseList.map(lead => ({
       name: lead.name,
       email: lead.email,
       phone: lead.phone,
@@ -398,9 +462,11 @@ export default function LeadsPage({
   // Free text phone input: no auto-formatting
 
   const canConfirmDeletion = React.useMemo(() => {
+    // For single deletion, no typing required. For bulk deletion, require "confirm"
+    if (pendingDeletionIds.length === 1) return true
     const value = confirmInput.trim().toLowerCase()
     return value === "confirm"
-  }, [confirmInput])
+  }, [confirmInput, pendingDeletionIds.length])
 
   function performDeletion() {
     if (!canConfirmDeletion) return
@@ -445,6 +511,23 @@ export default function LeadsPage({
           </Breadcrumb>
         </header>
 
+        {/* DUPLICATE WARNING NOTIFICATION */}
+        {duplicateWarning && (
+          <div className="fixed top-4 right-4 z-50 max-w-sm">
+            <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-lg shadow-lg">
+              <div className="flex items-center gap-2">
+                <div className="text-sm">{duplicateWarning}</div>
+                <button
+                  onClick={() => setDuplicateWarning(null)}
+                  className="text-yellow-600 hover:text-yellow-800 ml-2"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* MAIN */}
         <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
           {/* CONTROLS */}
@@ -486,7 +569,7 @@ export default function LeadsPage({
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" className="cursor-pointer">
                     <Upload className="h-4 w-4 mr-2" />
-                    Export
+                    {selectedLeads.size > 0 ? "Export selected" : "Export"}
                     <ChevronDown className="ml-2 h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -808,8 +891,11 @@ export default function LeadsPage({
             <SheetHeader>
               <SheetTitle>Confirm deletion</SheetTitle>
               <SheetDescription>
-                This action is irreversible. <br>
-                </br>Type "Confirm" to proceed.
+                This action is irreversible. {pendingDeletionIds.length > 1 && (
+                  <>
+                    <br></br>Type "Confirm" to proceed.
+                  </>
+                )}
               </SheetDescription>
             </SheetHeader>
             <Separator className="my-4" />
@@ -819,14 +905,16 @@ export default function LeadsPage({
                   ? "You are about to remove 1 lead."
                   : `You are about to remove ${pendingDeletionIds.length} leads.`}
               </div>
-              <div className="space-y-2">
-                <label className="mb-1 block text-sm font-medium">Confirmation</label>
-                <Input
-                  placeholder="Type 'Confirm' to continue"
-                  value={confirmInput}
-                  onChange={(e) => setConfirmInput(e.target.value)}
-                />
-          </div>
+              {pendingDeletionIds.length > 1 && (
+                <div className="space-y-2">
+                  <label className="mb-1 block text-sm font-medium">Confirmation</label>
+                  <Input
+                    placeholder="Type 'Confirm' to continue"
+                    value={confirmInput}
+                    onChange={(e) => setConfirmInput(e.target.value)}
+                  />
+                </div>
+              )}
               <Separator />
               <div className="flex gap-2">
                 <Button
