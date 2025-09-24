@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import { Search, Plus, Download, Upload, Trash2, Edit, X, ChevronDown } from "lucide-react"
+import { Search, Plus, Download, Upload, Trash2, Edit, X, ChevronDown, CheckCircle2, AlertTriangle, AlertCircle, Check, Filter, XCircle, ArrowUp, ArrowDown } from "lucide-react"
 import * as XLSX from "xlsx"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
@@ -24,6 +24,7 @@ type Lead = {
   name: string
   email: string
   phone: string
+  ssn: string
   source: string
   status: "New" | "In Contact" | "Qualified" | "Lost" | string
 }
@@ -38,6 +39,7 @@ const SAMPLE_LEADS: Lead[] = [
     name: "Maria Silva",
     email: "maria.silva@example.com",
     phone: "+55 11 91234-5678",
+    ssn: "",
     source: "Landing Page",
     status: "New",
   },
@@ -46,6 +48,7 @@ const SAMPLE_LEADS: Lead[] = [
     name: "João Souza",
     email: "joao.souza@example.com",
     phone: "+55 21 99876-5432",
+    ssn: "",
     source: "Instagram",
     status: "In Contact",
   },
@@ -54,6 +57,7 @@ const SAMPLE_LEADS: Lead[] = [
     name: "Ana Pereira",
     email: "ana.pereira@example.com",
     phone: "+55 31 90000-1111",
+    ssn: "",
     source: "Referral",
     status: "Qualified",
   },
@@ -84,14 +88,41 @@ export default function LeadsPage({
   const fileInputRef = React.useRef<HTMLInputElement | null>(null)
   const [isImportOpen, setIsImportOpen] = React.useState(false)
   const [isDragActive, setIsDragActive] = React.useState(false)
-  const [duplicateWarning, setDuplicateWarning] = React.useState<string | null>(null)
+  // Toast notifications stack (top-right)
+  const [toasts, setToasts] = React.useState<{ id: string, text: string, type: "success" | "warning" | "error" }[]>([])
+
+  // Preview modal for viewing selected lead details
+  const [preview, setPreview] = React.useState<{ open: boolean, lead: Lead | null }>({ open: false, lead: null })
+  const [copiedKey, setCopiedKey] = React.useState<string | null>(null)
+
+  // Filter modal and state
+  const [isFilterOpen, setIsFilterOpen] = React.useState(false)
+  const [filters, setFilters] = React.useState({
+    name: "",
+    email: "",
+    phone: "",
+    ssn: "",
+    source: "",
+    status: ""
+  })
 
   const [name, setName] = React.useState("")
   const [email, setEmail] = React.useState("")
   const [phone, setPhone] = React.useState("")
+  const [ssn, setSsn] = React.useState("")
   const [source, setSource] = React.useState("")
   const [status, setStatus] = React.useState<Lead["status"]>("New")
   const [customStatus, setCustomStatus] = React.useState("")
+
+  // Field limits
+  const FIELD_MAX = React.useMemo(() => ({
+    name: 160,     // geralmente nomes completos ficam entre 40-60 chars
+    email: 30,   // limite oficial do padrão RFC para emails
+    phone: 20,    // suporta +DDI, DDD, traços e espaços (+55 11 99999-9999)
+    ssn: 14,      // se for CPF/CNPJ -> 14 chars com pontos/traços
+    source: 30,   // ex: origem do cadastro (site, campanha, etc.)
+    status: 20,   // status curto: "pendente", "em análise", "aprovado"
+  }), [])
 
   React.useEffect(() => {
     try {
@@ -113,22 +144,44 @@ export default function LeadsPage({
     } catch {}
   }, [leads, storageKey])
 
+  // Helpers: notifications
+  function pushToast(message: string, type: "success" | "warning" | "error" = "success", timeoutMs = 4000) {
+    const id = createId()
+    setToasts((prev) => [...prev, { id, text: message, type }])
+    window.setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id))
+    }, timeoutMs)
+  }
+
   React.useEffect(() => {
-    const filtered = leads.filter(lead =>
-      lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      lead.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      lead.phone.includes(searchTerm) ||
-      lead.source.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      lead.status.toLowerCase().includes(searchTerm.toLowerCase())
-    )
+    const filtered = leads.filter(lead => {
+      // Search filter
+      const matchesSearch = lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        lead.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        lead.phone.includes(searchTerm) ||
+        lead.ssn.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        lead.source.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        lead.status.toLowerCase().includes(searchTerm.toLowerCase())
+      
+      // Field filters
+      const matchesName = !filters.name || lead.name.toLowerCase().includes(filters.name.toLowerCase())
+      const matchesEmail = !filters.email || lead.email.toLowerCase().includes(filters.email.toLowerCase())
+      const matchesPhone = !filters.phone || lead.phone.includes(filters.phone)
+      const matchesSsn = !filters.ssn || lead.ssn.toLowerCase().includes(filters.ssn.toLowerCase())
+      const matchesSource = !filters.source || lead.source.toLowerCase().includes(filters.source.toLowerCase())
+      const matchesStatus = !filters.status || lead.status.toLowerCase() === filters.status.toLowerCase()
+      
+      return matchesSearch && matchesName && matchesEmail && matchesPhone && matchesSsn && matchesSource && matchesStatus
+    })
     setFilteredLeads(filtered)
-  }, [leads, searchTerm])
+  }, [leads, searchTerm, filters])
 
   function resetForm() {
     setEditingId(null)
     setName("")
     setEmail("")
     setPhone("")
+    setSsn("")
     setSource("")
     setStatus("New")
     setCustomStatus("")
@@ -141,40 +194,52 @@ export default function LeadsPage({
     setName("")
     setEmail("")
     setPhone("")
+    setSsn("")
     setSource("")
     setStatus("New")
     setCustomStatus("")
     setIsModalOpen(true)
   }
 
+  function truncateTo(value: string, max: number): string {
+    return value.length > max ? value.slice(0, max) : value
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!name || !email) return
+    // Enforce limits before saving
+    const safeName = truncateTo(name, FIELD_MAX.name)
+    const safeEmail = truncateTo(email, FIELD_MAX.email)
+    const safePhone = truncateTo(phone, FIELD_MAX.phone)
+    const safeSsn = truncateTo(ssn, FIELD_MAX.ssn)
+    const safeSource = truncateTo(source, FIELD_MAX.source)
+    const safeStatus = truncateTo(String(status), FIELD_MAX.status) as Lead["status"]
     if (editingId) {
       setLeads((prev) =>
         prev.map((l) =>
-          l.id === editingId ? { ...l, name, email, phone, source, status } : l
+          l.id === editingId ? { ...l, name: safeName, email: safeEmail, phone: safePhone, ssn: safeSsn, source: safeSource, status: safeStatus } : l
         )
       )
     } else {
       const newLead: Lead = {
         id: createId(),
-        name,
-        email,
-        phone,
-        source,
-        status,
+        name: safeName,
+        email: safeEmail,
+        phone: safePhone,
+        ssn: safeSsn,
+        source: safeSource,
+        status: safeStatus,
       }
-      setLeads((prev) => {
-        const existing = buildSignatureSet(prev)
-        const sig = makeLeadSignature({ name: newLead.name, email: newLead.email, phone: newLead.phone, source: newLead.source, status: newLead.status })
-        if (existing.has(sig)) {
-          setDuplicateWarning(`Lead "${newLead.name}" already exists and was not added.`)
-          setTimeout(() => setDuplicateWarning(null), 4000)
-          return prev
-        }
-        return [newLead, ...prev]
-      })
+      const existing = buildSignatureSet(leads)
+      const sig = makeLeadSignature({ name: newLead.name, email: newLead.email, phone: newLead.phone, ssn: newLead.ssn, source: newLead.source, status: newLead.status })
+      if (existing.has(sig)) {
+        pushToast(`Lead "${newLead.name}" already exists and was not added.`, "warning")
+      } else {
+        setLeads([newLead, ...leads])
+        // Optional: toast for manual add success (kept subtle by default)
+        pushToast(`Lead "${newLead.name}" added successfully.`, "success")
+      }
     }
     resetForm()
   }
@@ -184,6 +249,7 @@ export default function LeadsPage({
     setName(lead.name)
     setEmail(lead.email)
     setPhone(lead.phone)
+    setSsn(lead.ssn)
     setSource(lead.source)
     setStatus(lead.status)
     if (lead.status !== "New" && lead.status !== "In Contact" && lead.status !== "Qualified" && lead.status !== "Lost") {
@@ -279,6 +345,7 @@ export default function LeadsPage({
       Name: lead.name,
       Email: lead.email,
       Phone: lead.phone,
+      SSN: lead.ssn,
       Source: lead.source,
       Status: lead.status
     }))
@@ -303,23 +370,90 @@ export default function LeadsPage({
   }
 
   function headerToCanonical(normalized: string): keyof Omit<Lead, "id"> | null {
-    // English variants
-    if (/^name|full\s*name|nome$/.test(normalized)) return "name"
-    if (/^email|e\s*mail$/.test(normalized)) return "email"
-    if (/^phone|phone\s*number|telefone|celular|telemovel|whatsapp$/.test(normalized)) return "phone"
-    if (/^source|lead\s*source|origem|fonte|canal|canal\s*de\s*origem$/.test(normalized)) return "source"
-    if (/^status|situacao|situação|estado|etapa$/.test(normalized)) return "status"
+    // Map of supported header synonyms (normalized via normalizeHeader)
+    const headerAliases: Record<keyof Omit<Lead, "id">, string[]> = {
+      name: [
+        "name",
+        "full name",
+        "fullname",
+        "nome",
+        "nome completo"
+      ],
+      email: [
+        "email",
+        "e mail",
+        "mail",
+        "email address",
+        "endereco de email",
+        "correio",
+        "correo"
+      ],
+      phone: [
+        "phone",
+        "phone number",
+        "cell",
+        "cellphone",
+        "mobile",
+        "mobile phone",
+        "telefone",
+        "celular",
+        "telemovel",
+        "whatsapp"
+      ],
+      ssn: [
+        "ssn",
+        "social security number",
+        "social security",
+        "social security no",
+        "social security n",
+        "social security #",
+        "social sec number",
+        "social sec no",
+        "cpf",
+        "c p f",
+        "cadastro de pessoa fisica",
+        "cadastro de pessoa física",
+        "numero do cpf",
+        "n cpf",
+        "número do cpf"
+      ],
+      source: [
+        "source",
+        "lead source",
+        "leadsource",
+        "origem",
+        "fonte",
+        "canal",
+        "canal de origem",
+        "origem do lead",
+        "fonte do lead"
+      ],
+      status: [
+        "status",
+        "lead status",
+        "leadstatus",
+        "situacao",
+        "estado",
+        "etapa",
+        "situacao do lead",
+        "situacao do contato"
+      ],
+    }
+
+    for (const [key, aliases] of Object.entries(headerAliases) as [keyof Omit<Lead, "id">, string[]][]) {
+      if (aliases.includes(normalized)) return key
+    }
     return null
   }
 
   function makeLeadSignature(l: Omit<Lead, "id">): string {
-    return `${l.name}||${l.email}||${l.phone}||${l.source}||${l.status}`
+    return `${l.name}||${l.email}||${l.phone}||${l.ssn}||${l.source}||${l.status}`
   }
 
   function buildSignatureSet(items: Lead[]): Set<string> {
     const s = new Set<string>()
     for (const l of items) {
-      s.add(makeLeadSignature({ name: l.name, email: l.email, phone: l.phone, source: l.source, status: l.status }))
+      s.add(makeLeadSignature({ name: l.name, email: l.email, phone: l.phone, ssn: l.ssn, source: l.source, status: l.status }))
     }
     return s
   }
@@ -341,15 +475,17 @@ export default function LeadsPage({
         if (!key) continue
         const text = String(value ?? "").trim()
         if (key === "status") {
-          draft.status = text as Lead["status"]
+          draft.status = truncateTo(text, FIELD_MAX.status) as Lead["status"]
         } else if (key === "name") {
-          draft.name = text
+          draft.name = truncateTo(text, FIELD_MAX.name)
         } else if (key === "email") {
-          draft.email = text
+          draft.email = truncateTo(text, FIELD_MAX.email)
         } else if (key === "phone") {
-          draft.phone = text
+          draft.phone = truncateTo(text, FIELD_MAX.phone)
         } else if (key === "source") {
-          draft.source = text
+          draft.source = truncateTo(text, FIELD_MAX.source)
+        } else if (key === "ssn") {
+          draft.ssn = truncateTo(text, FIELD_MAX.ssn)
         }
       }
       if (!draft.name && !draft.email) continue
@@ -358,6 +494,7 @@ export default function LeadsPage({
         name: draft.name || "",
         email: draft.email || "",
         phone: draft.phone || "",
+        ssn: draft.ssn || "",
         source: draft.source || "",
         status: (draft.status as Lead["status"]) || "New",
       })
@@ -372,25 +509,29 @@ export default function LeadsPage({
         const text = await file.text()
         const data = JSON.parse(text) as Record<string, unknown>[]
         const imported = mapRowsToLeads(Array.isArray(data) ? data : [])
-      if (imported.length > 0) setLeads((prev) => {
-        const existing = buildSignatureSet(prev)
-        const uniqueToAdd: Lead[] = []
-        let duplicatesCount = 0
-        for (const l of imported) {
-          const sig = makeLeadSignature({ name: l.name, email: l.email, phone: l.phone, source: l.source, status: l.status })
-          if (!existing.has(sig)) {
-            existing.add(sig)
-            uniqueToAdd.push(l)
+        if (imported.length > 0) {
+          const existing = buildSignatureSet(leads)
+          const uniqueToAdd: Lead[] = []
+          let duplicatesCount = 0
+          for (const l of imported) {
+            const sig = makeLeadSignature({ name: l.name, email: l.email, phone: l.phone, ssn: l.ssn, source: l.source, status: l.status })
+            if (!existing.has(sig)) {
+              existing.add(sig)
+              uniqueToAdd.push(l)
+            } else {
+              duplicatesCount++
+            }
+          }
+          if (uniqueToAdd.length > 0) {
+            setLeads([...uniqueToAdd, ...leads])
+            pushToast(`${uniqueToAdd.length} lead(s) imported successfully.`, "success")
           } else {
-            duplicatesCount++
+            pushToast(`0 lead(s) imported. No new records detected.`, "warning")
+          }
+          if (duplicatesCount > 0) {
+            pushToast(`${duplicatesCount} duplicate lead(s) were skipped during import.`, "warning")
           }
         }
-        if (duplicatesCount > 0) {
-          setDuplicateWarning(`${duplicatesCount} duplicate lead(s) were skipped during import.`)
-          setTimeout(() => setDuplicateWarning(null), 4000)
-        }
-        return uniqueToAdd.length ? [...uniqueToAdd, ...prev] : prev
-      })
         return
       }
       // CSV, XLSX, XLS, ODS via SheetJS
@@ -401,25 +542,27 @@ export default function LeadsPage({
       const rows: Record<string, unknown>[] = XLSX.utils.sheet_to_json(worksheet, { defval: "" })
       const imported = mapRowsToLeads(rows)
       if (imported.length > 0) {
-        setLeads((prev) => {
-          const existing = buildSignatureSet(prev)
-          const uniqueToAdd: Lead[] = []
-          let duplicatesCount = 0
-          for (const l of imported) {
-            const sig = makeLeadSignature({ name: l.name, email: l.email, phone: l.phone, source: l.source, status: l.status })
-            if (!existing.has(sig)) {
-              existing.add(sig)
-              uniqueToAdd.push(l)
-            } else {
-              duplicatesCount++
-            }
+        const existing = buildSignatureSet(leads)
+        const uniqueToAdd: Lead[] = []
+        let duplicatesCount = 0
+        for (const l of imported) {
+          const sig = makeLeadSignature({ name: l.name, email: l.email, phone: l.phone, ssn: l.ssn, source: l.source, status: l.status })
+          if (!existing.has(sig)) {
+            existing.add(sig)
+            uniqueToAdd.push(l)
+          } else {
+            duplicatesCount++
           }
-          if (duplicatesCount > 0) {
-            setDuplicateWarning(`${duplicatesCount} duplicate lead(s) were skipped during import.`)
-            setTimeout(() => setDuplicateWarning(null), 4000)
-          }
-          return uniqueToAdd.length ? [...uniqueToAdd, ...prev] : prev
-        })
+        }
+        if (uniqueToAdd.length > 0) {
+          setLeads([...uniqueToAdd, ...leads])
+          pushToast(`${uniqueToAdd.length} lead(s) imported successfully.`, "success")
+        } else {
+          pushToast(`0 lead(s) imported. No new records detected.`, "warning")
+        }
+        if (duplicatesCount > 0) {
+          pushToast(`${duplicatesCount} duplicate lead(s) were skipped during import.`, "warning")
+        }
       }
     } catch (err) {
       console.error(err)
@@ -438,6 +581,7 @@ export default function LeadsPage({
       name: lead.name,
       email: lead.email,
       phone: lead.phone,
+      ssn: lead.ssn,
       source: lead.source,
       status: lead.status,
     }))
@@ -450,6 +594,7 @@ export default function LeadsPage({
       a.download = `${base}.json`
       a.click()
       URL.revokeObjectURL(a.href)
+      pushToast(`${data.length} lead(s) exported as JSON.`, "success")
       return
     }
     const ws = XLSX.utils.json_to_sheet(data)
@@ -457,15 +602,16 @@ export default function LeadsPage({
     XLSX.utils.book_append_sheet(wb, ws, "Leads")
     const bookType = format
     XLSX.writeFile(wb, `${base}.${format}`, { bookType: bookType as XLSX.BookType })
+    pushToast(`${data.length} lead(s) exported as ${format.toUpperCase()}.`, "success")
   }
 
   // Free text phone input: no auto-formatting
 
   const canConfirmDeletion = React.useMemo(() => {
-    // For single deletion, no typing required. For bulk deletion, require "confirm"
+    // For single deletion, no typing required. For bulk deletion, require "delete"
     if (pendingDeletionIds.length === 1) return true
     const value = confirmInput.trim().toLowerCase()
-    return value === "confirm"
+    return value === "delete"
   }, [confirmInput, pendingDeletionIds.length])
 
   function performDeletion() {
@@ -511,20 +657,36 @@ export default function LeadsPage({
           </Breadcrumb>
         </header>
 
-        {/* DUPLICATE WARNING NOTIFICATION */}
-        {duplicateWarning && (
-          <div className="fixed top-4 right-4 z-50 max-w-sm">
-            <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-lg shadow-lg">
-              <div className="flex items-center gap-2">
-                <div className="text-sm">{duplicateWarning}</div>
-                <button
-                  onClick={() => setDuplicateWarning(null)}
-                  className="text-yellow-600 hover:text-yellow-800 ml-2"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
+        {/* NOTIFICATIONS STACK */}
+        {toasts.length > 0 && (
+          <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm">
+            {toasts.map((t) => {
+              const styles = t.type === "success"
+                ? "bg-green-50 border border-green-200 text-green-800"
+                : t.type === "error"
+                ? "bg-red-50 border border-red-200 text-red-800"
+                : "bg-yellow-50 border border-yellow-200 text-yellow-800"
+              const closeColor = t.type === "success" ? "text-green-600 hover:text-green-800" : t.type === "error" ? "text-red-600 hover:text-red-800" : "text-yellow-600 hover:text-yellow-800"
+              return (
+                <div key={t.id} className={`${styles} px-4 py-3 rounded-lg shadow-lg backdrop-blur-sm`}> 
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5">
+                      {t.type === "success" && <CheckCircle2 className="h-4 w-4" />}
+                      {t.type === "warning" && <AlertTriangle className="h-4 w-4" />}
+                      {t.type === "error" && <AlertCircle className="h-4 w-4" />}
+                    </div>
+                    <div className="flex-1 text-sm leading-5">{t.text}</div>
+                    <button
+                      onClick={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))}
+                      className={`${closeColor} ml-2`}
+                      aria-label="Dismiss notification"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         )}
 
@@ -542,6 +704,30 @@ export default function LeadsPage({
                   className="pl-10 w-64"
                 />
               </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsFilterOpen(true)}
+                className="cursor-pointer"
+              >
+                <Filter className="h-4 w-4 mr-2" />
+                Filters
+                {Object.values(filters).some(f => f !== "") && (
+                  <span className="ml-1 bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 text-xs">
+                    {Object.values(filters).filter(f => f !== "").length}
+                  </span>
+                )}
+              </Button>
+              {Object.values(filters).some(f => f !== "") && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setFilters({ name: "", email: "", phone: "", ssn: "", source: "", status: "" })}
+                  className="cursor-pointer text-muted-foreground hover:text-foreground"
+                >
+                  <XCircle className="h-4 w-4" />
+                </Button>
+              )}
         </div>
             <div className="flex items-center gap-2">
               <DropdownMenu>
@@ -553,13 +739,15 @@ export default function LeadsPage({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem onClick={startAddNew} className="cursor-pointer">
+                  <DropdownMenuItem onClick={startAddNew} className="cursor-pointer flex items-center gap-2">
+                    <Plus className="h-4 w-4" />
                     Add manually
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => setIsImportOpen(true)}
-                    className="cursor-pointer"
+                    className="cursor-pointer flex items-center gap-2"
                   >
+                    <Download className="h-4 w-4" />
                     Import
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -574,10 +762,22 @@ export default function LeadsPage({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem onClick={() => exportData("xlsx")} className="cursor-pointer">Export as XLSX</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => exportData("csv")} className="cursor-pointer">Export as CSV</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => exportData("ods")} className="cursor-pointer">Export as ODS</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => exportData("json")} className="cursor-pointer">Export as JSON</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => exportData("xlsx")} className="cursor-pointer flex items-center gap-2">
+                    <Upload className="h-4 w-4" />
+                    Export as XLSX
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => exportData("csv")} className="cursor-pointer flex items-center gap-2">
+                    <Upload className="h-4 w-4" />
+                    Export as CSV
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => exportData("ods")} className="cursor-pointer flex items-center gap-2">
+                    <Upload className="h-4 w-4" />
+                    Export as ODS
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => exportData("json")} className="cursor-pointer flex items-center gap-2">
+                    <Upload className="h-4 w-4" />
+                    Export as JSON
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
               {selectedLeads.size > 0 && (
@@ -622,12 +822,13 @@ export default function LeadsPage({
                         className="rounded border-input"
                       />
                     </th>
-                    <th className="py-2 pr-3">Name</th>
-                    <th className="py-2 pr-3">Email</th>
-                    <th className="py-2 pr-3">Phone</th>
-                    <th className="py-2 pr-3">Source</th>
-                    <th className="py-2 pr-3">Status</th>
-                    <th className="py-2 pr-0 text-right">Actions</th>
+                    <th className="py-2 pr-3 w-[200px]">Name</th>
+                    <th className="py-2 pr-3 w-[240px]">Email</th>
+                    <th className="py-2 pr-3 w-[140px]">Phone</th>
+                    <th className="py-2 pr-3 w-[160px]">SSN</th>
+                    <th className="py-2 pr-3 w-[160px]">Source</th>
+                    <th className="py-2 pr-3 w-[120px]">Status</th>
+                    <th className="py-2 pr-0 text-right w-[100px]">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -642,17 +843,34 @@ export default function LeadsPage({
                           className="rounded border-input"
                         />
                       </td>
-                      <td className="py-2 pr-3">{lead.name}</td>
-                      <td className="py-2 pr-3">{lead.email}</td>
-                      <td className="py-2 pr-3">{lead.phone}</td>
-                      <td className="py-2 pr-3">{lead.source}</td>
+                      <td className="py-2 pr-3">
+                        <div
+                          className="max-w-[200px] truncate hover:underline decoration-dotted cursor-pointer"
+                          title={lead.name}
+                          onClick={() => setPreview({ open: true, lead })}
+                        >
+                          {lead.name}
+                        </div>
+                      </td>
+                      <td className="py-2 pr-3">
+                        <div className="max-w-[220px] truncate" title={lead.email}>{lead.email}</div>
+                      </td>
+                      <td className="py-2 pr-3">
+                        <div className="max-w-[140px] truncate whitespace-nowrap" title={lead.phone}>{lead.phone}</div>
+                      </td>
+                      <td className="py-2 pr-3">
+                        <div className="max-w-[160px] truncate whitespace-nowrap" title={lead.ssn}>{lead.ssn}</div>
+                      </td>
+                      <td className="py-2 pr-3">
+                        <div className="max-w-[160px] truncate" title={lead.source}>{lead.source}</div>
+                      </td>
                       <td className="py-2 pr-3">
                         <span className="inline-flex items-center rounded-md border px-2 py-0.5 text-xs">
                           {lead.status}
                         </span>
                       </td>
                       <td className="py-2 pr-0">
-                        <div className="flex justify-end gap-2">
+                        <div className="flex justify-end gap-1.5">
                           <Button size="sm" variant="outline" onClick={() => handleEdit(lead)} className="cursor-pointer">
                             <Edit className="h-3 w-3 mr-1" />
                             Edit
@@ -696,7 +914,8 @@ export default function LeadsPage({
                   <Input
                     placeholder="Full name"
                     value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    onChange={(e) => setName(e.target.value.slice(0, FIELD_MAX.name))}
+                    maxLength={FIELD_MAX.name}
               required
             />
           </div>
@@ -706,7 +925,8 @@ export default function LeadsPage({
                 type="email"
                     placeholder="email@example.com"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => setEmail(e.target.value.slice(0, FIELD_MAX.email))}
+                maxLength={FIELD_MAX.email}
                 required
               />
             </div>
@@ -715,7 +935,17 @@ export default function LeadsPage({
                   <Input
                     placeholder="Phone"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={(e) => setPhone(e.target.value.slice(0, FIELD_MAX.phone))}
+                    maxLength={FIELD_MAX.phone}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">SSN</label>
+                  <Input
+                    placeholder="SSN"
+                    value={ssn}
+                    onChange={(e) => setSsn(e.target.value.slice(0, FIELD_MAX.ssn))}
+                    maxLength={FIELD_MAX.ssn}
                   />
                 </div>
           <div>
@@ -723,7 +953,8 @@ export default function LeadsPage({
                   <Input
                     placeholder="e.g., Instagram, Landing Page"
                     value={source}
-                    onChange={(e) => setSource(e.target.value)}
+                    onChange={(e) => setSource(e.target.value.slice(0, FIELD_MAX.source))}
+                    maxLength={FIELD_MAX.source}
               />
             </div>
                 <div className="md:col-span-2 space-y-2">
@@ -756,9 +987,11 @@ export default function LeadsPage({
                         placeholder="e.g., Follow-up postponed"
                         value={customStatus}
                         onChange={(e) => {
-                          setCustomStatus(e.target.value)
-                          setStatus(e.target.value)
+                          const v = e.target.value.slice(0, FIELD_MAX.status)
+                          setCustomStatus(v)
+                          setStatus(v)
                         }}
+                        maxLength={FIELD_MAX.status}
                       />
                     </div>
                   )}
@@ -778,6 +1011,149 @@ export default function LeadsPage({
           </SheetContent>
         </Sheet>
 
+    {/* PREVIEW MODAL - Lead details */}
+    <Sheet open={preview.open} onOpenChange={(open) => setPreview((p) => ({ ...p, open }))}>
+      <SheetContent className="w-full sm:max-w-md border-l border-border p-6 md:p-8">
+        <SheetHeader>
+          <SheetTitle>Lead details</SheetTitle>
+          <SheetDescription>Full data for quick copy</SheetDescription>
+        </SheetHeader>
+        <Separator className="my-4" />
+        <div className="space-y-3">
+          {(() => {
+            const l = preview.lead
+            if (!l) return null
+            const rows: { label: string, value: string }[] = [
+              { label: "Name", value: l.name },
+              { label: "Email", value: l.email },
+              { label: "Phone", value: l.phone },
+              { label: "SSN", value: l.ssn },
+              { label: "Source", value: l.source },
+              { label: "Status", value: String(l.status) },
+            ]
+            return rows.map((r) => (
+              <div key={r.label} className="space-y-1">
+                <div className="text-xs text-muted-foreground">{r.label}</div>
+                <div className="flex items-start gap-2">
+                  <div className="flex-1 rounded-md border border-input p-2 text-sm break-words bg-muted/30">
+                    {r.value || <span className="text-muted-foreground">(empty)</span>}
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="cursor-pointer shrink-0"
+                    onMouseLeave={() => setCopiedKey((k) => (k ? null : k))}
+                    onClick={() => {
+                      navigator.clipboard.writeText(r.value || "")
+                      setCopiedKey(r.label)
+                      window.setTimeout(() => setCopiedKey((k) => (k === r.label ? null : k)), 700)
+                    }}
+                  >
+                    <span className="inline-flex items-center gap-1 w-[54px] justify-center">
+                      {copiedKey === r.label ? (
+                        <Check className="h-4 w-4" />
+                      ) : (
+                        <>Copy</>
+                      )}
+                    </span>
+                  </Button>
+                </div>
+              </div>
+            ))
+          })()}
+          <div className="flex justify-end pt-2">
+            <Button className="cursor-pointer" onClick={() => setPreview({ open: false, lead: null })}>Close</Button>
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
+
+    {/* FILTER MODAL */}
+    <Sheet open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+      <SheetContent className="w-full sm:max-w-md border-l border-border p-6 md:p-8">
+        <SheetHeader>
+          <SheetTitle>Filter leads</SheetTitle>
+          <SheetDescription>Filter leads by any field to find specific records.</SheetDescription>
+        </SheetHeader>
+        <Separator className="my-4" />
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="mb-1 block text-sm font-medium">Name</label>
+            <Input
+              placeholder="Filter by name..."
+              value={filters.name}
+              onChange={(e) => setFilters(prev => ({ ...prev, name: e.target.value }))}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="mb-1 block text-sm font-medium">Email</label>
+            <Input
+              placeholder="Filter by email..."
+              value={filters.email}
+              onChange={(e) => setFilters(prev => ({ ...prev, email: e.target.value }))}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="mb-1 block text-sm font-medium">Phone</label>
+            <Input
+              placeholder="Filter by phone..."
+              value={filters.phone}
+              onChange={(e) => setFilters(prev => ({ ...prev, phone: e.target.value }))}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="mb-1 block text-sm font-medium">SSN</label>
+            <Input
+              placeholder="Filter by SSN..."
+              value={filters.ssn}
+              onChange={(e) => setFilters(prev => ({ ...prev, ssn: e.target.value }))}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="mb-1 block text-sm font-medium">Source</label>
+            <Input
+              placeholder="Filter by source..."
+              value={filters.source}
+              onChange={(e) => setFilters(prev => ({ ...prev, source: e.target.value }))}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="mb-1 block text-sm font-medium">Status</label>
+            <select
+              className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input h-9 w-full min-w-0 rounded-md border bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+              value={filters.status}
+              onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+            >
+              <option value="">All statuses</option>
+              <option value="New">New</option>
+              <option value="In Contact">In Contact</option>
+              <option value="Qualified">Qualified</option>
+              <option value="Lost">Lost</option>
+            </select>
+          </div>
+          <Separator />
+          <div className="flex gap-2">
+            <Button
+              onClick={() => setIsFilterOpen(false)}
+              className="flex-1 cursor-pointer"
+            >
+              Apply Filter
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setFilters({ name: "", email: "", phone: "", ssn: "", source: "", status: "" })
+                setIsFilterOpen(false)
+              }}
+              className="cursor-pointer"
+            >
+              Clear All
+            </Button>
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
+
         {/* IMPORT MODAL (Centered Overlay) */}
         {isImportOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -785,7 +1161,7 @@ export default function LeadsPage({
             <div className="relative z-10 w-full max-w-lg rounded-xl border border-border bg-background p-6 shadow-xl">
               <div className="space-y-2">
                 <h3 className="text-lg font-semibold leading-none tracking-tight">Import leads</h3>
-                <p className="text-sm text-muted-foreground">Accepted formats: .xlsx, .xls, .csv, .ods, .json. <br></br>Columns: name, email, phone, source, status</p>
+                <p className="text-sm text-muted-foreground">Accepted formats: .xlsx, .xls, .csv, .ods, .json. <br></br>Columns: name, email, phone, ssn, source, status</p>
               </div>
               <Separator className="my-4" />
               <div
@@ -893,7 +1269,7 @@ export default function LeadsPage({
               <SheetDescription>
                 This action is irreversible. {pendingDeletionIds.length > 1 && (
                   <>
-                    <br></br>Type "Confirm" to proceed.
+                    <br></br>Type "Delete" to proceed.
                   </>
                 )}
               </SheetDescription>
@@ -909,7 +1285,7 @@ export default function LeadsPage({
                 <div className="space-y-2">
                   <label className="mb-1 block text-sm font-medium">Confirmation</label>
                   <Input
-                    placeholder="Type 'Confirm' to continue"
+                    placeholder="Type 'Delete' to continue"
                     value={confirmInput}
                     onChange={(e) => setConfirmInput(e.target.value)}
                   />
