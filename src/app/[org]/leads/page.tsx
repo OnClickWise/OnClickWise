@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useSearchParams } from "next/navigation"
 import { AppSidebar } from "@/components/app-sidebar"
 import {
   Breadcrumb,
@@ -70,7 +71,7 @@ export default function LeadsPage({
 }) {
   const { org } = React.use(params)
   const storageKey = React.useMemo(() => `leads_${org}`, [org])
-
+  const searchParams = useSearchParams()
   const [leads, setLeads] = React.useState<Lead[]>([])
   const [filteredLeads, setFilteredLeads] = React.useState<Lead[]>([])
   const [searchTerm, setSearchTerm] = React.useState("")
@@ -138,6 +139,14 @@ export default function LeadsPage({
     }
   }, [storageKey])
 
+  // Initialize search term from URL parameters
+  React.useEffect(() => {
+    const searchFromUrl = searchParams.get('search')
+    if (searchFromUrl) {
+      setSearchTerm(decodeURIComponent(searchFromUrl))
+    }
+  }, [searchParams])
+  
   React.useEffect(() => {
     try {
       localStorage.setItem(storageKey, JSON.stringify(leads))
