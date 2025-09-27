@@ -148,6 +148,7 @@ export default function PipelinePage({
   const [draggedLead, setDraggedLead] = React.useState<Lead | null>(null)
   const [draggedOverStage, setDraggedOverStage] = React.useState<string | null>(null)
   const [isEditModalOpen, setIsEditModalOpen] = React.useState(false)
+  const [isDragging, setIsDragging] = React.useState(false)
 
   // Edit form states
   const [editValue, setEditValue] = React.useState("")
@@ -256,7 +257,10 @@ export default function PipelinePage({
 
   function handleDragStart(e: React.DragEvent, lead: Lead) {
     setDraggedLead(lead)
+    setIsDragging(true)
     e.dataTransfer.effectAllowed = "move"
+    // Remove o efeito de transparência feio
+    e.dataTransfer.setDragImage(new Image(), 0, 0)
   }
 
   function handleDragOver(e: React.DragEvent, stageId: string) {
@@ -267,6 +271,12 @@ export default function PipelinePage({
 
   function handleDragLeave() {
     setDraggedOverStage(null)
+  }
+
+  function handleDragEnd() {
+    setDraggedLead(null)
+    setDraggedOverStage(null)
+    setIsDragging(false)
   }
 
   function handleDrop(e: React.DragEvent, targetStageId: string) {
@@ -291,6 +301,7 @@ export default function PipelinePage({
     pushToast(`Lead "${draggedLead.name}" moved to "${newStatus}".`, "success")
     setDraggedLead(null)
     setDraggedOverStage(null)
+    setIsDragging(false)
   }
 
   function formatCurrency(value: number) {
@@ -432,10 +443,10 @@ export default function PipelinePage({
               {pipelineStages.map((stage) => (
                 <div
                   key={stage.id}
-                  className={`rounded-lg border-2 p-4 h-[500px] flex flex-col transition-colors ${
+                  className={`rounded-lg border-2 p-4 h-[500px] flex flex-col transition-all duration-200 ${
                     draggedOverStage === stage.id 
-                      ? "border-primary bg-primary/5" 
-                      : "border-border"
+                      ? "border-primary bg-primary/10 scale-[1.02] shadow-lg" 
+                      : "border-border hover:border-border/80"
                   }`}
                   onDragOver={(e) => handleDragOver(e, stage.id)}
                   onDragLeave={handleDragLeave}
@@ -451,6 +462,11 @@ export default function PipelinePage({
                   </div>
                   
                   <div className="flex-1 overflow-y-auto space-y-3 pr-2">
+                    {draggedOverStage === stage.id && (
+                      <div className="border-2 border-dashed border-primary/50 rounded-lg p-4 text-center text-sm text-muted-foreground bg-primary/5">
+                        Drop lead here
+                      </div>
+                    )}
                     {stage.leads
                       .filter(lead => 
                         !searchTerm || 
@@ -461,9 +477,14 @@ export default function PipelinePage({
                       .map((lead) => (
                       <div
                         key={lead.id}
-                        className="bg-background border rounded-lg p-3 cursor-move hover:shadow-md transition-shadow"
+                        className={`bg-background border rounded-lg p-3 transition-all duration-200 ${
+                          isDragging && draggedLead?.id === lead.id 
+                            ? 'opacity-50 scale-95 shadow-lg' 
+                            : 'hover:shadow-md cursor-grab active:cursor-grabbing'
+                        }`}
                         draggable
                         onDragStart={(e) => handleDragStart(e, lead)}
+                        onDragEnd={handleDragEnd}
                       >
                         <div className="flex items-start justify-between mb-2">
                           <div className="flex-1">
