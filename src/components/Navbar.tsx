@@ -3,6 +3,7 @@
 import { motion } from "framer-motion"
 import { Menu, LogIn, UserPlus } from "lucide-react"
 import { useState } from "react"
+import Link from "next/link"
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
@@ -57,14 +58,14 @@ export default function Navbar() {
 
         {/* BOTÕES */}
         <div className="flex justify-end gap-3">
-          <button className="hidden md:flex items-center gap-2 text-sm px-4 py-2 rounded-full border border-gray-300 dark:border-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition">
+          <Link href="/login" className="hidden md:flex items-center gap-2 text-sm px-4 py-2 rounded-full border border-gray-300 dark:border-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition">
             <LogIn size={16} />
             Login
-          </button>
-          <button className="hidden md:flex items-center gap-2 text-sm px-4 py-2 rounded-full bg-gradient-to-r from-blue-600 to-yellow-400 text-white hover:opacity-90 shadow-md transition">
+          </Link>
+          <Link href="/register" className="hidden md:flex items-center gap-2 text-sm px-4 py-2 rounded-full bg-gradient-to-r from-blue-600 to-yellow-400 text-white hover:opacity-90 shadow-md transition">
             <UserPlus size={16} />
             Sign Up
-          </button>
+          </Link>
 
           {/* BOTÃO MOBILE */}
           <button
@@ -97,16 +98,16 @@ export default function Navbar() {
               </li>
             ))}
             <li>
-              <button className="w-full flex items-center justify-center gap-2 text-sm px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition">
+              <Link href="/login" className="w-full flex items-center justify-center gap-2 text-sm px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition" onClick={() => setIsOpen(false)}>
                 <LogIn size={16} />
                 Login
-              </button>
+              </Link>
             </li>
             <li>
-              <button className="w-full flex items-center justify-center gap-2 text-sm px-3 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-yellow-400 text-white hover:opacity-90 shadow-md transition">
+              <Link href="/register" className="w-full flex items-center justify-center gap-2 text-sm px-3 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-yellow-400 text-white hover:opacity-90 shadow-md transition" onClick={() => setIsOpen(false)}>
                 <UserPlus size={16} />
                 Sign Up
-              </button>
+              </Link>
             </li>
           </ul>
         </motion.nav>
