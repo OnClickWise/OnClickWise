@@ -1,6 +1,5 @@
 'use client';
 
-import { use } from 'react';
 import { AppSidebar } from "@/components/app-sidebar"
 import {
   Breadcrumb,
@@ -17,15 +16,14 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar"
 
-export default function SettingsPage({
+export default function BrandingPage({
   params,
 }: {
-  params: Promise<{ org: string }>;
+  params: { org: string };
 }) {
-  const { org } = use(params);
   return (
     <SidebarProvider>
-      <AppSidebar org={org} />
+      <AppSidebar org={params.org} />
       <SidebarInset>
         {/* HEADER */}
         <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4">
@@ -37,13 +35,19 @@ export default function SettingsPage({
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem className="hidden md:block">
-                <BreadcrumbLink href={`/${org}/dashboard`}>
+                <BreadcrumbLink href={`/${params.org}/dashboard`}>
                   Dashboard
                 </BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator className="hidden md:block" />
               <BreadcrumbItem>
-                <BreadcrumbPage>Configurações</BreadcrumbPage>
+                <BreadcrumbLink href={`/${params.org}/settings`}>
+                  Configurações
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator className="hidden md:block" />
+              <BreadcrumbItem>
+                <BreadcrumbPage>Branding</BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
@@ -53,28 +57,19 @@ export default function SettingsPage({
         <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
             <div className="text-center">
-              <h1 className="text-3xl font-bold text-gray-900 mb-4">Configurações</h1>
+              <h1 className="text-3xl font-bold text-gray-900 mb-4">Branding</h1>
               <p className="text-gray-600 mb-8">
-                Gerencie as configurações da organização:{" "}
-                <span className="font-mono bg-gray-100 px-2 py-1 rounded">
-                  {params.org}
-                </span>
+                Personalize a aparência da sua plataforma com sua marca e identidade visual.
               </p>
               
               <div className="max-w-2xl mx-auto">
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-                  <h2 className="text-lg font-semibold text-blue-900 mb-2">
-                    Navegue pelas configurações
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-6">
+                  <h2 className="text-lg font-semibold text-purple-900 mb-2">
+                    Funcionalidade em desenvolvimento
                   </h2>
-                  <p className="text-blue-700 mb-4">
-                    Use o menu lateral para acessar as diferentes seções de configuração:
+                  <p className="text-purple-700">
+                    Esta página será implementada em breve. Aqui você poderá personalizar cores, logos e temas da sua plataforma.
                   </p>
-                  <ul className="text-left text-blue-700 space-y-2">
-                    <li><strong>Organização:</strong> Informações básicas da empresa</li>
-                    <li><strong>Usuários:</strong> Gerenciar funcionários e permissões</li>
-                    <li><strong>Planos & Billing:</strong> Assinatura e pagamentos</li>
-                    <li><strong>Branding:</strong> Personalização visual</li>
-                  </ul>
                 </div>
               </div>
             </div>
