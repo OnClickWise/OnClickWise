@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Building2, Mail, Lock, User, Shield, ArrowLeft } from 'lucide-react';
+import ChangePasswordModal from '@/components/ChangePasswordModal';
 
 interface CompanyInfo {
   id: number;
@@ -16,12 +17,14 @@ interface CompanyInfo {
   logo_url?: string;
 }
 
-export default function CompanyLoginPage({ params }: { params: { org: string } }) {
+export default function CompanyLoginPage({ params }: { params: Promise<{ org: string }> }) {
+  const resolvedParams = use(params);
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [loadingCompany, setLoadingCompany] = useState(true);
   const [error, setError] = useState('');
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -35,7 +38,7 @@ export default function CompanyLoginPage({ params }: { params: { org: string } }
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ slug: params.org }),
+          body: JSON.stringify({ slug: resolvedParams.org }),
         });
 
         const result = await response.json();
@@ -54,7 +57,7 @@ export default function CompanyLoginPage({ params }: { params: { org: string } }
     };
 
     fetchCompanyInfo();
-  }, [params.org]);
+  }, [resolvedParams.org]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -77,7 +80,7 @@ export default function CompanyLoginPage({ params }: { params: { org: string } }
         },
         body: JSON.stringify({
           ...formData,
-          organization_slug: params.org
+          organization_slug: resolvedParams.org
         }),
       });
 
@@ -88,8 +91,13 @@ export default function CompanyLoginPage({ params }: { params: { org: string } }
         localStorage.setItem('token', result.token);
         localStorage.setItem('organization', JSON.stringify(result.organization));
         
-        // Redirecionar para o dashboard
-        router.push(`/${result.organization.slug}/dashboard`);
+        // Verificar se é senha temporária
+        if (result.user?.is_temporary_password) {
+          setShowPasswordModal(true);
+        } else {
+          // Redirecionar para o dashboard
+          router.push(`/${result.organization.slug}/dashboard`);
+        }
       } else {
         setError(result.error || 'Login failed');
       }
@@ -99,6 +107,20 @@ export default function CompanyLoginPage({ params }: { params: { org: string } }
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePasswordChangeSuccess = () => {
+    setShowPasswordModal(false);
+    // Redirecionar para o dashboard após troca de senha
+    const organization = JSON.parse(localStorage.getItem('organization') || '{}');
+    router.push(`/${organization.slug}/dashboard`);
+  };
+
+  const handleClosePasswordModal = () => {
+    setShowPasswordModal(false);
+    // Fazer logout se cancelar
+    localStorage.removeItem('token');
+    localStorage.removeItem('organization');
   };
 
   if (loadingCompany) {
@@ -129,7 +151,7 @@ export default function CompanyLoginPage({ params }: { params: { org: string } }
             <Button
               onClick={() => router.push('/login')}
               variant="outline"
-              className="w-full"
+              className="w-full cursor-pointer"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Main Login
@@ -230,7 +252,7 @@ export default function CompanyLoginPage({ params }: { params: { org: string } }
                   <Button
                     type="submit"
                     disabled={loading}
-                    className="w-full"
+                    className="w-full cursor-pointer"
                   >
                     {loading ? 'Signing in...' : 'Sign In'}
                   </Button>
@@ -238,41 +260,21 @@ export default function CompanyLoginPage({ params }: { params: { org: string } }
                   <div className="text-center">
                     <p className="text-sm text-muted-foreground">
                       Don't have an account?{' '}
-                      <button
-                        type="button"
-                        onClick={() => router.push('/register')}
-                        className="text-primary hover:text-primary/80 font-medium cursor-pointer"
-                      >
-                        Contact your administrator
-                      </button>
+                      Contact your administrator
                     </p>
                   </div>
                 </form>
               </CardContent>
             </Card>
-
-            {/* User Types Info */}
-            <Card className="mt-6">
-              <CardContent className="p-4">
-                <h3 className="text-sm font-medium text-card-foreground mb-3">Who can sign in here?</h3>
-                <div className="space-y-2 text-sm text-muted-foreground">
-                  <div className="flex items-center space-x-2">
-                    <User className="w-4 h-4 text-primary" />
-                    <span>Company employees</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Shield className="w-4 h-4 text-chart-2" />
-                    <span>Company administrators</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Building2 className="w-4 h-4 text-chart-3" />
-                    <span>Company master account</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
         </div>
       </div>
+
+      {/* Change Password Modal */}
+      <ChangePasswordModal
+        isOpen={showPasswordModal}
+        onClose={handleClosePasswordModal}
+        onSuccess={handlePasswordChangeSuccess}
+      />
     </div>
   );
 }

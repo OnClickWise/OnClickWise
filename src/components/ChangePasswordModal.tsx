@@ -1,0 +1,247 @@
+'use client';
+
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Lock, Eye, EyeOff, CheckCircle } from 'lucide-react';
+
+interface ChangePasswordModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+export default function ChangePasswordModal({ isOpen, onClose, onSuccess }: ChangePasswordModalProps) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [formData, setFormData] = useState({
+    current_password: '',
+    new_password: '',
+    confirm_password: ''
+  });
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const validateForm = () => {
+    if (!formData.current_password || !formData.new_password || !formData.confirm_password) {
+      setError('Todos os campos são obrigatórios');
+      return false;
+    }
+
+    if (formData.new_password.length < 6) {
+      setError('A nova senha deve ter pelo menos 6 caracteres');
+      return false;
+    }
+
+    if (formData.new_password !== formData.confirm_password) {
+      setError('As senhas não coincidem');
+      return false;
+    }
+
+    if (formData.current_password === formData.new_password) {
+      setError('A nova senha deve ser diferente da senha atual');
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    if (!validateForm()) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setError('Token não encontrado. Faça login novamente.');
+        setLoading(false);
+        return;
+      }
+
+      const response = await fetch('http://localhost:3000/auth/change-temporary-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          current_password: formData.current_password,
+          new_password: formData.new_password
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setSuccess(true);
+        setTimeout(() => {
+          onSuccess();
+        }, 2000);
+      } else {
+        setError(result.error || 'Erro ao alterar senha');
+      }
+    } catch (error) {
+      console.error('Change password error:', error);
+      setError('Erro de conexão. Tente novamente.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  if (success) {
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <Card className="max-w-md w-full">
+          <CardContent className="p-8 text-center">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="w-8 h-8 text-green-600" />
+            </div>
+            <h3 className="text-xl font-semibold text-green-800 mb-2">Senha Alterada!</h3>
+            <p className="text-green-600 mb-4">
+              Sua senha foi alterada com sucesso. Você será redirecionado em breve.
+            </p>
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600 mx-auto"></div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+      <Card className="max-w-md w-full">
+        <CardHeader className="text-center">
+          <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Lock className="w-6 h-6 text-orange-600" />
+          </div>
+          <CardTitle className="text-xl text-orange-800">Definir Nova Senha</CardTitle>
+          <CardDescription className="text-orange-600">
+            Esta é sua primeira vez fazendo login. Por favor, defina uma nova senha para sua conta.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label htmlFor="current_password" className="block text-sm font-medium text-gray-700 mb-2">
+                Senha Atual (Temporária)
+              </label>
+              <div className="relative">
+                <Input
+                  id="current_password"
+                  name="current_password"
+                  type={showCurrentPassword ? 'text' : 'password'}
+                  value={formData.current_password}
+                  onChange={handleInputChange}
+                  required
+                  className="pr-10"
+                  placeholder="Digite sua senha temporária"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="new_password" className="block text-sm font-medium text-gray-700 mb-2">
+                Nova Senha
+              </label>
+              <div className="relative">
+                <Input
+                  id="new_password"
+                  name="new_password"
+                  type={showNewPassword ? 'text' : 'password'}
+                  value={formData.new_password}
+                  onChange={handleInputChange}
+                  required
+                  className="pr-10"
+                  placeholder="Digite sua nova senha"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="confirm_password" className="block text-sm font-medium text-gray-700 mb-2">
+                Confirmar Nova Senha
+              </label>
+              <div className="relative">
+                <Input
+                  id="confirm_password"
+                  name="confirm_password"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  value={formData.confirm_password}
+                  onChange={handleInputChange}
+                  required
+                  className="pr-10"
+                  placeholder="Confirme sua nova senha"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm">
+                {error}
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onClose}
+                className="flex-1"
+                disabled={loading}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                className="flex-1 bg-orange-600 hover:bg-orange-700"
+                disabled={loading}
+              >
+                {loading ? 'Alterando...' : 'Alterar Senha'}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

@@ -419,7 +419,7 @@ export default function RegisterPage() {
               <Button
                 type="submit"
                 disabled={loading}
-                className="flex-1"
+                className="flex-1 cursor-pointer"
               >
                 {loading ? 'Validating...' : 'Continue'}
               </Button>
@@ -428,7 +428,7 @@ export default function RegisterPage() {
                 type="button"
                 variant="outline"
                 onClick={() => router.push('/login')}
-                className="flex-1"
+                className="flex-1 cursor-pointer"
               >
                 I already have an account
               </Button>

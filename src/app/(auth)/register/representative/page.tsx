@@ -331,7 +331,7 @@ export default function RepresentativePage() {
                     type="button"
                     variant="outline"
                     onClick={handleBack}
-                    className="flex-1"
+                    className="flex-1 cursor-pointer"
                   >
                     Back
                   </Button>
@@ -339,7 +339,7 @@ export default function RepresentativePage() {
                   <Button
                     type="submit"
                     disabled={loading || !termsAccepted || !formData.name || !formData.position || !formData.ssn}
-                    className="flex-1"
+                    className="flex-1 cursor-pointer"
                   >
                     {loading ? 'Creating account...' : 'Complete Registration'}
                   </Button>
@@ -649,6 +649,7 @@ export default function RepresentativePage() {
               <div className="mt-6 flex justify-end">
                 <Button
                   onClick={() => setShowTermsModal(false)}
+                  className="cursor-pointer"
                 >
                   Fechar
                 </Button>
