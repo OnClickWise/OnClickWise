@@ -3,6 +3,7 @@
 import * as React from "react"
 import { useSearchParams } from "next/navigation"
 import { AppSidebar } from "@/components/app-sidebar"
+import AuthGuard from "@/components/AuthGuard"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -641,9 +642,10 @@ export default function LeadsPage({
   }
 
   return (
-    <SidebarProvider>
-      <AppSidebar org={org} />
-      <SidebarInset>
+    <AuthGuard orgSlug={org}>
+      <SidebarProvider>
+        <AppSidebar org={org} />
+        <SidebarInset>
         {/* HEADER */}
         <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4">
           <SidebarTrigger className="-ml-1" />
@@ -1323,5 +1325,6 @@ export default function LeadsPage({
         </Sheet>
       </SidebarInset>
     </SidebarProvider>
+    </AuthGuard>
   )
 }

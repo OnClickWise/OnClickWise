@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import AuthGuard from '@/components/AuthGuard';
 
 interface Employee {
   id: string;
@@ -18,7 +19,7 @@ interface CreateEmployeeData {
   password: string;
 }
 
-export default function EmployeesPage() {
+export default function EmployeesPage({ params }: { params: { org: string } }) {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -146,7 +147,8 @@ export default function EmployeesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <AuthGuard orgSlug={params.org}>
+      <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-6xl mx-auto">
         <div className="bg-white rounded-lg shadow-sm p-6">
           <div className="flex justify-between items-center mb-6">
@@ -340,5 +342,6 @@ export default function EmployeesPage() {
         </div>
       </div>
     </div>
+    </AuthGuard>
   );
 }

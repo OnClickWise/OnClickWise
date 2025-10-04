@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Building2, Mail, Lock, User, Shield, ArrowLeft } from 'lucide-react';
 import ChangePasswordModal from '@/components/ChangePasswordModal';
+import InactivityNotification from '@/components/InactivityNotification';
+import { useInactivityNotification } from '@/hooks/useInactivityNotification';
 
 interface CompanyInfo {
   id: number;
@@ -29,6 +31,9 @@ export default function CompanyLoginPage({ params }: { params: Promise<{ org: st
     email: '',
     password: ''
   });
+  
+  // Hook para gerenciar notificação de inatividade
+  const { showNotification, handleCloseNotification, hideNotification } = useInactivityNotification(resolvedParams.org);
 
   useEffect(() => {
     const fetchCompanyInfo = async () => {
@@ -87,9 +92,14 @@ export default function CompanyLoginPage({ params }: { params: Promise<{ org: st
       const result = await response.json();
 
       if (result.success) {
-        // Salvar token no localStorage
+        // Salvar token no localStorage com timestamp de atividade
+        const now = Date.now();
         localStorage.setItem('token', result.token);
         localStorage.setItem('organization', JSON.stringify(result.organization));
+        localStorage.setItem('lastActivity', now.toString());
+        
+        // Esconder notificação de inatividade após login bem-sucedido
+        hideNotification();
         
         // Verificar se é senha temporária
         if (result.user?.is_temporary_password) {
@@ -164,6 +174,11 @@ export default function CompanyLoginPage({ params }: { params: Promise<{ org: st
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Notificação de inatividade */}
+      <InactivityNotification 
+        isVisible={showNotification} 
+        onClose={handleCloseNotification} 
+      />
 
       {/* Main content */}
       <div className="flex items-center justify-center min-h-screen p-4">

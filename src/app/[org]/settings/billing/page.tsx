@@ -1,6 +1,7 @@
 'use client';
 
 import { AppSidebar } from "@/components/app-sidebar"
+import AuthGuard from "@/components/AuthGuard"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -22,9 +23,10 @@ export default function BillingPage({
   params: { org: string };
 }) {
   return (
-    <SidebarProvider>
-      <AppSidebar org={params.org} />
-      <SidebarInset>
+    <AuthGuard orgSlug={params.org}>
+      <SidebarProvider>
+        <AppSidebar org={params.org} />
+        <SidebarInset>
         {/* HEADER */}
         <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4">
           <SidebarTrigger className="-ml-1" />
@@ -77,5 +79,6 @@ export default function BillingPage({
         </div>
       </SidebarInset>
     </SidebarProvider>
+    </AuthGuard>
   );
 }

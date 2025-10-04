@@ -2,6 +2,7 @@
 
 import { useState, useEffect, use } from 'react';
 import { AppSidebar } from "@/components/app-sidebar"
+import AuthGuard from "@/components/AuthGuard"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -355,9 +356,10 @@ export default function UsersPage({
   };
 
   return (
-    <SidebarProvider>
-      <AppSidebar org={org} />
-      <SidebarInset>
+    <AuthGuard orgSlug={org}>
+      <SidebarProvider>
+        <AppSidebar org={org} />
+        <SidebarInset>
         {/* HEADER */}
         <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4">
           <SidebarTrigger className="-ml-1" />
@@ -790,5 +792,6 @@ export default function UsersPage({
         )}
       </SidebarInset>
     </SidebarProvider>
+    </AuthGuard>
   );
 }

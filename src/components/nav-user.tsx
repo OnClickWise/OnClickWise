@@ -1,5 +1,6 @@
 "use client"
 
+import { useRouter } from "next/navigation"
 import {
   BadgeCheck,
   Bell,
@@ -32,14 +33,27 @@ import {
 
 export function NavUser({
   user,
+  orgSlug,
 }: {
   user: {
     name: string
     email: string
     avatar: string
   }
+  orgSlug: string
 }) {
   const { isMobile } = useSidebar()
+  const router = useRouter()
+
+  const handleLogout = () => {
+    // Limpar dados de autenticação
+    localStorage.removeItem('token')
+    localStorage.removeItem('organization')
+    localStorage.removeItem('lastActivity')
+    
+    // Redirecionar para a página de login da empresa
+    router.push(`/${orgSlug}/login`)
+  }
 
   return (
     <SidebarMenu>
@@ -102,7 +116,7 @@ export function NavUser({
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
               <LogOut />
               Log out
             </DropdownMenuItem>

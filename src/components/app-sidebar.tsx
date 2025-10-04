@@ -112,7 +112,7 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
 
       {/* RODAPÉ */}
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser user={data.user} orgSlug={org} />
       </SidebarFooter>
 
       {/* BOTÃO DE COLAPSE */}
