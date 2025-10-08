@@ -14,6 +14,7 @@ export interface Lead {
   value?: number;
   description?: string;
   estimated_close_date?: string;
+  show_on_pipeline: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -30,6 +31,7 @@ export interface CreateLeadRequest {
   description?: string;
   estimated_close_date?: string;
   assigned_user_id?: string;
+  show_on_pipeline?: boolean;
 }
 
 export interface UpdateLeadRequest {
@@ -45,6 +47,7 @@ export interface UpdateLeadRequest {
   description?: string;
   estimated_close_date?: string;
   assigned_user_id?: string;
+  show_on_pipeline?: boolean;
 }
 
 export interface ApiResponse<T> {
@@ -125,9 +128,16 @@ class ApiService {
           localStorage.removeItem('token');
           localStorage.removeItem('organization');
           localStorage.removeItem('lastActivity');
-          // Redirecionar para login se estivermos no cliente
+          // Redirecionar para login da organização específica se estivermos no cliente
           if (typeof window !== 'undefined') {
-            window.location.href = '/login';
+            // Extrair o slug da organização da URL atual
+            const pathParts = window.location.pathname.split('/');
+            const orgSlug = pathParts[1]; // Primeira parte após a barra
+            if (orgSlug && orgSlug !== 'login' && orgSlug !== 'register') {
+              window.location.href = `/${orgSlug}/login`;
+            } else {
+              window.location.href = '/login';
+            }
           }
         }
         
@@ -244,6 +254,11 @@ class ApiService {
 
   async searchLeads(params: {
     search?: string;
+    name?: string;
+    email?: string;
+    phone?: string;
+    ssn?: string;
+    ein?: string;
     status?: string;
     source?: string;
     value_min?: number;
@@ -254,6 +269,7 @@ class ApiService {
     order?: 'asc' | 'desc';
     page?: number;
     limit?: number;
+    show_on_pipeline?: boolean;
   } = {}): Promise<ApiResponse<{ leads: Lead[] }>> {
     // Verificar se estamos no cliente
     if (typeof window === 'undefined') {
@@ -265,6 +281,11 @@ class ApiService {
 
     const queryParams = new URLSearchParams();
     if (params.search) queryParams.append('search', params.search);
+    if (params.name) queryParams.append('name', params.name);
+    if (params.email) queryParams.append('email', params.email);
+    if (params.phone) queryParams.append('phone', params.phone);
+    if (params.ssn) queryParams.append('ssn', params.ssn);
+    if (params.ein) queryParams.append('ein', params.ein);
     if (params.status) queryParams.append('status', params.status);
     if (params.source) queryParams.append('source', params.source);
     if (params.value_min !== undefined) queryParams.append('value_min', params.value_min.toString());
@@ -275,6 +296,7 @@ class ApiService {
     if (params.order) queryParams.append('order', params.order);
     if (params.page) queryParams.append('page', params.page.toString());
     if (params.limit) queryParams.append('limit', params.limit.toString());
+    if (params.show_on_pipeline !== undefined) queryParams.append('show_on_pipeline', params.show_on_pipeline.toString());
 
         const queryString = queryParams.toString();
         const url = queryString ? `/leads/search?${queryString}` : '/leads/search';
@@ -283,6 +305,171 @@ class ApiService {
         console.log('API: Query params:', Object.fromEntries(queryParams.entries()));
 
         return this.request<{ leads: Lead[] }>(url);
+  }
+
+  // Métodos específicos para busca por campo
+  async searchLeadsByName(query: string): Promise<ApiResponse<{ leads: Lead[] }>> {
+    if (typeof window === 'undefined') {
+      return {
+        success: false,
+        error: 'API calls only available on client side'
+      };
+    }
+
+    const endpoint = `/leads/search/name?q=${encodeURIComponent(query)}`;
+    return this.request<{ leads: Lead[] }>(endpoint);
+  }
+
+  async searchLeadsByEmail(query: string): Promise<ApiResponse<{ leads: Lead[] }>> {
+    if (typeof window === 'undefined') {
+      return {
+        success: false,
+        error: 'API calls only available on client side'
+      };
+    }
+
+    const endpoint = `/leads/search/email?q=${encodeURIComponent(query)}`;
+    return this.request<{ leads: Lead[] }>(endpoint);
+  }
+
+  async searchLeadsByPhone(query: string): Promise<ApiResponse<{ leads: Lead[] }>> {
+    if (typeof window === 'undefined') {
+      return {
+        success: false,
+        error: 'API calls only available on client side'
+      };
+    }
+
+    const endpoint = `/leads/search/phone?q=${encodeURIComponent(query)}`;
+    return this.request<{ leads: Lead[] }>(endpoint);
+  }
+
+  async searchLeadsBySSN(query: string): Promise<ApiResponse<{ leads: Lead[] }>> {
+    if (typeof window === 'undefined') {
+      return {
+        success: false,
+        error: 'API calls only available on client side'
+      };
+    }
+
+    const endpoint = `/leads/search/ssn?q=${encodeURIComponent(query)}`;
+    return this.request<{ leads: Lead[] }>(endpoint);
+  }
+
+  async searchLeadsByEIN(query: string): Promise<ApiResponse<{ leads: Lead[] }>> {
+    if (typeof window === 'undefined') {
+      return {
+        success: false,
+        error: 'API calls only available on client side'
+      };
+    }
+
+    const endpoint = `/leads/search/ein?q=${encodeURIComponent(query)}`;
+    return this.request<{ leads: Lead[] }>(endpoint);
+  }
+
+  async searchLeadsBySource(query: string): Promise<ApiResponse<{ leads: Lead[] }>> {
+    if (typeof window === 'undefined') {
+      return {
+        success: false,
+        error: 'API calls only available on client side'
+      };
+    }
+
+    const endpoint = `/leads/search/source?q=${encodeURIComponent(query)}`;
+    return this.request<{ leads: Lead[] }>(endpoint);
+  }
+
+  async searchLeadsByStatus(query: string): Promise<ApiResponse<{ leads: Lead[] }>> {
+    if (typeof window === 'undefined') {
+      return {
+        success: false,
+        error: 'API calls only available on client side'
+      };
+    }
+
+    const endpoint = `/leads/search/status?q=${encodeURIComponent(query)}`;
+    return this.request<{ leads: Lead[] }>(endpoint);
+  }
+
+  async searchLeadsByValueMin(query: number): Promise<ApiResponse<{ leads: Lead[] }>> {
+    if (typeof window === 'undefined') {
+      return {
+        success: false,
+        error: 'API calls only available on client side'
+      };
+    }
+
+    const endpoint = `/leads/search/value-min?q=${query}`;
+    return this.request<{ leads: Lead[] }>(endpoint);
+  }
+
+  async searchLeadsByValueMax(query: number): Promise<ApiResponse<{ leads: Lead[] }>> {
+    if (typeof window === 'undefined') {
+      return {
+        success: false,
+        error: 'API calls only available on client side'
+      };
+    }
+
+    const endpoint = `/leads/search/value-max?q=${query}`;
+    return this.request<{ leads: Lead[] }>(endpoint);
+  }
+
+  async searchLeadsByDateMin(query: string): Promise<ApiResponse<{ leads: Lead[] }>> {
+    if (typeof window === 'undefined') {
+      return {
+        success: false,
+        error: 'API calls only available on client side'
+      };
+    }
+
+    const endpoint = `/leads/search/date-min?q=${encodeURIComponent(query)}`;
+    return this.request<{ leads: Lead[] }>(endpoint);
+  }
+
+  async searchLeadsByDateMax(query: string): Promise<ApiResponse<{ leads: Lead[] }>> {
+    if (typeof window === 'undefined') {
+      return {
+        success: false,
+        error: 'API calls only available on client side'
+      };
+    }
+
+    const endpoint = `/leads/search/date-max?q=${encodeURIComponent(query)}`;
+    return this.request<{ leads: Lead[] }>(endpoint);
+  }
+
+
+  // Buscar todos os leads do banco (para seleção completa)
+  async getAllLeads(): Promise<ApiResponse<{ leads: Lead[] }>> {
+    if (typeof window === 'undefined') {
+      return {
+        success: false,
+        error: 'API calls only available on client side'
+      };
+    }
+
+    const endpoint = `/leads/all`;
+    return this.request<{ leads: Lead[] }>(endpoint);
+  }
+
+  // Atualização em massa para pipeline
+  async bulkUpdatePipeline(leadIds: string[], showOnPipeline: boolean): Promise<ApiResponse<{ message: string }>> {
+    if (typeof window === 'undefined') {
+      return {
+        success: false,
+        error: 'API calls only available on client side'
+      };
+    }
+
+    return this.request<{ message: string }>('/leads/bulk-pipeline', {
+      method: 'POST',
+      body: JSON.stringify({
+        lead_ids: leadIds,
+        show_on_pipeline: showOnPipeline
+      }),
+    });
   }
 }
 

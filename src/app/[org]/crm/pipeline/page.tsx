@@ -91,6 +91,27 @@ export default function PipelinePage({
     min: '',
     max: ''
   })
+
+  // Função para validar data
+  const validateDate = (dateString: string): boolean => {
+    if (!dateString) return true // Permitir campo vazio
+    
+    // Validar formato YYYY-MM-DD
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(dateString)) {
+      return false;
+    }
+    
+    // Validar ano (deve ter exatamente 4 dígitos)
+    const year = parseInt(dateString.split('-')[0]);
+    if (year < 1000 || year > 9999) {
+      return false;
+    }
+    
+    // Validar se a data é válida
+    const dateObj = new Date(dateString);
+    return !isNaN(dateObj.getTime());
+  }
   const [editingId, setEditingId] = React.useState<string | null>(null)
   const [draggedLead, setDraggedLead] = React.useState<Lead | null>(null)
   const [draggedOverStage, setDraggedOverStage] = React.useState<string | null>(null)
@@ -245,29 +266,122 @@ export default function PipelinePage({
     const hasFilters = filters.name || filters.email || filters.phone || filters.ssn || filters.ein || filters.source || filters.status || valueRange.min || valueRange.max || dateRange.min || dateRange.max
     
     if (hasFilters) {
-      // Use backend search with all filters
-      const searchParams = {
-        search: searchTerm || filters.name || filters.email || filters.phone || filters.ssn || filters.ein || undefined,
-        status: filters.status || undefined,
-        source: filters.source || undefined,
-        value_min: valueRange.min && !isNaN(parseFloat(valueRange.min)) ? parseFloat(valueRange.min) : undefined,
-        value_max: valueRange.max && !isNaN(parseFloat(valueRange.max)) ? parseFloat(valueRange.max) : undefined,
-        date_min: dateRange.min || undefined,
-        date_max: dateRange.max || undefined,
-      }
-      
-      // Remove empty parameters
-      Object.keys(searchParams).forEach(key => {
-        if (searchParams[key as keyof typeof searchParams] === undefined) {
-          delete searchParams[key as keyof typeof searchParams]
+      try {
+        let allLeads: Lead[] = []
+        
+        // Buscar por cada campo específico usando rotas separadas
+        if (filters.name) {
+          const response = await apiService.searchLeadsByName(filters.name)
+          if (response.success && response.data) {
+            allLeads = [...allLeads, ...response.data.leads]
+          }
         }
-      })
-      
-      console.log('Pipeline: Applying modal filters:', searchParams)
-      console.log('Pipeline: Filters state:', filters)
-      console.log('Pipeline: Value range:', valueRange)
-      console.log('Pipeline: Date range:', dateRange)
-      await searchLeads(searchParams)
+        
+        if (filters.email) {
+          const response = await apiService.searchLeadsByEmail(filters.email)
+          if (response.success && response.data) {
+            allLeads = [...allLeads, ...response.data.leads]
+          }
+        }
+        
+        if (filters.phone) {
+          const response = await apiService.searchLeadsByPhone(filters.phone)
+          if (response.success && response.data) {
+            allLeads = [...allLeads, ...response.data.leads]
+          }
+        }
+        
+        if (filters.ssn) {
+          const response = await apiService.searchLeadsBySSN(filters.ssn)
+          if (response.success && response.data) {
+            allLeads = [...allLeads, ...response.data.leads]
+          }
+        }
+        
+        if (filters.ein) {
+          const response = await apiService.searchLeadsByEIN(filters.ein)
+          if (response.success && response.data) {
+            allLeads = [...allLeads, ...response.data.leads]
+          }
+        }
+        
+        if (filters.source) {
+          const response = await apiService.searchLeadsBySource(filters.source)
+          if (response.success && response.data) {
+            allLeads = [...allLeads, ...response.data.leads]
+          }
+        }
+        
+        if (filters.status) {
+          const response = await apiService.searchLeadsByStatus(filters.status)
+          if (response.success && response.data) {
+            allLeads = [...allLeads, ...response.data.leads]
+          }
+        }
+        
+        if (valueRange.min && !isNaN(parseFloat(valueRange.min))) {
+          const response = await apiService.searchLeadsByValueMin(parseFloat(valueRange.min))
+          if (response.success && response.data) {
+            allLeads = [...allLeads, ...response.data.leads]
+          }
+        }
+        
+        if (valueRange.max && !isNaN(parseFloat(valueRange.max))) {
+          const response = await apiService.searchLeadsByValueMax(parseFloat(valueRange.max))
+          if (response.success && response.data) {
+            allLeads = [...allLeads, ...response.data.leads]
+          }
+        }
+        
+        if (dateRange.min) {
+          const response = await apiService.searchLeadsByDateMin(dateRange.min)
+          if (response.success && response.data) {
+            allLeads = [...allLeads, ...response.data.leads]
+          }
+        }
+        
+        if (dateRange.max) {
+          const response = await apiService.searchLeadsByDateMax(dateRange.max)
+          if (response.success && response.data) {
+            allLeads = [...allLeads, ...response.data.leads]
+          }
+        }
+        
+        // Remover duplicatas baseado no ID
+        const uniqueLeads = allLeads.filter((lead, index, self) => 
+          index === self.findIndex(l => l.id === lead.id)
+        )
+        
+        // Aplicar filtros adicionais nos resultados (intersecção)
+        let filteredLeads = uniqueLeads
+        
+        // Se temos filtros de valor, aplicar intersecção
+        if (valueRange.min && valueRange.max && !isNaN(parseFloat(valueRange.min)) && !isNaN(parseFloat(valueRange.max))) {
+          filteredLeads = filteredLeads.filter(lead => 
+            lead.value && 
+            lead.value >= parseFloat(valueRange.min) && 
+            lead.value <= parseFloat(valueRange.max)
+          )
+        }
+        
+        // Se temos filtros de data, aplicar intersecção
+        if (dateRange.min && dateRange.max) {
+          filteredLeads = filteredLeads.filter(lead => 
+            lead.estimated_close_date && 
+            lead.estimated_close_date >= dateRange.min && 
+            lead.estimated_close_date <= dateRange.max
+          )
+        }
+        
+        console.log('Pipeline: Applying specific field filters')
+        console.log('Pipeline: Found leads:', filteredLeads.length)
+        setLeads(filteredLeads)
+        updatePipelineStages(filteredLeads)
+        
+      } catch (error) {
+        console.error('Error applying filters:', error)
+        pushToast('Erro ao aplicar filtros', 'error')
+      }
     } else {
       // No filters, reload all leads from API
       const loadAllLeads = async () => {
@@ -283,7 +397,7 @@ export default function PipelinePage({
       }
       loadAllLeads()
     }
-  }, [searchTerm, filters, valueRange, dateRange, searchLeads, isClient])
+  }, [filters, valueRange, dateRange, isClient])
 
   function updatePipelineStages(leadsList: Lead[]) {
     const stages = PIPELINE_STAGES.map(stage => {
@@ -893,13 +1007,29 @@ export default function PipelinePage({
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium">Notes</label>
+                  <label className="mb-1 block text-sm font-medium">
+                    Notes
+                    <span className="text-xs text-muted-foreground ml-2">
+                      ({editNotes.length}/500)
+                    </span>
+                  </label>
                   <textarea
-                    className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input h-20 w-full min-w-0 rounded-md border bg-transparent px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                    className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input w-full min-w-0 rounded-md border bg-transparent px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] resize-none min-h-[80px] max-h-[200px] overflow-y-auto"
                     placeholder="Notes about the negotiation..."
                     value={editNotes}
-                    onChange={(e) => setEditNotes(e.target.value)}
+                    onChange={(e) => {
+                      if (e.target.value.length <= 500) {
+                        setEditNotes(e.target.value)
+                      }
+                    }}
+                    maxLength={500}
+                    rows={4}
                   />
+                  {editNotes.length >= 450 && (
+                    <p className="text-xs text-amber-600 mt-1">
+                      {500 - editNotes.length} characters remaining
+                    </p>
+                  )}
                 </div>
               </div>
               <Separator />
@@ -1024,20 +1154,40 @@ export default function PipelinePage({
               <div className="space-y-2">
                 <label className="mb-1 block text-sm font-medium">Close Date Range</label>
                 <div className="flex gap-2">
-                  <Input
-                    type="date"
-                    placeholder="From date"
-                    value={dateRange.min}
-                    onChange={(e) => setDateRange(prev => ({ ...prev, min: e.target.value }))}
-                    className="flex-1"
-                  />
-                  <Input
-                    type="date"
-                    placeholder="To date"
-                    value={dateRange.max}
-                    onChange={(e) => setDateRange(prev => ({ ...prev, max: e.target.value }))}
-                    className="flex-1"
-                  />
+                  <div className="flex-1">
+                    <Input
+                      type="date"
+                      placeholder="From date"
+                      value={dateRange.min}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (validateDate(value)) {
+                          setDateRange(prev => ({ ...prev, min: value }));
+                        }
+                      }}
+                      className={!validateDate(dateRange.min) ? "border-red-500" : ""}
+                    />
+                    {!validateDate(dateRange.min) && dateRange.min && (
+                      <p className="text-xs text-red-500 mt-1">Ano deve ter exatamente 4 dígitos (1000-9999)</p>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <Input
+                      type="date"
+                      placeholder="To date"
+                      value={dateRange.max}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (validateDate(value)) {
+                          setDateRange(prev => ({ ...prev, max: value }));
+                        }
+                      }}
+                      className={!validateDate(dateRange.max) ? "border-red-500" : ""}
+                    />
+                    {!validateDate(dateRange.max) && dateRange.max && (
+                      <p className="text-xs text-red-500 mt-1">Ano deve ter exatamente 4 dígitos (1000-9999)</p>
+                    )}
+                  </div>
                 </div>
               </div>
               

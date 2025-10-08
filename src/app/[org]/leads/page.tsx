@@ -112,6 +112,10 @@ export default function LeadsPage({
   
   // Bulk edit confirmation
   const [bulkEditConfirm, setBulkEditConfirm] = React.useState("")
+  
+  // Pipeline bulk actions
+  const [isPipelineModalOpen, setIsPipelineModalOpen] = React.useState(false)
+  const [pipelineAction, setPipelineAction] = React.useState<'add' | 'remove'>('add')
 
   const fileInputRef = React.useRef<HTMLInputElement | null>(null)
 
@@ -213,7 +217,9 @@ export default function LeadsPage({
 
     source: "",
 
-    status: ""
+    status: "",
+
+    pipeline: ""
 
   })
 
@@ -232,6 +238,46 @@ export default function LeadsPage({
     max: ""
 
   })
+
+  // Função para validar data
+
+  const validateDate = (dateString: string): boolean => {
+
+    if (!dateString) return true // Permitir campo vazio
+
+    
+
+    // Validar formato YYYY-MM-DD
+
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+
+    if (!dateRegex.test(dateString)) {
+
+      return false;
+
+    }
+
+    
+
+    // Validar ano (deve ter exatamente 4 dígitos)
+
+    const year = parseInt(dateString.split('-')[0]);
+
+    if (year < 1000 || year > 9999) {
+
+      return false;
+
+    }
+
+    
+
+    // Validar se a data é válida
+
+    const dateObj = new Date(dateString);
+
+    return !isNaN(dateObj.getTime());
+
+  }
 
 
 
@@ -357,6 +403,8 @@ export default function LeadsPage({
     status?: string;
 
     source?: string;
+
+    pipeline?: string;
 
     value_min?: number;
 
@@ -565,7 +613,9 @@ export default function LeadsPage({
 
       source: '',
 
-      status: ''
+      status: '',
+
+      pipeline: ''
 
     })
 
@@ -693,61 +743,314 @@ export default function LeadsPage({
 
     
 
-    const hasFilters = filters.name || filters.email || filters.phone || filters.ssn || filters.ein || filters.source || filters.status || sortField || valueRange.min || valueRange.max || dateRange.min || dateRange.max
+    const hasFilters = filters.name || filters.email || filters.phone || filters.ssn || filters.ein || filters.source || filters.status || filters.pipeline || sortField || valueRange.min || valueRange.max || dateRange.min || dateRange.max
 
     
 
     if (hasFilters) {
 
-      // Use backend search with all filters
+      try {
 
-      const searchParams = {
+        let allLeads: Lead[] = []
 
-        search: searchTerm || filters.name || filters.email || filters.phone || filters.ssn || filters.ein || undefined,
+        
 
-        status: filters.status || undefined,
+        // Buscar por cada campo específico usando rotas separadas
 
-        source: filters.source || undefined,
+        if (filters.name) {
 
-        value_min: valueRange.min && !isNaN(parseFloat(valueRange.min)) ? parseFloat(valueRange.min) : undefined,
+          const response = await apiService.searchLeadsByName(filters.name)
 
-        value_max: valueRange.max && !isNaN(parseFloat(valueRange.max)) ? parseFloat(valueRange.max) : undefined,
+          if (response.success && response.data) {
 
-        date_min: dateRange.min || undefined,
+            allLeads = [...allLeads, ...response.data.leads]
 
-        date_max: dateRange.max || undefined,
-
-        sort: sortField || undefined,
-
-        order: sortDirection || undefined,
-
-      }
-
-      
-
-      // Remove empty parameters
-
-      Object.keys(searchParams).forEach(key => {
-
-        if (searchParams[key as keyof typeof searchParams] === undefined) {
-
-          delete searchParams[key as keyof typeof searchParams]
+          }
 
         }
 
-      })
+        
 
-      
+        if (filters.email) {
 
-      console.log('Applying modal filters:', searchParams)
+          const response = await apiService.searchLeadsByEmail(filters.email)
 
-      console.log('Filters state:', filters)
+          if (response.success && response.data) {
 
-      console.log('Value range:', valueRange)
+            allLeads = [...allLeads, ...response.data.leads]
 
-      console.log('Date range:', dateRange)
+          }
 
-      await searchLeads(searchParams)
+        }
+
+        
+
+        if (filters.phone) {
+
+          const response = await apiService.searchLeadsByPhone(filters.phone)
+
+          if (response.success && response.data) {
+
+            allLeads = [...allLeads, ...response.data.leads]
+
+          }
+
+        }
+
+        
+
+        if (filters.ssn) {
+
+          const response = await apiService.searchLeadsBySSN(filters.ssn)
+
+          if (response.success && response.data) {
+
+            allLeads = [...allLeads, ...response.data.leads]
+
+          }
+
+        }
+
+        
+
+        if (filters.ein) {
+
+          const response = await apiService.searchLeadsByEIN(filters.ein)
+
+          if (response.success && response.data) {
+
+            allLeads = [...allLeads, ...response.data.leads]
+
+          }
+
+        }
+
+        
+
+        if (filters.source) {
+
+          const response = await apiService.searchLeadsBySource(filters.source)
+
+          if (response.success && response.data) {
+
+            allLeads = [...allLeads, ...response.data.leads]
+
+          }
+
+        }
+
+        
+
+        if (filters.status) {
+
+          const response = await apiService.searchLeadsByStatus(filters.status)
+
+          if (response.success && response.data) {
+
+            allLeads = [...allLeads, ...response.data.leads]
+
+          }
+
+        }
+
+        // Se temos filtro de pipeline, usar busca unificada com todos os filtros
+        if (filters.pipeline) {
+          const searchParams: any = {
+            show_on_pipeline: filters.pipeline === 'true'
+          }
+          
+          // Adicionar outros filtros se existirem
+          if (filters.name) searchParams.name = filters.name
+          if (filters.email) searchParams.email = filters.email
+          if (filters.phone) searchParams.phone = filters.phone
+          if (filters.ssn) searchParams.ssn = filters.ssn
+          if (filters.ein) searchParams.ein = filters.ein
+          if (filters.source) searchParams.source = filters.source
+          if (filters.status) searchParams.status = filters.status
+          if (valueRange.min && !isNaN(parseFloat(valueRange.min))) searchParams.value_min = parseFloat(valueRange.min)
+          if (valueRange.max && !isNaN(parseFloat(valueRange.max))) searchParams.value_max = parseFloat(valueRange.max)
+          if (dateRange.min) searchParams.date_min = dateRange.min
+          if (dateRange.max) searchParams.date_max = dateRange.max
+
+          const response = await apiService.searchLeads(searchParams)
+          if (response.success && response.data) {
+            allLeads = response.data.leads
+          }
+        }
+
+        
+
+        if (valueRange.min && !isNaN(parseFloat(valueRange.min))) {
+
+          const response = await apiService.searchLeadsByValueMin(parseFloat(valueRange.min))
+
+          if (response.success && response.data) {
+
+            allLeads = [...allLeads, ...response.data.leads]
+
+          }
+
+        }
+
+        
+
+        if (valueRange.max && !isNaN(parseFloat(valueRange.max))) {
+
+          const response = await apiService.searchLeadsByValueMax(parseFloat(valueRange.max))
+
+          if (response.success && response.data) {
+
+            allLeads = [...allLeads, ...response.data.leads]
+
+          }
+
+        }
+
+        
+
+        if (dateRange.min) {
+
+          const response = await apiService.searchLeadsByDateMin(dateRange.min)
+
+          if (response.success && response.data) {
+
+            allLeads = [...allLeads, ...response.data.leads]
+
+          }
+
+        }
+
+        
+
+        if (dateRange.max) {
+
+          const response = await apiService.searchLeadsByDateMax(dateRange.max)
+
+          if (response.success && response.data) {
+
+            allLeads = [...allLeads, ...response.data.leads]
+
+          }
+
+        }
+
+        
+
+        // Remover duplicatas baseado no ID
+
+        const uniqueLeads = allLeads.filter((lead, index, self) => 
+
+          index === self.findIndex(l => l.id === lead.id)
+
+        )
+
+        
+
+        // Aplicar filtros adicionais nos resultados (intersecção)
+
+        let filteredLeads = uniqueLeads
+
+        
+
+        // Se temos filtros de valor, aplicar intersecção
+
+        if (valueRange.min && valueRange.max && !isNaN(parseFloat(valueRange.min)) && !isNaN(parseFloat(valueRange.max))) {
+
+          filteredLeads = filteredLeads.filter(lead => 
+
+            lead.value && 
+
+            lead.value >= parseFloat(valueRange.min) && 
+
+            lead.value <= parseFloat(valueRange.max)
+
+          )
+
+        }
+
+        
+
+        // Se temos filtros de data, aplicar intersecção
+
+        if (dateRange.min && dateRange.max) {
+
+          filteredLeads = filteredLeads.filter(lead => 
+
+            lead.estimated_close_date && 
+
+            lead.estimated_close_date >= dateRange.min && 
+
+            lead.estimated_close_date <= dateRange.max
+
+          )
+
+        }
+
+        
+
+        // Aplicar ordenação se especificada
+
+        if (sortField) {
+
+          filteredLeads.sort((a, b) => {
+
+            const aValue = a[sortField as keyof Lead]
+
+            const bValue = b[sortField as keyof Lead]
+
+            
+
+            if (aValue === null || aValue === undefined) return 1
+
+            if (bValue === null || bValue === undefined) return -1
+
+            
+
+            if (typeof aValue === 'string' && typeof bValue === 'string') {
+
+              return sortDirection === 'desc' 
+
+                ? bValue.localeCompare(aValue)
+
+                : aValue.localeCompare(bValue)
+
+            }
+
+            
+
+            if (typeof aValue === 'number' && typeof bValue === 'number') {
+
+              return sortDirection === 'desc' ? bValue - aValue : aValue - bValue
+
+            }
+
+            
+
+            return 0
+
+          })
+
+        }
+
+        
+
+        console.log('Leads: Applying specific field filters')
+
+        console.log('Leads: Found leads:', filteredLeads.length)
+
+        setLeads(filteredLeads)
+
+        setFilteredLeads(filteredLeads)
+
+        
+
+      } catch (error) {
+
+        console.error('Error applying filters:', error)
+
+        pushToast('Erro ao aplicar filtros', 'error')
+
+      }
 
     } else {
 
@@ -779,7 +1082,7 @@ export default function LeadsPage({
 
     }
 
-  }, [searchTerm, filters, valueRange, dateRange, sortField, sortDirection, searchLeads, isClient])
+  }, [filters, valueRange, dateRange, sortField, sortDirection, isClient])
 
 
 
@@ -791,7 +1094,7 @@ export default function LeadsPage({
 
     
 
-    const hasFilters = searchTerm || filters.email || filters.phone || filters.ssn || filters.ein || filters.source || filters.status || sortField
+    const hasFilters = searchTerm || filters.email || filters.phone || filters.ssn || filters.ein || filters.source || filters.status || filters.pipeline || sortField
 
     
 
@@ -801,7 +1104,7 @@ export default function LeadsPage({
 
     }
 
-  }, [leads, searchTerm, filters.email, filters.phone, filters.ssn, filters.source, filters.status, sortField, isClient])
+  }, [leads, searchTerm, filters.email, filters.phone, filters.ssn, filters.source, filters.status, filters.pipeline, sortField, isClient])
 
 
   // Pagination calculations
@@ -1136,12 +1439,40 @@ export default function LeadsPage({
     }
   }
 
-  // Handle select ALL leads (all 10,000)
-  const handleSelectAllLeads = () => {
-    setShowSelectAllConfirm(true)
+
+  const handleToggleSelectAll = () => {
+    if (selectedLeads.size === leads.length) {
+      // Se todos estão selecionados, desmarcar todos
+      setSelectedLeads(new Set())
+      pushToast(`Unselected all ${leads.length} leads`, 'success')
+    } else {
+      // Selecionar todos os leads que já estão carregados no frontend
+      const allLeadIds = new Set(leads.map(lead => lead.id))
+      setSelectedLeads(allLeadIds)
+      pushToast(`Selected all ${leads.length} leads`, 'success')
+    }
   }
 
-  // Confirm select all leads
+  const handleToggleSelectPage = () => {
+    const currentPageLeadIds = new Set(currentLeads.map(lead => lead.id))
+    const allCurrentPageSelected = currentPageLeadIds.size > 0 && 
+      Array.from(currentPageLeadIds).every(id => selectedLeads.has(id))
+    
+    if (allCurrentPageSelected) {
+      // Se todos da página estão selecionados, desmarcar apenas os da página
+      const newSelected = new Set(selectedLeads)
+      currentPageLeadIds.forEach(id => newSelected.delete(id))
+      setSelectedLeads(newSelected)
+      pushToast(`Unselected ${currentLeads.length} leads from current page`, 'success')
+    } else {
+      // Selecionar todos os leads da página atual
+      const newSelected = new Set([...selectedLeads, ...currentPageLeadIds])
+      setSelectedLeads(newSelected)
+      pushToast(`Selected ${currentLeads.length} leads from current page`, 'success')
+    }
+  }
+
+  // Confirm select all leads (mantido para compatibilidade)
   const confirmSelectAllLeads = () => {
     const allLeadIds = new Set(leads.map(lead => lead.id))
     setSelectedLeads(allLeadIds)
@@ -1218,6 +1549,46 @@ export default function LeadsPage({
 
     setIsBulkEditOpen(true)
 
+  }
+
+  function openPipelineModal(action: 'add' | 'remove') {
+    setPipelineAction(action)
+    setIsPipelineModalOpen(true)
+  }
+
+  async function handlePipelineBulkAction() {
+    if (selectedLeads.size === 0) return
+
+    try {
+      const leadIds = Array.from(selectedLeads)
+      const showOnPipeline = pipelineAction === 'add'
+      
+      const response = await apiService.bulkUpdatePipeline(leadIds, showOnPipeline)
+      
+      if (response.success) {
+        // Update local state
+        setLeads(prev => prev.map(lead => 
+          selectedLeads.has(lead.id) 
+            ? { ...lead, show_on_pipeline: showOnPipeline }
+            : lead
+        ))
+        
+        pushToast(
+          `${leadIds.length} leads ${showOnPipeline ? 'adicionados ao' : 'removidos do'} pipeline`,
+          'success'
+        )
+        
+        // Clear selection
+        setSelectedLeads(new Set())
+      } else {
+        pushToast(`Erro: ${response.error}`, 'error')
+      }
+    } catch (error) {
+      console.error('Pipeline bulk action error:', error)
+      pushToast('Erro ao atualizar pipeline', 'error')
+    }
+    
+    setIsPipelineModalOpen(false)
   }
 
 
@@ -2040,6 +2411,7 @@ export default function LeadsPage({
 
         estimated_close_date: safeEstimatedCloseDate,
         description: draft.description,
+        show_on_pipeline: false,
 
         created_at: new Date().toISOString(),
 
@@ -2480,7 +2852,8 @@ export default function LeadsPage({
 
       : filteredLeads
 
-    const data = baseList.map(lead => ({
+    // Se não há leads, criar template vazio com colunas
+    const data = baseList.length > 0 ? baseList.map(lead => ({
 
       Name: lead.name,
 
@@ -2506,11 +2879,39 @@ export default function LeadsPage({
 
       'Updated At': lead.updated_at,
 
-    }))
+    })) : [{
+
+      Name: '',
+
+      Email: '',
+
+      Phone: '',
+
+      SSN: '',
+
+      EIN: '',
+
+      Source: '',
+
+      Status: '',
+
+      Value: '',
+
+      'Estimated Close Date': '',
+
+      Description: '',
+
+      'Created At': '',
+
+      'Updated At': '',
+
+    }]
 
     const date = new Date().toISOString().split('T')[0]
 
-    const base = `leads_${org}_${date}`
+    const base = baseList.length > 0 
+      ? `leads_${org}_${date}`
+      : `leads_template_${org}_${date}`
 
     if (format === "json") {
 
@@ -2542,7 +2943,11 @@ export default function LeadsPage({
 
     XLSX.writeFile(wb, `${base}.${format}`, { bookType: bookType as XLSX.BookType })
 
-    pushToast(`${data.length} lead(s) exported as ${format.toUpperCase()}.`, "success")
+    const message = baseList.length > 0 
+      ? `${data.length} lead(s) exported as ${format.toUpperCase()}.`
+      : `Template exported as ${format.toUpperCase()}. Use this file to import leads.`
+
+    pushToast(message, "success")
 
   }
 
@@ -3046,91 +3451,47 @@ export default function LeadsPage({
         <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
 
           {/* CONTROLS */}
-
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-
-            <div className="flex items-center gap-2">
-
+            {/* Search and Filters */}
+            <div className="flex items-center gap-3">
               <div className="relative">
-
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-
                 <Input
-
                   placeholder="Search leads..."
-
                   value={searchTerm}
-
                   onChange={(e) => setSearchTerm(e.target.value)}
-
                   className="pl-10 w-64"
-
                 />
-
               </div>
-
+              
               <Button
-
-                variant="outline"
-
-                size="sm"
-
                 onClick={() => setIsFilterOpen(true)}
-
+                variant="outline"
+                size="sm"
                 className="cursor-pointer"
-
               >
-
                 <Filter className="h-4 w-4 mr-2" />
-
                 Filters
-
-                {(() => {
-                  const activeFilters = []
-                  if (searchTerm) activeFilters.push('search')
-                  if (filters.name) activeFilters.push('name')
-                  if (filters.email) activeFilters.push('email')
-                  if (filters.phone) activeFilters.push('phone')
-                  if (filters.ssn) activeFilters.push('ssn')
-                  if (filters.ein) activeFilters.push('ein')
-                  if (filters.source) activeFilters.push('source')
-                  if (filters.status) activeFilters.push('status')
-                  if (sortField) activeFilters.push('sort')
-                  if (valueRange.min || valueRange.max) activeFilters.push('value')
-                  if (dateRange.min || dateRange.max) activeFilters.push('date')
-                  
-                  return activeFilters.length > 0 && (
+                {(searchTerm || Object.values(filters).some(f => f !== "") || valueRange.min || valueRange.max || dateRange.min || dateRange.max) && (
                   <span className="ml-1 bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 text-xs">
-
-                      {activeFilters.length}
+                    {[searchTerm, ...Object.values(filters), valueRange.min, valueRange.max, dateRange.min, dateRange.max].filter(f => f && f !== "").length}
                   </span>
-
-                  )
-                })()}
+                )}
               </Button>
-
-              {(searchTerm || Object.values(filters).some(f => f !== "") || sortField || valueRange.min || valueRange.max || dateRange.min || dateRange.max) && (
-
+              
+              {(searchTerm || Object.values(filters).some(f => f !== "") || valueRange.min || valueRange.max || dateRange.min || dateRange.max) && (
                 <Button
-
                   variant="ghost"
-
                   size="sm"
-
                   onClick={clearFilters}
-
                   className="cursor-pointer text-muted-foreground hover:text-foreground"
-
                 >
-
                   <XCircle className="h-4 w-4" />
-
                 </Button>
-
               )}
+            </div>
 
-        </div>
-
+            {/* Actions */}
             <div className="flex items-center gap-2">
 
               <DropdownMenu>
@@ -3234,35 +3595,41 @@ export default function LeadsPage({
               </DropdownMenu>
 
               {selectedLeads.size > 0 && (
-
-                <Button variant="outline" onClick={openBulkEdit} className="cursor-pointer">
-
-                  <Edit className="h-4 w-4 mr-2" />
-
-                  Edit Selected
-
-                </Button>
-
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="cursor-pointer">
+                      <Edit className="h-4 w-4 mr-2" />
+                      Actions ({selectedLeads.size})
+                      <ChevronDown className="ml-2 h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem onClick={openBulkEdit} className="cursor-pointer">
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit Selected
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => openPipelineModal('add')} className="cursor-pointer">
+                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                      Add to Pipeline
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => openPipelineModal('remove')} className="cursor-pointer">
+                      <X className="h-4 w-4 mr-2" />
+                      Remove from Pipeline
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      onClick={handleDeleteSelected} 
+                      className="cursor-pointer text-red-600 focus:text-red-600"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete Selected
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
 
-              {selectedLeads.size > 0 && (
+            </div>
 
-                <Button variant="destructive" onClick={handleDeleteSelected} className="cursor-pointer">
-
-                  <Trash2 className="h-4 w-4 mr-2" />
-
-                  Delete Selected
-
-                </Button>
-
-              )}
-
-                  </div>
-
-                </div>
-
-
-
+          </div>
 
           {/* LEADS TABLE */}
 
@@ -3273,14 +3640,15 @@ export default function LeadsPage({
               <div className="flex items-center gap-4">
               <h2 className="text-lg font-semibold">Lead List</h2>
 
-                {showSelectAllButton && (
+                {selectedLeads.size > 0 && (
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={handleSelectAllLeads}
-                    className="cursor-pointer"
+                    onClick={() => setSelectedLeads(new Set())}
+                    className="cursor-pointer text-red-600 hover:text-red-700"
                   >
-                    Select All ({leads.length})
+                  <X className="h-4 w-4" />
+                  Unselect All
                   </Button>
                 )}
                 {/* TOP PAGINATION - Show when scrolling */}
@@ -3332,22 +3700,30 @@ export default function LeadsPage({
                   </div>
                 )}
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
 
                 {selectedLeads.size > 0 && (
 
-                  <span className="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium">
-
-                    {selectedLeads.size} selected
-
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-800">
+                      {selectedLeads.size} selected
+                    </span>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => setSelectedLeads(new Set())}
+                      className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      Clear
+                    </Button>
+                  </div>
 
                 )}
 
-                <span className="text-sm text-muted-foreground">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
 
                   {startIndex + 1}-{Math.min(endIndex, totalItems)} of {totalItems} items
-                </span>
+                </div>
 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -3384,18 +3760,28 @@ export default function LeadsPage({
                   <tr className="text-left border-b">
 
                     <th className="py-2 pr-3 w-12">
-
-                      <input
-
-                        type="checkbox"
-
-                        checked={selectedLeads.size === currentLeads.length && currentLeads.length > 0}
-                        onChange={handleSelectAll}
-
-                        className="rounded border-input"
-
-                      />
-
+                      {leads.length > 0 && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="cursor-pointer p-1 h-6 w-6">
+                              <ChevronDown className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start" className="w-48">
+                              <DropdownMenuItem onClick={handleToggleSelectAll} className="cursor-pointer">
+                                {selectedLeads.size === leads.length && leads.length > 0 ? `Unselect All (${leads.length})` : `Select All (${leads.length})`}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={handleToggleSelectPage} className="cursor-pointer">
+                                {(() => {
+                                  const currentPageLeadIds = new Set(currentLeads.map(lead => lead.id))
+                                  const allCurrentPageSelected = currentPageLeadIds.size > 0 && 
+                                    Array.from(currentPageLeadIds).every(id => selectedLeads.has(id))
+                                  return allCurrentPageSelected ? `Unselect Page` : `Select Page`
+                                })()}
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                     </th>
 
                     <th 
@@ -3542,18 +3928,26 @@ export default function LeadsPage({
 
                       <td className="py-2 pr-3">
 
-                        <div
+                        <div className="flex items-center gap-2">
+                          <div
 
-                          className="max-w-[200px] truncate hover:underline decoration-dotted cursor-pointer font-medium"
+                            className="max-w-[200px] truncate hover:underline decoration-dotted cursor-pointer font-medium"
 
-                          title={lead.name}
+                            title={lead.name}
 
-                          onClick={() => setPreview({ open: true, lead })}
+                            onClick={() => setPreview({ open: true, lead })}
 
-                        >
+                          >
 
-                          {lead.name}
+                            {lead.name}
 
+                          </div>
+                          {lead.show_on_pipeline && (
+                            <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+                              <CheckCircle2 className="h-3 w-3 mr-1" />
+                              Pipeline
+                            </span>
+                          )}
                         </div>
 
                       </td>
@@ -3753,13 +4147,8 @@ export default function LeadsPage({
               </div>
             )}
           </div>
-
         </div>
-
-
-
         {/* ADD/EDIT MODAL */}
-
         <Sheet open={isModalOpen} onOpenChange={setIsModalOpen}>
 
           <SheetContent className="w-full sm:max-w-md border-l border-border p-6 md:p-8">
@@ -4622,9 +5011,9 @@ export default function LeadsPage({
 
     <Sheet open={isFilterOpen} onOpenChange={setIsFilterOpen}>
 
-      <SheetContent className="w-full sm:max-w-md border-l border-border p-6 md:p-8">
+      <SheetContent className="w-full sm:max-w-lg border-l border-border p-6 md:p-8 flex flex-col">
 
-        <SheetHeader>
+        <SheetHeader className="flex-shrink-0">
 
           <SheetTitle>Filter leads</SheetTitle>
 
@@ -4632,260 +5021,201 @@ export default function LeadsPage({
 
         </SheetHeader>
 
-        <Separator className="my-4" />
-
-        <div className="space-y-4">
-
-          <div className="space-y-2">
-
-            <label className="mb-1 block text-sm font-medium">Name</label>
-
-            <Input
-
-              placeholder="Filter by name..."
-
-              value={filters.name}
-
-              onChange={(e) => setFilters(prev => ({ ...prev, name: e.target.value }))}
-
-            />
-
-          </div>
-
-          <div className="space-y-2">
-
-            <label className="mb-1 block text-sm font-medium">Email</label>
-
-            <Input
-
-              placeholder="Filter by email..."
-
-              value={filters.email}
-
-              onChange={(e) => setFilters(prev => ({ ...prev, email: e.target.value }))}
-
-            />
-
-          </div>
-
-          <div className="space-y-2">
-
-            <label className="mb-1 block text-sm font-medium">Phone</label>
-
-            <Input
-
-              placeholder="Filter by phone..."
-
-              value={filters.phone}
-
-              onChange={(e) => setFilters(prev => ({ ...prev, phone: e.target.value }))}
-
-            />
-
-          </div>
-
-          <div className="space-y-2">
-
-            <label className="mb-1 block text-sm font-medium">SSN</label>
-
-            <Input
-
-              placeholder="Filter by SSN..."
-
-              value={filters.ssn}
-
-              onChange={(e) => setFilters(prev => ({ ...prev, ssn: e.target.value }))}
-
-            />
-
-          </div>
-
-          <div className="space-y-2">
-
-            <label className="mb-1 block text-sm font-medium">EIN</label>
-
-            <Input
-
-              placeholder="Filter by EIN..."
-
-              value={filters.ein}
-
-              onChange={(e) => setFilters(prev => ({ ...prev, ein: e.target.value }))}
-
-            />
-
-          </div>
-
-          <div className="space-y-2">
-
-            <label className="mb-1 block text-sm font-medium">Source</label>
-
-            <Input
-
-              placeholder="Filter by source..."
-
-              value={filters.source}
-
-              onChange={(e) => setFilters(prev => ({ ...prev, source: e.target.value }))}
-
-            />
-
-          </div>
-
-          <div className="space-y-2">
-
-            <label className="mb-1 block text-sm font-medium">Status</label>
-
-            <select
-
-              className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input h-9 w-full min-w-0 rounded-md border bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-
-              value={filters.status}
-
-              onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
-
-            >
-
-              <option value="">All statuses</option>
-
-              <option value="New">New</option>
-
-              <option value="In Contact">In Contact</option>
-
-              <option value="Qualified">Qualified</option>
-
-              <option value="Lost">Lost</option>
-
-            </select>
-
-          </div>
-
-          
-
-          <Separator />
-
-          
-
-          <div className="space-y-2">
-
-            <label className="mb-1 block text-sm font-medium">Value Range</label>
-
-            <div className="flex gap-2">
-
-              <Input
-
-                type="number"
-
-                placeholder="Min value"
-
-                value={valueRange.min}
-
-                onChange={(e) => setValueRange(prev => ({ ...prev, min: e.target.value }))}
-
-                className="flex-1"
-
-              />
-
-              <Input
-
-                type="number"
-
-                placeholder="Max value"
-
-                value={valueRange.max}
-
-                onChange={(e) => setValueRange(prev => ({ ...prev, max: e.target.value }))}
-
-                className="flex-1"
-
-              />
-
+        <Separator className="my-4 flex-shrink-0" />
+
+        <div className="flex-1 overflow-y-auto space-y-6 pr-2">
+
+          {/* Basic Information */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-foreground">Basic Information</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="mb-1 block text-sm font-medium">Name</label>
+                <Input
+                  placeholder="Filter by name..."
+                  value={filters.name}
+                  onChange={(e) => setFilters(prev => ({ ...prev, name: e.target.value }))}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="mb-1 block text-sm font-medium">Email</label>
+                <Input
+                  placeholder="Filter by email..."
+                  value={filters.email}
+                  onChange={(e) => setFilters(prev => ({ ...prev, email: e.target.value }))}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="mb-1 block text-sm font-medium">Phone</label>
+                <Input
+                  placeholder="Filter by phone..."
+                  value={filters.phone}
+                  onChange={(e) => setFilters(prev => ({ ...prev, phone: e.target.value }))}
+                />
+              </div>
             </div>
-
           </div>
 
-          
+          {/* Documents */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-foreground">Documents</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="mb-1 block text-sm font-medium">SSN</label>
+                <Input
+                  placeholder="Filter by SSN..."
+                  value={filters.ssn}
+                  onChange={(e) => setFilters(prev => ({ ...prev, ssn: e.target.value }))}
+                />
+              </div>
 
-          <div className="space-y-2">
-
-            <label className="mb-1 block text-sm font-medium">Close Date Range</label>
-
-            <div className="flex gap-2">
-
-              <Input
-
-                type="date"
-
-                placeholder="From date"
-
-                value={dateRange.min}
-
-                onChange={(e) => setDateRange(prev => ({ ...prev, min: e.target.value }))}
-
-                className="flex-1"
-
-              />
-
-              <Input
-
-                type="date"
-
-                placeholder="To date"
-
-                value={dateRange.max}
-
-                onChange={(e) => setDateRange(prev => ({ ...prev, max: e.target.value }))}
-
-                className="flex-1"
-
-              />
-
+              <div className="space-y-2">
+                <label className="mb-1 block text-sm font-medium">EIN</label>
+                <Input
+                  placeholder="Filter by EIN..."
+                  value={filters.ein}
+                  onChange={(e) => setFilters(prev => ({ ...prev, ein: e.target.value }))}
+                />
+              </div>
             </div>
-
           </div>
 
-          
+          {/* Status and Pipeline */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-foreground">Status & Pipeline</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="mb-1 block text-sm font-medium">Source</label>
+                <Input
+                  placeholder="Filter by source..."
+                  value={filters.source}
+                  onChange={(e) => setFilters(prev => ({ ...prev, source: e.target.value }))}
+                />
+              </div>
 
-          <Separator />
+              <div className="space-y-2">
+                <label className="mb-1 block text-sm font-medium">Status</label>
+                <select
+                  className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input h-9 w-full min-w-0 rounded-md border bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                  value={filters.status}
+                  onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+                >
+                  <option value="">All statuses</option>
+                  <option value="New">New</option>
+                  <option value="In Contact">In Contact</option>
+                  <option value="Qualified">Qualified</option>
+                  <option value="Lost">Lost</option>
+                </select>
+              </div>
 
+              <div className="space-y-2">
+                <label className="mb-1 block text-sm font-medium">Pipeline</label>
+                <select
+                  className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input h-9 w-full min-w-0 rounded-md border bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                  value={filters.pipeline || ""}
+                  onChange={(e) => setFilters(prev => ({ ...prev, pipeline: e.target.value }))}
+                >
+                  <option value="">All leads</option>
+                  <option value="true">In Pipeline</option>
+                  <option value="false">Not in Pipeline</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Ranges */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-foreground">Ranges</h3>
+            
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="mb-1 block text-sm font-medium">Value Range</label>
+                <div className="flex gap-2">
+                  <Input
+                    type="number"
+                    placeholder="Min value"
+                    value={valueRange.min}
+                    onChange={(e) => setValueRange(prev => ({ ...prev, min: e.target.value }))}
+                    className="flex-1"
+                  />
+                  <Input
+                    type="number"
+                    placeholder="Max value"
+                    value={valueRange.max}
+                    onChange={(e) => setValueRange(prev => ({ ...prev, max: e.target.value }))}
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="mb-1 block text-sm font-medium">Close Date Range</label>
+                <div className="flex gap-2">
+                  <Input
+                    type="date"
+                    placeholder="From date"
+                    value={dateRange.min}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (validateDate(value)) {
+                        setDateRange(prev => ({ ...prev, min: value }));
+                      }
+                    }}
+                    className={!validateDate(dateRange.min) ? "border-red-500" : ""}
+                  />
+                  {!validateDate(dateRange.min) && dateRange.min && (
+                    <p className="text-xs text-red-500 mt-1">Ano deve ter exatamente 4 dígitos (1000-9999)</p>
+                  )}
+
+                  <Input
+                    type="date"
+                    placeholder="To date"
+                    value={dateRange.max}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (validateDate(value)) {
+                        setDateRange(prev => ({ ...prev, max: value }));
+                      }
+                    }}
+                    className={!validateDate(dateRange.max) ? "border-red-500" : ""}
+                  />
+                  {!validateDate(dateRange.max) && dateRange.max && (
+                    <p className="text-xs text-red-500 mt-1">Ano deve ter exatamente 4 dígitos (1000-9999)</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        {/* Fixed Action Buttons */}
+        <div className="flex-shrink-0 border-t pt-4 mt-4">
           <div className="flex gap-2">
-
             <Button
-
               onClick={() => {
-
                 applyModalFilters()
-
                 setIsFilterOpen(false)
-
               }}
-
               className="flex-1 cursor-pointer"
-
             >
-
               Apply Filter
-
             </Button>
 
             <Button
-
               onClick={() => {
-
                 clearFilters()
-
                 setIsFilterOpen(false)
-
               }}
-
               variant="outline"
-
-              className="cursor-pointer"
-
+              className="flex-1 cursor-pointer"
             >
-
               <X className="h-4 w-4 mr-1" />
-
               Clear All
 
             </Button>
@@ -5274,7 +5604,47 @@ export default function LeadsPage({
 
     </Sheet>
 
-
+    {/* PIPELINE MODAL */}
+    <Sheet open={isPipelineModalOpen} onOpenChange={setIsPipelineModalOpen}>
+      <SheetContent className="w-full sm:max-w-md border-l border-border p-6 md:p-8">
+        <SheetHeader>
+          <SheetTitle>
+            {pipelineAction === 'add' ? 'Add to Pipeline' : 'Remove from Pipeline'}
+          </SheetTitle>
+          <SheetDescription>
+            {pipelineAction === 'add' 
+              ? `Add ${selectedLeads.size} selected lead(s) to the pipeline.`
+              : `Remove ${selectedLeads.size} selected lead(s) from the pipeline.`
+            }
+          </SheetDescription>
+        </SheetHeader>
+        <Separator className="my-4" />
+        <div className="space-y-6">
+          <div className="text-sm text-muted-foreground">
+            {pipelineAction === 'add' 
+              ? 'These leads will appear in the pipeline view and can be managed through the Kanban board.'
+              : 'These leads will be removed from the pipeline view but will remain in the leads list.'
+            }
+          </div>
+          <Separator />
+          <div className="flex gap-2">
+            <Button 
+              onClick={handlePipelineBulkAction} 
+              className="flex-1 cursor-pointer"
+            >
+              {pipelineAction === 'add' ? 'Add to Pipeline' : 'Remove from Pipeline'}
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsPipelineModalOpen(false)} 
+              className="cursor-pointer"
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
 
         {/* CONFIRMATION MODAL */}
 
@@ -5372,7 +5742,7 @@ export default function LeadsPage({
 
               </div>
 
-    </div>
+            </div>
 
           </SheetContent>
 
@@ -5382,89 +5752,7 @@ export default function LeadsPage({
 
     </SidebarProvider>
 
-
-    {/* DELETE PROGRESS NOTIFICATION */}
-    {deleteNotification.show && (
-      <div className="fixed top-4 right-4 z-50 bg-background border rounded-lg shadow-lg p-4 w-80">
-        <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-destructive"></div>
-              <span className="font-medium">
-                {isDeletionCancelled ? 'Cancelling Deletion...' : 'Deleting Leads'}
-              </span>
-            </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setIsDeletionCancelled(true)
-              isDeletionCancelledRef.current = true
-              setDeleteNotification(prev => ({ 
-                ...prev, 
-                cancelled: true,
-                progress: { 
-                  ...prev.progress, 
-                  current: 0, 
-                  total: 0, 
-                  batch: 0, 
-                  totalBatches: 0 
-                }
-              }))
-            }}
-            className="cursor-pointer text-muted-foreground hover:text-foreground"
-          >
-            Cancel
-          </Button>
-        </div>
-        
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm text-muted-foreground">
-            <span>Batch {deleteNotification.progress.batch} of {deleteNotification.progress.totalBatches}</span>
-            <span>{deleteNotification.progress.current} / {deleteNotification.progress.total}</span>
-          </div>
-          
-          <div className="w-full bg-muted rounded-full h-2">
-            <div 
-              className="bg-destructive h-2 rounded-full transition-all duration-300"
-              style={{ 
-                width: `${(deleteNotification.progress.current / deleteNotification.progress.total) * 100}%` 
-              }}
-            />
-          </div>
-        </div>
-      </div>
-    )}
-
-    {/* SELECT ALL CONFIRMATION MODAL */}
-    {showSelectAllConfirm && (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-        <div className="bg-background border rounded-lg p-6 max-w-md w-full mx-4">
-          <h3 className="text-lg font-semibold mb-4">Confirm Selection</h3>
-          <p className="text-muted-foreground mb-6">
-            You are about to select all <strong>{leads.length} leads</strong> from your database. 
-            This may impact performance if you perform bulk actions.
-          </p>
-          <div className="flex gap-3 justify-end">
-            <Button
-              variant="outline"
-              onClick={() => setShowSelectAllConfirm(false)}
-              className="cursor-pointer"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={confirmSelectAllLeads}
-              className="cursor-pointer"
-            >
-              Yes, Select All
-            </Button>
-          </div>
-        </div>
-      </div>
-    )}
     </AuthGuard>
-
   )
-
 }
 
