@@ -41,7 +41,7 @@ export default function InactivityNotification({ isVisible, onClose }: Inactivit
             </h3>
             <p className="text-sm text-yellow-700">
               You have been disconnected due to inactivity for more than 30 minutes. 
-              Please log in again to continue and dismiss this notification.
+              Please log in again to continue.
             </p>
           </div>
           <button

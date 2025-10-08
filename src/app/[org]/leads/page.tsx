@@ -1,1330 +1,5470 @@
 "use client"
 
+
+
 import * as React from "react"
+
 import { useSearchParams } from "next/navigation"
+
 import { AppSidebar } from "@/components/app-sidebar"
+
 import AuthGuard from "@/components/AuthGuard"
+
 import {
+
   Breadcrumb,
+
   BreadcrumbItem,
+
   BreadcrumbLink,
+
   BreadcrumbList,
+
   BreadcrumbPage,
+
   BreadcrumbSeparator,
+
 } from "@/components/ui/breadcrumb"
+
 import { Button } from "@/components/ui/button"
+
 import { Input } from "@/components/ui/input"
+
 import { Separator } from "@/components/ui/separator"
+
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
+
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import { Search, Plus, Download, Upload, Trash2, Edit, X, ChevronDown, CheckCircle2, AlertTriangle, AlertCircle, Check, Filter, XCircle, ArrowUp, ArrowDown } from "lucide-react"
+
+import { Search, Plus, Download, Upload, Trash2, Edit, X, ChevronDown, CheckCircle2, AlertTriangle, AlertCircle, Check, Filter, XCircle, ArrowUp, ArrowDown, Copy } from "lucide-react"
+
 import * as XLSX from "xlsx"
+
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
-type Lead = {
-  id: string
-  name: string
-  email: string
-  phone: string
-  ssn: string
-  source: string
-  status: "New" | "In Contact" | "Qualified" | "Lost" | string
-}
+import { apiService, Lead, CreateLeadRequest, UpdateLeadRequest } from "@/lib/api"
+
+import { useApi } from "@/hooks/useApi"
+
+
 
 function createId() {
+
   return Math.random().toString(36).slice(2, 10)
+
 }
 
-const SAMPLE_LEADS: Lead[] = [
-  {
-    id: "ld_1",
-    name: "Maria Silva",
-    email: "maria.silva@example.com",
-    phone: "+55 11 91234-5678",
-    ssn: "",
-    source: "Landing Page",
-    status: "New",
-  },
-  {
-    id: "ld_2",
-    name: "João Souza",
-    email: "joao.souza@example.com",
-    phone: "+55 21 99876-5432",
-    ssn: "",
-    source: "Instagram",
-    status: "In Contact",
-  },
-  {
-    id: "ld_3",
-    name: "Ana Pereira",
-    email: "ana.pereira@example.com",
-    phone: "+55 31 90000-1111",
-    ssn: "",
-    source: "Referral",
-    status: "Qualified",
-  },
-]
+
+
+// Removed SAMPLE_LEADS - now using API
+
+
 
 export default function LeadsPage({
+
   params,
+
 }: {
+
   params: Promise<{ org: string }>
+
 }) {
+
   const { org } = React.use(params)
+
+  const { isClient } = useApi()
+
   const storageKey = React.useMemo(() => `leads_${org}`, [org])
+
   const searchParams = useSearchParams()
+
   const [leads, setLeads] = React.useState<Lead[]>([])
+
   const [filteredLeads, setFilteredLeads] = React.useState<Lead[]>([])
+
   const [searchTerm, setSearchTerm] = React.useState("")
+
   const [selectedLeads, setSelectedLeads] = React.useState<Set<string>>(new Set())
+
+  const [sortField, setSortField] = React.useState<keyof Lead | null>(null)
+
+  const [sortDirection, setSortDirection] = React.useState<'asc' | 'desc'>('asc')
+
   const [isModalOpen, setIsModalOpen] = React.useState(false)
+
   const [isConfirmOpen, setIsConfirmOpen] = React.useState(false)
+
   const [confirmInput, setConfirmInput] = React.useState("")
+
   const [pendingDeletionIds, setPendingDeletionIds] = React.useState<string[]>([])
+
   const [editingId, setEditingId] = React.useState<string | null>(null)
+
   // Selection helpers
+
   const [lastClickedIndex, setLastClickedIndex] = React.useState<number | null>(null)
+
   const [isBulkEditOpen, setIsBulkEditOpen] = React.useState(false)
+
   const [bulkStatus, setBulkStatus] = React.useState<string>("") // empty = keep
+
   const [bulkSource, setBulkSource] = React.useState<string>("") // empty = keep
+  
+  // Bulk edit confirmation
+  const [bulkEditConfirm, setBulkEditConfirm] = React.useState("")
+
   const fileInputRef = React.useRef<HTMLInputElement | null>(null)
+
   const [isImportOpen, setIsImportOpen] = React.useState(false)
+
   const [isDragActive, setIsDragActive] = React.useState(false)
+
+  const [isImporting, setIsImporting] = React.useState(false)
+  const [isProcessingFile, setIsProcessingFile] = React.useState(false)
+
+  const [importProgress, setImportProgress] = React.useState({ current: 0, total: 0, batch: 0, totalBatches: 0 })
+  const [importCancelled, setImportCancelled] = React.useState(false)
+  const [filePreview, setFilePreview] = React.useState<{
+    leads: Lead[]
+    fields: string[]
+    totalLeads: number
+  } | null>(null)
+  const [showPreview, setShowPreview] = React.useState(false)
   // Toast notifications stack (top-right)
+
   const [toasts, setToasts] = React.useState<{ id: string, text: string, type: "success" | "warning" | "error" }[]>([])
 
+  // Import progress notification
+  const [importNotification, setImportNotification] = React.useState<{
+    show: boolean
+    progress: { current: number, total: number, batch: number, totalBatches: number }
+    cancelled: boolean
+  }>({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
+  
+  // Bulk edit progress notification
+  const [editNotification, setEditNotification] = React.useState<{
+    show: boolean
+    progress: { current: number, total: number, batch: number, totalBatches: number }
+    cancelled: boolean
+  }>({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
+  // Show top pagination when scrolling
+  const [showTopPagination, setShowTopPagination] = React.useState(false)
+  // Select all leads confirmation
+  const [showSelectAllConfirm, setShowSelectAllConfirm] = React.useState(false)
+  // Show select all leads button
+  const [showSelectAllButton, setShowSelectAllButton] = React.useState(false)
+  // Delete progress notification
+  const [deleteNotification, setDeleteNotification] = React.useState<{
+    show: boolean
+    progress: { current: number, total: number, batch: number, totalBatches: number }
+    cancelled: boolean
+  }>({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
+  // Track if deletion is being cancelled
+  const [isDeletionCancelled, setIsDeletionCancelled] = React.useState(false)
+  // Ref for immediate access to cancellation state
+  const isDeletionCancelledRef = React.useRef(false)
+  
+  // Track if bulk edit is being cancelled
+  const [isEditCancelled, setIsEditCancelled] = React.useState(false)
+  // Ref for immediate access to edit cancellation state
+  const isEditCancelledRef = React.useRef(false)
+  
+  // Track deleted leads for potential rollback
+  const [deletedLeads, setDeletedLeads] = React.useState<Lead[]>([])
+  // Track imported leads for potential rollback
+  const [importedLeads, setImportedLeads] = React.useState<Lead[]>([])
+  const [currentImportLeads, setCurrentImportLeads] = React.useState<Lead[]>([])
+  // Track original leads before bulk edit for potential rollback
+  const [originalLeads, setOriginalLeads] = React.useState<Lead[]>([])
+  const [currentEditLeads, setCurrentEditLeads] = React.useState<Lead[]>([])
+  // Track if import is being cancelled
+  const [isImportCancelled, setIsImportCancelled] = React.useState(false)
+  // Ref for immediate access to import cancellation state
+  const isImportCancelledRef = React.useRef(false)
+
+
   // Preview modal for viewing selected lead details
+
   const [preview, setPreview] = React.useState<{ open: boolean, lead: Lead | null }>({ open: false, lead: null })
+
   const [copiedKey, setCopiedKey] = React.useState<string | null>(null)
 
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = React.useState(1)
+  const [itemsPerPage, setItemsPerPage] = React.useState(10)
+
+
   // Filter modal and state
+
   const [isFilterOpen, setIsFilterOpen] = React.useState(false)
+
   const [filters, setFilters] = React.useState({
+
     name: "",
+
     email: "",
+
     phone: "",
+
     ssn: "",
+
+    ein: "",
+
     source: "",
+
     status: ""
+
   })
 
+  const [valueRange, setValueRange] = React.useState({
+
+    min: "",
+
+    max: ""
+
+  })
+
+  const [dateRange, setDateRange] = React.useState({
+
+    min: "",
+
+    max: ""
+
+  })
+
+
+
   const [name, setName] = React.useState("")
+
   const [email, setEmail] = React.useState("")
+
   const [phone, setPhone] = React.useState("")
+
   const [ssn, setSsn] = React.useState("")
+
+  const [ein, setEin] = React.useState("")
+
   const [source, setSource] = React.useState("")
+
   const [status, setStatus] = React.useState<Lead["status"]>("New")
+
   const [customStatus, setCustomStatus] = React.useState("")
 
+  const [value, setValue] = React.useState("")
+
+  const [estimatedCloseDate, setEstimatedCloseDate] = React.useState("")
+
+  const [description, setDescription] = React.useState("")
+
+
+
   // Field limits
+
   const FIELD_MAX = React.useMemo(() => ({
-    name: 160,     // geralmente nomes completos ficam entre 40-60 chars
-    email: 30,   // limite oficial do padrão RFC para emails
-    phone: 20,    // suporta +DDI, DDD, traços e espaços (+55 11 99999-9999)
-    ssn: 14,      // se for CPF/CNPJ -> 14 chars com pontos/traços
-    source: 30,   // ex: origem do cadastro (site, campanha, etc.)
-    status: 20,   // status curto: "pendente", "em análise", "aprovado"
+
+    name: 150,     // limite do banco de dados
+
+    email: 150,    // limite do banco de dados
+
+    phone: 20,     // formato internacional +55 11 99999-9999
+
+    ssn: 20,       // SSN americano: 123-45-6789
+
+    ein: 20,       // EIN americano
+
+    source: 100,   // origem do lead
+
+    status: 50,    // status customizado
+
+    description: 500, // descrição/notas
+
+    value: 15,     // valor monetário (ex: 999999999.99)
+
+    date: 10,      // data no formato YYYY-MM-DD
+
   }), [])
 
+
+
+  // Load all leads from API - simplified approach
   React.useEffect(() => {
-    try {
-      const raw = localStorage.getItem(storageKey)
-      if (raw) {
-        setLeads(JSON.parse(raw))
-      } else {
-        setLeads(SAMPLE_LEADS)
-        localStorage.setItem(storageKey, JSON.stringify(SAMPLE_LEADS))
+
+    const loadAllLeads = async () => {
+      console.log('Loading all leads...', { isClient })
+      try {
+
+        // Use only the basic call that works
+        const response = await apiService.getLeads()
+
+        console.log('API response:', response)
+
+        
+        if (response.success && response.data) {
+
+          console.log('Setting all leads:', response.data.leads.length, 'leads')
+          setLeads(response.data.leads)
+
+        } else {
+
+          console.error('Failed to load leads:', response.error)
+
+          pushToast('Erro ao carregar leads', 'error')
+
+        }
+
+      } catch (error) {
+
+        console.error('Error loading leads:', error)
+
+        pushToast('Erro ao carregar leads', 'error')
+
       }
-    } catch {
-      setLeads(SAMPLE_LEADS)
+
     }
-  }, [storageKey])
+
+
+
+    // Always run, not just on client side
+
+    loadAllLeads()
+  }, [])
+
+  // Detect scroll to show top pagination
+  React.useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop
+      const windowHeight = window.innerHeight
+      const documentHeight = document.documentElement.scrollHeight
+      
+      // Show top pagination if scrolled down and there's more content below
+      const shouldShow = scrollTop > 200 && (documentHeight - scrollTop - windowHeight) > 200
+      setShowTopPagination(shouldShow)
+    }
+
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
+
+
+  // Search leads with backend filters
+
+  const searchLeads = React.useCallback(async (searchParams: {
+
+    search?: string;
+
+    status?: string;
+
+    source?: string;
+
+    value_min?: number;
+
+    value_max?: number;
+
+    date_min?: string;
+
+    date_max?: string;
+
+    sort?: string;
+
+    order?: 'asc' | 'desc';
+
+  }) => {
+
+    try {
+
+      console.log('Calling searchLeads with:', searchParams)
+
+      const response = await apiService.searchLeads(searchParams)
+
+      console.log('Search response:', response)
+
+      if (response.success && response.data) {
+
+        console.log('Setting leads from search:', response.data.leads.length, 'leads')
+
+        setLeads(response.data.leads)
+
+        setFilteredLeads(response.data.leads)
+
+        return response.data.leads
+
+      } else {
+
+        console.error('Failed to search leads:', response.error)
+
+        pushToast('Erro ao buscar leads', 'error')
+
+        return []
+
+      }
+
+    } catch (error) {
+
+      console.error('Error searching leads:', error)
+
+      pushToast('Erro ao buscar leads', 'error')
+
+      return []
+
+    }
+
+  }, [])
+
+
 
   // Initialize search term from URL parameters
+
   React.useEffect(() => {
+
     const searchFromUrl = searchParams.get('search')
+
     if (searchFromUrl) {
+
       setSearchTerm(decodeURIComponent(searchFromUrl))
+
     }
+
   }, [searchParams])
+
   
-  React.useEffect(() => {
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(leads))
-    } catch {}
-  }, [leads, storageKey])
+
+  // Removed localStorage logic - now using API
+
+
 
   // Helpers: notifications
+
   function pushToast(message: string, type: "success" | "warning" | "error" = "success", timeoutMs = 4000) {
+
     const id = createId()
+
     setToasts((prev) => [...prev, { id, text: message, type }])
+
     window.setTimeout(() => {
+
       setToasts((prev) => prev.filter((t) => t.id !== id))
+
     }, timeoutMs)
+
   }
+
+
+
+  // Função de ordenação local
+  const handleSort = (field: keyof Lead) => {
+
+    if (sortField === field) {
+
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+
+    } else {
+
+      setSortField(field)
+
+      setSortDirection('asc')
+
+    }
+
+    
+    // Aplicar ordenação local aos leads filtrados
+    const sortedLeads = [...filteredLeads].sort((a, b) => {
+      let aValue = a[field]
+      let bValue = b[field]
+      
+      // Tratar valores nulos/undefined
+      if (aValue === null || aValue === undefined) aValue = ''
+      if (bValue === null || bValue === undefined) bValue = ''
+      
+      // Tratar valores numéricos (value)
+      if (field === 'value') {
+        const aNum = parseFloat(aValue as string) || 0
+        const bNum = parseFloat(bValue as string) || 0
+        return sortDirection === 'asc' ? aNum - bNum : bNum - aNum
+      }
+      
+      // Tratar datas (estimated_close_date)
+      if (field === 'estimated_close_date') {
+        const aDate = new Date(aValue as string)
+        const bDate = new Date(bValue as string)
+        if (isNaN(aDate.getTime()) && isNaN(bDate.getTime())) return 0
+        if (isNaN(aDate.getTime())) return 1
+        if (isNaN(bDate.getTime())) return -1
+        return sortDirection === 'asc' ? aDate.getTime() - bDate.getTime() : bDate.getTime() - aDate.getTime()
+      }
+      
+      // Tratar strings (source, status)
+      const aStr = String(aValue).toLowerCase()
+      const bStr = String(bValue).toLowerCase()
+      
+      if (sortDirection === 'asc') {
+        return aStr.localeCompare(bStr)
+      } else {
+        return bStr.localeCompare(aStr)
+      }
+    })
+    
+    setFilteredLeads(sortedLeads)
+  }
+
+  const reloadLeads = async () => {
+    try {
+      const response = await apiService.getLeads()
+      if (response.success && response.data) {
+        const newLeads = response.data.leads || []
+        setLeads(newLeads)
+        setFilteredLeads(newLeads)
+      }
+    } catch (error) {
+      console.error('Error reloading leads:', error)
+    }
+  }
+
+  // Force refresh function that ensures complete sync
+  const forceRefreshLeads = async () => {
+    try {
+      const response = await apiService.getLeads()
+      if (response.success && response.data) {
+        const newLeads = response.data.leads || []
+        setLeads(newLeads)
+        setFilteredLeads(newLeads)
+      }
+    } catch (error) {
+      console.error('Error force refreshing leads:', error)
+    }
+  }
+
+  // Immediate sync function for after CRUD operations
+  const syncAfterOperation = async () => {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 100))
+      await forceRefreshLeads()
+    } catch (error) {
+      console.error('Error syncing after operation:', error)
+    }
+  }
+
+
+
+  const clearFilters = () => {
+
+    setSearchTerm('')
+
+    setFilters({
+
+      name: '',
+
+      email: '',
+
+      phone: '',
+
+      ssn: '',
+
+      ein: '',
+
+      source: '',
+
+      status: ''
+
+    })
+
+    setValueRange({
+
+      min: '',
+
+      max: ''
+
+    })
+
+    setDateRange({
+
+      min: '',
+
+      max: ''
+
+    })
+
+    setSortField(null)
+
+    setSortDirection('asc')
+
+    // Reload all leads when clearing filters
+    reloadLeads()
+  }
+
+
+
+  const clearSort = () => {
+
+    setSortField(null)
+
+    setSortDirection('asc')
+
+  }
+
+
+
+  // Debounced search function
+
+  const debouncedSearch = React.useMemo(() => {
+
+    let timeoutId: NodeJS.Timeout
+
+    return (searchParams: any) => {
+
+      clearTimeout(timeoutId)
+
+      timeoutId = setTimeout(() => {
+
+        searchLeads(searchParams)
+
+      }, 300) // 300ms debounce
+
+    }
+
+  }, [searchLeads])
+
+
+
+  // Apply search term only (real-time)
 
   React.useEffect(() => {
-    const filtered = leads.filter(lead => {
-      // Search filter
-      const matchesSearch = lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        lead.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        lead.phone.includes(searchTerm) ||
-        lead.ssn.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        lead.source.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        lead.status.toLowerCase().includes(searchTerm.toLowerCase())
+
+    if (!isClient) return
+
+    
+
+    if (searchTerm) {
+
+      // Use backend search with debounce for search term only
+
+      const searchParams = {
+
+        search: searchTerm,
+
+      }
+
       
-      // Field filters
-      const matchesName = !filters.name || lead.name.toLowerCase().includes(filters.name.toLowerCase())
-      const matchesEmail = !filters.email || lead.email.toLowerCase().includes(filters.email.toLowerCase())
-      const matchesPhone = !filters.phone || lead.phone.includes(filters.phone)
-      const matchesSsn = !filters.ssn || lead.ssn.toLowerCase().includes(filters.ssn.toLowerCase())
-      const matchesSource = !filters.source || lead.source.toLowerCase().includes(filters.source.toLowerCase())
-      const matchesStatus = !filters.status || lead.status.toLowerCase() === filters.status.toLowerCase()
+
+      console.log('Searching with search term:', searchParams)
+
+      debouncedSearch(searchParams)
+
+    } else {
+
+      // No search term, reload all leads from API
+
+      const loadAllLeads = async () => {
+
+        try {
+
+          const response = await apiService.getLeads()
+
+          if (response.success && response.data) {
+
+            setLeads(response.data.leads)
+
+            setFilteredLeads(response.data.leads)
+
+          }
+
+        } catch (error) {
+
+          console.error('Error loading all leads:', error)
+
+        }
+
+      }
+
+      loadAllLeads()
+
+    }
+
+  }, [searchTerm, debouncedSearch, isClient])
+
+
+
+  // Apply modal filters when Apply Filter is clicked
+
+  const applyModalFilters = React.useCallback(async () => {
+
+    if (!isClient) return
+
+    
+
+    const hasFilters = filters.name || filters.email || filters.phone || filters.ssn || filters.ein || filters.source || filters.status || sortField || valueRange.min || valueRange.max || dateRange.min || dateRange.max
+
+    
+
+    if (hasFilters) {
+
+      // Use backend search with all filters
+
+      const searchParams = {
+
+        search: searchTerm || filters.name || filters.email || filters.phone || filters.ssn || filters.ein || undefined,
+
+        status: filters.status || undefined,
+
+        source: filters.source || undefined,
+
+        value_min: valueRange.min && !isNaN(parseFloat(valueRange.min)) ? parseFloat(valueRange.min) : undefined,
+
+        value_max: valueRange.max && !isNaN(parseFloat(valueRange.max)) ? parseFloat(valueRange.max) : undefined,
+
+        date_min: dateRange.min || undefined,
+
+        date_max: dateRange.max || undefined,
+
+        sort: sortField || undefined,
+
+        order: sortDirection || undefined,
+
+      }
+
       
-      return matchesSearch && matchesName && matchesEmail && matchesPhone && matchesSsn && matchesSource && matchesStatus
-    })
-    setFilteredLeads(filtered)
-  }, [leads, searchTerm, filters])
+
+      // Remove empty parameters
+
+      Object.keys(searchParams).forEach(key => {
+
+        if (searchParams[key as keyof typeof searchParams] === undefined) {
+
+          delete searchParams[key as keyof typeof searchParams]
+
+        }
+
+      })
+
+      
+
+      console.log('Applying modal filters:', searchParams)
+
+      console.log('Filters state:', filters)
+
+      console.log('Value range:', valueRange)
+
+      console.log('Date range:', dateRange)
+
+      await searchLeads(searchParams)
+
+    } else {
+
+      // No filters, reload all leads from API
+
+      const loadAllLeads = async () => {
+
+        try {
+
+          const response = await apiService.getLeads()
+
+          if (response.success && response.data) {
+
+            setLeads(response.data.leads)
+
+            setFilteredLeads(response.data.leads)
+
+          }
+
+        } catch (error) {
+
+          console.error('Error loading all leads:', error)
+
+        }
+
+      }
+
+      loadAllLeads()
+
+    }
+
+  }, [searchTerm, filters, valueRange, dateRange, sortField, sortDirection, searchLeads, isClient])
+
+
+
+  // Update filteredLeads when leads change and no filters are active
+
+  React.useEffect(() => {
+
+    if (!isClient) return
+
+    
+
+    const hasFilters = searchTerm || filters.email || filters.phone || filters.ssn || filters.ein || filters.source || filters.status || sortField
+
+    
+
+    if (!hasFilters) {
+
+      setFilteredLeads(leads)
+
+    }
+
+  }, [leads, searchTerm, filters.email, filters.phone, filters.ssn, filters.source, filters.status, sortField, isClient])
+
+
+  // Pagination calculations
+  const totalItems = filteredLeads.length
+  const totalPages = Math.ceil(totalItems / itemsPerPage)
+  const startIndex = (currentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const currentLeads = filteredLeads.slice(startIndex, endIndex)
+
+  // Reset to first page when filters change
+  React.useEffect(() => {
+    setCurrentPage(1)
+  }, [filteredLeads, itemsPerPage])
+
 
   function resetForm() {
+
     setEditingId(null)
+
     setName("")
+
     setEmail("")
+
     setPhone("")
+
     setSsn("")
+
+    setEin("")
+
     setSource("")
+
     setStatus("New")
+
     setCustomStatus("")
+
+    setValue("")
+
+    setEstimatedCloseDate("")
+
+    setDescription("")
+
     setIsModalOpen(false)
+
   }
+
+
 
   function startAddNew() {
+
     // Clear any editing state and open modal for creating a new lead
+
     setEditingId(null)
+
     setName("")
+
     setEmail("")
+
     setPhone("")
+
     setSsn("")
+
+    setEin("")
+
     setSource("")
+
     setStatus("New")
+
     setCustomStatus("")
+
+    setValue("")
+
+    setEstimatedCloseDate("")
+
+    setDescription("")
+
     setIsModalOpen(true)
+
   }
+
+
 
   function truncateTo(value: string, max: number): string {
+
     return value.length > max ? value.slice(0, max) : value
+
   }
 
-  function handleSubmit(e: React.FormEvent) {
+
+
+  async function handleSubmit(e: React.FormEvent) {
+
     e.preventDefault()
+
     if (!name || !email) return
-    // Enforce limits before saving
-    const safeName = truncateTo(name, FIELD_MAX.name)
-    const safeEmail = truncateTo(email, FIELD_MAX.email)
-    const safePhone = truncateTo(phone, FIELD_MAX.phone)
-    const safeSsn = truncateTo(ssn, FIELD_MAX.ssn)
-    const safeSource = truncateTo(source, FIELD_MAX.source)
-    const safeStatus = truncateTo(String(status), FIELD_MAX.status) as Lead["status"]
-    if (editingId) {
-      setLeads((prev) =>
-        prev.map((l) =>
-          l.id === editingId ? { ...l, name: safeName, email: safeEmail, phone: safePhone, ssn: safeSsn, source: safeSource, status: safeStatus } : l
-        )
-      )
-    } else {
-      const newLead: Lead = {
-        id: createId(),
-        name: safeName,
-        email: safeEmail,
-        phone: safePhone,
-        ssn: safeSsn,
-        source: safeSource,
-        status: safeStatus,
-      }
-      const existing = buildSignatureSet(leads)
-      const sig = makeLeadSignature({ name: newLead.name, email: newLead.email, phone: newLead.phone, ssn: newLead.ssn, source: newLead.source, status: newLead.status })
-      if (existing.has(sig)) {
-        pushToast(`Lead "${newLead.name}" already exists and was not added.`, "warning")
-      } else {
-        setLeads([newLead, ...leads])
-        // Optional: toast for manual add success (kept subtle by default)
-        pushToast(`Lead "${newLead.name}" added successfully.`, "success")
-      }
+
+    
+
+    // Verificar se estamos no cliente
+
+    if (!isClient) {
+
+      pushToast('Aguarde o carregamento completo da página', 'warning')
+
+      return
+
     }
+
+    
+
+    // Enforce limits before saving
+
+    const safeName = truncateTo(name, FIELD_MAX.name)
+
+    const safeEmail = truncateTo(email, FIELD_MAX.email)
+
+    const safePhone = truncateTo(phone, FIELD_MAX.phone)
+
+    const safeSsn = truncateTo(ssn, FIELD_MAX.ssn)
+
+    const safeEin = truncateTo(ein, FIELD_MAX.ein)
+
+    const safeSource = truncateTo(source, FIELD_MAX.source)
+
+    const safeStatus = truncateTo(String(status), FIELD_MAX.status)
+
+    const safeValue = value ? parseFloat(value) : undefined
+
+    const safeEstimatedCloseDate = estimatedCloseDate ? estimatedCloseDate.slice(0, FIELD_MAX.date) : undefined
+
+    const safeDescription = truncateTo(description, FIELD_MAX.description)
+
+    
+
+    try {
+
+      if (editingId) {
+
+        // Update existing lead
+
+        const updateData: UpdateLeadRequest = {
+
+          id: editingId,
+
+          name: safeName,
+
+          email: safeEmail,
+
+          phone: safePhone || undefined,
+
+          ssn: safeSsn || undefined,
+
+          ein: safeEin || undefined,
+
+          source: safeSource || undefined,
+
+          status: safeStatus,
+
+          value: safeValue,
+
+          estimated_close_date: safeEstimatedCloseDate,
+
+          description: safeDescription || undefined,
+
+        }
+
+        
+
+        const response = await apiService.updateLead(updateData)
+
+        if (response.success && response.data) {
+
+          setLeads((prev) =>
+
+            prev.map((l) =>
+
+              l.id === editingId ? response.data!.lead : l
+
+            )
+
+          )
+
+          pushToast(`Lead "${safeName}" atualizado com sucesso.`, "success")
+
+        } else {
+
+          pushToast(`Erro ao atualizar lead: ${response.error}`, "error")
+
+        }
+
+      } else {
+
+        // Create new lead
+
+        const createData: CreateLeadRequest = {
+
+          name: safeName,
+
+          email: safeEmail,
+
+          phone: safePhone || undefined,
+
+          ssn: safeSsn || undefined,
+
+          ein: safeEin || undefined,
+
+          source: safeSource || undefined,
+
+          status: safeStatus,
+
+          value: safeValue,
+
+          estimated_close_date: safeEstimatedCloseDate,
+
+          description: safeDescription || undefined,
+
+        }
+
+        
+
+        const response = await apiService.createLead(createData)
+
+        if (response.success && response.data) {
+
+          setLeads((prev) => [response.data!.lead, ...prev])
+
+          pushToast(`Lead "${safeName}" adicionado com sucesso.`, "success")
+
+        } else {
+
+          pushToast(`Erro ao criar lead: ${response.error}`, "error")
+
+        }
+
+      }
+
+    } catch (error) {
+
+      console.error('Error saving lead:', error)
+
+      pushToast('Erro ao salvar lead', "error")
+
+    }
+
+    
+
     resetForm()
+
   }
+
+
 
   function handleEdit(lead: Lead) {
+
     setEditingId(lead.id)
+
     setName(lead.name)
+
     setEmail(lead.email)
-    setPhone(lead.phone)
-    setSsn(lead.ssn)
-    setSource(lead.source)
+
+    setPhone(lead.phone || "")
+
+    setSsn(lead.ssn || "")
+
+    setEin(lead.ein || "")
+
+    setSource(lead.source || "")
+
     setStatus(lead.status)
+
+    setValue(lead.value ? lead.value.toString() : "")
+
+    setEstimatedCloseDate(lead.estimated_close_date || "")
+
+    setDescription(lead.description || "")
+
     if (lead.status !== "New" && lead.status !== "In Contact" && lead.status !== "Qualified" && lead.status !== "Lost") {
+
       setCustomStatus(lead.status)
+
     } else {
+
       setCustomStatus("")
+
     }
+
     setIsModalOpen(true)
+
   }
+
+
 
   function handleDelete(id: string) {
+
     // Open confirmation modal for single deletion
+
     setPendingDeletionIds([id])
+
     setConfirmInput("")
+
     setIsConfirmOpen(true)
+
   }
+
+
 
   function handleDeleteSelected() {
+
     if (selectedLeads.size === 0) return
+
     // Open confirmation modal for bulk deletion
+
     setPendingDeletionIds(Array.from(selectedLeads))
+
     setConfirmInput("")
+
     setIsConfirmOpen(true)
+
   }
+
+
 
   function handleSelectAll() {
-    if (selectedLeads.size === filteredLeads.length) {
+
+    if (selectedLeads.size === currentLeads.length) {
       setSelectedLeads(new Set())
+
+      setShowSelectAllButton(false)
     } else {
-      setSelectedLeads(new Set(filteredLeads.map(l => l.id)))
+
+      setSelectedLeads(new Set(currentLeads.map(l => l.id)))
+      setShowSelectAllButton(true)
     }
   }
+
+  // Handle select ALL leads (all 10,000)
+  const handleSelectAllLeads = () => {
+    setShowSelectAllConfirm(true)
+  }
+
+  // Confirm select all leads
+  const confirmSelectAllLeads = () => {
+    const allLeadIds = new Set(leads.map(lead => lead.id))
+    setSelectedLeads(allLeadIds)
+    setShowSelectAllConfirm(false)
+    setShowSelectAllButton(false)
+    pushToast(`Selected all ${leads.length} leads`, 'success')
+  }
+
 
   function handleSelectLead(id: string, index: number, e: React.MouseEvent<HTMLInputElement>) {
+
     const isCurrentlySelected = selectedLeads.has(id)
+
     const shouldSelect = !isCurrentlySelected
+
     setSelectedLeads((prev) => {
+
       const next = new Set(prev)
+
       if (e.shiftKey && lastClickedIndex !== null && index !== -1) {
+
         const start = Math.min(lastClickedIndex, index)
+
         const end = Math.max(lastClickedIndex, index)
+
         for (let i = start; i <= end; i++) {
-          const leadId = filteredLeads[i]?.id
+
+          const leadId = currentLeads[i]?.id
           if (!leadId) continue
+
           if (shouldSelect) {
+
             next.add(leadId)
+
           } else {
+
             next.delete(leadId)
+
           }
+
         }
+
       } else {
+
         if (isCurrentlySelected) {
+
           next.delete(id)
+
         } else {
+
           next.add(id)
+
         }
+
       }
+
       return next
+
     })
+
     if (index !== -1) setLastClickedIndex(index)
+
   }
+
+
 
   function openBulkEdit() {
+
     setBulkStatus("")
+
     setBulkSource("")
+    
+    setBulkEditConfirm("")
+
     setIsBulkEditOpen(true)
+
   }
 
-  function applyBulkEdit() {
+
+
+  async function applyBulkEdit() {
+
     if (selectedLeads.size === 0) return
+
     const shouldUpdateStatus = bulkStatus.trim() !== ""
+
     const shouldUpdateSource = bulkSource.trim() !== ""
+
     if (!shouldUpdateStatus && !shouldUpdateSource) {
+
       setIsBulkEditOpen(false)
+
+      return
+
+    }
+
+    // Check confirmation input
+    if (bulkEditConfirm.trim().toLowerCase() !== "edit") {
+      pushToast("Please type 'edit' to confirm bulk edit", "error")
       return
     }
-    const idsToUpdate = new Set(selectedLeads)
-    setLeads((prev) =>
-      prev.map((l) => {
-        if (!idsToUpdate.has(l.id)) return l
-        return {
-          ...l,
-          status: shouldUpdateStatus ? (bulkStatus as Lead["status"]) : l.status,
-          source: shouldUpdateSource ? bulkSource : l.source,
-        }
-      })
-    )
+
+    const idsToUpdate = Array.from(selectedLeads)
+    const leadsToUpdate = leads.filter(l => idsToUpdate.includes(l.id))
+    
+    // Store original leads before editing for potential rollback
+    setOriginalLeads([...leadsToUpdate])
+    setCurrentEditLeads([])
+    
+    // Calculate batch size based on total leads (similar to import logic)
+    const totalLeads = leadsToUpdate.length
+    const batchSize = totalLeads > 10000 ? 1000 : 
+                     totalLeads > 5000 ? 800 : 
+                     totalLeads > 2000 ? 600 : 
+                     totalLeads > 1000 ? 400 : 
+                     totalLeads > 500 ? 200 : 
+                     totalLeads > 100 ? 100 : 50
+    const totalBatches = Math.ceil(totalLeads / batchSize)
+    
+    // Close the bulk edit modal immediately when starting
     setIsBulkEditOpen(false)
+    
+    // Show progress notification
+    setEditNotification({
+      show: true,
+      progress: { current: 0, total: totalLeads, batch: 0, totalBatches },
+      cancelled: false
+    })
+    setIsEditCancelled(false)
+    isEditCancelledRef.current = false
+
+    try {
+      let successCount = 0
+      let errorCount = 0
+      const updatedLeads: Lead[] = []
+      
+      // Process leads in batches
+      for (let i = 0; i < totalLeads; i += batchSize) {
+        // Check if cancelled
+        if (isEditCancelledRef.current) {
+          // Rollback: restore original leads in backend
+          try {
+            const leadsToRestore = currentEditLeads
+            let successfullyRestored = 0
+            let errors = 0
+            
+            for (const editedLead of leadsToRestore) {
+              try {
+                // Find the original lead to get the original values
+                const originalLead = originalLeads.find(orig => orig.id === editedLead.id)
+                if (originalLead) {
+                  const updateData: any = { 
+                    id: editedLead.id,
+                    status: originalLead.status,
+                    source: originalLead.source
+                  }
+                  const result = await apiService.updateLead(updateData)
+                  if (result.success) {
+                    successfullyRestored++
+                  } else {
+                    errors++
+                    console.log(`Lead ${editedLead.id} could not be restored:`, result.error)
+                  }
+                }
+              } catch (error) {
+                errors++
+                console.log(`Error restoring lead ${editedLead.id}:`, error)
+              }
+            }
+            
+            if (successfullyRestored > 0) {
+              pushToast(`Bulk edit cancelled - ${successfullyRestored} leads restored`, 'success')
+            }
+            if (errors > 0) {
+              pushToast(`Bulk edit cancelled - ${errors} leads could not be restored`, 'warning')
+            }
+          } catch (error) {
+            console.error('Error during rollback:', error)
+            pushToast('Bulk edit cancelled - leads restored locally only', 'warning')
+          }
+          
+          // Restore frontend state
+          setLeads(prev => 
+            prev.map(l => {
+              if (!idsToUpdate.includes(l.id)) return l
+              
+              const originalLead = originalLeads.find(orig => orig.id === l.id)
+              if (originalLead) {
+                return originalLead
+              }
+              return l
+            })
+          )
+          
+          setFilteredLeads(prev => 
+            prev.map(l => {
+              if (!idsToUpdate.includes(l.id)) return l
+              
+              const originalLead = originalLeads.find(orig => orig.id === l.id)
+              if (originalLead) {
+                return originalLead
+              }
+              return l
+            })
+          )
+          
+          setEditNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: true })
+          setOriginalLeads([])
+          setCurrentEditLeads([])
+          
+          // Force refresh leads to ensure sync with backend after rollback
+          setTimeout(async () => {
+            await forceRefreshLeads()
+          }, 100)
+          return
+        }
+        
+        const batch = leadsToUpdate.slice(i, i + batchSize)
+        const batchNumber = Math.floor(i / batchSize) + 1
+        
+        // Update progress notification
+        setEditNotification({ 
+          show: true, 
+          progress: { 
+            current: i + batch.length, 
+            total: totalLeads, 
+            batch: batchNumber, 
+            totalBatches 
+          }, 
+          cancelled: false 
+        })
+        
+        console.log(`Processing edit batch ${batchNumber}/${totalBatches} (${batch.length} leads)`)
+        
+        // Process batch in parallel
+        const batchPromises = batch.map(async (lead) => {
+          const updateData: any = { id: lead.id }
+          
+          if (shouldUpdateStatus) {
+            updateData.status = bulkStatus as Lead["status"]
+          }
+          
+          if (shouldUpdateSource) {
+            updateData.source = bulkSource
+          }
+
+          try {
+            const result = await apiService.updateLead(updateData)
+            return { success: result.success, lead, result }
+          } catch (error) {
+            console.error(`Failed to update lead ${lead.id}:`, error)
+            return { success: false, lead, error }
+          }
+        })
+        
+        const batchResults = await Promise.all(batchPromises)
+        
+        // Count successes and errors
+        const batchSuccesses = batchResults.filter(r => r.success)
+        const batchErrors = batchResults.filter(r => !r.success)
+        
+        successCount += batchSuccesses.length
+        errorCount += batchErrors.length
+        
+        // Store successfully updated leads
+        batchSuccesses.forEach(({ lead }) => {
+          const updatedLead = {
+            ...lead,
+            status: shouldUpdateStatus ? (bulkStatus as Lead["status"]) : lead.status,
+            source: shouldUpdateSource ? bulkSource : lead.source,
+          }
+          updatedLeads.push(updatedLead)
+          
+          // Track leads as they are edited for immediate rollback capability
+          setCurrentEditLeads(prev => [...prev, updatedLead])
+        })
+        
+        // Update local state for this batch
+        setLeads(prev => 
+          prev.map(l => {
+            if (!idsToUpdate.includes(l.id)) return l
+            
+            const updatedLead = batchSuccesses.find(r => r.lead.id === l.id)
+            if (updatedLead) {
+              return {
+                ...l,
+                status: shouldUpdateStatus ? (bulkStatus as Lead["status"]) : l.status,
+                source: shouldUpdateSource ? bulkSource : l.source,
+              }
+            }
+            return l
+          })
+        )
+        
+        setFilteredLeads(prev => 
+          prev.map(l => {
+            if (!idsToUpdate.includes(l.id)) return l
+            
+            const updatedLead = batchSuccesses.find(r => r.lead.id === l.id)
+            if (updatedLead) {
+              return {
+                ...l,
+                status: shouldUpdateStatus ? (bulkStatus as Lead["status"]) : l.status,
+                source: shouldUpdateSource ? bulkSource : l.source,
+              }
+            }
+            return l
+          })
+        )
+      }
+      
+      // Clear selections and show success
+      setSelectedLeads(new Set())
+      
+      if (errorCount > 0) {
+        pushToast(`Updated ${successCount} leads, ${errorCount} failed`, 'warning')
+      } else {
+        pushToast(`Successfully updated ${successCount} leads`, 'success')
+      }
+      
+      // Sync after operation to ensure complete sync with backend
+      await syncAfterOperation()
+
+    } catch (error) {
+      console.error('Error updating leads:', error)
+      pushToast('Error updating leads', 'error')
+    } finally {
+      setEditNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
+      setOriginalLeads([])
+      setCurrentEditLeads([])
+    }
+
   }
+
+
 
   function exportToXLSX() {
+
     const data = filteredLeads.map(lead => ({
+
       Name: lead.name,
+
       Email: lead.email,
+
       Phone: lead.phone,
+
       SSN: lead.ssn,
+
       Source: lead.source,
+
       Status: lead.status
+
     }))
 
+
+
     const ws = XLSX.utils.json_to_sheet(data)
+
     const wb = XLSX.utils.book_new()
+
     XLSX.utils.book_append_sheet(wb, ws, "Leads")
+
     
+
     const fileName = `leads_${org}_${new Date().toISOString().split('T')[0]}.xlsx`
+
     XLSX.writeFile(wb, fileName)
+
   }
+
+
 
   function normalizeHeader(raw: string): string {
+
     const s = raw
+
       .toLowerCase()
+
       .normalize("NFD")
+
       .replace(/\p{Diacritic}+/gu, "")
+
       .replace(/[^a-z0-9]+/g, " ")
+
       .trim()
+
     // unify common variants
+
     return s
+
   }
 
-  function headerToCanonical(normalized: string): keyof Omit<Lead, "id"> | null {
+
+
+  function headerToCanonical(normalized: string): "name" | "email" | "phone" | "ssn" | "ein" | "source" | "status" | "value" | "estimated_close_date" | "description" | null {
+
     // Map of supported header synonyms (normalized via normalizeHeader)
-    const headerAliases: Record<keyof Omit<Lead, "id">, string[]> = {
+
+    const headerAliases: Record<"name" | "email" | "phone" | "ssn" | "ein" | "source" | "status" | "value" | "estimated_close_date" | "description", string[]> = {
+
       name: [
-        "name",
-        "full name",
-        "fullname",
-        "nome",
-        "nome completo"
+
+        "name", "full name", "fullname", "nome", "nome completo"
+
       ],
+
       email: [
-        "email",
-        "e mail",
-        "mail",
-        "email address",
-        "endereco de email",
-        "correio",
-        "correo"
+
+        "email", "e mail", "mail", "email address", "endereco de email", "correio", "correo", "email / phone", "email phone", "email/phone"
       ],
+
       phone: [
-        "phone",
-        "phone number",
-        "cell",
-        "cellphone",
-        "mobile",
-        "mobile phone",
-        "telefone",
-        "celular",
-        "telemovel",
-        "whatsapp"
+
+        "phone", "phone number", "cell", "cellphone", "mobile", "mobile phone", "telefone", "celular", "telemovel", "whatsapp"
+
       ],
+
       ssn: [
-        "ssn",
-        "social security number",
-        "social security",
-        "social security no",
-        "social security n",
-        "social security #",
-        "social sec number",
-        "social sec no",
-        "cpf",
-        "c p f",
-        "cadastro de pessoa fisica",
-        "cadastro de pessoa física",
-        "numero do cpf",
-        "n cpf",
-        "número do cpf"
+
+        "ssn", "social security number", "social security", "social security no", "social security n", "social security #", "social sec number", "social sec no",
+
+        "cpf", "c p f", "cadastro de pessoa fisica", "cadastro de pessoa física", "numero do cpf", "n cpf", "número do cpf", "ssn ein", "ssn/ein", "ssn / ein", "ssn/ein"
       ],
+
+      ein: [
+
+        "ein", "employer identification number", "cnpj", "cadastro nacional da pessoa juridica", "numero do cnpj", "n cnpj", "número do cnpj", "ssn ein", "ssn/ein", "ssn / ein", "ssn/ein"
+      ],
+
       source: [
-        "source",
-        "lead source",
-        "leadsource",
-        "origem",
-        "fonte",
-        "canal",
-        "canal de origem",
-        "origem do lead",
-        "fonte do lead"
+
+        "source", "lead source", "leadsource", "origem", "fonte", "canal", "canal de origem", "origem do lead", "fonte do lead"
+
       ],
+
       status: [
-        "status",
-        "lead status",
-        "leadstatus",
-        "situacao",
-        "estado",
-        "etapa",
-        "situacao do lead",
-        "situacao do contato"
+
+        "status", "lead status", "leadstatus", "situacao", "estado", "etapa", "situacao do lead", "situacao do contato"
+
       ],
+
+      value: [
+
+        "value", "deal value", "valor", "valor da venda", "preco", "preço", "amount", "montante", "price", "sale value", "value", "deal value", "deal amount", "total value", "contract value"
+      ],
+
+      estimated_close_date: [
+
+        "estimated close date", "close date", "data de fechamento", "data estimada", "data prevista", "expected close date", "estimated close date", "close date", "estimated close date", "close date", "close date", "expected close", "close", "date", "close date", "closing date", "deal close date", "expected close date", "target close date", "close date", "closing date", "deal close date", "expected close date", "target close date", "data", "data de fechamento", "data estimada", "data prevista", "data de venda", "data de conclusao", "data de conclusão", "data final", "data limite", "deadline", "due date", "end date", "final date", "completion date", "finish date"
+      ],
+
+      description: [
+
+        "description", "notes", "observations", "descricao", "descrição", "notas", "observacoes", "observações", "comentarios", "comentários", "description", "notes"
+
+      ],
+
     }
 
-    for (const [key, aliases] of Object.entries(headerAliases) as [keyof Omit<Lead, "id">, string[]][]) {
+
+
+    for (const [key, aliases] of Object.entries(headerAliases) as ["name" | "email" | "phone" | "ssn" | "ein" | "source" | "status" | "value" | "estimated_close_date" | "description", string[]][]) {
+
       if (aliases.includes(normalized)) return key
+
     }
+
+    return null
+
+  }
+
+
+
+  function makeLeadSignature(l: { name: string; email: string; phone?: string; ssn?: string; source?: string; status: string }): string {
+
+    return `${l.name}||${l.email}||${l.phone || ""}||${l.ssn || ""}||${l.source || ""}||${l.status}`
+
+  }
+
+
+
+  function buildSignatureSet(items: Lead[]): Set<string> {
+
+    const s = new Set<string>()
+
+    for (const l of items) {
+
+      s.add(makeLeadSignature({ name: l.name, email: l.email, phone: l.phone, ssn: l.ssn, source: l.source, status: l.status }))
+
+    }
+
+    return s
+
+  }
+
+
+  // Function to separate email and phone from concatenated string
+  function separateEmailAndPhone(combinedString: string): { email: string; phone: string } {
+    if (!combinedString) return { email: '', phone: '' }
+    
+    // Try to find email pattern (contains @)
+    const emailMatch = combinedString.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/)
+    if (emailMatch) {
+      const email = emailMatch[0]
+      // Remove the email from the string to get the phone
+      let phone = combinedString.replace(email, '').trim()
+      
+      // Clean up phone number (remove any non-digit characters except + at start)
+      phone = phone.replace(/[^\d+]/g, '')
+      
+      // If phone starts with +, keep it, otherwise format as needed
+      if (phone && !phone.startsWith('+')) {
+        // Ensure it's a valid phone number format
+        phone = phone.replace(/^0+/, '') // Remove leading zeros
+      }
+      
+      return { email, phone }
+    }
+    
+    // If no email found, treat entire string as phone
+    return { email: '', phone: combinedString }
+  }
+
+  // Function to parse any date format (Brazilian, American, ISO, etc.)
+  function parseAnyDateFormat(dateString: string | number): string | null {
+    if (dateString == null || dateString === "") return null
+    
+    // 🔹 Trata valores numéricos (Excel serial date)
+    if (typeof dateString === "number") {
+      console.log(`Converting Excel serial date: ${dateString}`)
+      const excelEpoch = new Date(1899, 11, 30) // Excel epoch is 1900-01-01, but JavaScript Date is 1899-12-30
+      const date = new Date(excelEpoch.getTime() + dateString * 86400000)
+      const result = date.toISOString().split("T")[0]
+      console.log(`Excel serial ${dateString} -> ${result}`)
+      return result
+    }
+    
+    const cleanDate = dateString.toString().trim()
+    
+    // Already in YYYY-MM-DD format
+    if (/^\d{4}-\d{2}-\d{2}$/.test(cleanDate)) {
+      return cleanDate
+    }
+    
+    // Try different date patterns
+    const patterns = [
+      // DD/MM/YYYY (Brazilian)
+      { regex: /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/, handler: (match: RegExpMatchArray) => {
+        const [, day, month, year] = match
+        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+      }},
+      
+      // MM/DD/YYYY (American)
+      { regex: /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/, handler: (match: RegExpMatchArray) => {
+        const [, month, day, year] = match
+        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+      }},
+      
+      // YYYY/MM/DD
+      { regex: /^(\d{4})\/(\d{1,2})\/(\d{1,2})$/, handler: (match: RegExpMatchArray) => {
+        const [, year, month, day] = match
+        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+      }},
+      
+      // DD-MM-YYYY
+      { regex: /^(\d{1,2})-(\d{1,2})-(\d{4})$/, handler: (match: RegExpMatchArray) => {
+        const [, day, month, year] = match
+        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+      }},
+      
+      // YYYY-MM-DD (already handled above, but just in case)
+      { regex: /^(\d{4})-(\d{1,2})-(\d{1,2})$/, handler: (match: RegExpMatchArray) => {
+        const [, year, month, day] = match
+        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+      }},
+      
+      // DD.MM.YYYY
+      { regex: /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/, handler: (match: RegExpMatchArray) => {
+        const [, day, month, year] = match
+        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+      }},
+      
+      // DD de MMMM de YYYY (Brazilian long format)
+      { regex: /^(\d{1,2})\s+de\s+(\w+)\s+de\s+(\d{4})$/, handler: (match: RegExpMatchArray) => {
+        const [, day, monthName, year] = match
+        const monthNames = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 
+                           'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
+        const monthIndex = monthNames.findIndex(m => m.toLowerCase() === monthName.toLowerCase())
+        if (monthIndex !== -1) {
+          return new Date(parseInt(year), monthIndex, parseInt(day))
+        }
+        return null
+      }},
+    ]
+    
+    // Try each pattern
+    for (const pattern of patterns) {
+      const match = cleanDate.match(pattern.regex)
+      if (match) {
+        try {
+          const date = pattern.handler(match)
+          if (date && !isNaN(date.getTime())) {
+            // Validate date is reasonable
+            const year = date.getFullYear()
+            const currentYear = new Date().getFullYear()
+            if (year >= 1900 && year <= currentYear + 10) {
+              return date.toISOString().split('T')[0]
+            }
+          }
+        } catch (error) {
+          console.log(`Error parsing date with pattern: ${error}`)
+        }
+      }
+    }
+    
+    // Try JavaScript's native Date parsing as fallback
+    try {
+      const nativeDate = new Date(cleanDate)
+      if (!isNaN(nativeDate.getTime())) {
+        const year = nativeDate.getFullYear()
+        const currentYear = new Date().getFullYear()
+        if (year >= 1900 && year <= currentYear + 10) {
+          return nativeDate.toISOString().split('T')[0]
+        }
+      }
+    } catch (error) {
+      console.log(`Native date parsing failed: ${error}`)
+    }
+    
     return null
   }
 
-  function makeLeadSignature(l: Omit<Lead, "id">): string {
-    return `${l.name}||${l.email}||${l.phone}||${l.ssn}||${l.source}||${l.status}`
+  // Function to separate SSN and EIN from concatenated string
+  function separateSSNAndEIN(combinedString: string): { ssn: string; ein: string } {
+    if (!combinedString) return { ssn: '', ein: '' }
+    
+    // Remove common prefixes and clean the string
+    let cleanString = combinedString
+      .replace(/^(ssn|ein):\s*/gi, '') // Remove SSN: or EIN: prefixes
+      .replace(/^(ssn|ein)\s*/gi, '') // Remove SSN or EIN prefixes
+      .replace(/ssn:\s*/gi, '') // Remove SSN: prefix
+      .replace(/ein:\s*/gi, '') // Remove EIN: prefix
+      .trim()
+    
+    // Try to find SSN pattern (XXX-XX-XXXX or XXXXXXXXX)
+    const ssnMatch = cleanString.match(/(\d{3}-?\d{2}-?\d{4})/)
+    let ssn = ''
+    let ein = ''
+    
+    if (ssnMatch) {
+      ssn = ssnMatch[1].replace(/-/g, '') // Remove dashes for storage
+      // Remove SSN from string to get EIN
+      cleanString = cleanString.replace(ssnMatch[1], '').trim()
+    }
+    
+    // Look for EIN pattern (9+ digits)
+    const einMatch = cleanString.match(/(\d{9,})/)
+    if (einMatch) {
+      ein = einMatch[1]
+    }
+    
+    return { ssn, ein }
   }
 
-  function buildSignatureSet(items: Lead[]): Set<string> {
-    const s = new Set<string>()
-    for (const l of items) {
-      s.add(makeLeadSignature({ name: l.name, email: l.email, phone: l.phone, ssn: l.ssn, source: l.source, status: l.status }))
-    }
-    return s
-  }
 
   function mapRowsToLeads(rows: Record<string, unknown>[]): Lead[] {
+
     if (rows.length === 0) return []
+
     const sampleRow = rows[0]
+
     const headerKeys = Object.keys(sampleRow)
-    const mapping: Partial<Record<string, keyof Omit<Lead, "id">>> = {}
-    for (const header of headerKeys) {
-      const canonical = headerToCanonical(normalizeHeader(header))
-      if (canonical) mapping[header] = canonical
+
+    
+    console.log("=== FILE MAPPING DEBUG ===")
+    console.log("Available columns:", headerKeys)
+    console.log("Sample row data:", sampleRow)
+    const mapping: Partial<Record<string, "name" | "email" | "phone" | "ssn" | "ein" | "source" | "status" | "value" | "estimated_close_date" | "description">> = {}
+
+    
+
+    console.log('Original headers:', headerKeys)
+
+    
+
+    // Test specific problematic headers
+
+    console.log("Testing 'Close Date' detection...")
+    const closeDateHeaders = headerKeys.filter(h => 
+      h.toLowerCase().includes('close') || 
+      h.toLowerCase().includes('date') ||
+      h.toLowerCase().includes('fechamento')
+    )
+    console.log("Potential close date headers:", closeDateHeaders)
+    const testHeaders = ['Value', 'Close Date', 'Notes', 'Description', 'Estimated Close Date']
+
+    console.log('Testing specific headers:')
+
+    for (const testHeader of testHeaders) {
+
+      const normalized = normalizeHeader(testHeader)
+
+      const canonical = headerToCanonical(normalized)
+
+      console.log(`Test: "${testHeader}" -> Normalized: "${normalized}" -> Canonical: ${canonical}`)
+
     }
+
+    
+
+    for (const header of headerKeys) {
+
+      const normalized = normalizeHeader(header)
+
+      const canonical = headerToCanonical(normalized)
+
+      console.log(`Header: "${header}" -> Normalized: "${normalized}" -> Canonical: ${canonical}`)
+
+      if (canonical) {
+
+        mapping[header] = canonical
+
+        console.log(`✅ Mapped "${header}" to ${canonical}`)
+
+      } else {
+
+        console.log(`❌ Could not map "${header}" (normalized: "${normalized}")`)
+
+      }
+
+    }
+
+    console.log('Final mapping:', mapping)
+
     const imported: Lead[] = []
+
     for (const row of rows) {
+
       const draft: Partial<Lead> = {}
+
+      console.log('Processing row:', row)
+
       for (const [header, value] of Object.entries(row)) {
+
         const key = mapping[header]
+
         if (!key) continue
+
         const text = String(value ?? "").trim()
+
+        console.log(`Processing field: ${header} -> ${key} = "${text}"`)
+
+        
+
         if (key === "status") {
+
           draft.status = truncateTo(text, FIELD_MAX.status) as Lead["status"]
+
         } else if (key === "name") {
+
           draft.name = truncateTo(text, FIELD_MAX.name)
+
         } else if (key === "email") {
+
+          // Check if this field contains both email and phone (concatenated)
+          if (text.includes('@') && /\d/.test(text)) {
+            console.log(`Detected concatenated email/phone: "${text}"`)
+            const separated = separateEmailAndPhone(text)
+            console.log(`Separated: email="${separated.email}", phone="${separated.phone}"`)
+            draft.email = truncateTo(separated.email, FIELD_MAX.email)
+            if (separated.phone && !draft.phone) {
+              draft.phone = truncateTo(separated.phone, FIELD_MAX.phone)
+            }
+          } else {
           draft.email = truncateTo(text, FIELD_MAX.email)
+
+          }
         } else if (key === "phone") {
+
           draft.phone = truncateTo(text, FIELD_MAX.phone)
+
         } else if (key === "source") {
+
           draft.source = truncateTo(text, FIELD_MAX.source)
+
         } else if (key === "ssn") {
+
+          // Check if this field contains SSN (with or without EIN)
+          if (text.includes('SSN')) {
+            console.log(`Detected SSN field: "${text}"`)
+            const separated = separateSSNAndEIN(text)
+            console.log(`Separated: ssn="${separated.ssn}", ein="${separated.ein}"`)
+            draft.ssn = truncateTo(separated.ssn, FIELD_MAX.ssn)
+            if (separated.ein && !draft.ein) {
+              draft.ein = truncateTo(separated.ein, FIELD_MAX.ein)
+            }
+          } else {
           draft.ssn = truncateTo(text, FIELD_MAX.ssn)
+
+          console.log(`Set SSN: ${draft.ssn}`)
+
+          }
+        } else if (key === "ein") {
+
+          draft.ein = truncateTo(text, FIELD_MAX.ein)
+
+          console.log(`Set EIN: ${draft.ein}`)
+
+        } else if (key === "value") {
+
+          // Clean monetary values (remove $, commas, etc.)
+          const cleanValue = text.replace(/[$,]/g, '').trim()
+          const numValue = parseFloat(cleanValue)
+          if (!isNaN(numValue)) {
+
+            draft.value = numValue
+
+            console.log(`Set Value: ${draft.value} (from "${text}")`)
+          }
+
+        } else if (key === "estimated_close_date") {
+
+          // Try to parse the date and limit to 10 characters
+
+          if (text && text.trim()) {
+            try {
+              const parsedDate = parseAnyDateFormat(text.trim())
+              if (parsedDate) {
+                draft.estimated_close_date = parsedDate.slice(0, FIELD_MAX.date)
+                console.log(`Set Close Date: ${draft.estimated_close_date} (from "${text}")`)
+              } else {
+                console.log(`Could not parse date: ${text}`)
+              }
+            } catch (error) {
+              console.log(`Error parsing date: ${text}`, error)
+            }
+          }
+
+        } else if (key === "description") {
+
+          draft.description = truncateTo(text, FIELD_MAX.description)
+
+          console.log(`Set Description: ${draft.description}`)
+
+        }
+
+      }
+
+      // Validate required fields
+      if (!draft.name || !draft.email) {
+        console.log(`Skipping lead - missing required fields: name="${draft.name}", email="${draft.email}"`)
+        continue
+      }
+      
+      // Ensure estimated_close_date is valid before creating lead
+      let safeEstimatedCloseDate = draft.estimated_close_date
+      if (safeEstimatedCloseDate) {
+        try {
+          // Validate the date format and ensure it's reasonable
+          const testDate = new Date(safeEstimatedCloseDate)
+          if (isNaN(testDate.getTime())) {
+            console.log(`Invalid date format, removing: ${safeEstimatedCloseDate}`)
+            safeEstimatedCloseDate = undefined
+          } else {
+            // Ensure it's in YYYY-MM-DD format
+            const year = testDate.getFullYear()
+            const month = String(testDate.getMonth() + 1).padStart(2, '0')
+            const day = String(testDate.getDate()).padStart(2, '0')
+            safeEstimatedCloseDate = `${year}-${month}-${day}`
+          }
+        } catch (error) {
+          console.log(`Error validating date, removing: ${safeEstimatedCloseDate}`, error)
+          safeEstimatedCloseDate = undefined
         }
       }
-      if (!draft.name && !draft.email) continue
-      imported.push({
+
+      const finalLead = {
+
         id: createId(),
-        name: draft.name || "",
-        email: draft.email || "",
+
+        organization_id: "", // Will be set by the API
+
+        name: draft.name,
+        email: draft.email,
         phone: draft.phone || "",
+
         ssn: draft.ssn || "",
+
+        ein: draft.ein || "",
+
         source: draft.source || "",
+
         status: (draft.status as Lead["status"]) || "New",
-      })
+
+        value: draft.value,
+
+        estimated_close_date: safeEstimatedCloseDate,
+        description: draft.description,
+
+        created_at: new Date().toISOString(),
+
+        updated_at: new Date().toISOString(),
+
+      }
+
+      console.log('Final lead created:', finalLead)
+
+      imported.push(finalLead)
+
     }
+
     return imported
+
   }
 
-  async function handleImportFile(file: File) {
+
+  // Function to process leads in batches with minimal delay for speed
+  async function processBatch(leads: Lead[], batchSize: number = 50, initialDelayMs: number = 100, isCancelled: () => boolean = () => importCancelled, onBatchSaved?: (leads: Lead[]) => void): Promise<{ saved: Lead[], errors: number, duplicates: number, cancelled: boolean }> {
+    const totalBatches = Math.ceil(leads.length / batchSize)
+    const savedLeads: Lead[] = []
+    let errorCount = 0
+    let duplicateCount = 0
+    let currentDelay = initialDelayMs
+
+    for (let i = 0; i < leads.length; i += batchSize) {
+      // Check if import was cancelled
+      const cancelled = isCancelled()
+      if (cancelled || isImportCancelledRef.current) {
+        // Rollback: remove imported leads from backend and frontend
+        if (savedLeads.length > 0) {
+          let successfullyDeleted = 0
+          let errors = 0
+          
+          try {
+            // Delete imported leads from backend with error handling
+            for (const lead of savedLeads) {
+              try {
+                const response = await apiService.deleteLead(lead.id)
+                if (response.success) {
+                  successfullyDeleted++
+                } else {
+                  errors++
+                  console.log(`Lead ${lead.id} not found or already deleted:`, response.error)
+                }
+              } catch (error) {
+                errors++
+                console.log(`Error deleting lead ${lead.id}:`, error)
+              }
+            }
+            
+            if (successfullyDeleted > 0) {
+              pushToast(`Import cancelled - ${successfullyDeleted} leads removed from backend`, 'success')
+            }
+            if (errors > 0) {
+              pushToast(`Import cancelled - ${errors} leads were already removed or not found`, 'warning')
+            }
+          } catch (error) {
+            console.error('Error during rollback:', error)
+            pushToast('Import cancelled - leads removed locally only', 'warning')
+          }
+          
+          // Remove from frontend state regardless of backend success
+          const importedIds = savedLeads.map(lead => lead.id)
+          setLeads(prev => prev.filter(lead => !importedIds.includes(lead.id)))
+          setFilteredLeads(prev => prev.filter(lead => !importedIds.includes(lead.id)))
+          setImportedLeads(prev => prev.filter(lead => !importedIds.includes(lead.id)))
+          setCurrentImportLeads([])
+        }
+        setImportNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: true })
+        setIsImportCancelled(false)
+        isImportCancelledRef.current = false
+        return { saved: savedLeads, errors: errorCount, duplicates: duplicateCount, cancelled: true }
+      }
+
+      const batch = leads.slice(i, i + batchSize)
+      const batchNumber = Math.floor(i / batchSize) + 1
+      
+      setImportProgress({
+        current: i + batch.length,
+        total: leads.length,
+        batch: batchNumber,
+        totalBatches
+      })
+      setImportNotification({ 
+        show: true, 
+        progress: { 
+          current: i + batch.length, 
+          total: leads.length, 
+          batch: batchNumber, 
+          totalBatches 
+        }, 
+        cancelled: false 
+      })
+
+      console.log(`Processing batch ${batchNumber}/${totalBatches} (${batch.length} leads) with ${currentDelay}ms delay`)
+      
+      // Check if import was cancelled before processing batch
+      if (isCancelled()) {
+        console.log('Import cancelled before processing batch')
+        setImportNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: true })
+        return { saved: savedLeads, errors: errorCount, duplicates: duplicateCount, cancelled: true }
+      }
+
+      // Process batch in parallel
+      const batchPromises = batch.map(async (lead) => {
+        // Check cancellation before each lead
+        if (isCancelled()) {
+          return { success: false, lead: null, type: 'cancelled' }
+        }
+        
+        try {
+          const createData: CreateLeadRequest = {
+            name: lead.name,
+            email: lead.email,
+            phone: lead.phone || undefined,
+            ssn: lead.ssn || undefined,
+            ein: lead.ein || undefined,
+            source: lead.source || undefined,
+            status: lead.status,
+            value: lead.value,
+            description: lead.description,
+            estimated_close_date: lead.estimated_close_date,
+          }
+          
+          const response = await apiService.createLead(createData)
+          if (response.success && response.data) {
+            return { success: true, lead: response.data.lead, type: 'saved' }
+          } else {
+            // Check if it's a duplicate error
+            const errorMsg = response.error?.toLowerCase() || ''
+            if (errorMsg.includes('duplicado') || errorMsg.includes('duplicate')) {
+              // Don't log as error - it's expected behavior
+              console.log(`Lead duplicate skipped: ${lead.name} (${lead.email})`)
+              return { success: true, lead: null, type: 'duplicate' }
+            } else {
+              console.error('Failed to save lead:', response.error)
+              return { success: false, lead: null, type: 'error' }
+            }
+          }
+        } catch (error) {
+          console.error('Error saving lead:', error)
+          return { success: false, lead: null, type: 'error' }
+        }
+      })
+
+      const batchResults = await Promise.all(batchPromises)
+      
+      // Collect results and adapt delay
+      let batchSuccesses = 0
+      batchResults.forEach(result => {
+        if (result.success) {
+          if (result.type === 'saved' && result.lead) {
+            savedLeads.push(result.lead)
+            batchSuccesses++
+          } else if (result.type === 'duplicate') {
+            duplicateCount++
+            batchSuccesses++ // Duplicates are considered successful
+          }
+        } else {
+          errorCount++
+        }
+      })
+
+      // Call callback with newly saved leads from this batch
+      if (onBatchSaved && savedLeads.length > 0) {
+        const newLeads = savedLeads.slice(-batchSuccesses) // Get only the leads from this batch
+        onBatchSaved(newLeads)
+      }
+
+      // No adaptive delay - keep it fast
+
+      // No delay between batches for maximum speed
+      // Only check for cancellation if there are more batches
+      if (i + batchSize < leads.length && isCancelled()) {
+        console.log('Import cancelled between batches')
+        setImportNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: true })
+        return { saved: savedLeads, errors: errorCount, duplicates: duplicateCount, cancelled: true }
+      }
+    }
+
+    return { saved: savedLeads, errors: errorCount, duplicates: duplicateCount, cancelled: false }
+  }
+
+  async function processFileForPreview(file: File) {
     try {
       const lower = file.name.toLowerCase()
+      let imported: Lead[] = []
+      let fields: string[] = []
+      
       if (lower.endsWith(".json")) {
         const text = await file.text()
         const data = JSON.parse(text) as Record<string, unknown>[]
-        const imported = mapRowsToLeads(Array.isArray(data) ? data : [])
-        if (imported.length > 0) {
-          const existing = buildSignatureSet(leads)
-          const uniqueToAdd: Lead[] = []
-          let duplicatesCount = 0
-          for (const l of imported) {
-            const sig = makeLeadSignature({ name: l.name, email: l.email, phone: l.phone, ssn: l.ssn, source: l.source, status: l.status })
-            if (!existing.has(sig)) {
-              existing.add(sig)
-              uniqueToAdd.push(l)
-            } else {
-              duplicatesCount++
-            }
-          }
-          if (uniqueToAdd.length > 0) {
-            setLeads([...uniqueToAdd, ...leads])
-            pushToast(`${uniqueToAdd.length} lead(s) imported successfully.`, "success")
-          } else {
-            pushToast(`0 lead(s) imported. No new records detected.`, "warning")
-          }
-          if (duplicatesCount > 0) {
-            pushToast(`${duplicatesCount} duplicate lead(s) were skipped during import.`, "warning")
-          }
-        }
-        return
+        imported = mapRowsToLeads(Array.isArray(data) ? data : [])
+        fields = data.length > 0 ? Object.keys(data[0]) : []
+      } else {
+        // CSV, XLSX, XLS, ODS via SheetJS
+        const arrayBuffer = await file.arrayBuffer()
+        const workbook = XLSX.read(arrayBuffer, { type: "array" })
+        const sheetName = workbook.SheetNames[0]
+        const worksheet = workbook.Sheets[sheetName]
+        const rows: Record<string, unknown>[] = XLSX.utils.sheet_to_json(worksheet, { 
+          defval: "",
+          raw: false // 🔹 Força conversão automática de números de data em string
+        })
+        imported = mapRowsToLeads(rows)
+        fields = rows.length > 0 ? Object.keys(rows[0]) : []
       }
-      // CSV, XLSX, XLS, ODS via SheetJS
-      const arrayBuffer = await file.arrayBuffer()
-      const workbook = XLSX.read(arrayBuffer, { type: "array" })
-      const sheetName = workbook.SheetNames[0]
-      const worksheet = workbook.Sheets[sheetName]
-      const rows: Record<string, unknown>[] = XLSX.utils.sheet_to_json(worksheet, { defval: "" })
-      const imported = mapRowsToLeads(rows)
-      if (imported.length > 0) {
-        const existing = buildSignatureSet(leads)
-        const uniqueToAdd: Lead[] = []
-        let duplicatesCount = 0
-        for (const l of imported) {
-          const sig = makeLeadSignature({ name: l.name, email: l.email, phone: l.phone, ssn: l.ssn, source: l.source, status: l.status })
-          if (!existing.has(sig)) {
-            existing.add(sig)
-            uniqueToAdd.push(l)
-          } else {
-            duplicatesCount++
-          }
-        }
-        if (uniqueToAdd.length > 0) {
-          setLeads([...uniqueToAdd, ...leads])
-          pushToast(`${uniqueToAdd.length} lead(s) imported successfully.`, "success")
-        } else {
-          pushToast(`0 lead(s) imported. No new records detected.`, "warning")
-        }
-        if (duplicatesCount > 0) {
-          pushToast(`${duplicatesCount} duplicate lead(s) were skipped during import.`, "warning")
-        }
-      }
-    } catch (err) {
-      console.error(err)
-      alert("Failed to import file. Please check the file format and content.")
-    } finally {
-      if (fileInputRef.current) fileInputRef.current.value = ""
+      
+      return { leads: imported, fields, totalLeads: imported.length }
+    } catch (error) {
+      console.error("Error processing file:", error)
+      throw error
     }
   }
 
-  function exportData(format: "xlsx" | "csv" | "ods" | "json") {
-    const selectedIds = selectedLeads
-    const baseList = selectedIds.size > 0
-      ? leads.filter(l => selectedIds.has(l.id))
-      : filteredLeads
-    const data = baseList.map(lead => ({
-      name: lead.name,
-      email: lead.email,
-      phone: lead.phone,
-      ssn: lead.ssn,
-      source: lead.source,
-      status: lead.status,
-    }))
-    const date = new Date().toISOString().split('T')[0]
-    const base = `leads_${org}_${date}`
-    if (format === "json") {
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json;charset=utf-8" })
-      const a = document.createElement("a")
-      a.href = URL.createObjectURL(blob)
-      a.download = `${base}.json`
-      a.click()
-      URL.revokeObjectURL(a.href)
-      pushToast(`${data.length} lead(s) exported as JSON.`, "success")
-      return
+  async function handleFileSelect(file: File) {
+    setIsProcessingFile(true)
+    try {
+      const preview = await processFileForPreview(file)
+      setFilePreview(preview)
+      setShowPreview(true)
+    } catch (error) {
+      pushToast("Error processing file. Please check the file format.", "error")
+      console.error("File processing error:", error)
+    } finally {
+      setIsProcessingFile(false)
     }
-    const ws = XLSX.utils.json_to_sheet(data)
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, "Leads")
-    const bookType = format
-    XLSX.writeFile(wb, `${base}.${format}`, { bookType: bookType as XLSX.BookType })
-    pushToast(`${data.length} lead(s) exported as ${format.toUpperCase()}.`, "success")
   }
+
+  async function confirmImport() {
+    if (!filePreview) return
+    
+    setShowPreview(false)
+    setIsImportOpen(false)
+    
+    // Create a temporary file object for the import
+    const fileInput = fileInputRef.current
+    if (fileInput && fileInput.files && fileInput.files[0]) {
+      await handleImportFile(fileInput.files[0])
+    }
+  }
+
+
+  async function handleImportFile(file: File) {
+
+    setIsImporting(true)
+
+    setImportProgress({ current: 0, total: 0, batch: 0, totalBatches: 0 })
+    setImportNotification({ show: true, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
+    setIsImportCancelled(false)
+    isImportCancelledRef.current = false
+    setCurrentImportLeads([]) // Reset current import leads
+    
+    try {
+
+      const lower = file.name.toLowerCase()
+
+      let imported: Lead[] = []
+
+      
+
+      if (lower.endsWith(".json")) {
+
+        const text = await file.text()
+
+        const data = JSON.parse(text) as Record<string, unknown>[]
+
+        imported = mapRowsToLeads(Array.isArray(data) ? data : [])
+
+      } else {
+
+        // CSV, XLSX, XLS, ODS via SheetJS
+
+        const arrayBuffer = await file.arrayBuffer()
+
+        const workbook = XLSX.read(arrayBuffer, { type: "array" })
+
+        const sheetName = workbook.SheetNames[0]
+
+        const worksheet = workbook.Sheets[sheetName]
+
+        const rows: Record<string, unknown>[] = XLSX.utils.sheet_to_json(worksheet, { 
+          defval: "",
+          raw: false // 🔹 Força conversão automática de números de data em string
+        })
+        imported = mapRowsToLeads(rows)
+
+      }
+
+      
+
+      if (imported.length > 0) {
+
+        const existing = buildSignatureSet(leads)
+
+        const uniqueToAdd: Lead[] = []
+
+        let duplicatesCount = 0
+
+        
+
+        // Filtrar duplicados baseado em todos os campos principais
+
+        for (const l of imported) {
+
+          const isDuplicate = leads.some(existingLead => 
+
+            existingLead.name.toLowerCase() === l.name.toLowerCase() &&
+
+            existingLead.email.toLowerCase() === l.email.toLowerCase() &&
+
+            (existingLead.phone || '') === (l.phone || '') &&
+
+            (existingLead.ssn || '') === (l.ssn || '') &&
+
+            (existingLead.source || '') === (l.source || '') &&
+
+            existingLead.status === l.status
+
+          )
+
+          
+
+          if (!isDuplicate) {
+
+            uniqueToAdd.push(l)
+
+          } else {
+
+            duplicatesCount++
+
+          }
+
+        }
+
+        
+
+        if (uniqueToAdd.length > 0) {
+
+          // Maximum speed optimization - no limits, maximum batches
+          const batchSize = uniqueToAdd.length > 10000 ? 1000 : 
+                           uniqueToAdd.length > 5000 ? 800 : 
+                           uniqueToAdd.length > 2000 ? 600 : 
+                           uniqueToAdd.length > 1000 ? 400 : 
+                           uniqueToAdd.length > 500 ? 200 : 
+                           uniqueToAdd.length > 100 ? 100 : 50
+          const delayMs = 0 // No delay for maximum speed
+          
+          console.log(`Processing ${uniqueToAdd.length} leads in batches of ${batchSize} with ${delayMs}ms delay`)
+          
+          const { saved: savedLeads, errors: errorCount, duplicates: duplicateCount, cancelled } = await processBatch(uniqueToAdd, batchSize, delayMs, () => {
+            console.log('Checking cancellation:', importCancelled)
+            return importCancelled
+          }, (newLeads) => {
+            // Track leads as they are imported for immediate rollback capability
+            setCurrentImportLeads(prev => [...prev, ...newLeads])
+          })
+          
+
+          // Atualizar estado local com os leads salvos
+
+          if (savedLeads.length > 0) {
+
+            setLeads((prev) => [...savedLeads, ...prev])
+
+            // Track all imported leads for potential rollback
+            setImportedLeads(prev => [...prev, ...savedLeads])
+          }
+          
+          // Show comprehensive results
+          if (cancelled) {
+            pushToast(`Import cancelled. ${savedLeads.length} lead(s) saved, ${duplicateCount} duplicate(s) skipped.`, "warning")
+          } else {
+            let message = `${savedLeads.length} lead(s) imported successfully.`
+            if (duplicateCount > 0) {
+              message += ` ${duplicateCount} duplicate(s) were skipped.`
+            }
+          if (errorCount > 0) {
+
+              message += ` ${errorCount} lead(s) failed to save.`
+            }
+            pushToast(message, errorCount > 0 ? "warning" : "success")
+          }
+          
+          if (cancelled && savedLeads.length === 0 && duplicateCount === 0) {
+            pushToast(`Import cancelled. No leads were processed.`, "warning")
+          }
+
+        } else {
+
+          pushToast(`0 lead(s) imported. No new records detected.`, "warning")
+
+        }
+
+        
+
+        if (duplicatesCount > 0) {
+
+          pushToast(`${duplicatesCount} duplicate lead(s) were skipped during import.`, "warning")
+
+        }
+
+      }
+
+    } catch (err) {
+
+      console.error(err)
+
+      pushToast("Failed to import file. Please check the file format and content.", "error")
+
+    } finally {
+
+      setIsImporting(false)
+
+      setImportProgress({ current: 0, total: 0, batch: 0, totalBatches: 0 })
+      setImportCancelled(false)
+      setImportNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
+      if (fileInputRef.current) fileInputRef.current.value = ""
+      
+      // Sync after operation to ensure complete sync with backend
+      await syncAfterOperation()
+
+    }
+
+  }
+
+
+
+  function exportData(format: "xlsx" | "csv" | "ods" | "json") {
+
+    const selectedIds = selectedLeads
+
+    const baseList = selectedIds.size > 0
+
+      ? leads.filter(l => selectedIds.has(l.id))
+
+      : filteredLeads
+
+    const data = baseList.map(lead => ({
+
+      Name: lead.name,
+
+      Email: lead.email,
+
+      Phone: lead.phone || '',
+
+      SSN: lead.ssn || '',
+
+      EIN: lead.ein || '',
+
+      Source: lead.source || '',
+
+      Status: lead.status,
+
+      Value: lead.value || '',
+
+      'Estimated Close Date': lead.estimated_close_date || '',
+
+      Description: lead.description || '',
+
+      'Created At': lead.created_at,
+
+      'Updated At': lead.updated_at,
+
+    }))
+
+    const date = new Date().toISOString().split('T')[0]
+
+    const base = `leads_${org}_${date}`
+
+    if (format === "json") {
+
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json;charset=utf-8" })
+
+      const a = document.createElement("a")
+
+      a.href = URL.createObjectURL(blob)
+
+      a.download = `${base}.json`
+
+      a.click()
+
+      URL.revokeObjectURL(a.href)
+
+      pushToast(`${data.length} lead(s) exported as JSON.`, "success")
+
+      return
+
+    }
+
+    const ws = XLSX.utils.json_to_sheet(data)
+
+    const wb = XLSX.utils.book_new()
+
+    XLSX.utils.book_append_sheet(wb, ws, "Leads")
+
+    const bookType = format
+
+    XLSX.writeFile(wb, `${base}.${format}`, { bookType: bookType as XLSX.BookType })
+
+    pushToast(`${data.length} lead(s) exported as ${format.toUpperCase()}.`, "success")
+
+  }
+
+
 
   // Free text phone input: no auto-formatting
 
+
+
   const canConfirmDeletion = React.useMemo(() => {
+
     // For single deletion, no typing required. For bulk deletion, require "delete"
+
     if (pendingDeletionIds.length === 1) return true
+
     const value = confirmInput.trim().toLowerCase()
+
     return value === "delete"
+
   }, [confirmInput, pendingDeletionIds.length])
 
-  function performDeletion() {
+
+
+  async function performDeletion() {
+
     if (!canConfirmDeletion) return
-    const idsToDelete = new Set(pendingDeletionIds)
-    setLeads((prev) => prev.filter((l) => !idsToDelete.has(l.id)))
-    setSelectedLeads((prev) => {
-      const next = new Set(prev)
-      pendingDeletionIds.forEach((id) => next.delete(id))
-      return next
-    })
-    if (editingId && idsToDelete.has(editingId)) {
-      resetForm()
-    }
+
+    // Close confirmation modal immediately when starting deletion
     setIsConfirmOpen(false)
-    setPendingDeletionIds([])
-    setConfirmInput("")
+    
+    const totalLeads = pendingDeletionIds.length
+    // Maximum speed optimization - no limits, maximum batches for deletion
+    const batchSize = totalLeads > 10000 ? 1000 : 
+                     totalLeads > 5000 ? 800 : 
+                     totalLeads > 2000 ? 600 : 
+                     totalLeads > 1000 ? 400 : 
+                     totalLeads > 500 ? 200 : 
+                     totalLeads > 100 ? 100 : 50
+    const totalBatches = Math.ceil(totalLeads / batchSize)
+    
+    // Show progress notification
+    setDeleteNotification({
+      show: true,
+      progress: { current: 0, total: totalLeads, batch: 0, totalBatches },
+      cancelled: false
+    })
+    setIsDeletionCancelled(false)
+    isDeletionCancelledRef.current = false
+    
+    try {
+      let deletedCount = 0
+      const leadsToDelete: Lead[] = []
+      
+      // Store leads before deletion for potential rollback
+      const leadsBeforeDeletion = [...leads]
+      
+      for (let i = 0; i < totalBatches; i++) {
+        // Check if cancelled
+        if (isDeletionCancelledRef.current) {
+          // Rollback: restore deleted leads in backend
+          try {
+            // Restore leads that were already deleted in this batch
+            const leadsToRestore = leadsToDelete.slice(0, deletedCount)
+            for (const lead of leadsToRestore) {
+              await apiService.createLead(lead)
+            }
+            pushToast(`Deletion cancelled - ${leadsToRestore.length} leads restored`, 'success')
+          } catch (error) {
+            console.error('Error restoring leads:', error)
+          }
+          
+          // Restore frontend state
+          setLeads(leadsBeforeDeletion)
+          setFilteredLeads(leadsBeforeDeletion)
+          setDeletedLeads([])
+          setDeleteNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
+          setIsDeletionCancelled(false)
+          isDeletionCancelledRef.current = false
+          return
+
+        }
+
+        
+        const startIndex = i * batchSize
+        const endIndex = Math.min(startIndex + batchSize, totalLeads)
+        const batchIds = pendingDeletionIds.slice(startIndex, endIndex)
+        
+        // Store leads being deleted in this batch
+        const batchLeads = leadsBeforeDeletion.filter(lead => batchIds.includes(lead.id))
+        leadsToDelete.push(...batchLeads)
+        
+        // Update progress
+        setDeleteNotification(prev => ({
+          ...prev,
+          progress: { 
+            current: deletedCount, 
+            total: totalLeads, 
+            batch: i + 1, 
+            totalBatches 
+          }
+        }))
+        
+        try {
+          // Check cancellation before processing batch
+          if (isDeletionCancelledRef.current) {
+            // Rollback: restore deleted leads in backend
+            try {
+              const leadsToRestore = leadsToDelete.slice(0, deletedCount)
+              for (const lead of leadsToRestore) {
+                await apiService.createLead(lead)
+              }
+              pushToast(`Deletion cancelled - ${leadsToRestore.length} leads restored`, 'success')
+            } catch (error) {
+              console.error('Error restoring leads:', error)
+            }
+            
+            // Restore frontend state
+            setLeads(leadsBeforeDeletion)
+            setFilteredLeads(leadsBeforeDeletion)
+            setDeletedLeads([])
+            setDeleteNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
+            setIsDeletionCancelled(false)
+            isDeletionCancelledRef.current = false
+            return
+          }
+          
+          // Delete leads in parallel for maximum speed
+          const deletePromises = batchIds.map(async (id) => {
+            try {
+              const response = await apiService.deleteLead(id)
+              return { success: response.success, id }
+    } catch (error) {
+
+              console.error(`Failed to delete lead ${id}:`, error)
+              return { success: false, id }
+            }
+          })
+          
+          const deleteResults = await Promise.all(deletePromises)
+          const successfulDeletions = deleteResults.filter(result => result.success)
+          deletedCount += successfulDeletions.length
+          
+          // Update local state for this batch
+          setLeads(prev => prev.filter(lead => !batchIds.includes(lead.id)))
+          setFilteredLeads(prev => prev.filter(lead => !batchIds.includes(lead.id)))
+          
+        } catch (error) {
+          console.error('Error deleting batch:', error)
+        }
+        
+        // No delay between batches for maximum speed
+      }
+      
+      // Store deleted leads for potential rollback
+      setDeletedLeads(leadsToDelete)
+      
+      // Clear selections and show success
+      setSelectedLeads(new Set())
+      pushToast(`Successfully deleted ${deletedCount} lead(s)`, 'success')
+      
+      // Sync after operation to ensure complete sync with backend
+      await syncAfterOperation()
+      
+    } catch (error) {
+      console.error('Error deleting leads:', error)
+      pushToast('Error deleting leads', 'error')
+    } finally {
+      setDeleteNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
+      setPendingDeletionIds([])
+      setConfirmInput("")
+    }
   }
 
+
+
   return (
+
     <AuthGuard orgSlug={org}>
+
       <SidebarProvider>
+
         <AppSidebar org={org} />
+
         <SidebarInset>
+
         {/* HEADER */}
+
         <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4">
+
           <SidebarTrigger className="-ml-1" />
+
           <Separator
+
             orientation="vertical"
+
             className="mr-2 data-[orientation=vertical]:h-4"
+
           />
+
           <Breadcrumb>
+
             <BreadcrumbList>
+
               <BreadcrumbItem className="hidden md:block">
+
                 <BreadcrumbLink href={`/${org}/dashboard`}>
+
                   Dashboard
+
                 </BreadcrumbLink>
+
               </BreadcrumbItem>
+
               <BreadcrumbSeparator className="hidden md:block" />
+
               <BreadcrumbItem>
+
                 <BreadcrumbPage>Leads</BreadcrumbPage>
+
               </BreadcrumbItem>
+
             </BreadcrumbList>
+
           </Breadcrumb>
+
         </header>
 
+
+
         {/* NOTIFICATIONS STACK */}
+
         {toasts.length > 0 && (
+
           <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm">
+
             {toasts.map((t) => {
+
               const styles = t.type === "success"
+
                 ? "bg-green-50 border border-green-200 text-green-800"
+
                 : t.type === "error"
+
                 ? "bg-red-50 border border-red-200 text-red-800"
+
                 : "bg-yellow-50 border border-yellow-200 text-yellow-800"
+
               const closeColor = t.type === "success" ? "text-green-600 hover:text-green-800" : t.type === "error" ? "text-red-600 hover:text-red-800" : "text-yellow-600 hover:text-yellow-800"
+
               return (
+
                 <div key={t.id} className={`${styles} px-4 py-3 rounded-lg shadow-lg backdrop-blur-sm`}> 
+
                   <div className="flex items-start gap-3">
+
                     <div className="mt-0.5">
+
                       {t.type === "success" && <CheckCircle2 className="h-4 w-4" />}
+
                       {t.type === "warning" && <AlertTriangle className="h-4 w-4" />}
+
                       {t.type === "error" && <AlertCircle className="h-4 w-4" />}
+
                     </div>
+
                     <div className="flex-1 text-sm leading-5">{t.text}</div>
+
                     <button
+
                       onClick={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))}
+
                       className={`${closeColor} ml-2`}
+
                       aria-label="Dismiss notification"
+
                     >
+
                       <X className="h-4 w-4" />
+
                     </button>
+
                   </div>
+
                 </div>
+
               )
+
             })}
+
+          </div>
+
+        )}
+
+
+        {/* IMPORT PROGRESS NOTIFICATION */}
+        {importNotification.show && (
+          <div className="fixed top-4 right-4 z-50 bg-background border rounded-lg shadow-lg p-4 w-80">
+            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600"></div>
+              <span className="font-medium">
+                {isImportCancelled ? 'Cancelling Import...' : 'Importing Leads'}
+              </span>
+            </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={async () => {
+                  setIsImportCancelled(true)
+                  isImportCancelledRef.current = true
+                  setImportCancelled(true)
+                  setIsImporting(false)
+                  
+                  // Rollback: remove all imported leads from backend and frontend
+                  if (currentImportLeads.length > 0) {
+                    let successfullyDeleted = 0
+                    let errors = 0
+                    
+                    try {
+                      // Delete imported leads from backend with error handling
+                      for (const lead of currentImportLeads) {
+                        try {
+                          const response = await apiService.deleteLead(lead.id)
+                          if (response.success) {
+                            successfullyDeleted++
+                          } else {
+                            errors++
+                            console.log(`Lead ${lead.id} not found or already deleted:`, response.error)
+                          }
+                        } catch (error) {
+                          errors++
+                          console.log(`Error deleting lead ${lead.id}:`, error)
+                        }
+                      }
+                      
+                      if (successfullyDeleted > 0) {
+                        pushToast(`Import cancelled - ${successfullyDeleted} leads removed from backend`, 'success')
+                      }
+                      if (errors > 0) {
+                        pushToast(`Import cancelled - ${errors} leads were already removed or not found`, 'warning')
+                      }
+                    } catch (error) {
+                      console.error('Error during rollback:', error)
+                      pushToast('Import cancelled - leads removed locally only', 'warning')
+                    }
+                    
+                    // Remove from frontend state regardless of backend success
+                    const importedIds = currentImportLeads.map(lead => lead.id)
+                    setLeads(prev => prev.filter(lead => !importedIds.includes(lead.id)))
+                    setFilteredLeads(prev => prev.filter(lead => !importedIds.includes(lead.id)))
+                    setImportedLeads(prev => prev.filter(lead => !importedIds.includes(lead.id)))
+                    setCurrentImportLeads([])
+                  }
+                  
+                  setImportNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: true })
+                }}
+                className="cursor-pointer text-muted-foreground hover:text-foreground"
+              >
+                Cancel
+              </Button>
+            </div>
+            
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>Batch {importNotification.progress.batch} of {importNotification.progress.totalBatches}</span>
+                <span>{importNotification.progress.current} / {importNotification.progress.total}</span>
+              </div>
+              
+              <div className="w-full bg-muted rounded-full h-2">
+                <div 
+                  className="bg-green-600 h-2 rounded-full transition-all duration-300"
+                  style={{ 
+                    width: `${(importNotification.progress.current / importNotification.progress.total) * 100}%` 
+                  }}
+                />
+              </div>
+            </div>
           </div>
         )}
 
-        {/* MAIN */}
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-          {/* CONTROLS */}
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Search leads..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-64"
-                />
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsFilterOpen(true)}
-                className="cursor-pointer"
-              >
-                <Filter className="h-4 w-4 mr-2" />
-                Filters
-                {Object.values(filters).some(f => f !== "") && (
-                  <span className="ml-1 bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 text-xs">
-                    {Object.values(filters).filter(f => f !== "").length}
-                  </span>
-                )}
-              </Button>
-              {Object.values(filters).some(f => f !== "") && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setFilters({ name: "", email: "", phone: "", ssn: "", source: "", status: "" })}
-                  className="cursor-pointer text-muted-foreground hover:text-foreground"
-                >
-                  <XCircle className="h-4 w-4" />
-                </Button>
-              )}
-        </div>
-            <div className="flex items-center gap-2">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button className="cursor-pointer">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Lead
-                    <ChevronDown className="ml-2 h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem onClick={startAddNew} className="cursor-pointer flex items-center gap-2">
-                    <Plus className="h-4 w-4" />
-                    Add manually
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => setIsImportOpen(true)}
-                    className="cursor-pointer flex items-center gap-2"
-                  >
-                    <Download className="h-4 w-4" />
-                    Import
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              {/* hidden input moved to Import modal */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="cursor-pointer">
-                    <Upload className="h-4 w-4 mr-2" />
-                    {selectedLeads.size > 0 ? "Export selected" : "Export"}
-                    <ChevronDown className="ml-2 h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem onClick={() => exportData("xlsx")} className="cursor-pointer flex items-center gap-2">
-                    <Upload className="h-4 w-4" />
-                    Export as XLSX
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => exportData("csv")} className="cursor-pointer flex items-center gap-2">
-                    <Upload className="h-4 w-4" />
-                    Export as CSV
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => exportData("ods")} className="cursor-pointer flex items-center gap-2">
-                    <Upload className="h-4 w-4" />
-                    Export as ODS
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => exportData("json")} className="cursor-pointer flex items-center gap-2">
-                    <Upload className="h-4 w-4" />
-                    Export as JSON
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              {selectedLeads.size > 0 && (
-                <Button variant="outline" onClick={openBulkEdit} className="cursor-pointer">
-                  <Edit className="h-4 w-4 mr-2" />
-                  Edit Selected
-                </Button>
-              )}
-              {selectedLeads.size > 0 && (
-                <Button variant="destructive" onClick={handleDeleteSelected} className="cursor-pointer">
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete Selected
-                </Button>
-              )}
-                  </div>
-                </div>
-
-          {/* LEADS TABLE */}
-          <div className="bg-muted/50 rounded-xl p-4">
+        {/* BULK EDIT PROGRESS NOTIFICATION */}
+        {editNotification.show && (
+          <div className="fixed top-4 right-4 z-[100] bg-background border rounded-lg shadow-lg p-4 w-80">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-semibold">Lead List</h2>
               <div className="flex items-center gap-2">
-                {selectedLeads.size > 0 && (
-                  <span className="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium">
-                    {selectedLeads.size} selected
-                  </span>
-                )}
-                <span className="text-sm text-muted-foreground">
-                  {filteredLeads.length} of {leads.length} items
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                <span className="font-medium">
+                  {isEditCancelled ? 'Cancelling Edit...' : 'Updating Leads'}
                 </span>
               </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={async () => {
+                  setIsEditCancelled(true)
+                  isEditCancelledRef.current = true
+                  
+                  // Rollback: restore original leads in backend
+                  if (currentEditLeads.length > 0) {
+                    let successfullyRestored = 0
+                    let errors = 0
+                    
+                    try {
+                      // Restore leads that were already edited in this batch
+                      for (const editedLead of currentEditLeads) {
+                        try {
+                          // Find the original lead to get the original values
+                          const originalLead = originalLeads.find(orig => orig.id === editedLead.id)
+                          if (originalLead) {
+                            const updateData: any = { 
+                              id: editedLead.id,
+                              status: originalLead.status,
+                              source: originalLead.source
+                            }
+                            const result = await apiService.updateLead(updateData)
+                            if (result.success) {
+                              successfullyRestored++
+                            } else {
+                              errors++
+                            }
+                          }
+                        } catch (error) {
+                          errors++
+                        }
+                      }
+                      
+                      if (successfullyRestored > 0) {
+                        pushToast(`Bulk edit cancelled - ${successfullyRestored} leads restored`, 'success')
+                      }
+                      if (errors > 0) {
+                        pushToast(`Bulk edit cancelled - ${errors} leads could not be restored`, 'warning')
+                      }
+                    } catch (error) {
+                      pushToast('Bulk edit cancelled - leads restored locally only', 'warning')
+                    }
+                    
+                    // Restore frontend state regardless of backend success
+                    const editedIds = currentEditLeads.map(lead => lead.id)
+                    setLeads(prev => 
+                      prev.map(l => {
+                        if (!editedIds.includes(l.id)) return l
+                        
+                        const originalLead = originalLeads.find(orig => orig.id === l.id)
+                        if (originalLead) {
+                          return originalLead
+                        }
+                        return l
+                      })
+                    )
+                    
+                    setFilteredLeads(prev => 
+                      prev.map(l => {
+                        if (!editedIds.includes(l.id)) return l
+                        
+                        const originalLead = originalLeads.find(orig => orig.id === l.id)
+                        if (originalLead) {
+                          return originalLead
+                        }
+                        return l
+                      })
+                    )
+                    
+                    setOriginalLeads([])
+                    setCurrentEditLeads([])
+                  }
+                  
+                  setEditNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: true })
+                  
+                  // Force refresh leads to ensure sync with backend after rollback
+                  setTimeout(async () => {
+                    await forceRefreshLeads()
+                  }, 100)
+                }}
+                className="cursor-pointer text-muted-foreground hover:text-foreground"
+              >
+                Cancel
+              </Button>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left border-b">
-                    <th className="py-2 pr-3 w-12">
-                      <input
-                        type="checkbox"
-                        checked={selectedLeads.size === filteredLeads.length && filteredLeads.length > 0}
-                        onChange={handleSelectAll}
-                        className="rounded border-input"
-                      />
-                    </th>
-                    <th className="py-2 pr-3 w-[200px]">Name</th>
-                    <th className="py-2 pr-3 w-[240px]">Email</th>
-                    <th className="py-2 pr-3 w-[140px]">Phone</th>
-                    <th className="py-2 pr-3 w-[160px]">SSN</th>
-                    <th className="py-2 pr-3 w-[160px]">Source</th>
-                    <th className="py-2 pr-3 w-[120px]">Status</th>
-                    <th className="py-2 pr-0 text-right w-[100px]">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredLeads.map((lead, index) => (
-                    <tr key={lead.id} className="border-b last:border-b-0 hover:bg-muted/30">
-                      <td className="py-2 pr-3">
-                        <input
-                          type="checkbox"
-                          checked={selectedLeads.has(lead.id)}
-                          onClick={(e) => handleSelectLead(lead.id, index, e)}
-                          readOnly
-                          className="rounded border-input"
-                        />
-                      </td>
-                      <td className="py-2 pr-3">
-                        <div
-                          className="max-w-[200px] truncate hover:underline decoration-dotted cursor-pointer"
-                          title={lead.name}
-                          onClick={() => setPreview({ open: true, lead })}
-                        >
-                          {lead.name}
-                        </div>
-                      </td>
-                      <td className="py-2 pr-3">
-                        <div className="max-w-[220px] truncate" title={lead.email}>{lead.email}</div>
-                      </td>
-                      <td className="py-2 pr-3">
-                        <div className="max-w-[140px] truncate whitespace-nowrap" title={lead.phone}>{lead.phone}</div>
-                      </td>
-                      <td className="py-2 pr-3">
-                        <div className="max-w-[160px] truncate whitespace-nowrap" title={lead.ssn}>{lead.ssn}</div>
-                      </td>
-                      <td className="py-2 pr-3">
-                        <div className="max-w-[160px] truncate" title={lead.source}>{lead.source}</div>
-                      </td>
-                      <td className="py-2 pr-3">
-                        <span className="inline-flex items-center rounded-md border px-2 py-0.5 text-xs">
-                          {lead.status}
-                        </span>
-                      </td>
-                      <td className="py-2 pr-0">
-                        <div className="flex justify-end gap-1.5">
-                          <Button size="sm" variant="outline" onClick={() => handleEdit(lead)} className="cursor-pointer">
-                            <Edit className="h-3 w-3 mr-1" />
-                            Edit
-                          </Button>
-                          <Button size="sm" variant="destructive" onClick={() => handleDelete(lead.id)} className="cursor-pointer">
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
+            
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>Batch {editNotification.progress.batch} of {editNotification.progress.totalBatches}</span>
+                <span>{editNotification.progress.current} / {editNotification.progress.total}</span>
               </div>
-                      </td>
-                    </tr>
-                  ))}
-                  {filteredLeads.length === 0 && (
-                    <tr>
-                      <td colSpan={7} className="py-6 text-center text-muted-foreground">
-                        {searchTerm ? "No leads found for this search." : "No leads yet. Add the first one above."}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+              
+              <div className="w-full bg-muted rounded-full h-2">
+                <div 
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  style={{ 
+                    width: `${(editNotification.progress.current / editNotification.progress.total) * 100}%` 
+                  }}
+                />
+              </div>
             </div>
           </div>
+        )}
+
+
+        {/* MAIN */}
+
+        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+
+          {/* CONTROLS */}
+
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+
+            <div className="flex items-center gap-2">
+
+              <div className="relative">
+
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+
+                <Input
+
+                  placeholder="Search leads..."
+
+                  value={searchTerm}
+
+                  onChange={(e) => setSearchTerm(e.target.value)}
+
+                  className="pl-10 w-64"
+
+                />
+
+              </div>
+
+              <Button
+
+                variant="outline"
+
+                size="sm"
+
+                onClick={() => setIsFilterOpen(true)}
+
+                className="cursor-pointer"
+
+              >
+
+                <Filter className="h-4 w-4 mr-2" />
+
+                Filters
+
+                {(() => {
+                  const activeFilters = []
+                  if (searchTerm) activeFilters.push('search')
+                  if (filters.name) activeFilters.push('name')
+                  if (filters.email) activeFilters.push('email')
+                  if (filters.phone) activeFilters.push('phone')
+                  if (filters.ssn) activeFilters.push('ssn')
+                  if (filters.ein) activeFilters.push('ein')
+                  if (filters.source) activeFilters.push('source')
+                  if (filters.status) activeFilters.push('status')
+                  if (sortField) activeFilters.push('sort')
+                  if (valueRange.min || valueRange.max) activeFilters.push('value')
+                  if (dateRange.min || dateRange.max) activeFilters.push('date')
+                  
+                  return activeFilters.length > 0 && (
+                  <span className="ml-1 bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 text-xs">
+
+                      {activeFilters.length}
+                  </span>
+
+                  )
+                })()}
+              </Button>
+
+              {(searchTerm || Object.values(filters).some(f => f !== "") || sortField || valueRange.min || valueRange.max || dateRange.min || dateRange.max) && (
+
+                <Button
+
+                  variant="ghost"
+
+                  size="sm"
+
+                  onClick={clearFilters}
+
+                  className="cursor-pointer text-muted-foreground hover:text-foreground"
+
+                >
+
+                  <XCircle className="h-4 w-4" />
+
+                </Button>
+
+              )}
+
         </div>
 
-        {/* ADD/EDIT MODAL */}
-        <Sheet open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <SheetContent className="w-full sm:max-w-md border-l border-border p-6 md:p-8">
-            <SheetHeader>
-              <SheetTitle>
-                {editingId ? "Edit Lead" : "Add Lead"}
-              </SheetTitle>
-              <SheetDescription>
-                {editingId ? "Update the lead information." : "Fill in the new lead details."}
-              </SheetDescription>
-            </SheetHeader>
-            <Separator className="my-4" />
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-                  <label className="mb-1 block text-sm font-medium">Name</label>
-                  <Input
-                    placeholder="Full name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value.slice(0, FIELD_MAX.name))}
-                    maxLength={FIELD_MAX.name}
-              required
-            />
-          </div>
-          <div>
-                  <label className="mb-1 block text-sm font-medium">Email</label>
-                  <Input
-                type="email"
-                    placeholder="email@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value.slice(0, FIELD_MAX.email))}
-                maxLength={FIELD_MAX.email}
-                required
-              />
-            </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium">Phone</label>
-                  <Input
-                    placeholder="Phone"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value.slice(0, FIELD_MAX.phone))}
-                    maxLength={FIELD_MAX.phone}
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium">SSN</label>
-                  <Input
-                    placeholder="SSN"
-                    value={ssn}
-                    onChange={(e) => setSsn(e.target.value.slice(0, FIELD_MAX.ssn))}
-                    maxLength={FIELD_MAX.ssn}
-                  />
-                </div>
-          <div>
-                  <label className="mb-1 block text-sm font-medium">Source</label>
-                  <Input
-                    placeholder="e.g., Instagram, Landing Page"
-                    value={source}
-                    onChange={(e) => setSource(e.target.value.slice(0, FIELD_MAX.source))}
-                    maxLength={FIELD_MAX.source}
-              />
-            </div>
-                <div className="md:col-span-2 space-y-2">
-                  <div>
-                    <label className="mb-1 block text-sm font-medium">Status</label>
-                    <select
-                      className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input h-9 w-full min-w-0 rounded-md border bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-                      value={["New","In Contact","Qualified","Lost"].includes(String(status)) ? String(status) : "custom"}
-                      onChange={(e) => {
-                        const val = e.target.value
-                        if (val === "custom") {
-                          setStatus(customStatus || "")
-                        } else {
-                          setStatus(val as Lead["status"])
-                          setCustomStatus("")
-                        }
-                      }}
-                    >
-                      <option value="New">New</option>
-                      <option value="In Contact">In Contact</option>
-                      <option value="Qualified">Qualified</option>
-                      <option value="Lost">Lost</option>
-                      <option value="custom">Custom…</option>
-                    </select>
+            <div className="flex items-center gap-2">
+
+              <DropdownMenu>
+
+                <DropdownMenuTrigger asChild>
+
+                  <Button className="cursor-pointer">
+
+                    <Plus className="h-4 w-4 mr-2" />
+
+                    Add Lead
+
+                    <ChevronDown className="ml-2 h-4 w-4" />
+
+                  </Button>
+
+                </DropdownMenuTrigger>
+
+                <DropdownMenuContent align="end" className="w-48">
+
+                  <DropdownMenuItem onClick={startAddNew} className="cursor-pointer flex items-center gap-2">
+
+                    <Plus className="h-4 w-4" />
+
+                    Add manually
+
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem
+
+                    onClick={() => setIsImportOpen(true)}
+
+                    className="cursor-pointer flex items-center gap-2"
+
+                  >
+
+                    <Download className="h-4 w-4" />
+
+                    Import
+
+                  </DropdownMenuItem>
+
+                </DropdownMenuContent>
+
+              </DropdownMenu>
+
+              {/* hidden input moved to Import modal */}
+
+              <DropdownMenu>
+
+                <DropdownMenuTrigger asChild>
+
+                  <Button variant="outline" className="cursor-pointer">
+
+                    <Upload className="h-4 w-4 mr-2" />
+
+                    {selectedLeads.size > 0 ? "Export selected" : "Export"}
+
+                    <ChevronDown className="ml-2 h-4 w-4" />
+
+                  </Button>
+
+                </DropdownMenuTrigger>
+
+                <DropdownMenuContent align="end" className="w-48">
+
+                  <DropdownMenuItem onClick={() => exportData("xlsx")} className="cursor-pointer flex items-center gap-2">
+
+                    <Upload className="h-4 w-4" />
+
+                    Export as XLSX
+
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem onClick={() => exportData("csv")} className="cursor-pointer flex items-center gap-2">
+
+                    <Upload className="h-4 w-4" />
+
+                    Export as CSV
+
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem onClick={() => exportData("ods")} className="cursor-pointer flex items-center gap-2">
+
+                    <Upload className="h-4 w-4" />
+
+                    Export as ODS
+
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem onClick={() => exportData("json")} className="cursor-pointer flex items-center gap-2">
+
+                    <Upload className="h-4 w-4" />
+
+                    Export as JSON
+
+                  </DropdownMenuItem>
+
+                </DropdownMenuContent>
+
+              </DropdownMenu>
+
+              {selectedLeads.size > 0 && (
+
+                <Button variant="outline" onClick={openBulkEdit} className="cursor-pointer">
+
+                  <Edit className="h-4 w-4 mr-2" />
+
+                  Edit Selected
+
+                </Button>
+
+              )}
+
+              {selectedLeads.size > 0 && (
+
+                <Button variant="destructive" onClick={handleDeleteSelected} className="cursor-pointer">
+
+                  <Trash2 className="h-4 w-4 mr-2" />
+
+                  Delete Selected
+
+                </Button>
+
+              )}
+
                   </div>
-                  {(!["New","In Contact","Qualified","Lost"].includes(String(status))) && (
-                    <div>
-                      <label className="mb-1 block text-sm font-medium">Custom status</label>
-                      <Input
-                        placeholder="e.g., Follow-up postponed"
-                        value={customStatus}
-                        onChange={(e) => {
-                          const v = e.target.value.slice(0, FIELD_MAX.status)
-                          setCustomStatus(v)
-                          setStatus(v)
-                        }}
-                        maxLength={FIELD_MAX.status}
+
+                </div>
+
+
+
+
+          {/* LEADS TABLE */}
+
+          <div className="bg-muted/50 rounded-xl p-4">
+
+            <div className="flex items-center justify-between mb-3">
+
+              <div className="flex items-center gap-4">
+              <h2 className="text-lg font-semibold">Lead List</h2>
+
+                {showSelectAllButton && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSelectAllLeads}
+                    className="cursor-pointer"
+                  >
+                    Select All ({leads.length})
+                  </Button>
+                )}
+                {/* TOP PAGINATION - Show when scrolling */}
+                {totalPages > 1 && showTopPagination && (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(1)}
+                      disabled={currentPage === 1}
+                      className="cursor-pointer"
+                    >
+                      First
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className="cursor-pointer"
+                    >
+                      Previous
+                    </Button>
+                    
+                    <div className="flex items-center gap-2 px-2">
+                      <span className="text-sm text-muted-foreground">
+                        Page {currentPage} of {totalPages}
+                      </span>
+                    </div>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      className="cursor-pointer"
+                    >
+                      Next
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(totalPages)}
+                      disabled={currentPage === totalPages}
+                      className="cursor-pointer"
+                    >
+                      Last
+                    </Button>
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+
+                {selectedLeads.size > 0 && (
+
+                  <span className="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium">
+
+                    {selectedLeads.size} selected
+
+                  </span>
+
+                )}
+
+                <span className="text-sm text-muted-foreground">
+
+                  {startIndex + 1}-{Math.min(endIndex, totalItems)} of {totalItems} items
+                </span>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="cursor-pointer">
+                      {itemsPerPage} per page
+                      <ChevronDown className="ml-1 h-3 w-3" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-32">
+                    <DropdownMenuItem onClick={() => setItemsPerPage(10)} className="cursor-pointer">
+                      10 per page
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setItemsPerPage(20)} className="cursor-pointer">
+                      20 per page
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setItemsPerPage(50)} className="cursor-pointer">
+                      50 per page
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setItemsPerPage(100)} className="cursor-pointer">
+                      100 per page
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+
+            </div>
+
+            <div className="overflow-x-auto">
+
+              <table className="w-full text-sm">
+
+                <thead>
+
+                  <tr className="text-left border-b">
+
+                    <th className="py-2 pr-3 w-12">
+
+                      <input
+
+                        type="checkbox"
+
+                        checked={selectedLeads.size === currentLeads.length && currentLeads.length > 0}
+                        onChange={handleSelectAll}
+
+                        className="rounded border-input"
+
                       />
+
+                    </th>
+
+                    <th 
+
+                      className="py-2 pr-3 w-[200px] cursor-pointer hover:bg-muted/50 select-none"
+
+                      onClick={() => handleSort('name')}
+
+                    >
+
+                      <div className="flex items-center gap-1">
+
+                        Name
+
+                        {sortField === 'name' && (
+
+                          sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+
+                        )}
+
+                      </div>
+
+                    </th>
+
+                    <th className="py-2 pr-3 w-[240px]">Email / Phone</th>
+
+                    <th className="py-2 pr-3 w-[160px]">SSN/EIN</th>
+
+                    <th 
+
+                      className="py-2 pr-3 w-[160px] cursor-pointer hover:bg-muted/50 select-none"
+
+                      onClick={() => handleSort('source')}
+
+                    >
+
+                      <div className="flex items-center gap-1">
+
+                        Source
+
+                        {sortField === 'source' && (
+
+                          sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+
+                        )}
+
+                      </div>
+
+                    </th>
+
+                    <th 
+
+                      className="py-2 pr-3 w-[120px] cursor-pointer hover:bg-muted/50 select-none"
+
+                      onClick={() => handleSort('status')}
+
+                    >
+
+                      <div className="flex items-center gap-1">
+
+                        Status
+
+                        {sortField === 'status' && (
+
+                          sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+
+                        )}
+
+                      </div>
+
+                    </th>
+
+                    <th 
+
+                      className="py-2 pr-3 w-[140px] cursor-pointer hover:bg-muted/50 select-none"
+
+                      onClick={() => handleSort('value')}
+
+                    >
+
+                      <div className="flex items-center gap-1">
+
+                        Value
+
+                        {sortField === 'value' && (
+
+                          sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+
+                        )}
+
+                      </div>
+
+                    </th>
+
+                    <th 
+
+                      className="py-2 pr-3 w-[140px] cursor-pointer hover:bg-muted/50 select-none"
+
+                      onClick={() => handleSort('estimated_close_date')}
+
+                    >
+
+                      <div className="flex items-center gap-1">
+
+                        Close Date
+
+                        {sortField === 'estimated_close_date' && (
+
+                          sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+
+                        )}
+
+                      </div>
+
+                    </th>
+
+                    <th className="py-2 pr-0 text-right w-[100px]">Actions</th>
+
+                  </tr>
+
+                </thead>
+
+                <tbody>
+
+                  {currentLeads.map((lead, index) => (
+                    <tr key={lead.id} className={`border-b last:border-b-0 hover:bg-muted/30 ${index % 2 === 0 ? 'bg-background' : 'bg-muted/40'}`}>
+                      <td className="py-2 pr-3">
+
+                        <input
+
+                          type="checkbox"
+
+                          checked={selectedLeads.has(lead.id)}
+
+                          onClick={(e) => handleSelectLead(lead.id, index, e)}
+
+                          readOnly
+
+                          className="rounded border-input"
+
+                        />
+
+                      </td>
+
+                      <td className="py-2 pr-3">
+
+                        <div
+
+                          className="max-w-[200px] truncate hover:underline decoration-dotted cursor-pointer font-medium"
+
+                          title={lead.name}
+
+                          onClick={() => setPreview({ open: true, lead })}
+
+                        >
+
+                          {lead.name}
+
+                        </div>
+
+                      </td>
+
+                      <td className="py-2 pr-3">
+
+                        <div className="max-w-[220px] space-y-1">
+
+                          <div className="truncate text-sm" title={lead.email}>
+
+                            {lead.email}
+
+                          </div>
+
+                          {lead.phone && (
+
+                            <div className="truncate text-xs text-muted-foreground" title={lead.phone}>
+
+                              {lead.phone}
+
+                            </div>
+
+                          )}
+
+                        </div>
+
+                      </td>
+
+                      <td className="py-2 pr-3">
+
+                        <div className="max-w-[160px] space-y-1">
+
+                          {lead.ssn && (
+
+                            <div className="text-xs" title={`SSN: ${lead.ssn}`}>
+
+                              SSN: {lead.ssn}
+
+                            </div>
+
+                          )}
+
+                          {lead.ein && (
+
+                            <div className="text-xs" title={`EIN: ${lead.ein}`}>
+
+                              EIN: {lead.ein}
+
+                            </div>
+
+                          )}
+
+                          {!lead.ssn && !lead.ein && (
+
+                            <div className="text-xs text-muted-foreground">-</div>
+
+                          )}
+
+                        </div>
+
+                      </td>
+
+                      <td className="py-2 pr-3">
+
+                        <div className="max-w-[160px] truncate text-xs" title={lead.source}>
+
+                          {lead.source || '-'}
+
+                        </div>
+
+                      </td>
+
+                      <td className="py-2 pr-3">
+
+                        <span className="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium">
+
+                          {lead.status}
+
+                        </span>
+
+                      </td>
+
+                      <td className="py-2 pr-3">
+
+                        <div className="text-sm font-medium text-green-600">
+
+                          {lead.value ? `$${lead.value.toLocaleString()}` : '-'}
+
+                        </div>
+
+                      </td>
+
+                      <td className="py-2 pr-3">
+
+                        <div className="text-xs text-muted-foreground">
+
+                          {lead.estimated_close_date ? new Date(lead.estimated_close_date).toLocaleDateString('pt-BR') : '-'}
+
+                        </div>
+
+                      </td>
+
+                      <td className="py-2 pr-0">
+
+                        <div className="flex justify-end gap-1.5">
+
+                          <Button size="sm" variant="outline" onClick={() => handleEdit(lead)} className="cursor-pointer">
+
+                            <Edit className="h-3 w-3 mr-1" />
+
+                            Edit
+
+                          </Button>
+
+                          <Button size="sm" variant="destructive" onClick={() => handleDelete(lead.id)} className="cursor-pointer">
+
+                            <Trash2 className="h-3 w-3" />
+
+                          </Button>
+
+              </div>
+
+                      </td>
+
+                    </tr>
+
+                  ))}
+
+                  {currentLeads.length === 0 && (
+                    <tr>
+
+                      <td colSpan={7} className="py-6 text-center text-muted-foreground">
+
+                        {searchTerm ? "No leads found for this search." : "No leads yet. Add the first one above."}
+
+                      </td>
+
+                    </tr>
+
+                  )}
+
+                </tbody>
+
+              </table>
+
+            </div>
+
+            
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center mt-4 pt-4 border-t">
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(1)}
+                    disabled={currentPage === 1}
+                    className="cursor-pointer"
+                  >
+                    First
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="cursor-pointer"
+                  >
+                    Previous
+                  </Button>
+                  
+                  <div className="flex items-center gap-2 px-4">
+                    <span className="text-sm text-muted-foreground">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                  </div>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="cursor-pointer"
+                  >
+                    Next
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(totalPages)}
+                    disabled={currentPage === totalPages}
+                    className="cursor-pointer"
+                  >
+                    Last
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+
+        </div>
+
+
+
+        {/* ADD/EDIT MODAL */}
+
+        <Sheet open={isModalOpen} onOpenChange={setIsModalOpen}>
+
+          <SheetContent className="w-full sm:max-w-md border-l border-border p-6 md:p-8">
+
+            <SheetHeader>
+
+              <SheetTitle>
+
+                {editingId ? "Edit Lead" : "Add Lead"}
+
+              </SheetTitle>
+
+              <SheetDescription>
+
+                {editingId ? "Update the lead information." : "Fill in the new lead details."}
+
+              </SheetDescription>
+
+            </SheetHeader>
+
+            <Separator className="my-4" />
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+          <div>
+
+                  <label className="mb-1 block text-sm font-medium">Name</label>
+
+                  <Input
+
+                    placeholder="Full name"
+
+                    value={name}
+
+                    onChange={(e) => setName(e.target.value.slice(0, FIELD_MAX.name))}
+
+                    maxLength={FIELD_MAX.name}
+
+              required
+
+            />
+
+          </div>
+
+          <div>
+
+                  <label className="mb-1 block text-sm font-medium">Email</label>
+
+                  <Input
+
+                type="email"
+
+                    placeholder="email@example.com"
+
+                    value={email}
+
+                    onChange={(e) => setEmail(e.target.value.slice(0, FIELD_MAX.email))}
+
+                maxLength={FIELD_MAX.email}
+
+                required
+
+              />
+
+            </div>
+
+                <div>
+
+                  <label className="mb-1 block text-sm font-medium">Phone</label>
+
+                  <Input
+
+                    placeholder="Phone"
+
+                    value={phone}
+
+                    onChange={(e) => setPhone(e.target.value.slice(0, FIELD_MAX.phone))}
+
+                    maxLength={FIELD_MAX.phone}
+
+                  />
+
+                </div>
+
+                <div>
+
+                  <label className="mb-1 block text-sm font-medium">SSN</label>
+
+                  <Input
+
+                    placeholder="SSN"
+
+                    value={ssn}
+
+                    onChange={(e) => setSsn(e.target.value.slice(0, FIELD_MAX.ssn))}
+
+                    maxLength={FIELD_MAX.ssn}
+
+                  />
+
+                </div>
+
+                <div>
+
+                  <label className="mb-1 block text-sm font-medium">EIN</label>
+
+                  <Input
+
+                    placeholder="EIN"
+
+                    value={ein}
+
+                    onChange={(e) => setEin(e.target.value.slice(0, FIELD_MAX.ssn))}
+
+                    maxLength={FIELD_MAX.ssn}
+
+                  />
+
+                </div>
+
+          <div>
+
+                  <label className="mb-1 block text-sm font-medium">Source</label>
+
+                  <Input
+
+                    placeholder="e.g., Instagram, Landing Page"
+
+                    value={source}
+
+                    onChange={(e) => setSource(e.target.value.slice(0, FIELD_MAX.source))}
+
+                    maxLength={FIELD_MAX.source}
+
+              />
+
+            </div>
+
+                <div className="md:col-span-2 space-y-2">
+
+                  <div>
+
+                    <label className="mb-1 block text-sm font-medium">Status</label>
+
+                    <select
+
+                      className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input h-9 w-full min-w-0 rounded-md border bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+
+                      value={["New","In Contact","Qualified","Lost"].includes(String(status)) ? String(status) : "custom"}
+
+                      onChange={(e) => {
+
+                        const val = e.target.value
+
+                        if (val === "custom") {
+
+                          setStatus(customStatus || "")
+
+                        } else {
+
+                          setStatus(val as Lead["status"])
+
+                          setCustomStatus("")
+
+                        }
+
+                      }}
+
+                    >
+
+                      <option value="New">New</option>
+
+                      <option value="In Contact">In Contact</option>
+
+                      <option value="Qualified">Qualified</option>
+
+                      <option value="Lost">Lost</option>
+
+                      <option value="custom">Custom…</option>
+
+                    </select>
+
+                  </div>
+
+                  {(!["New","In Contact","Qualified","Lost"].includes(String(status))) && (
+
+                    <div>
+
+                      <label className="mb-1 block text-sm font-medium">Custom status</label>
+
+                      <Input
+
+                        placeholder="e.g., Follow-up postponed"
+
+                        value={customStatus}
+
+                        onChange={(e) => {
+
+                          const v = e.target.value.slice(0, FIELD_MAX.status)
+
+                          setCustomStatus(v)
+
+                          setStatus(v)
+
+                        }}
+
+                        maxLength={FIELD_MAX.status}
+
+                      />
+
+                    </div>
+
+                  )}
+
+                </div>
+
+              </div>
+
+              
+
+              {/* Commercial Information */}
+
+              <div className="space-y-4">
+
+                <h3 className="text-sm font-semibold text-muted-foreground">Commercial Information</h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                  <div>
+
+                    <label className="mb-1 block text-sm font-medium">Deal Value ($)</label>
+
+                    <Input
+
+                      type="number"
+
+                      placeholder="0.00"
+
+                      value={value}
+
+                      onChange={(e) => {
+
+                        const val = e.target.value.slice(0, FIELD_MAX.value)
+
+                        setValue(val)
+
+                      }}
+
+                      step="0.01"
+
+                      maxLength={FIELD_MAX.value}
+
+                    />
+
+                  </div>
+
+                  <div>
+
+                    <label className="mb-1 block text-sm font-medium">Estimated Close Date</label>
+
+                    <Input
+
+                      type="date"
+
+                      value={estimatedCloseDate}
+
+                      onChange={(e) => {
+
+                        const value = e.target.value.slice(0, FIELD_MAX.date)
+
+                        setEstimatedCloseDate(value)
+
+                      }}
+
+                      maxLength={FIELD_MAX.date}
+
+                    />
+
+                  </div>
+
+                </div>
+
+                <div>
+
+                  <label className="mb-1 block text-sm font-medium">📝 Notes / Description</label>
+
+                  <textarea
+
+                    className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input h-20 w-full min-w-0 rounded-md border bg-transparent px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+
+                    placeholder="Notes about the lead..."
+
+                    value={description}
+
+                    onChange={(e) => setDescription(e.target.value.slice(0, FIELD_MAX.description))}
+
+                    maxLength={FIELD_MAX.description}
+
+                  />
+
+                  <div className="text-xs text-muted-foreground mt-1">
+
+                    {description.length}/{FIELD_MAX.description} characters
+
+                  </div>
+
+                </div>
+
+              </div>
+
+              
+
+              <Separator />
+
+              <div className="flex gap-2">
+
+                <Button type="submit" className="flex-1 cursor-pointer">
+
+                  {editingId ? "Save" : "Add"}
+
+                </Button>
+
+                <Button type="button" variant="outline" onClick={resetForm} className="cursor-pointer">
+
+                  <X className="h-4 w-4 mr-1" />
+
+                  Cancel
+
+                </Button>
+
+              </div>
+
+            </form>
+
+          </SheetContent>
+
+        </Sheet>
+
+
+
+    {/* PREVIEW MODAL - Lead details */}
+
+    <Sheet open={preview.open} onOpenChange={(open) => setPreview((p) => ({ ...p, open }))}>
+
+      <SheetContent className="w-full sm:max-w-lg border-l border-border p-6 md:p-8">
+
+        <SheetHeader>
+
+          <SheetTitle>Lead Details</SheetTitle>
+
+          <SheetDescription>Complete lead information</SheetDescription>
+
+        </SheetHeader>
+
+        <Separator className="my-4" />
+
+        <div className="space-y-4">
+
+          {(() => {
+
+            const l = preview.lead
+
+            if (!l) return null
+
+            return (
+
+              <>
+
+                {/* Basic Information */}
+
+                <div className="space-y-3">
+
+                  <h3 className="text-sm font-semibold text-muted-foreground">Basic Information</h3>
+
+                  <div className="grid grid-cols-2 gap-3">
+
+                    <div className="space-y-1">
+
+                      <div className="flex items-center gap-2">
+
+                        <div className="text-xs text-muted-foreground">Name</div>
+
+                        <Button
+
+                          size="sm"
+
+                          variant="ghost"
+
+                          className="h-5 w-5 p-0 cursor-pointer"
+
+                          onClick={() => {
+
+                            navigator.clipboard.writeText(l.name)
+
+                            setCopiedKey('name')
+
+                            window.setTimeout(() => setCopiedKey(null), 700)
+
+                          }}
+
+                        >
+
+                          {copiedKey === 'name' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+
+                        </Button>
+
+                  </div>
+
+                      <div className="text-sm font-medium">{l.name}</div>
+
+                    </div>
+
+                    <div className="space-y-1">
+
+                      <div className="flex items-center gap-2">
+
+                        <div className="text-xs text-muted-foreground">Status</div>
+
+                  <Button
+
+                    size="sm"
+
+                          variant="ghost"
+
+                          className="h-5 w-5 p-0 cursor-pointer"
+
+                    onClick={() => {
+
+                            navigator.clipboard.writeText(l.status)
+
+                            setCopiedKey('status')
+
+                            window.setTimeout(() => setCopiedKey(null), 700)
+
+                          }}
+
+                        >
+
+                          {copiedKey === 'status' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+
+                        </Button>
+
+                      </div>
+
+                      <div className="text-sm">
+
+                        <span className="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium">
+
+                          {l.status}
+
+                    </span>
+
+                      </div>
+
+                    </div>
+
+                    <div className="space-y-1">
+
+                      <div className="flex items-center gap-2">
+
+                        <div className="text-xs text-muted-foreground">Email</div>
+
+                        <Button
+
+                          size="sm"
+
+                          variant="ghost"
+
+                          className="h-5 w-5 p-0 cursor-pointer"
+
+                          onClick={() => {
+
+                            navigator.clipboard.writeText(l.email)
+
+                            setCopiedKey('email')
+
+                            window.setTimeout(() => setCopiedKey(null), 700)
+
+                          }}
+
+                        >
+
+                          {copiedKey === 'email' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+
+                  </Button>
+
+                </div>
+
+                      <div className="text-sm">{l.email}</div>
+
+              </div>
+
+                    <div className="space-y-1">
+
+                      <div className="flex items-center gap-2">
+
+                        <div className="text-xs text-muted-foreground">Phone</div>
+
+                        <Button
+
+                          size="sm"
+
+                          variant="ghost"
+
+                          className="h-5 w-5 p-0 cursor-pointer"
+
+                          onClick={() => {
+
+                            navigator.clipboard.writeText(l.phone || '')
+
+                            setCopiedKey('phone')
+
+                            window.setTimeout(() => setCopiedKey(null), 700)
+
+                          }}
+
+                        >
+
+                          {copiedKey === 'phone' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+
+                        </Button>
+
+                      </div>
+
+                      <div className="text-sm">{l.phone || '-'}</div>
+
+                    </div>
+
+                    {l.ssn && (
+
+                      <div className="space-y-1">
+
+                        <div className="flex items-center gap-2">
+
+                          <div className="text-xs text-muted-foreground">SSN</div>
+
+                          <Button
+
+                            size="sm"
+
+                            variant="ghost"
+
+                            className="h-5 w-5 p-0 cursor-pointer"
+
+                            onClick={() => {
+
+                              navigator.clipboard.writeText(l.ssn || '')
+
+                              setCopiedKey('ssn')
+
+                              window.setTimeout(() => setCopiedKey(null), 700)
+
+                            }}
+
+                          >
+
+                            {copiedKey === 'ssn' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+
+                          </Button>
+
+                        </div>
+
+                        <div className="text-sm">{l.ssn}</div>
+
+                      </div>
+
+                    )}
+
+                    {l.ein && (
+
+                      <div className="space-y-1">
+
+                        <div className="flex items-center gap-2">
+
+                          <div className="text-xs text-muted-foreground">EIN</div>
+
+                          <Button
+
+                            size="sm"
+
+                            variant="ghost"
+
+                            className="h-5 w-5 p-0 cursor-pointer"
+
+                            onClick={() => {
+
+                              navigator.clipboard.writeText(l.ein || '')
+
+                              setCopiedKey('ein')
+
+                              window.setTimeout(() => setCopiedKey(null), 700)
+
+                            }}
+
+                          >
+
+                            {copiedKey === 'ein' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+
+                          </Button>
+
+                        </div>
+
+                        <div className="text-sm">{l.ein}</div>
+
+                      </div>
+
+                    )}
+
+                    {!l.ssn && !l.ein && (
+
+                      <div className="space-y-1">
+
+                        <div className="text-xs text-muted-foreground">SSN/EIN</div>
+
+                        <div className="text-sm text-muted-foreground">-</div>
+
+                      </div>
+
+                    )}
+
+                    <div className="space-y-1">
+
+                      <div className="flex items-center gap-2">
+
+                        <div className="text-xs text-muted-foreground">Source</div>
+
+                        <Button
+
+                          size="sm"
+
+                          variant="ghost"
+
+                          className="h-5 w-5 p-0 cursor-pointer"
+
+                          onClick={() => {
+
+                            navigator.clipboard.writeText(l.source || '')
+
+                            setCopiedKey('source')
+
+                            window.setTimeout(() => setCopiedKey(null), 700)
+
+                          }}
+
+                        >
+
+                          {copiedKey === 'source' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+
+                        </Button>
+
+                      </div>
+
+                      <div className="text-sm">{l.source || '-'}</div>
+
+                    </div>
+
+                  </div>
+
+                </div>
+
+
+
+                <Separator />
+
+
+
+                {/* Commercial Information */}
+
+                <div className="space-y-3">
+
+                  <h3 className="text-sm font-semibold text-muted-foreground">Commercial Information</h3>
+
+                  <div className="grid grid-cols-2 gap-3">
+
+                    <div className="space-y-1">
+
+                      <div className="flex items-center gap-2">
+
+                        <div className="text-xs text-muted-foreground">Value</div>
+
+                        <Button
+
+                          size="sm"
+
+                          variant="ghost"
+
+                          className="h-5 w-5 p-0 cursor-pointer"
+
+                          onClick={() => {
+
+                            navigator.clipboard.writeText(l.value ? `$${l.value.toLocaleString()}` : '')
+
+                            setCopiedKey('value')
+
+                            window.setTimeout(() => setCopiedKey(null), 700)
+
+                          }}
+
+                        >
+
+                          {copiedKey === 'value' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+
+                        </Button>
+
+                      </div>
+
+                      <div className="text-sm font-medium text-green-600">
+
+                        {l.value ? `$${l.value.toLocaleString()}` : '-'}
+
+                      </div>
+
+                    </div>
+
+                    <div className="space-y-1">
+
+                      <div className="flex items-center gap-2">
+
+                        <div className="text-xs text-muted-foreground">Estimated Close Date</div>
+
+                        <Button
+
+                          size="sm"
+
+                          variant="ghost"
+
+                          className="h-5 w-5 p-0 cursor-pointer"
+
+                          onClick={() => {
+
+                            navigator.clipboard.writeText(l.estimated_close_date ? new Date(l.estimated_close_date).toLocaleDateString('en-US') : '')
+
+                            setCopiedKey('closeDate')
+
+                            window.setTimeout(() => setCopiedKey(null), 700)
+
+                          }}
+
+                        >
+
+                          {copiedKey === 'closeDate' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+
+                        </Button>
+
+                      </div>
+
+                      <div className="text-sm">
+
+                        {l.estimated_close_date ? new Date(l.estimated_close_date).toLocaleDateString('en-US') : '-'}
+
+                      </div>
+
+                    </div>
+
+                  </div>
+
+                </div>
+
+
+
+                {/* Notes */}
+
+                {l.description && (
+
+                  <>
+
+                    <Separator />
+
+                    <div className="space-y-3">
+
+                      <div className="flex items-center gap-2">
+
+                        <h3 className="text-sm font-semibold text-muted-foreground">Notes / Observations</h3>
+
+                        <Button
+
+                          size="sm"
+
+                          variant="ghost"
+
+                          className="h-5 w-5 p-0 cursor-pointer"
+
+                          onClick={() => {
+
+                            navigator.clipboard.writeText(l.description || '')
+
+                            setCopiedKey('description')
+
+                            window.setTimeout(() => setCopiedKey(null), 700)
+
+                          }}
+
+                        >
+
+                          {copiedKey === 'description' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+
+                        </Button>
+
+                      </div>
+
+                      <div className="bg-muted/30 rounded-md p-3 text-sm">
+
+                        {l.description}
+
+                      </div>
+
+                    </div>
+
+                  </>
+
+                )}
+
+
+
+                {/* Activity History */}
+
+                <Separator />
+
+                <div className="space-y-3">
+
+                  <h3 className="text-sm font-semibold text-muted-foreground">Activity History</h3>
+
+                  <div className="text-sm text-muted-foreground">
+
+                    Created: {new Date(l.created_at).toLocaleDateString('en-US')}
+
+                  </div>
+
+                  <div className="text-sm text-muted-foreground">
+
+                    Last updated: {new Date(l.updated_at).toLocaleDateString('en-US')}
+
+                  </div>
+
+                </div>
+
+              </>
+
+            )
+
+          })()}
+
+          <div className="flex justify-end pt-4">
+
+            <Button className="cursor-pointer" onClick={() => setPreview({ open: false, lead: null })}>Close</Button>
+
+          </div>
+
+        </div>
+
+      </SheetContent>
+
+    </Sheet>
+
+
+
+    {/* FILTER MODAL */}
+
+    <Sheet open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+
+      <SheetContent className="w-full sm:max-w-md border-l border-border p-6 md:p-8">
+
+        <SheetHeader>
+
+          <SheetTitle>Filter leads</SheetTitle>
+
+          <SheetDescription>Filter leads by any field to find specific records.</SheetDescription>
+
+        </SheetHeader>
+
+        <Separator className="my-4" />
+
+        <div className="space-y-4">
+
+          <div className="space-y-2">
+
+            <label className="mb-1 block text-sm font-medium">Name</label>
+
+            <Input
+
+              placeholder="Filter by name..."
+
+              value={filters.name}
+
+              onChange={(e) => setFilters(prev => ({ ...prev, name: e.target.value }))}
+
+            />
+
+          </div>
+
+          <div className="space-y-2">
+
+            <label className="mb-1 block text-sm font-medium">Email</label>
+
+            <Input
+
+              placeholder="Filter by email..."
+
+              value={filters.email}
+
+              onChange={(e) => setFilters(prev => ({ ...prev, email: e.target.value }))}
+
+            />
+
+          </div>
+
+          <div className="space-y-2">
+
+            <label className="mb-1 block text-sm font-medium">Phone</label>
+
+            <Input
+
+              placeholder="Filter by phone..."
+
+              value={filters.phone}
+
+              onChange={(e) => setFilters(prev => ({ ...prev, phone: e.target.value }))}
+
+            />
+
+          </div>
+
+          <div className="space-y-2">
+
+            <label className="mb-1 block text-sm font-medium">SSN</label>
+
+            <Input
+
+              placeholder="Filter by SSN..."
+
+              value={filters.ssn}
+
+              onChange={(e) => setFilters(prev => ({ ...prev, ssn: e.target.value }))}
+
+            />
+
+          </div>
+
+          <div className="space-y-2">
+
+            <label className="mb-1 block text-sm font-medium">EIN</label>
+
+            <Input
+
+              placeholder="Filter by EIN..."
+
+              value={filters.ein}
+
+              onChange={(e) => setFilters(prev => ({ ...prev, ein: e.target.value }))}
+
+            />
+
+          </div>
+
+          <div className="space-y-2">
+
+            <label className="mb-1 block text-sm font-medium">Source</label>
+
+            <Input
+
+              placeholder="Filter by source..."
+
+              value={filters.source}
+
+              onChange={(e) => setFilters(prev => ({ ...prev, source: e.target.value }))}
+
+            />
+
+          </div>
+
+          <div className="space-y-2">
+
+            <label className="mb-1 block text-sm font-medium">Status</label>
+
+            <select
+
+              className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input h-9 w-full min-w-0 rounded-md border bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+
+              value={filters.status}
+
+              onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+
+            >
+
+              <option value="">All statuses</option>
+
+              <option value="New">New</option>
+
+              <option value="In Contact">In Contact</option>
+
+              <option value="Qualified">Qualified</option>
+
+              <option value="Lost">Lost</option>
+
+            </select>
+
+          </div>
+
+          
+
+          <Separator />
+
+          
+
+          <div className="space-y-2">
+
+            <label className="mb-1 block text-sm font-medium">Value Range</label>
+
+            <div className="flex gap-2">
+
+              <Input
+
+                type="number"
+
+                placeholder="Min value"
+
+                value={valueRange.min}
+
+                onChange={(e) => setValueRange(prev => ({ ...prev, min: e.target.value }))}
+
+                className="flex-1"
+
+              />
+
+              <Input
+
+                type="number"
+
+                placeholder="Max value"
+
+                value={valueRange.max}
+
+                onChange={(e) => setValueRange(prev => ({ ...prev, max: e.target.value }))}
+
+                className="flex-1"
+
+              />
+
+            </div>
+
+          </div>
+
+          
+
+          <div className="space-y-2">
+
+            <label className="mb-1 block text-sm font-medium">Close Date Range</label>
+
+            <div className="flex gap-2">
+
+              <Input
+
+                type="date"
+
+                placeholder="From date"
+
+                value={dateRange.min}
+
+                onChange={(e) => setDateRange(prev => ({ ...prev, min: e.target.value }))}
+
+                className="flex-1"
+
+              />
+
+              <Input
+
+                type="date"
+
+                placeholder="To date"
+
+                value={dateRange.max}
+
+                onChange={(e) => setDateRange(prev => ({ ...prev, max: e.target.value }))}
+
+                className="flex-1"
+
+              />
+
+            </div>
+
+          </div>
+
+          
+
+          <Separator />
+
+          <div className="flex gap-2">
+
+            <Button
+
+              onClick={() => {
+
+                applyModalFilters()
+
+                setIsFilterOpen(false)
+
+              }}
+
+              className="flex-1 cursor-pointer"
+
+            >
+
+              Apply Filter
+
+            </Button>
+
+            <Button
+
+              onClick={() => {
+
+                clearFilters()
+
+                setIsFilterOpen(false)
+
+              }}
+
+              variant="outline"
+
+              className="cursor-pointer"
+
+            >
+
+              <X className="h-4 w-4 mr-1" />
+
+              Clear All
+
+            </Button>
+
+          </div>
+
+        </div>
+
+      </SheetContent>
+
+    </Sheet>
+
+
+
+        {/* IMPORT MODAL (Centered Overlay) */}
+
+        {isImportOpen && (
+
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+
+            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={() => !isImporting && setIsImportOpen(false)} />
+
+            <div className="relative z-10 w-full max-w-lg rounded-xl border border-border bg-background p-6 shadow-xl">
+
+              <div className="space-y-2">
+
+                <h3 className="text-lg font-semibold leading-none tracking-tight">Import leads</h3>
+
+                <p className="text-sm text-muted-foreground">Accepted formats: .xlsx, .xls, .csv, .ods, .json. <br></br>Columns: name, email, phone, ssn, ein, source, status, value, close date, notes</p>
+
+              </div>
+
+              <Separator className="my-4" />
+
+              {isImporting ? (
+
+                <div className="border-2 border-dashed rounded-lg p-8 text-center">
+
+                  <div className="text-sm text-muted-foreground">Importing leads...</div>
+
+                  <div className="mt-2 text-xs">Please wait while we save your leads to the database.</div>
+
+                  
+                  {importProgress.total > 0 && (
+                    <div className="mt-4 space-y-2">
+                      <div className="text-xs text-muted-foreground">
+                        Batch {importProgress.batch} of {importProgress.totalBatches}
+                      </div>
+                      <div className="w-full bg-muted rounded-full h-2">
+                        <div 
+                          className="bg-primary h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${(importProgress.current / importProgress.total) * 100}%` }}
+                        />
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {importProgress.current} of {importProgress.total} leads processed
+                      </div>
+                      <div className="mt-3">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setImportCancelled(true)
+                            setIsImporting(false)
+                            setIsImportOpen(false)
+                          }}
+                          className="cursor-pointer"
+                        >
+                          Cancel Import
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </div>
-              </div>
-              <Separator />
-              <div className="flex gap-2">
-                <Button type="submit" className="flex-1 cursor-pointer">
-                  {editingId ? "Save" : "Add"}
-                </Button>
-                <Button type="button" variant="outline" onClick={resetForm} className="cursor-pointer">
-                  <X className="h-4 w-4 mr-1" />
-                  Cancel
-                </Button>
-              </div>
-            </form>
-          </SheetContent>
-        </Sheet>
 
-    {/* PREVIEW MODAL - Lead details */}
-    <Sheet open={preview.open} onOpenChange={(open) => setPreview((p) => ({ ...p, open }))}>
-      <SheetContent className="w-full sm:max-w-md border-l border-border p-6 md:p-8">
-        <SheetHeader>
-          <SheetTitle>Lead details</SheetTitle>
-          <SheetDescription>Full data for quick copy</SheetDescription>
-        </SheetHeader>
-        <Separator className="my-4" />
-        <div className="space-y-3">
-          {(() => {
-            const l = preview.lead
-            if (!l) return null
-            const rows: { label: string, value: string }[] = [
-              { label: "Name", value: l.name },
-              { label: "Email", value: l.email },
-              { label: "Phone", value: l.phone },
-              { label: "SSN", value: l.ssn },
-              { label: "Source", value: l.source },
-              { label: "Status", value: String(l.status) },
-            ]
-            return rows.map((r) => (
-              <div key={r.label} className="space-y-1">
-                <div className="text-xs text-muted-foreground">{r.label}</div>
-                <div className="flex items-start gap-2">
-                  <div className="flex-1 rounded-md border border-input p-2 text-sm break-words bg-muted/30">
-                    {r.value || <span className="text-muted-foreground">(empty)</span>}
+              ) : (
+
+                <div
+
+                  className={
+
+                    "border-2 border-dashed rounded-lg p-8 text-center select-none " +
+                    (isProcessingFile ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:bg-muted/50") +
+
+                    (isDragActive ? "border-primary bg-primary/5" : "border-muted-foreground/30")
+
+                  }
+
+                  onDragOver={(e) => {
+
+                    e.preventDefault()
+
+                    if (!isProcessingFile) {
+
+                      setIsDragActive(true)
+
+                    }
+
+                  }}
+
+                  onDragLeave={() => setIsDragActive(false)}
+
+                  onDrop={(e) => {
+
+                    e.preventDefault()
+
+                    setIsDragActive(false)
+
+                    if (isProcessingFile) return
+
+                    const file = e.dataTransfer.files?.[0]
+
+                    if (!file) return
+
+                    const ok = /\.(xlsx|xls|csv|ods|json)$/i.test(file.name)
+
+                    if (!ok) {
+
+                      alert("Unsupported file. Please choose .xlsx, .xls, .csv, .ods or .json")
+
+                      return
+
+                    }
+
+                    handleFileSelect(file)
+                  }}
+
+                  role="button"
+
+                  tabIndex={0}
+
+                  onClick={() => !isProcessingFile && fileInputRef.current?.click()}
+
+                >
+
+                  {isProcessingFile ? (
+                    <>
+                      <div className="text-sm text-muted-foreground">Processing file...</div>
+                      <div className="mt-2 text-xs">Please wait while we analyze your file</div>
+                      <div className="mt-4 flex justify-center">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="text-sm text-muted-foreground">Drag and drop your file here</div>
+                      <div className="mt-2 text-xs">or click to browse</div>
+                      <div className="mt-4 text-xs text-muted-foreground">.xlsx, .xls, .csv, .ods, .json</div>
+                    </>
+                  )}
+
+                </div>
+
+              )}
+
+              <input
+
+                type="file"
+
+                accept=".xlsx,.xls,.csv,.ods,.json,application/json,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,application/vnd.oasis.opendocument.spreadsheet"
+
+                ref={fileInputRef}
+
+                style={{ display: "none" }}
+
+                onChange={(e) => {
+
+                  if (isProcessingFile) return
+
+                  const file = e.target.files?.[0]
+
+                  if (!file) return
+
+                  const ok = /\.(xlsx|xls|csv|ods|json)$/i.test(file.name)
+
+                  if (!ok) {
+
+                    alert("Unsupported file. Please choose .xlsx, .xls, .csv, .ods or .json")
+
+                    return
+
+                  }
+
+                  handleFileSelect(file)
+                }}
+
+              />
+
+              <Separator className="my-4" />
+
+              <div className="text-xs text-muted-foreground">We detect headers automatically, including variants.</div>
+
+              <div className="mt-4 flex justify-end gap-2">
+
+                <Button 
+
+                  variant="outline" 
+
+                  onClick={() => setIsImportOpen(false)} 
+
+                  className="cursor-pointer"
+
+                  disabled={isImporting}
+
+                >
+
+                  {isImporting ? "Importing..." : "Close"}
+
+                </Button>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        )}
+
+
+
+        {/* FILE PREVIEW MODAL */}
+        {showPreview && filePreview && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={() => setShowPreview(false)} />
+            <div className="relative z-10 w-full max-w-4xl max-h-[80vh] rounded-xl border border-border bg-background p-6 shadow-xl overflow-hidden">
+              <div className="space-y-2">
+                <h3 className="text-lg font-semibold leading-none tracking-tight">File Preview</h3>
+                <p className="text-sm text-muted-foreground">
+                  Found {filePreview.totalLeads} leads with {filePreview.fields.length} columns
+                </p>
+              </div>
+              <Separator className="my-4" />
+              
+              <div className="space-y-4 max-h-[50vh] overflow-y-auto">
+                <div>
+                  <h4 className="text-sm font-medium mb-2">Detected Fields:</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {filePreview.fields.map((field: string, index: number) => (
+                      <span key={index} className="px-2 py-1 bg-muted rounded text-xs">
+                        {field}
+                      </span>
+                    ))}
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="cursor-pointer shrink-0"
-                    onMouseLeave={() => setCopiedKey((k) => (k ? null : k))}
-                    onClick={() => {
-                      navigator.clipboard.writeText(r.value || "")
-                      setCopiedKey(r.label)
-                      window.setTimeout(() => setCopiedKey((k) => (k === r.label ? null : k)), 700)
-                    }}
-                  >
-                    <span className="inline-flex items-center gap-1 w-[54px] justify-center">
-                      {copiedKey === r.label ? (
-                        <Check className="h-4 w-4" />
-                      ) : (
-                        <>Copy</>
-                      )}
-                    </span>
-                  </Button>
+                </div>
+                
+                <div>
+                  <h4 className="text-sm font-medium mb-2">Sample Leads (first 5):</h4>
+                  <div className="space-y-2">
+                    {filePreview.leads.slice(0, 5).map((lead: Lead, index: number) => (
+                      <div key={index} className="p-3 border rounded-lg text-sm">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div><strong>Name:</strong> {lead.name || 'N/A'}</div>
+                          <div><strong>Email:</strong> {lead.email || 'N/A'}</div>
+                          <div><strong>Phone:</strong> {lead.phone || 'N/A'}</div>
+                          <div><strong>Source:</strong> {lead.source || 'N/A'}</div>
+                          <div><strong>Status:</strong> {lead.status || 'N/A'}</div>
+                          <div><strong>Value:</strong> {lead.value ? `$${lead.value}` : 'N/A'}</div>
+                          <div><strong>Close Date:</strong> {lead.estimated_close_date || 'N/A'}</div>
+                          <div><strong>SSN:</strong> {lead.ssn || 'N/A'}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
-            ))
-          })()}
-          <div className="flex justify-end pt-2">
-            <Button className="cursor-pointer" onClick={() => setPreview({ open: false, lead: null })}>Close</Button>
-          </div>
-        </div>
-      </SheetContent>
-    </Sheet>
-
-    {/* FILTER MODAL */}
-    <Sheet open={isFilterOpen} onOpenChange={setIsFilterOpen}>
-      <SheetContent className="w-full sm:max-w-md border-l border-border p-6 md:p-8">
-        <SheetHeader>
-          <SheetTitle>Filter leads</SheetTitle>
-          <SheetDescription>Filter leads by any field to find specific records.</SheetDescription>
-        </SheetHeader>
-        <Separator className="my-4" />
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <label className="mb-1 block text-sm font-medium">Name</label>
-            <Input
-              placeholder="Filter by name..."
-              value={filters.name}
-              onChange={(e) => setFilters(prev => ({ ...prev, name: e.target.value }))}
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="mb-1 block text-sm font-medium">Email</label>
-            <Input
-              placeholder="Filter by email..."
-              value={filters.email}
-              onChange={(e) => setFilters(prev => ({ ...prev, email: e.target.value }))}
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="mb-1 block text-sm font-medium">Phone</label>
-            <Input
-              placeholder="Filter by phone..."
-              value={filters.phone}
-              onChange={(e) => setFilters(prev => ({ ...prev, phone: e.target.value }))}
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="mb-1 block text-sm font-medium">SSN</label>
-            <Input
-              placeholder="Filter by SSN..."
-              value={filters.ssn}
-              onChange={(e) => setFilters(prev => ({ ...prev, ssn: e.target.value }))}
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="mb-1 block text-sm font-medium">Source</label>
-            <Input
-              placeholder="Filter by source..."
-              value={filters.source}
-              onChange={(e) => setFilters(prev => ({ ...prev, source: e.target.value }))}
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="mb-1 block text-sm font-medium">Status</label>
-            <select
-              className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input h-9 w-full min-w-0 rounded-md border bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-              value={filters.status}
-              onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
-            >
-              <option value="">All statuses</option>
-              <option value="New">New</option>
-              <option value="In Contact">In Contact</option>
-              <option value="Qualified">Qualified</option>
-              <option value="Lost">Lost</option>
-            </select>
-          </div>
-          <Separator />
-          <div className="flex gap-2">
-            <Button
-              onClick={() => setIsFilterOpen(false)}
-              className="flex-1 cursor-pointer"
-            >
-              Apply Filter
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setFilters({ name: "", email: "", phone: "", ssn: "", source: "", status: "" })
-                setIsFilterOpen(false)
-              }}
-              className="cursor-pointer"
-            >
-              Clear All
-            </Button>
-          </div>
-        </div>
-      </SheetContent>
-    </Sheet>
-
-        {/* IMPORT MODAL (Centered Overlay) */}
-        {isImportOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center">
-            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={() => setIsImportOpen(false)} />
-            <div className="relative z-10 w-full max-w-lg rounded-xl border border-border bg-background p-6 shadow-xl">
-              <div className="space-y-2">
-                <h3 className="text-lg font-semibold leading-none tracking-tight">Import leads</h3>
-                <p className="text-sm text-muted-foreground">Accepted formats: .xlsx, .xls, .csv, .ods, .json. <br></br>Columns: name, email, phone, ssn, source, status</p>
-              </div>
+              
               <Separator className="my-4" />
-              <div
-                className={
-                  "border-2 border-dashed rounded-lg p-8 text-center select-none cursor-pointer " +
-                  (isDragActive ? "border-primary bg-primary/5" : "border-muted-foreground/30")
-                }
-                onDragOver={(e) => {
-                  e.preventDefault()
-                  setIsDragActive(true)
-                }}
-                onDragLeave={() => setIsDragActive(false)}
-                onDrop={(e) => {
-                  e.preventDefault()
-                  setIsDragActive(false)
-                  const file = e.dataTransfer.files?.[0]
-                  if (!file) return
-                  const ok = /\.(xlsx|xls|csv|ods|json)$/i.test(file.name)
-                  if (!ok) {
-                    alert("Unsupported file. Please choose .xlsx, .xls, .csv, .ods or .json")
-                    return
-                  }
-                  handleImportFile(file).then(() => setIsImportOpen(false))
-                }}
-                role="button"
-                tabIndex={0}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <div className="text-sm text-muted-foreground">Drag and drop your file here</div>
-                <div className="mt-2 text-xs">or click to browse</div>
-                <div className="mt-4 text-xs text-muted-foreground">.xlsx, .xls, .csv, .ods, .json</div>
-              </div>
-              <input
-                type="file"
-                accept=".xlsx,.xls,.csv,.ods,.json,application/json,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,application/vnd.oasis.opendocument.spreadsheet"
-                ref={fileInputRef}
-                style={{ display: "none" }}
-                onChange={(e) => {
-                  const file = e.target.files?.[0]
-                  if (!file) return
-                  const ok = /\.(xlsx|xls|csv|ods|json)$/i.test(file.name)
-                  if (!ok) {
-                    alert("Unsupported file. Please choose .xlsx, .xls, .csv, .ods or .json")
-                    return
-                  }
-                  handleImportFile(file).then(() => setIsImportOpen(false))
-                }}
-              />
-              <Separator className="my-4" />
-              <div className="text-xs text-muted-foreground">We detect headers automatically, including variants.</div>
-              <div className="mt-4 flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setIsImportOpen(false)} className="cursor-pointer">Close</Button>
+              <div className="flex justify-end gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowPreview(false)}
+                  className="cursor-pointer"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={confirmImport}
+                  className="cursor-pointer"
+                >
+                  Import {filePreview.totalLeads} Leads
+                </Button>
               </div>
             </div>
           </div>
         )}
 
     {/* BULK EDIT MODAL */}
+
     <Sheet open={isBulkEditOpen} onOpenChange={setIsBulkEditOpen}>
+
       <SheetContent className="w-full sm:max-w-md border-l border-border p-6 md:p-8">
+
         <SheetHeader>
+
           <SheetTitle>Edit selected leads</SheetTitle>
+
           <SheetDescription>
+
             Update Status and/or Source for {selectedLeads.size} selected lead(s).
+
           </SheetDescription>
+
         </SheetHeader>
+
         <Separator className="my-4" />
+
         <div className="space-y-6">
+
           <div className="space-y-2">
+
             <label className="mb-1 block text-sm font-medium">Status</label>
+
             <select
+
               className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input h-9 w-full min-w-0 rounded-md border bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+
               value={bulkStatus}
+
               onChange={(e) => setBulkStatus(e.target.value)}
+
             >
+
               <option value="">Keep unchanged</option>
+
               <option value="New">New</option>
+
               <option value="In Contact">In Contact</option>
+
               <option value="Qualified">Qualified</option>
+
               <option value="Lost">Lost</option>
+
             </select>
+
           </div>
+
           <div className="space-y-2">
+
             <label className="mb-1 block text-sm font-medium">Source</label>
+
             <Input
+
               placeholder="Leave empty to keep unchanged"
+
               value={bulkSource}
+
               onChange={(e) => setBulkSource(e.target.value)}
+
             />
+
           </div>
+
           <Separator />
-          <div className="flex gap-2">
-            <Button onClick={applyBulkEdit} className="flex-1 cursor-pointer">Save changes</Button>
-            <Button variant="outline" onClick={() => setIsBulkEditOpen(false)} className="cursor-pointer">Cancel</Button>
+
+          <div className="space-y-2">
+            <label className="mb-1 block text-sm font-medium">Confirmation</label>
+            <Input
+              placeholder="Type 'edit' to confirm bulk edit"
+              value={bulkEditConfirm}
+              onChange={(e) => setBulkEditConfirm(e.target.value)}
+            />
+            <div className="text-xs text-muted-foreground">
+              This action will update {selectedLeads.size} lead(s). Type 'edit' to confirm.
+            </div>
           </div>
+
+          <Separator />
+
+          <div className="flex gap-2">
+
+            <Button 
+              onClick={applyBulkEdit} 
+              className="flex-1 cursor-pointer"
+              disabled={bulkEditConfirm.trim().toLowerCase() !== "edit"}
+            >
+              Save changes
+            </Button>
+
+            <Button variant="outline" onClick={() => setIsBulkEditOpen(false)} className="cursor-pointer">Cancel</Button>
+
+          </div>
+
         </div>
+
       </SheetContent>
+
     </Sheet>
 
+
+
         {/* CONFIRMATION MODAL */}
+
         <Sheet open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
+
           <SheetContent className="w-full sm:max-w-md border-l border-border p-6 md:p-8">
+
             <SheetHeader>
+
               <SheetTitle>Confirm deletion</SheetTitle>
+
               <SheetDescription>
+
                 This action is irreversible. {pendingDeletionIds.length > 1 && (
+
                   <>
+
                     <br></br>Type "Delete" to proceed.
+
                   </>
+
                 )}
+
               </SheetDescription>
+
             </SheetHeader>
+
             <Separator className="my-4" />
+
             <div className="space-y-6">
+
               <div className="text-sm bg-destructive/10 text-destructive border border-destructive/30 rounded-md p-3">
+
                 {pendingDeletionIds.length === 1
+
                   ? "You are about to remove 1 lead."
+
                   : `You are about to remove ${pendingDeletionIds.length} leads.`}
+
               </div>
+
               {pendingDeletionIds.length > 1 && (
+
                 <div className="space-y-2">
+
                   <label className="mb-1 block text-sm font-medium">Confirmation</label>
+
                   <Input
+
                     placeholder="Type 'Delete' to continue"
+
                     value={confirmInput}
+
                     onChange={(e) => setConfirmInput(e.target.value)}
+
                   />
+
                 </div>
+
               )}
+
               <Separator />
+
               <div className="flex gap-2">
+
                 <Button
+
                   variant="destructive"
+
                   onClick={performDeletion}
+
                   disabled={!canConfirmDeletion}
+
                   className="cursor-pointer flex-1"
+
                 >
+
                   Delete permanently
+
                 </Button>
+
                 <Button
+
                   variant="outline"
+
                   onClick={() => setIsConfirmOpen(false)}
+
                   className="cursor-pointer"
+
                 >
+
                   Cancel
+
                 </Button>
+
               </div>
+
     </div>
+
           </SheetContent>
+
         </Sheet>
+
       </SidebarInset>
+
     </SidebarProvider>
+
+
+    {/* DELETE PROGRESS NOTIFICATION */}
+    {deleteNotification.show && (
+      <div className="fixed top-4 right-4 z-50 bg-background border rounded-lg shadow-lg p-4 w-80">
+        <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-destructive"></div>
+              <span className="font-medium">
+                {isDeletionCancelled ? 'Cancelling Deletion...' : 'Deleting Leads'}
+              </span>
+            </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setIsDeletionCancelled(true)
+              isDeletionCancelledRef.current = true
+              setDeleteNotification(prev => ({ 
+                ...prev, 
+                cancelled: true,
+                progress: { 
+                  ...prev.progress, 
+                  current: 0, 
+                  total: 0, 
+                  batch: 0, 
+                  totalBatches: 0 
+                }
+              }))
+            }}
+            className="cursor-pointer text-muted-foreground hover:text-foreground"
+          >
+            Cancel
+          </Button>
+        </div>
+        
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm text-muted-foreground">
+            <span>Batch {deleteNotification.progress.batch} of {deleteNotification.progress.totalBatches}</span>
+            <span>{deleteNotification.progress.current} / {deleteNotification.progress.total}</span>
+          </div>
+          
+          <div className="w-full bg-muted rounded-full h-2">
+            <div 
+              className="bg-destructive h-2 rounded-full transition-all duration-300"
+              style={{ 
+                width: `${(deleteNotification.progress.current / deleteNotification.progress.total) * 100}%` 
+              }}
+            />
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* SELECT ALL CONFIRMATION MODAL */}
+    {showSelectAllConfirm && (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="bg-background border rounded-lg p-6 max-w-md w-full mx-4">
+          <h3 className="text-lg font-semibold mb-4">Confirm Selection</h3>
+          <p className="text-muted-foreground mb-6">
+            You are about to select all <strong>{leads.length} leads</strong> from your database. 
+            This may impact performance if you perform bulk actions.
+          </p>
+          <div className="flex gap-3 justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setShowSelectAllConfirm(false)}
+              className="cursor-pointer"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmSelectAllLeads}
+              className="cursor-pointer"
+            >
+              Yes, Select All
+            </Button>
+          </div>
+        </div>
+      </div>
+    )}
     </AuthGuard>
+
   )
+
 }
+

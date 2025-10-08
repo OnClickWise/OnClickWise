@@ -19,19 +19,8 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { Search, Plus, Download, Upload, Trash2, Edit, X, ChevronDown, CheckCircle2, AlertTriangle, AlertCircle, Check, Filter, XCircle, ArrowUp, ArrowDown, Eye, Phone, Mail, Calendar, User, Building2 } from "lucide-react"
 import * as XLSX from "xlsx"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-
-type Lead = {
-  id: string
-  name: string
-  email: string
-  phone: string
-  ssn: string
-  source: string
-  status: "New" | "In Contact" | "Qualified" | "Lost" | string
-  value?: number
-  expectedCloseDate?: string
-  notes?: string
-}
+import { apiService, Lead, UpdateLeadRequest } from "@/lib/api"
+import { useApi } from "@/hooks/useApi"
 
 type PipelineStage = {
   id: string
@@ -44,68 +33,7 @@ function createId() {
   return Math.random().toString(36).slice(2, 10)
 }
 
-const SAMPLE_LEADS: Lead[] = [
-  {
-    id: "ld_1",
-    name: "Maria Silva",
-    email: "maria.silva@example.com",
-    phone: "+55 11 91234-5678",
-    ssn: "",
-    source: "Landing Page",
-    status: "New",
-    value: 5000,
-    expectedCloseDate: "2024-02-15",
-    notes: "Interessada em curso de marketing digital"
-  },
-  {
-    id: "ld_2",
-    name: "João Souza",
-    email: "joao.souza@example.com",
-    phone: "+55 21 99876-5432",
-    ssn: "",
-    source: "Instagram",
-    status: "In Contact",
-    value: 3000,
-    expectedCloseDate: "2024-02-20",
-    notes: "Já teve primeira reunião, aguardando proposta"
-  },
-  {
-    id: "ld_3",
-    name: "Ana Pereira",
-    email: "ana.pereira@example.com",
-    phone: "+55 31 90000-1111",
-    ssn: "",
-    source: "Referral",
-    status: "Qualified",
-    value: 8000,
-    expectedCloseDate: "2024-02-10",
-    notes: "Cliente qualificado, alta probabilidade de fechamento"
-  },
-  {
-    id: "ld_4",
-    name: "Carlos Mendes",
-    email: "carlos.mendes@example.com",
-    phone: "+55 11 98765-4321",
-    ssn: "",
-    source: "LinkedIn",
-    status: "New",
-    value: 2500,
-    expectedCloseDate: "2024-03-01",
-    notes: "Lead frio, precisa de nurturing"
-  },
-  {
-    id: "ld_5",
-    name: "Fernanda Costa",
-    email: "fernanda.costa@example.com",
-    phone: "+55 21 91234-5678",
-    ssn: "",
-    source: "Website",
-    status: "In Contact",
-    value: 6000,
-    expectedCloseDate: "2024-02-25",
-    notes: "Demonstração agendada para próxima semana"
-  }
-]
+// Removed SAMPLE_LEADS - now using API
 
 const PIPELINE_STAGES: PipelineStage[] = [
   {
@@ -140,15 +68,34 @@ export default function PipelinePage({
   params: Promise<{ org: string }>
 }) {
   const { org } = React.use(params)
+  const { isClient } = useApi()
   const storageKey = React.useMemo(() => `pipeline_${org}`, [org])
 
   const [leads, setLeads] = React.useState<Lead[]>([])
   const [pipelineStages, setPipelineStages] = React.useState<PipelineStage[]>(PIPELINE_STAGES)
   const [searchTerm, setSearchTerm] = React.useState("")
+  const [filters, setFilters] = React.useState({
+    name: '',
+    email: '',
+    phone: '',
+    ssn: '',
+    ein: '',
+    source: '',
+    status: ''
+  })
+  const [valueRange, setValueRange] = React.useState({
+    min: '',
+    max: ''
+  })
+  const [dateRange, setDateRange] = React.useState({
+    min: '',
+    max: ''
+  })
   const [editingId, setEditingId] = React.useState<string | null>(null)
   const [draggedLead, setDraggedLead] = React.useState<Lead | null>(null)
   const [draggedOverStage, setDraggedOverStage] = React.useState<string | null>(null)
   const [isEditModalOpen, setIsEditModalOpen] = React.useState(false)
+  const [isFilterOpen, setIsFilterOpen] = React.useState(false)
 
   // Edit form states
   const [editValue, setEditValue] = React.useState("")
@@ -162,34 +109,185 @@ export default function PipelinePage({
   // Preview modal
   const [preview, setPreview] = React.useState<{ open: boolean, lead: Lead | null }>({ open: false, lead: null })
 
+  // Load leads from API
   React.useEffect(() => {
-    try {
-      const raw = localStorage.getItem(storageKey)
-      if (raw) {
-        const savedLeads = JSON.parse(raw)
-        setLeads(savedLeads)
-        updatePipelineStages(savedLeads)
-      } else {
-        setLeads(SAMPLE_LEADS)
-        updatePipelineStages(SAMPLE_LEADS)
-        localStorage.setItem(storageKey, JSON.stringify(SAMPLE_LEADS))
+    const loadLeads = async () => {
+      try {
+        const response = await apiService.getLeadsByStatus()
+        if (response.success && response.data) {
+          setLeads(response.data.leads)
+          updatePipelineStages(response.data.leads)
+        } else {
+          console.error('Failed to load leads:', response.error)
+          pushToast('Erro ao carregar leads', 'error')
+        }
+      } catch (error) {
+        console.error('Error loading leads:', error)
+        pushToast('Erro ao carregar leads', 'error')
       }
-    } catch {
-      setLeads(SAMPLE_LEADS)
-      updatePipelineStages(SAMPLE_LEADS)
     }
-  }, [storageKey])
 
-  React.useEffect(() => {
+    // Always run, not just on client side
+    loadLeads()
+  }, [])
+
+  // Search leads with backend filters
+  const searchLeads = React.useCallback(async (searchParams: {
+    search?: string;
+    status?: string;
+    source?: string;
+    value_min?: number;
+    value_max?: number;
+    date_min?: string;
+    date_max?: string;
+    sort?: string;
+    order?: 'asc' | 'desc';
+  }) => {
     try {
-      localStorage.setItem(storageKey, JSON.stringify(leads))
-    } catch {}
-  }, [leads, storageKey])
+      console.log('Pipeline: Calling searchLeads with:', searchParams)
+      const response = await apiService.searchLeads(searchParams)
+      console.log('Pipeline: Search response:', response)
+      if (response.success && response.data) {
+        console.log('Pipeline: Setting leads from search:', response.data.leads.length, 'leads')
+        setLeads(response.data.leads)
+        updatePipelineStages(response.data.leads)
+        return response.data.leads
+      } else {
+        console.error('Failed to search leads:', response.error)
+        pushToast('Erro ao buscar leads', 'error')
+        return []
+      }
+    } catch (error) {
+      console.error('Error searching leads:', error)
+      pushToast('Erro ao buscar leads', 'error')
+      return []
+    }
+  }, [])
+
+  const clearFilters = () => {
+    setSearchTerm('')
+    setFilters({
+      name: '',
+      email: '',
+      phone: '',
+      ssn: '',
+      ein: '',
+      source: '',
+      status: ''
+    })
+    setValueRange({
+      min: '',
+      max: ''
+    })
+    setDateRange({
+      min: '',
+      max: ''
+    })
+    // Reload all leads when clearing filters
+    const loadAllLeads = async () => {
+      try {
+        const response = await apiService.getLeadsByStatus()
+        if (response.success && response.data) {
+          setLeads(response.data.leads)
+          updatePipelineStages(response.data.leads)
+        }
+      } catch (error) {
+        console.error('Error loading all leads:', error)
+      }
+    }
+    loadAllLeads()
+  }
+
+  // Debounced search function
+  const debouncedSearch = React.useMemo(() => {
+    let timeoutId: NodeJS.Timeout
+    return (searchParams: any) => {
+      clearTimeout(timeoutId)
+      timeoutId = setTimeout(() => {
+        searchLeads(searchParams)
+      }, 300) // 300ms debounce
+    }
+  }, [searchLeads])
+
+  // Apply search term only (real-time)
+  React.useEffect(() => {
+    if (!isClient) return
+    
+    if (searchTerm) {
+      // Use backend search with debounce for search term only
+      const searchParams = {
+        search: searchTerm,
+      }
+      
+      console.log('Pipeline: Searching with search term:', searchParams)
+      debouncedSearch(searchParams)
+    } else {
+      // No search term, reload all leads from API
+      const loadAllLeads = async () => {
+        try {
+          const response = await apiService.getLeadsByStatus()
+          if (response.success && response.data) {
+            setLeads(response.data.leads)
+            updatePipelineStages(response.data.leads)
+          }
+        } catch (error) {
+          console.error('Error loading all leads:', error)
+        }
+      }
+      loadAllLeads()
+    }
+  }, [searchTerm, debouncedSearch, isClient])
+
+  // Apply modal filters when Apply Filter is clicked
+  const applyModalFilters = React.useCallback(async () => {
+    if (!isClient) return
+    
+    const hasFilters = filters.name || filters.email || filters.phone || filters.ssn || filters.ein || filters.source || filters.status || valueRange.min || valueRange.max || dateRange.min || dateRange.max
+    
+    if (hasFilters) {
+      // Use backend search with all filters
+      const searchParams = {
+        search: searchTerm || filters.name || filters.email || filters.phone || filters.ssn || filters.ein || undefined,
+        status: filters.status || undefined,
+        source: filters.source || undefined,
+        value_min: valueRange.min && !isNaN(parseFloat(valueRange.min)) ? parseFloat(valueRange.min) : undefined,
+        value_max: valueRange.max && !isNaN(parseFloat(valueRange.max)) ? parseFloat(valueRange.max) : undefined,
+        date_min: dateRange.min || undefined,
+        date_max: dateRange.max || undefined,
+      }
+      
+      // Remove empty parameters
+      Object.keys(searchParams).forEach(key => {
+        if (searchParams[key as keyof typeof searchParams] === undefined) {
+          delete searchParams[key as keyof typeof searchParams]
+        }
+      })
+      
+      console.log('Pipeline: Applying modal filters:', searchParams)
+      console.log('Pipeline: Filters state:', filters)
+      console.log('Pipeline: Value range:', valueRange)
+      console.log('Pipeline: Date range:', dateRange)
+      await searchLeads(searchParams)
+    } else {
+      // No filters, reload all leads from API
+      const loadAllLeads = async () => {
+        try {
+          const response = await apiService.getLeadsByStatus()
+          if (response.success && response.data) {
+            setLeads(response.data.leads)
+            updatePipelineStages(response.data.leads)
+          }
+        } catch (error) {
+          console.error('Error loading all leads:', error)
+        }
+      }
+      loadAllLeads()
+    }
+  }, [searchTerm, filters, valueRange, dateRange, searchLeads, isClient])
 
   function updatePipelineStages(leadsList: Lead[]) {
-    const stages = PIPELINE_STAGES.map(stage => ({
-      ...stage,
-      leads: leadsList.filter(lead => {
+    const stages = PIPELINE_STAGES.map(stage => {
+      const stageLeads = leadsList.filter(lead => {
         switch (lead.status) {
           case "New":
             return stage.id === "new"
@@ -203,7 +301,11 @@ export default function PipelinePage({
             return stage.id === "new"
         }
       })
-    }))
+      return {
+        ...stage,
+        leads: stageLeads
+      }
+    })
     setPipelineStages(stages)
   }
 
@@ -219,29 +321,49 @@ export default function PipelinePage({
   function handleEdit(lead: Lead) {
     setEditingId(lead.id)
     setEditValue(lead.value?.toString() || "")
-    setEditExpectedCloseDate(lead.expectedCloseDate || "")
-    setEditNotes(lead.notes || "")
+    setEditExpectedCloseDate(lead.estimated_close_date || "")
+    setEditNotes(lead.description || "")
     setIsEditModalOpen(true)
   }
 
-  function handleEditSubmit(e: React.FormEvent) {
+  async function handleEditSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!editingId) return
 
-    setLeads((prev) =>
-      prev.map((lead) =>
-        lead.id === editingId
-          ? {
-              ...lead,
-              value: editValue ? parseFloat(editValue) : undefined,
-              expectedCloseDate: editExpectedCloseDate || undefined,
-              notes: editNotes || undefined
-            }
-          : lead
-      )
-    )
+    // Verificar se estamos no cliente
+    if (typeof window === 'undefined') {
+      pushToast('Aguarde o carregamento completo da página', 'warning')
+      return
+    }
 
-    pushToast("Lead updated successfully.", "success")
+    try {
+      const updateData: UpdateLeadRequest = {
+        id: editingId,
+        value: editValue ? parseFloat(editValue) : undefined,
+        estimated_close_date: editExpectedCloseDate || undefined,
+        description: editNotes || undefined
+      }
+
+      console.log('Updating lead with data:', updateData)
+      const response = await apiService.updateLead(updateData)
+      console.log('Update response:', response)
+      if (response.success && response.data) {
+        setLeads((prev) => {
+          const updatedLeads = prev.map((lead) =>
+            lead.id === editingId ? response.data!.lead : lead
+          )
+          updatePipelineStages(updatedLeads)
+          return updatedLeads
+        })
+        pushToast("Lead atualizado com sucesso.", "success")
+      } else {
+        pushToast(`Erro ao atualizar lead: ${response.error}`, "error")
+      }
+    } catch (error) {
+      console.error('Error updating lead:', error)
+      pushToast('Erro ao atualizar lead', "error")
+    }
+
     setIsEditModalOpen(false)
     setEditingId(null)
     setEditValue("")
@@ -270,26 +392,47 @@ export default function PipelinePage({
     setDraggedOverStage(null)
   }
 
-  function handleDrop(e: React.DragEvent, targetStageId: string) {
+  async function handleDrop(e: React.DragEvent, targetStageId: string) {
     e.preventDefault()
     
     if (!draggedLead) return
+
+    // Verificar se estamos no cliente
+    if (typeof window === 'undefined') {
+      pushToast('Aguarde o carregamento completo da página', 'warning')
+      return
+    }
 
     const newStatus = targetStageId === "new" ? "New" :
                      targetStageId === "contact" ? "In Contact" :
                      targetStageId === "qualified" ? "Qualified" :
                      targetStageId === "lost" ? "Lost" : "New"
 
-    setLeads((prev) => {
-      const updatedLeads = prev.map((lead) =>
-        lead.id === draggedLead.id ? { ...lead, status: newStatus } : lead
-      )
-      // Atualiza as colunas do pipeline imediatamente
-      updatePipelineStages(updatedLeads)
-      return updatedLeads
-    })
+    try {
+      const updateData: UpdateLeadRequest = {
+        id: draggedLead.id,
+        status: newStatus
+      }
 
-    pushToast(`Lead "${draggedLead.name}" moved to "${newStatus}".`, "success")
+      const response = await apiService.updateLead(updateData)
+      if (response.success && response.data) {
+        setLeads((prev) => {
+          const updatedLeads = prev.map((lead) =>
+            lead.id === draggedLead.id ? response.data!.lead : lead
+          )
+          // Atualiza as colunas do pipeline imediatamente
+          updatePipelineStages(updatedLeads)
+          return updatedLeads
+        })
+        pushToast(`Lead "${draggedLead.name}" movido para "${newStatus}".`, "success")
+      } else {
+        pushToast(`Erro ao mover lead: ${response.error}`, "error")
+      }
+    } catch (error) {
+      console.error('Error moving lead:', error)
+      pushToast('Erro ao mover lead', "error")
+    }
+
     setDraggedLead(null)
     setDraggedOverStage(null)
   }
@@ -305,7 +448,21 @@ export default function PipelinePage({
     return new Date(dateString).toLocaleDateString('en-US')
   }
 
-  const totalValue = leads.reduce((sum, lead) => sum + (lead.value || 0), 0)
+  const totalValue = leads.reduce((sum, lead) => {
+    const value = lead.value
+    console.log('Lead:', lead.name, 'Status:', lead.status, 'Value:', value, 'Type:', typeof value)
+    
+    // Tentar converter para número se for string
+    const numericValue = typeof value === 'string' ? parseFloat(value) : value
+    
+    // Só somar se o valor existir, for um número válido E o lead não estiver perdido
+    if (numericValue != null && typeof numericValue === 'number' && !isNaN(numericValue) && isFinite(numericValue) && lead.status !== 'Lost') {
+      console.log('Adding value:', numericValue, 'to sum:', sum)
+      return sum + numericValue
+    }
+    return sum
+  }, 0)
+  console.log('Total Value calculated:', totalValue)
   const totalLeads = leads.length
 
   return (
@@ -388,6 +545,34 @@ export default function PipelinePage({
                   className="pl-10 w-64"
                 />
               </div>
+              
+              {/* Filter button */}
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => setIsFilterOpen(true)}
+                  variant="outline"
+                  size="sm"
+                  className="cursor-pointer"
+                >
+                  <Filter className="h-4 w-4 mr-2" />
+                  Filters
+                  {(searchTerm || Object.values(filters).some(f => f !== "") || valueRange.min || valueRange.max || dateRange.min || dateRange.max) && (
+                    <span className="ml-1 bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 text-xs">
+                      {[searchTerm, ...Object.values(filters), valueRange.min, valueRange.max, dateRange.min, dateRange.max].filter(f => f && f !== "").length}
+                    </span>
+                  )}
+                </Button>
+                {(searchTerm || Object.values(filters).some(f => f !== "") || valueRange.min || valueRange.max || dateRange.min || dateRange.max) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearFilters}
+                    className="cursor-pointer text-muted-foreground hover:text-foreground"
+                  >
+                    <XCircle className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -458,7 +643,7 @@ export default function PipelinePage({
                         !searchTerm || 
                         lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                         lead.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        lead.source.toLowerCase().includes(searchTerm.toLowerCase())
+                        (lead.source || '').toLowerCase().includes(searchTerm.toLowerCase())
                       )
                       .map((lead) => (
                       <div
@@ -467,21 +652,23 @@ export default function PipelinePage({
                         draggable
                         onDragStart={(e) => handleDragStart(e, lead)}
                       >
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex-1">
-                            <h4 className="font-medium text-sm truncate" title={lead.name}>
+                        {/* Header com nome e ações */}
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-semibold text-sm truncate" title={lead.name}>
                               {lead.name}
                             </h4>
-                            <p className="text-xs text-muted-foreground truncate" title={lead.email}>
+                            <p className="text-xs text-muted-foreground truncate mt-1" title={lead.email}>
                               {lead.email}
                             </p>
                           </div>
-                          <div className="flex gap-1">
+                          <div className="flex gap-1 ml-2">
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => handleViewLead(lead)}
-                              className="h-6 w-6 p-0 cursor-pointer"
+                              onClick={() => setPreview({ open: true, lead })}
+                              className="h-6 w-6 p-0 cursor-pointer hover:bg-blue-50"
+                              title="Ver detalhes"
                             >
                               <Eye className="h-3 w-3" />
                             </Button>
@@ -489,34 +676,45 @@ export default function PipelinePage({
                               size="sm"
                               variant="ghost"
                               onClick={() => handleEdit(lead)}
-                              className="h-6 w-6 p-0 cursor-pointer"
+                              className="h-6 w-6 p-0 cursor-pointer hover:bg-green-50"
+                              title="Editar"
                             >
                               <Edit className="h-3 w-3" />
                             </Button>
                           </div>
                         </div>
                         
+                        {/* Valor da venda */}
                         {lead.value && (
-                          <div className="text-xs font-medium text-green-600 mb-1">
-                            {formatCurrency(lead.value)}
+                          <div className="mb-2">
+                            <div className="text-sm font-bold text-green-600">
+                              {formatCurrency(lead.value)}
+                            </div>
                           </div>
                         )}
                         
-                        {lead.expectedCloseDate && (
-                          <div className="text-xs text-muted-foreground mb-1">
+                        {/* Origem */}
+                        {lead.source && (
+                          <div className="text-xs text-muted-foreground mb-2">
+                            <Building2 className="h-3 w-3 inline mr-1" />
+                            {lead.source}
+                          </div>
+                        )}
+                        
+                        {/* Data de fechamento */}
+                        {lead.estimated_close_date && (
+                          <div className="text-xs text-muted-foreground mb-2">
                             <Calendar className="h-3 w-3 inline mr-1" />
-                            {formatDate(lead.expectedCloseDate)}
+                            {formatDate(lead.estimated_close_date)}
                           </div>
                         )}
                         
-                        <div className="text-xs text-muted-foreground">
-                          <Building2 className="h-3 w-3 inline mr-1" />
-                          {lead.source}
-                        </div>
-                        
-                        {lead.notes && (
-                          <div className="text-xs text-muted-foreground mt-2 p-2 bg-muted/50 rounded">
-                            {lead.notes}
+                        {/* Notas (truncadas) */}
+                        {lead.description && (
+                          <div className="mt-2 p-2 bg-muted/30 rounded text-xs text-muted-foreground overflow-hidden">
+                            <div className="truncate" title={lead.description}>
+                              📝 {lead.description}
+                            </div>
                           </div>
                         )}
                       </div>
@@ -531,74 +729,108 @@ export default function PipelinePage({
 
         {/* PREVIEW MODAL */}
         <Sheet open={preview.open} onOpenChange={(open) => setPreview((p) => ({ ...p, open }))}>
-          <SheetContent className="w-full sm:max-w-md border-l border-border p-6 md:p-8">
-            <SheetHeader>
-              <SheetTitle>Lead Details</SheetTitle>
-              <SheetDescription>Complete lead information</SheetDescription>
-            </SheetHeader>
+          <SheetContent className="w-full sm:max-w-lg border-l border-border p-6 md:p-8">
+        <SheetHeader>
+          <SheetTitle>Lead Details</SheetTitle>
+          <SheetDescription>Complete lead information</SheetDescription>
+        </SheetHeader>
             <Separator className="my-4" />
             <div className="space-y-4">
               {preview.lead && (
                 <>
-                  <div className="space-y-2">
-                    <h3 className="font-medium">{preview.lead.name}</h3>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Mail className="h-4 w-4" />
-                      {preview.lead.email}
-                    </div>
-                    {preview.lead.phone && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Phone className="h-4 w-4" />
-                        {preview.lead.phone}
-                      </div>
-                    )}
-                    {preview.lead.ssn && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <User className="h-4 w-4" />
-                        {preview.lead.ssn}
-                      </div>
-                    )}
-                  </div>
-                  
-                  <Separator />
-                  
+                  {/* Basic Information */}
                   <div className="space-y-3">
-                    <div>
-                      <span className="text-sm font-medium">Status:</span>
-                      <span className="ml-2 text-sm">{preview.lead.status}</span>
+                    <h3 className="text-sm font-semibold text-muted-foreground">Basic Information</h3>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <div className="text-xs text-muted-foreground">Name</div>
+                        <div className="text-sm font-medium">{preview.lead.name}</div>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="text-xs text-muted-foreground">Status</div>
+                        <div className="text-sm">
+                          <span className="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium">
+                            {preview.lead.status}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="text-xs text-muted-foreground">Email</div>
+                        <div className="text-sm">{preview.lead.email}</div>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="text-xs text-muted-foreground">Phone</div>
+                        <div className="text-sm">{preview.lead.phone || '-'}</div>
+                      </div>
+                      {preview.lead.ssn && (
+                        <div className="space-y-1">
+                          <div className="text-xs text-muted-foreground">SSN</div>
+                          <div className="text-sm">{preview.lead.ssn}</div>
+                        </div>
+                      )}
+                      {preview.lead.ein && (
+                        <div className="space-y-1">
+                          <div className="text-xs text-muted-foreground">EIN</div>
+                          <div className="text-sm">{preview.lead.ein}</div>
+                        </div>
+                      )}
+                      {!preview.lead.ssn && !preview.lead.ein && (
+                        <div className="space-y-1">
+                          <div className="text-xs text-muted-foreground">SSN/EIN</div>
+                          <div className="text-sm text-muted-foreground">-</div>
+                        </div>
+                      )}
+                      <div className="space-y-1">
+                        <div className="text-xs text-muted-foreground">Source</div>
+                        <div className="text-sm">{preview.lead.source || '-'}</div>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-sm font-medium">Source:</span>
-                      <span className="ml-2 text-sm">{preview.lead.source}</span>
+                  </div>
+
+                  <Separator />
+
+                  {/* Commercial Information */}
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-semibold text-muted-foreground">Commercial Information</h3>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <div className="text-xs text-muted-foreground">Value</div>
+                        <div className="text-sm font-medium text-green-600">
+                          {preview.lead.value ? formatCurrency(preview.lead.value) : '-'}
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="text-xs text-muted-foreground">Estimated Close Date</div>
+                        <div className="text-sm">
+                          {preview.lead.estimated_close_date ? formatDate(preview.lead.estimated_close_date) : '-'}
+                        </div>
+                      </div>
                     </div>
-                    {preview.lead.ssn && (
-                      <div>
-                        <span className="text-sm font-medium">SSN/EIN:</span>
-                        <span className="ml-2 text-sm">{preview.lead.ssn}</span>
+                  </div>
+
+                  {/* Notes */}
+                  {preview.lead.description && (
+                    <>
+                      <Separator />
+                      <div className="space-y-3">
+                        <h3 className="text-sm font-semibold text-muted-foreground">Notes / Observations</h3>
+                        <div className="bg-muted/30 rounded-md p-3 text-sm">
+                          {preview.lead.description}
+                        </div>
                       </div>
-                    )}
-                    {preview.lead.value && (
-                      <div>
-                        <span className="text-sm font-medium">Value:</span>
-                        <span className="ml-2 text-sm font-medium text-green-600">
-                          {formatCurrency(preview.lead.value)}
-                        </span>
-                      </div>
-                    )}
-                    {preview.lead.expectedCloseDate && (
-                      <div>
-                        <span className="text-sm font-medium">Expected Close Date:</span>
-                        <span className="ml-2 text-sm">{formatDate(preview.lead.expectedCloseDate)}</span>
-                      </div>
-                    )}
-                    {preview.lead.notes && (
-                      <div>
-                        <span className="text-sm font-medium">Notes:</span>
-                        <p className="mt-1 text-sm text-muted-foreground bg-muted/50 p-2 rounded">
-                          {preview.lead.notes}
-                        </p>
-                      </div>
-                    )}
+                    </>
+                  )}
+
+                  {/* Activity History */}
+                  <Separator />
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-semibold text-muted-foreground">Activity History</h3>
+                    <div className="text-sm text-muted-foreground">
+                      Created: {new Date(preview.lead.created_at).toLocaleDateString('en-US')}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      Last updated: {new Date(preview.lead.updated_at).toLocaleDateString('en-US')}
+                    </div>
                   </div>
                   
                   <Separator />
@@ -614,7 +846,7 @@ export default function PipelinePage({
                       className="flex-1 cursor-pointer"
                     >
                       <Eye className="h-4 w-4 mr-2" />
-                      View Complete Details
+                      View in Complete List
                     </Button>
                     <Button 
                       variant="outline" 
@@ -692,6 +924,147 @@ export default function PipelinePage({
                 </Button>
               </div>
             </form>
+          </SheetContent>
+        </Sheet>
+
+        {/* FILTER MODAL */}
+        <Sheet open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+          <SheetContent className="w-full sm:max-w-md border-l border-border p-6 md:p-8">
+            <SheetHeader>
+              <SheetTitle>Filter leads</SheetTitle>
+              <SheetDescription>Filter leads by any field to find specific records.</SheetDescription>
+            </SheetHeader>
+            <Separator className="my-4" />
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="mb-1 block text-sm font-medium">Name</label>
+                <Input
+                  placeholder="Filter by name..."
+                  value={filters.name}
+                  onChange={(e) => setFilters(prev => ({ ...prev, name: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="mb-1 block text-sm font-medium">Email</label>
+                <Input
+                  placeholder="Filter by email..."
+                  value={filters.email}
+                  onChange={(e) => setFilters(prev => ({ ...prev, email: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="mb-1 block text-sm font-medium">Phone</label>
+                <Input
+                  placeholder="Filter by phone..."
+                  value={filters.phone}
+                  onChange={(e) => setFilters(prev => ({ ...prev, phone: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="mb-1 block text-sm font-medium">SSN</label>
+                <Input
+                  placeholder="Filter by SSN..."
+                  value={filters.ssn}
+                  onChange={(e) => setFilters(prev => ({ ...prev, ssn: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="mb-1 block text-sm font-medium">EIN</label>
+                <Input
+                  placeholder="Filter by EIN..."
+                  value={filters.ein}
+                  onChange={(e) => setFilters(prev => ({ ...prev, ein: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="mb-1 block text-sm font-medium">Source</label>
+                <Input
+                  placeholder="Filter by source..."
+                  value={filters.source}
+                  onChange={(e) => setFilters(prev => ({ ...prev, source: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="mb-1 block text-sm font-medium">Status</label>
+                <select
+                  className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input h-9 w-full min-w-0 rounded-md border bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                  value={filters.status}
+                  onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
+                >
+                  <option value="">All statuses</option>
+                  <option value="New">New</option>
+                  <option value="In Contact">In Contact</option>
+                  <option value="Qualified">Qualified</option>
+                  <option value="Lost">Lost</option>
+                </select>
+              </div>
+              
+              <Separator />
+              
+              <div className="space-y-2">
+                <label className="mb-1 block text-sm font-medium">Value Range</label>
+                <div className="flex gap-2">
+                  <Input
+                    type="number"
+                    placeholder="Min value"
+                    value={valueRange.min}
+                    onChange={(e) => setValueRange(prev => ({ ...prev, min: e.target.value }))}
+                    className="flex-1"
+                  />
+                  <Input
+                    type="number"
+                    placeholder="Max value"
+                    value={valueRange.max}
+                    onChange={(e) => setValueRange(prev => ({ ...prev, max: e.target.value }))}
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <label className="mb-1 block text-sm font-medium">Close Date Range</label>
+                <div className="flex gap-2">
+                  <Input
+                    type="date"
+                    placeholder="From date"
+                    value={dateRange.min}
+                    onChange={(e) => setDateRange(prev => ({ ...prev, min: e.target.value }))}
+                    className="flex-1"
+                  />
+                  <Input
+                    type="date"
+                    placeholder="To date"
+                    value={dateRange.max}
+                    onChange={(e) => setDateRange(prev => ({ ...prev, max: e.target.value }))}
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+              
+              <Separator />
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => {
+                    applyModalFilters()
+                    setIsFilterOpen(false)
+                  }}
+                  className="flex-1 cursor-pointer"
+                >
+                  Apply Filter
+                </Button>
+                <Button
+                  onClick={() => {
+                    clearFilters()
+                    setIsFilterOpen(false)
+                  }}
+                  variant="outline"
+                  className="cursor-pointer"
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Clear All
+                </Button>
+              </div>
+            </div>
           </SheetContent>
         </Sheet>
       </SidebarInset>
