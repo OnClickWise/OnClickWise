@@ -20,6 +20,10 @@ import {
   SidebarHeader,
   SidebarRail,
 } from "@/components/ui/sidebar"
+import { useAuth } from "@/hooks/useAuth"
+import { useApi } from "@/hooks/useApi"
+import { generateAvatar, generateOrgLogo } from "@/utils/avatar"
+import { OrganizationAvatar } from "@/components/ui/avatar"
 
 type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
   org: string

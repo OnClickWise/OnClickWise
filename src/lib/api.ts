@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 export interface Attachment {
   id: string;
@@ -485,7 +485,7 @@ class ApiService {
     });
   }
 
-  // Upload attachment to lead
+'  // Upload attachment to lead
   async uploadAttachment(leadId: string, file: File): Promise<ApiResponse<{ lead: Lead }>> {
     if (typeof window === 'undefined') {
       return {
