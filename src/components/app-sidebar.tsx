@@ -12,7 +12,7 @@ import {
 
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
-import { TeamSwitcher } from "@/components/team-switcher"
+import { useAuth } from "@/hooks/useAuth"
 import {
   Sidebar,
   SidebarContent,
@@ -26,32 +26,27 @@ type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
 }
 
 export function AppSidebar({ org, ...props }: AppSidebarProps) {
+  const { user, organization, isLoading } = useAuth()
+
   const data = {
     user: {
-      name: "Admin LeadWise",
-      email: "admin@leadwise.com",
+      name: user?.name || "Loading...",
+      email: user?.email || "loading@example.com",
       avatar: "/avatars/default.jpg",
     },
-    teams: [
-      {
-        name: "Educação Sem Limites",
-        logo: Building2,
-        plan: "Enterprise",
-      },
-      {
-        name: "StartUpX",
-        logo: Building2,
-        plan: "Startup",
-      },
-    ],
+    organization: {
+      name: organization?.name || "Loading...",
+      logo: Building2,
+      plan: "Enterprise",
+    },
     navMain: [
       {
         title: "Leads",
         url: `/${org}/leads`,
         icon: Users,
         items: [
-          { title: "Lista de Leads", url: `/${org}/leads` },
-          { title: "Fontes de Captura", url: `/${org}/leads/sources` },
+          { title: "Lead List", url: `/${org}/leads` },
+          { title: "Capture Sources", url: `/${org}/leads/sources` },
         ],
       },
       {
@@ -59,9 +54,9 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
         url: `/${org}/marketing`,
         icon: Mail,
         items: [
-          { title: "Campanhas de E-mail", url: `/${org}/marketing/email` },
-          { title: "Redes Sociais", url: `/${org}/marketing/social` },
-          { title: "IA para Conteúdo", url: `/${org}/marketing/ai` },
+          { title: "Email Campaigns", url: `/${org}/marketing/email` },
+          { title: "Social Media", url: `/${org}/marketing/social` },
+          { title: "AI Content", url: `/${org}/marketing/ai` },
         ],
       },
       {
@@ -69,29 +64,29 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
         url: `/${org}/crm`,
         icon: KanbanSquare,
         items: [
-          { title: "Oportunidades", url: `/${org}/crm/opportunities` },
+          { title: "Opportunities", url: `/${org}/crm/opportunities` },
           { title: "Pipeline (Kanban)", url: `/${org}/crm/pipeline` },
-          { title: "Relatórios", url: `/${org}/crm/reports` },
+          { title: "Reports", url: `/${org}/crm/reports` },
         ],
       },
       {
-        title: "Atendimento",
+        title: "Support",
         url: `/${org}/support`,
         icon: MessageSquare,
         items: [
-          { title: "Inbox Unificada", url: `/${org}/support/inbox` },
+          { title: "Unified Inbox", url: `/${org}/support/inbox` },
           { title: "Tickets", url: `/${org}/support/tickets` },
-          { title: "Chatbot IA", url: `/${org}/support/ai-bot` },
+          { title: "AI Chatbot", url: `/${org}/support/ai-bot` },
         ],
       },
       {
-        title: "Configurações",
+        title: "Settings",
         url: `/${org}/settings`,
         icon: Settings2,
         items: [
-          { title: "Organização", url: `/${org}/settings/org` },
-          { title: "Usuários", url: `/${org}/settings/users` },
-          { title: "Planos & Billing", url: `/${org}/settings/billing` },
+          { title: "Organization", url: `/${org}/settings/org` },
+          { title: "Users", url: `/${org}/settings/users` },
+          { title: "Plans & Billing", url: `/${org}/settings/billing` },
           { title: "Branding", url: `/${org}/settings/branding` },
         ],
       },
@@ -100,22 +95,32 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
 
   return (
     <Sidebar collapsible="icon" {...props}>
-      {/* TOPO */}
+      {/* HEADER */}
       <SidebarHeader>
-        <TeamSwitcher teams={data.teams} />
+        <div className="flex items-center gap-2 px-2 py-2">
+          <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
+            <data.organization.logo className="size-4" />
+          </div>
+          <div className="grid flex-1 text-left text-sm leading-tight">
+            <span className="truncate font-medium">
+              {isLoading ? "Loading..." : data.organization.name}
+            </span>
+            <span className="truncate text-xs">{data.organization.plan}</span>
+          </div>
+        </div>
       </SidebarHeader>
 
-      {/* CONTEÚDO PRINCIPAL */}
+      {/* MAIN CONTENT */}
       <SidebarContent>
         <NavMain items={data.navMain} />
       </SidebarContent>
 
-      {/* RODAPÉ */}
+      {/* FOOTER */}
       <SidebarFooter>
-        <NavUser user={data.user} orgSlug={org} />
+        <NavUser user={data.user} orgSlug={org} isLoading={isLoading} />
       </SidebarFooter>
 
-      {/* BOTÃO DE COLAPSE */}
+      {/* COLLAPSE BUTTON */}
       <SidebarRail />
     </Sidebar>
   )
