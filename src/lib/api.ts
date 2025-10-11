@@ -471,6 +471,29 @@ class ApiService {
       }),
     });
   }
+
+  // Auth API methods
+  async getCurrentUser(): Promise<ApiResponse<{ user: any; organization: any }>> {
+    if (typeof window === 'undefined') {
+      return {
+        success: false,
+        error: 'API calls only available on client side'
+      };
+    }
+
+    return this.request<{ user: any; organization: any }>('/auth/me');
+  }
+
+  async getUserOrganization(): Promise<ApiResponse<{ organization: any }>> {
+    if (typeof window === 'undefined') {
+      return {
+        success: false,
+        error: 'API calls only available on client side'
+      };
+    }
+
+    return this.request<{ organization: any }>('/auth/user-organization');
+  }
 }
 
 export const apiService = new ApiService();
