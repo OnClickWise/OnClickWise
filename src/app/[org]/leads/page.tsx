@@ -3,6 +3,7 @@
 
 
 import * as React from "react"
+import { useRef } from "react"
 
 import { useSearchParams } from "next/navigation"
 
@@ -36,7 +37,7 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/s
 
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 
-import { Search, Plus, Download, Upload, Trash2, Edit, X, ChevronDown, CheckCircle2, AlertTriangle, AlertCircle, Check, Filter, XCircle, ArrowUp, ArrowDown, Copy } from "lucide-react"
+import { Search, Plus, Download, Upload, Trash2, Edit, X, ChevronDown, CheckCircle2, AlertTriangle, AlertCircle, Check, Filter, XCircle, ArrowUp, ArrowDown, Copy, Eye } from "lucide-react"
 
 import * as XLSX from "xlsx"
 
@@ -117,7 +118,6 @@ export default function LeadsPage({
   const [isPipelineModalOpen, setIsPipelineModalOpen] = React.useState(false)
   const [pipelineAction, setPipelineAction] = React.useState<'add' | 'remove'>('add')
 
-  const fileInputRef = React.useRef<HTMLInputElement | null>(null)
 
   const [isImportOpen, setIsImportOpen] = React.useState(false)
 
@@ -193,6 +193,15 @@ export default function LeadsPage({
 
   const [copiedKey, setCopiedKey] = React.useState<string | null>(null)
 
+  // File attachments state
+  const [attachments, setAttachments] = React.useState<Array<{
+    name: string;
+    size: number;
+    type: string;
+    file: File;
+  }>>([])
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Pagination state
   const [currentPage, setCurrentPage] = React.useState(1)
@@ -1146,6 +1155,8 @@ export default function LeadsPage({
 
     setDescription("")
 
+    setAttachments([])
+
     setIsModalOpen(false)
 
   }
@@ -1179,6 +1190,8 @@ export default function LeadsPage({
     setEstimatedCloseDate("")
 
     setDescription("")
+
+    setAttachments([])
 
     setIsModalOpen(true)
 
@@ -1286,6 +1299,22 @@ export default function LeadsPage({
 
           )
 
+          // Upload only new attachments (those without id)
+          const newAttachments = attachments.filter(attachment => !('id' in attachment))
+          if (newAttachments.length > 0) {
+            for (const attachment of newAttachments) {
+              try {
+                await apiService.uploadAttachment(editingId, attachment.file)
+              } catch (error) {
+                console.error('Error uploading attachment:', error)
+                pushToast(`Warning: Some files could not be uploaded`, "warning")
+              }
+            }
+          }
+
+          // Reload leads to show updated attachments
+          await syncAfterOperation()
+
           pushToast(`Lead "${safeName}" atualizado com sucesso.`, "success")
 
         } else {
@@ -1329,6 +1358,22 @@ export default function LeadsPage({
         if (response.success && response.data) {
 
           setLeads((prev) => [response.data!.lead, ...prev])
+
+          // Upload only new attachments (those without id)
+          const newAttachments = attachments.filter(attachment => !('id' in attachment))
+          if (newAttachments.length > 0) {
+            for (const attachment of newAttachments) {
+              try {
+                await apiService.uploadAttachment(response.data!.lead.id, attachment.file)
+              } catch (error) {
+                console.error('Error uploading attachment:', error)
+                pushToast(`Warning: Some files could not be uploaded`, "warning")
+              }
+            }
+          }
+
+          // Reload leads to show updated attachments
+          await syncAfterOperation()
 
           pushToast(`Lead "${safeName}" adicionado com sucesso.`, "success")
 
@@ -1379,6 +1424,19 @@ export default function LeadsPage({
     setEstimatedCloseDate(lead.estimated_close_date || "")
 
     setDescription(lead.description || "")
+
+    // Load existing attachments
+    setAttachments(lead.attachments?.map(att => ({
+      name: att.originalName,
+      size: att.size,
+      type: att.mimeType,
+      file: new File([], att.originalName, { type: att.mimeType }),
+      id: att.id,
+      originalName: att.originalName,
+      mimeType: att.mimeType,
+      url: att.url,
+      uploadedAt: att.uploadedAt
+    })) || [])
 
     if (lead.status !== "New" && lead.status !== "In Contact" && lead.status !== "Qualified" && lead.status !== "Lost") {
 
@@ -1439,17 +1497,59 @@ export default function LeadsPage({
     }
   }
 
+  // File upload handlers
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (files) {
+      const newAttachments = Array.from(files).map(file => ({
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        file: file
+      }))
+      setAttachments(prev => [...prev, ...newAttachments])
+    }
+  }
+
+  const removeAttachment = async (index: number) => {
+    const attachment = attachments[index];
+    
+    // If it's an existing attachment (has id property), delete from database
+    if ('id' in attachment && attachment.id && typeof attachment.id === 'string') {
+      console.log('Deleting attachment from database:', attachment.id);
+      try {
+        const result = await apiService.deleteAttachment(editingId || '', attachment.id);
+        console.log('Delete result:', result);
+        if (!result.success) {
+          console.error('Failed to delete attachment:', result.error);
+          pushToast('Failed to delete attachment from database', 'error');
+          return;
+        }
+        // Attachment deleted successfully (no notification needed)
+      } catch (error) {
+        console.error('Error deleting attachment:', error);
+        pushToast('Error deleting attachment', 'error');
+        return;
+      }
+    } else {
+      console.log('Removing local attachment only');
+    }
+    
+    // Remove from local state
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
 
   const handleToggleSelectAll = () => {
     if (selectedLeads.size === leads.length) {
       // Se todos estão selecionados, desmarcar todos
       setSelectedLeads(new Set())
-      pushToast(`Unselected all ${leads.length} leads`, 'success')
+      // Unselected all leads (no notification needed)
     } else {
       // Selecionar todos os leads que já estão carregados no frontend
       const allLeadIds = new Set(leads.map(lead => lead.id))
       setSelectedLeads(allLeadIds)
-      pushToast(`Selected all ${leads.length} leads`, 'success')
+      // Selected all leads (no notification needed)
     }
   }
 
@@ -1463,12 +1563,12 @@ export default function LeadsPage({
       const newSelected = new Set(selectedLeads)
       currentPageLeadIds.forEach(id => newSelected.delete(id))
       setSelectedLeads(newSelected)
-      pushToast(`Unselected ${currentLeads.length} leads from current page`, 'success')
+      // Unselected leads from current page (no notification needed)
     } else {
       // Selecionar todos os leads da página atual
       const newSelected = new Set([...selectedLeads, ...currentPageLeadIds])
       setSelectedLeads(newSelected)
-      pushToast(`Selected ${currentLeads.length} leads from current page`, 'success')
+      // Selected leads from current page (no notification needed)
     }
   }
 
@@ -1478,7 +1578,7 @@ export default function LeadsPage({
     setSelectedLeads(allLeadIds)
     setShowSelectAllConfirm(false)
     setShowSelectAllButton(false)
-    pushToast(`Selected all ${leads.length} leads`, 'success')
+    // Selected all leads (no notification needed)
   }
 
 
@@ -3328,6 +3428,47 @@ export default function LeadsPage({
           </div>
         )}
 
+        {/* DELETE PROGRESS NOTIFICATION */}
+        {deleteNotification.show && (
+          <div className="fixed top-4 right-4 z-[100] bg-background border rounded-lg shadow-lg p-4 w-80">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
+                <span className="font-medium">
+                  {isDeletionCancelled ? 'Cancelling Deletion...' : 'Deleting Leads'}
+                </span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setIsDeletionCancelled(true)
+                  isDeletionCancelledRef.current = true
+                }}
+                className="cursor-pointer text-muted-foreground hover:text-foreground"
+              >
+                Cancel
+              </Button>
+            </div>
+            
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>Batch {deleteNotification.progress.batch} of {deleteNotification.progress.totalBatches}</span>
+                <span>{deleteNotification.progress.current} / {deleteNotification.progress.total}</span>
+              </div>
+              
+              <div className="w-full bg-muted rounded-full h-2">
+                <div 
+                  className="bg-red-600 h-2 rounded-full transition-all duration-300"
+                  style={{ 
+                    width: `${(deleteNotification.progress.current / deleteNotification.progress.total) * 100}%` 
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* BULK EDIT PROGRESS NOTIFICATION */}
         {editNotification.show && (
           <div className="fixed top-4 right-4 z-[100] bg-background border rounded-lg shadow-lg p-4 w-80">
@@ -3633,7 +3774,7 @@ export default function LeadsPage({
 
           {/* LEADS TABLE */}
 
-          <div className="bg-muted/50 rounded-xl p-4">
+          <div className="bg-muted/50 rounded-xl p-4 flex flex-col flex-1">
 
             <div className="flex items-center justify-between mb-3">
 
@@ -3751,7 +3892,7 @@ export default function LeadsPage({
 
             </div>
 
-            <div className="overflow-x-auto">
+            <div className="flex-1 overflow-x-auto">
 
               <table className="w-full text-sm">
 
@@ -4096,53 +4237,55 @@ export default function LeadsPage({
             </div>
 
             
-            {/* Pagination Controls */}
+            {/* Sticky Pagination Controls */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-center mt-4 pt-4 border-t">
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(1)}
-                    disabled={currentPage === 1}
-                    className="cursor-pointer"
-                  >
-                    First
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    className="cursor-pointer"
-                  >
-                    Previous
-                  </Button>
-                  
-                  <div className="flex items-center gap-2 px-4">
-                    <span className="text-sm text-muted-foreground">
-                      Page {currentPage} of {totalPages}
-                    </span>
+              <div className="sticky bottom-0 z-10 border-t bg-background/ p-4 mt-4">
+                <div className="flex items-center justify-center">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(1)}
+                      disabled={currentPage === 1}
+                      className="cursor-pointer"
+                    >
+                      First
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className="cursor-pointer"
+                    >
+                      Previous
+                    </Button>
+                    
+                    <div className="flex items-center gap-2 px-4">
+                      <span className="text-sm text-muted-foreground">
+                        Page {currentPage} of {totalPages}
+                      </span>
+                    </div>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      className="cursor-pointer"
+                    >
+                      Next
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(totalPages)}
+                      disabled={currentPage === totalPages}
+                      className="cursor-pointer"
+                    >
+                      Last
+                    </Button>
                   </div>
-                  
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                    className="cursor-pointer"
-                  >
-                    Next
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(totalPages)}
-                    disabled={currentPage === totalPages}
-                    className="cursor-pointer"
-                  >
-                    Last
-                  </Button>
                 </div>
               </div>
             )}
@@ -4151,9 +4294,9 @@ export default function LeadsPage({
         {/* ADD/EDIT MODAL */}
         <Sheet open={isModalOpen} onOpenChange={setIsModalOpen}>
 
-          <SheetContent className="w-full sm:max-w-md border-l border-border p-6 md:p-8">
+          <SheetContent className="w-full sm:max-w-md border-l border-border p-6 md:p-8 flex flex-col">
 
-            <SheetHeader>
+            <SheetHeader className="flex-shrink-0">
 
               <SheetTitle>
 
@@ -4169,9 +4312,10 @@ export default function LeadsPage({
 
             </SheetHeader>
 
-            <Separator className="my-4" />
+            <Separator className="my-4 flex-shrink-0" />
 
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="flex-1 overflow-y-auto space-y-6 pr-2">
+              <form onSubmit={handleSubmit} className="space-y-6">
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
@@ -4461,7 +4605,101 @@ export default function LeadsPage({
 
               </div>
 
-              
+              {/* File Attachments Section */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-muted-foreground">📎 File Attachments</h3>
+                
+                {/* Hidden file input - always present */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  id="file-upload"
+                  multiple
+                  accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.gif,.xlsx,.xls"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+                
+                {/* File Upload Area - Only show when no files */}
+                {attachments.length === 0 && (
+                  <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center hover:border-muted-foreground/50 transition-colors">
+                    <label htmlFor="file-upload" className="cursor-pointer">
+                      <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground mb-1">
+                        Click to upload files or drag and drop
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        PDF, DOC, TXT, JPG, PNG, XLSX and more
+                      </p>
+                    </label>
+                  </div>
+                )}
+
+                {/* Attachments List */}
+                {attachments.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-medium">Attached Files ({attachments.length})</h4>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="cursor-pointer"
+                      >
+                        <Upload className="h-4 w-4 mr-2" />
+                        Add More
+                      </Button>
+                    </div>
+                    <div className="max-h-48 overflow-y-auto space-y-2 pr-2">
+                      {attachments.map((attachment, index) => (
+                        <div key={index} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                          <div className="flex items-center space-x-3">
+                            <div className="flex-shrink-0">
+                              {attachment.type.startsWith('image/') ? (
+                                <div className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center">
+                                  <span className="text-blue-600 text-xs">IMG</span>
+                                </div>
+                              ) : attachment.type.includes('pdf') ? (
+                                <div className="w-8 h-8 bg-red-100 rounded flex items-center justify-center">
+                                  <span className="text-red-600 text-xs">PDF</span>
+                                </div>
+                              ) : attachment.type.includes('word') || attachment.type.includes('document') ? (
+                                <div className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center">
+                                  <span className="text-blue-600 text-xs">DOC</span>
+                                </div>
+                              ) : attachment.type.includes('sheet') || attachment.type.includes('excel') ? (
+                                <div className="w-8 h-8 bg-green-100 rounded flex items-center justify-center">
+                                  <span className="text-green-600 text-xs">XLS</span>
+                                </div>
+                              ) : (
+                                <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center">
+                                  <span className="text-gray-600 text-xs">FILE</span>
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{'originalName' in attachment ? String(attachment.originalName) : attachment.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {(attachment.size / 1024).toFixed(1)} KB
+                              </p>
+                            </div>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeAttachment(index)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
 
               <Separator />
 
@@ -4484,6 +4722,7 @@ export default function LeadsPage({
               </div>
 
             </form>
+            </div>
 
           </SheetContent>
 
@@ -4495,9 +4734,9 @@ export default function LeadsPage({
 
     <Sheet open={preview.open} onOpenChange={(open) => setPreview((p) => ({ ...p, open }))}>
 
-      <SheetContent className="w-full sm:max-w-lg border-l border-border p-6 md:p-8">
+      <SheetContent className="w-full sm:max-w-lg border-l border-border p-6 md:p-8 flex flex-col">
 
-        <SheetHeader>
+        <SheetHeader className="flex-shrink-0">
 
           <SheetTitle>Lead Details</SheetTitle>
 
@@ -4505,9 +4744,9 @@ export default function LeadsPage({
 
         </SheetHeader>
 
-        <Separator className="my-4" />
+        <Separator className="my-4 flex-shrink-0" />
 
-        <div className="space-y-4">
+        <div className="flex-1 overflow-y-auto space-y-4 pr-2">
 
           {(() => {
 
@@ -4965,6 +5204,165 @@ export default function LeadsPage({
 
 
 
+                {/* File Attachments */}
+                {l.attachments && l.attachments.length > 0 && (
+                  <>
+                    <Separator />
+                    <div className="space-y-3">
+                      <h3 className="text-sm font-semibold text-muted-foreground">📎 File Attachments ({l.attachments.length})</h3>
+                      <div className="max-h-48 overflow-y-auto space-y-2 pr-2">
+                        {l.attachments.map((attachment, index) => (
+                          <div key={index} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                            <div className="flex items-center space-x-3">
+                              <div className="flex-shrink-0">
+                                {attachment.mimeType.startsWith('image/') ? (
+                                  <div className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center">
+                                    <span className="text-blue-600 text-xs">IMG</span>
+                                  </div>
+                                ) : attachment.mimeType.includes('pdf') ? (
+                                  <div className="w-8 h-8 bg-red-100 rounded flex items-center justify-center">
+                                    <span className="text-red-600 text-xs">PDF</span>
+                                  </div>
+                                ) : attachment.mimeType.includes('word') || attachment.mimeType.includes('document') ? (
+                                  <div className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center">
+                                    <span className="text-blue-600 text-xs">DOC</span>
+                                  </div>
+                                ) : attachment.mimeType.includes('sheet') || attachment.mimeType.includes('excel') ? (
+                                  <div className="w-8 h-8 bg-green-100 rounded flex items-center justify-center">
+                                    <span className="text-green-600 text-xs">XLS</span>
+                                  </div>
+                                ) : (
+                                  <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center">
+                                    <span className="text-gray-600 text-xs">FILE</span>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate">{attachment.originalName}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {(attachment.size / 1024).toFixed(1)} KB
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={async () => {
+                                  try {
+                                    // Download file with authentication
+                                    console.log('Downloading attachment:', attachment);
+                                    const response = await apiService.getAttachment(l.id, attachment.id);
+                                    if (response.success && response.data) {
+                                      const blob = new Blob([response.data], { type: attachment.mimeType });
+                                      const url = URL.createObjectURL(blob);
+                                      const link = document.createElement('a');
+                                      link.href = url;
+                                      link.download = attachment.originalName || attachment.originalName || attachment.filename || 'file';
+                                      console.log('Download filename:', link.download);
+                                      document.body.appendChild(link);
+                                      link.click();
+                                      document.body.removeChild(link);
+                                      URL.revokeObjectURL(url);
+                                    } else {
+                                      pushToast('Error downloading file', 'error');
+                                    }
+                                  } catch (error) {
+                                    console.error('Download error:', error);
+                                    pushToast('Error downloading file', 'error');
+                                  }
+                                }}
+                                className="text-blue-600 hover:text-blue-800 cursor-pointer"
+                                title="Download file"
+                              >
+                                <Download className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={async () => {
+                                  try {
+                                    // View file with authentication
+                                    const response = await apiService.getAttachment(l.id, attachment.id);
+                                    if (response.success && response.data) {
+                                      const blob = new Blob([response.data], { type: attachment.mimeType });
+                                      const url = URL.createObjectURL(blob);
+                                      
+                                      // Handle different file types
+                                      if (attachment.mimeType.startsWith('image/')) {
+                                        // Images: open in new tab
+                                        window.open(url, '_blank');
+                                      } else if (attachment.mimeType === 'application/pdf') {
+                                        // PDFs: open in new tab
+                                        window.open(url, '_blank');
+                                      } else if (attachment.mimeType.includes('excel') || attachment.mimeType.includes('spreadsheet')) {
+                                        // Excel files: try Google Docs viewer, fallback to download
+                                        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+                                        if (isLocalhost) {
+                                          // For localhost, download the file
+                                          const link = document.createElement('a');
+                                          link.href = url;
+                                          link.download = attachment.originalName || attachment.originalName || attachment.filename || 'file';
+                                          document.body.appendChild(link);
+                                          link.click();
+                                          document.body.removeChild(link);
+                                        } else {
+                                          // For production, try Google Docs viewer
+                                          const googleViewerUrl = `https://docs.google.com/spreadsheets/d/1/edit?usp=sharing&url=${encodeURIComponent(url)}`;
+                                          window.open(googleViewerUrl, '_blank');
+                                        }
+                                      } else if (attachment.mimeType.includes('word') || attachment.mimeType.includes('document')) {
+                                        // Word files: try Google Docs viewer, fallback to download
+                                        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+                                        if (isLocalhost) {
+                                          // For localhost, download the file
+                                          const link = document.createElement('a');
+                                          link.href = url;
+                                          link.download = attachment.originalName || attachment.originalName || attachment.filename || 'file';
+                                          document.body.appendChild(link);
+                                          link.click();
+                                          document.body.removeChild(link);
+                                        } else {
+                                          // For production, try Google Docs viewer
+                                          const googleViewerUrl = `https://docs.google.com/document/d/1/edit?usp=sharing&url=${encodeURIComponent(url)}`;
+                                          window.open(googleViewerUrl, '_blank');
+                                        }
+                                      } else if (attachment.mimeType.includes('text/')) {
+                                        // Text files: open in new tab
+                                        window.open(url, '_blank');
+                                      } else {
+                                        // Other files: download with original name
+                                        const link = document.createElement('a');
+                                        link.href = url;
+                                        link.download = attachment.originalName || attachment.originalName || attachment.filename || 'file';
+                                        document.body.appendChild(link);
+                                        link.click();
+                                        document.body.removeChild(link);
+                                      }
+                                      
+                                      // Clean up the URL after a delay
+                                      setTimeout(() => URL.revokeObjectURL(url), 5000);
+                                    } else {
+                                      pushToast('Error viewing file', 'error');
+                                    }
+                                  } catch (error) {
+                                    console.error('View error:', error);
+                                    pushToast('Error viewing file', 'error');
+                                  }
+                                }}
+                                className="text-green-600 hover:text-green-800 cursor-pointer"
+                                title="View file"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+
                 {/* Activity History */}
 
                 <Separator />
@@ -4993,7 +5391,7 @@ export default function LeadsPage({
 
           })()}
 
-          <div className="flex justify-end pt-4">
+          <div className="flex justify-end pt-4 flex-shrink-0">
 
             <Button className="cursor-pointer" onClick={() => setPreview({ open: false, lead: null })}>Close</Button>
 
