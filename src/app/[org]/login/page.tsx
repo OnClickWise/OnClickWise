@@ -10,6 +10,8 @@ import { Building2, Mail, Lock, User, Shield, ArrowLeft } from 'lucide-react';
 import ChangePasswordModal from '@/components/ChangePasswordModal';
 import InactivityNotification from '@/components/InactivityNotification';
 import { useInactivityNotification } from '@/hooks/useInactivityNotification';
+import { generateOrgLogo } from '@/utils/avatar';
+import { OrganizationAvatar } from '@/components/ui/avatar';
 
 interface CompanyInfo {
   id: number;
@@ -38,7 +40,7 @@ export default function CompanyLoginPage({ params }: { params: Promise<{ org: st
   useEffect(() => {
     const fetchCompanyInfo = async () => {
       try {
-        const response = await fetch('http://localhost:3000/auth/check-company-by-slug', {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/auth/check-company-by-slug`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -78,7 +80,7 @@ export default function CompanyLoginPage({ params }: { params: Promise<{ org: st
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:3000/auth/login', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -187,17 +189,11 @@ export default function CompanyLoginPage({ params }: { params: Promise<{ org: st
             <Card className="mb-6">
               <CardContent className="p-6">
                 <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
-                    {companyInfo.logo_url ? (
-                      <img 
-                        src={companyInfo.logo_url} 
-                        alt={companyInfo.name}
-                        className="w-8 h-8 rounded-lg object-cover"
-                      />
-                    ) : (
-                      <Building2 className="w-6 h-6 text-primary" />
-                    )}
-                  </div>
+                  <OrganizationAvatar 
+                    src={companyInfo.logo_url ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}${companyInfo.logo_url}` : undefined} 
+                    name={companyInfo.name} 
+                    size="xl"
+                  />
                   <div>
                     <h2 className="text-lg font-semibold text-card-foreground">{companyInfo.name}</h2>
                     <p className="text-sm text-muted-foreground">{companyInfo.email}</p>
