@@ -9,7 +9,7 @@ export default function About() {
   A smart platform, we use the most modern technologies with AI integration that 
   fully automates your company's management process.`
 
-  const words = text.split(" ")
+  const words = text.split(" ");
 
   return (
     <section className="relative py-24 bg-white dark:bg-black text-black dark:text-white overflow-hidden">
