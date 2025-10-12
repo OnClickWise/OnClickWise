@@ -55,34 +55,8 @@ export function useAuth() {
     localStorage.setItem('lastActivity', now.toString());
   }, []);
 
-  // Buscar dados do usuário da API
-  const fetchUserData = useCallback(async (token: string) => {
-    try {
-      const response = await fetch('http://localhost:3000/auth/me', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          return {
-            user: data.user,
-            organization: data.organization
-          };
-        }
-      }
-      return null;
-    } catch (error) {
-      console.error('Error fetching user data:', error);
-      return null;
-    }
-  }, []);
-
   // Verificar autenticação no localStorage
-  const checkAuth = useCallback(async () => {
+  const checkAuth = useCallback(() => {
     try {
       const token = localStorage.getItem('token');
       const organizationStr = localStorage.getItem('organization');
@@ -109,31 +83,14 @@ export function useAuth() {
           return;
         }
         
-        // Buscar dados atualizados da API
-        const userData = await fetchUserData(token);
-        
-        if (userData) {
-          // Dados da API obtidos com sucesso
-          setAuthState({
-            isAuthenticated: true,
-            user: userData.user,
-            organization: userData.organization,
-            token,
-            isLoading: false,
-            lastActivity,
-          });
-        } else {
-          // Fallback para dados do localStorage
-          console.log('API failed, using localStorage data');
-          setAuthState({
-            isAuthenticated: true,
-            user: null, // Dados do usuário não estão no localStorage
-            organization,
-            token,
-            isLoading: false,
-            lastActivity,
-          });
-        }
+        setAuthState({
+          isAuthenticated: true,
+          user: null, // Será preenchido quando necessário
+          organization,
+          token,
+          isLoading: false,
+          lastActivity,
+        });
       } else {
         setAuthState({
           isAuthenticated: false,
@@ -155,7 +112,7 @@ export function useAuth() {
         lastActivity: null,
       });
     }
-  }, [isUserInactive, fetchUserData]);
+  }, [isUserInactive]);
 
   // Verificar se o usuário está autenticado para a organização correta
   const isAuthenticatedForOrg = useCallback((orgSlug: string) => {

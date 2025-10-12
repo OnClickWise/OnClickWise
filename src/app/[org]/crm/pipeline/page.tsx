@@ -1,7 +1,6 @@
 "use client"
 
 import * as React from "react"
-import { useRef } from "react"
 import { AppSidebar } from "@/components/app-sidebar"
 import AuthGuard from "@/components/AuthGuard"
 import {
@@ -123,16 +122,6 @@ export default function PipelinePage({
   const [editValue, setEditValue] = React.useState("")
   const [editExpectedCloseDate, setEditExpectedCloseDate] = React.useState("")
   const [editNotes, setEditNotes] = React.useState("")
-
-  // File attachments state
-  const [attachments, setAttachments] = React.useState<Array<{
-    name: string;
-    size: number;
-    type: string;
-    file: File;
-  }>>([])
-  
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
 
   // Toast notifications
@@ -448,64 +437,8 @@ export default function PipelinePage({
     setEditValue(lead.value?.toString() || "")
     setEditExpectedCloseDate(lead.estimated_close_date || "")
     setEditNotes(lead.description || "")
-    // Load existing attachments
-    setAttachments(lead.attachments?.map(att => ({
-      name: att.originalName,
-      size: att.size,
-      type: att.mimeType,
-      file: new File([], att.originalName, { type: att.mimeType }),
-      id: att.id,
-      originalName: att.originalName,
-      mimeType: att.mimeType,
-      url: att.url,
-      uploadedAt: att.uploadedAt
-    })) || [])
     setIsEditModalOpen(true)
   }
-
-  // File upload handlers
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (files) {
-      const newAttachments = Array.from(files).map(file => ({
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        file: file
-      }))
-      setAttachments(prev => [...prev, ...newAttachments])
-    }
-  }
-
-  const removeAttachment = async (index: number) => {
-    const attachment = attachments[index];
-    console.log('Removing attachment:', attachment);
-    console.log('Editing ID:', editingId);
-    
-    // If it's an existing attachment (has id property), delete from database
-    if ('id' in attachment && attachment.id && typeof attachment.id === 'string') {
-      console.log('Deleting attachment from database:', attachment.id);
-      try {
-        const result = await apiService.deleteAttachment(editingId || '', attachment.id);
-        console.log('Delete result:', result);
-        if (!result.success) {
-          console.error('Failed to delete attachment:', result.error);
-          pushToast('Failed to delete attachment from database', 'error');
-          return;
-        }
-        // Attachment deleted successfully (no notification needed)
-      } catch (error) {
-        console.error('Error deleting attachment:', error);
-        pushToast('Error deleting attachment', 'error');
-        return;
-      }
-    } else {
-      console.log('Removing local attachment only');
-    }
-    
-    // Remove from local state
-    setAttachments(prev => prev.filter((_, i) => i !== index));
-  };
 
   async function handleEditSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -536,27 +469,6 @@ export default function PipelinePage({
           updatePipelineStages(updatedLeads)
           return updatedLeads
         })
-
-        // Upload only new attachments (those without id)
-        const newAttachments = attachments.filter(attachment => !('id' in attachment))
-        if (newAttachments.length > 0) {
-          for (const attachment of newAttachments) {
-            try {
-              await apiService.uploadAttachment(editingId, attachment.file)
-            } catch (error) {
-              console.error('Error uploading attachment:', error)
-              pushToast(`Warning: Some files could not be uploaded`, "warning")
-            }
-          }
-        }
-
-        // Reload leads to show updated attachments
-        const reloadResponse = await apiService.getLeadsByStatus()
-        if (reloadResponse.success && reloadResponse.data) {
-          setLeads(reloadResponse.data.leads)
-          updatePipelineStages(reloadResponse.data.leads)
-        }
-
         pushToast("Lead atualizado com sucesso.", "success")
       } else {
         pushToast(`Erro ao atualizar lead: ${response.error}`, "error")
@@ -571,7 +483,6 @@ export default function PipelinePage({
     setEditValue("")
     setEditExpectedCloseDate("")
     setEditNotes("")
-    setAttachments([])
   }
 
   function handleViewLead(lead: Lead) {
@@ -932,13 +843,13 @@ export default function PipelinePage({
 
         {/* PREVIEW MODAL */}
         <Sheet open={preview.open} onOpenChange={(open) => setPreview((p) => ({ ...p, open }))}>
-          <SheetContent className="w-full sm:max-w-lg border-l border-border p-6 md:p-8 flex flex-col">
-        <SheetHeader className="flex-shrink-0">
+          <SheetContent className="w-full sm:max-w-lg border-l border-border p-6 md:p-8">
+        <SheetHeader>
           <SheetTitle>Lead Details</SheetTitle>
           <SheetDescription>Complete lead information</SheetDescription>
         </SheetHeader>
-            <Separator className="my-4 flex-shrink-0" />
-            <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+            <Separator className="my-4" />
+            <div className="space-y-4">
               {preview.lead && (
                 <>
                   {/* Basic Information */}
@@ -1024,163 +935,6 @@ export default function PipelinePage({
                     </>
                   )}
 
-                  {/* File Attachments */}
-                  {preview.lead.attachments && preview.lead.attachments.length > 0 && (
-                    <>
-                      <Separator />
-                      <div className="space-y-3">
-                        <h3 className="text-sm font-semibold text-muted-foreground">📎 File Attachments ({preview.lead.attachments.length})</h3>
-                        <div className="max-h-48 overflow-y-auto space-y-2 pr-2">
-                          {preview.lead.attachments.map((attachment, index) => (
-                            <div key={index} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                              <div className="flex items-center space-x-3">
-                                <div className="flex-shrink-0">
-                                  {attachment.mimeType.startsWith('image/') ? (
-                                    <div className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center">
-                                      <span className="text-blue-600 text-xs">IMG</span>
-                                    </div>
-                                  ) : attachment.mimeType.includes('pdf') ? (
-                                    <div className="w-8 h-8 bg-red-100 rounded flex items-center justify-center">
-                                      <span className="text-red-600 text-xs">PDF</span>
-                                    </div>
-                                  ) : attachment.mimeType.includes('word') || attachment.mimeType.includes('document') ? (
-                                    <div className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center">
-                                      <span className="text-blue-600 text-xs">DOC</span>
-                                    </div>
-                                  ) : attachment.mimeType.includes('sheet') || attachment.mimeType.includes('excel') ? (
-                                    <div className="w-8 h-8 bg-green-100 rounded flex items-center justify-center">
-                                      <span className="text-green-600 text-xs">XLS</span>
-                                    </div>
-                                  ) : (
-                                    <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center">
-                                      <span className="text-gray-600 text-xs">FILE</span>
-                                    </div>
-                                  )}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium truncate">{attachment.originalName}</p>
-                                  <p className="text-xs text-muted-foreground">
-                                    {(attachment.size / 1024).toFixed(1)} KB
-                                  </p>
-                                </div>
-                              </div>
-                              <div className="flex gap-1">
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={async () => {
-                                    try {
-                                      // Download file with authentication
-                                      const response = await apiService.getAttachment(preview.lead?.id || '', attachment.id);
-                                      if (response.success && response.data) {
-                                        const blob = new Blob([response.data], { type: attachment.mimeType });
-                                        const url = URL.createObjectURL(blob);
-                                        const link = document.createElement('a');
-                                        link.href = url;
-                                        link.download = attachment.originalName;
-                                        document.body.appendChild(link);
-                                        link.click();
-                                        document.body.removeChild(link);
-                                        URL.revokeObjectURL(url);
-                                      } else {
-                                        pushToast('Error downloading file', 'error');
-                                      }
-                                    } catch (error) {
-                                      console.error('Download error:', error);
-                                      pushToast('Error downloading file', 'error');
-                                    }
-                                  }}
-                                  className="text-blue-600 hover:text-blue-800 cursor-pointer"
-                                  title="Download file"
-                                >
-                                  <Download className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={async () => {
-                                    try {
-                                      // View file with authentication
-                                      const response = await apiService.getAttachment(preview.lead?.id || '', attachment.id);
-                                      if (response.success && response.data) {
-                                        const blob = new Blob([response.data], { type: attachment.mimeType });
-                                        const url = URL.createObjectURL(blob);
-                                        
-                                        // Handle different file types
-                                        if (attachment.mimeType.startsWith('image/')) {
-                                          // Images: open in new tab
-                                          window.open(url, '_blank');
-                                        } else if (attachment.mimeType === 'application/pdf') {
-                                          // PDFs: open in new tab
-                                          window.open(url, '_blank');
-                                        } else if (attachment.mimeType.includes('excel') || attachment.mimeType.includes('spreadsheet')) {
-                                          // Excel files: try Google Docs viewer, fallback to download
-                                          const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-                                          if (isLocalhost) {
-                                            // For localhost, download the file
-                                            const link = document.createElement('a');
-                                            link.href = url;
-                                            link.download = attachment.originalName || attachment.originalName || attachment.filename || 'file';
-                                            document.body.appendChild(link);
-                                            link.click();
-                                            document.body.removeChild(link);
-                                          } else {
-                                            // For production, try Google Docs viewer
-                                            const googleViewerUrl = `https://docs.google.com/spreadsheets/d/1/edit?usp=sharing&url=${encodeURIComponent(url)}`;
-                                            window.open(googleViewerUrl, '_blank');
-                                          }
-                                        } else if (attachment.mimeType.includes('word') || attachment.mimeType.includes('document')) {
-                                          // Word files: try Google Docs viewer, fallback to download
-                                          const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-                                          if (isLocalhost) {
-                                            // For localhost, download the file
-                                            const link = document.createElement('a');
-                                            link.href = url;
-                                            link.download = attachment.originalName || attachment.originalName || attachment.filename || 'file';
-                                            document.body.appendChild(link);
-                                            link.click();
-                                            document.body.removeChild(link);
-                                          } else {
-                                            // For production, try Google Docs viewer
-                                            const googleViewerUrl = `https://docs.google.com/document/d/1/edit?usp=sharing&url=${encodeURIComponent(url)}`;
-                                            window.open(googleViewerUrl, '_blank');
-                                          }
-                                        } else if (attachment.mimeType.includes('text/')) {
-                                          // Text files: open in new tab
-                                          window.open(url, '_blank');
-                                        } else {
-                                          // Other files: download with original name
-                                          const link = document.createElement('a');
-                                          link.href = url;
-                                          link.download = attachment.originalName || attachment.originalName || attachment.filename || 'file';
-                                          document.body.appendChild(link);
-                                          link.click();
-                                          document.body.removeChild(link);
-                                        }
-                                        
-                                        // Clean up the URL after a delay
-                                        setTimeout(() => URL.revokeObjectURL(url), 5000);
-                                      } else {
-                                        pushToast('Error viewing file', 'error');
-                                      }
-                                    } catch (error) {
-                                      console.error('View error:', error);
-                                      pushToast('Error viewing file', 'error');
-                                    }
-                                  }}
-                                  className="text-green-600 hover:text-green-800 cursor-pointer"
-                                  title="View file"
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </>
-                  )}
-
                   {/* Activity History */}
                   <Separator />
                   <div className="space-y-3">
@@ -1195,7 +949,7 @@ export default function PipelinePage({
                   
                   <Separator />
                   
-                  <div className="flex gap-2 flex-shrink-0">
+                  <div className="flex gap-2">
                     <Button 
                       onClick={() => {
                         setPreview({ open: false, lead: null })
@@ -1224,16 +978,15 @@ export default function PipelinePage({
 
         {/* EDIT MODAL */}
         <Sheet open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-          <SheetContent className="w-full sm:max-w-md border-l border-border p-6 md:p-8 flex flex-col">
-            <SheetHeader className="flex-shrink-0">
+          <SheetContent className="w-full sm:max-w-md border-l border-border p-6 md:p-8">
+            <SheetHeader>
               <SheetTitle>Edit Lead</SheetTitle>
               <SheetDescription>
                 Edit the lead's negotiation fields.
               </SheetDescription>
             </SheetHeader>
-            <Separator className="my-4 flex-shrink-0" />
-            <div className="flex-1 overflow-y-auto space-y-6 pr-2">
-              <form onSubmit={handleEditSubmit} className="space-y-6">
+            <Separator className="my-4" />
+            <form onSubmit={handleEditSubmit} className="space-y-6">
               <div className="space-y-4">
                 <div>
                   <label className="mb-1 block text-sm font-medium">Deal Value ($)</label>
@@ -1278,102 +1031,6 @@ export default function PipelinePage({
                     </p>
                   )}
                 </div>
-
-                {/* File Attachments Section */}
-                <div className="space-y-4">
-                  <h3 className="text-sm font-semibold text-muted-foreground">📎 File Attachments</h3>
-                  
-                  {/* Hidden file input - always present */}
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    id="file-upload-pipeline"
-                    multiple
-                    accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.gif,.xlsx,.xls"
-                    onChange={handleFileUpload}
-                    className="hidden"
-                  />
-                  
-                  {/* File Upload Area - Only show when no files */}
-                  {attachments.length === 0 && (
-                    <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center hover:border-muted-foreground/50 transition-colors">
-                      <label htmlFor="file-upload-pipeline" className="cursor-pointer">
-                        <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                        <p className="text-sm text-muted-foreground mb-1">
-                          Click to upload files or drag and drop
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          PDF, DOC, TXT, JPG, PNG, XLSX and more
-                        </p>
-                      </label>
-                    </div>
-                  )}
-
-                  {/* Attachments List */}
-                  {attachments.length > 0 && (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-sm font-medium">Attached Files ({attachments.length})</h4>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => fileInputRef.current?.click()}
-                          className="cursor-pointer"
-                        >
-                          <Upload className="h-4 w-4 mr-2" />
-                          Add More
-                        </Button>
-                      </div>
-                      <div className="max-h-48 overflow-y-auto space-y-2 pr-2">
-                        {attachments.map((attachment, index) => (
-                          <div key={index} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                            <div className="flex items-center space-x-3">
-                              <div className="flex-shrink-0">
-                                {attachment.type.startsWith('image/') ? (
-                                  <div className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center">
-                                    <span className="text-blue-600 text-xs">IMG</span>
-                                  </div>
-                                ) : attachment.type.includes('pdf') ? (
-                                  <div className="w-8 h-8 bg-red-100 rounded flex items-center justify-center">
-                                    <span className="text-red-600 text-xs">PDF</span>
-                                  </div>
-                                ) : attachment.type.includes('word') || attachment.type.includes('document') ? (
-                                  <div className="w-8 h-8 bg-blue-100 rounded flex items-center justify-center">
-                                    <span className="text-blue-600 text-xs">DOC</span>
-                                  </div>
-                                ) : attachment.type.includes('sheet') || attachment.type.includes('excel') ? (
-                                  <div className="w-8 h-8 bg-green-100 rounded flex items-center justify-center">
-                                    <span className="text-green-600 text-xs">XLS</span>
-                                  </div>
-                                ) : (
-                                  <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center">
-                                    <span className="text-gray-600 text-xs">FILE</span>
-                                  </div>
-                                )}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium truncate">{'originalName' in attachment ? String(attachment.originalName) : attachment.name}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {(attachment.size / 1024).toFixed(1)} KB
-                                </p>
-                              </div>
-                            </div>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removeAttachment(index)}
-                              className="text-destructive hover:text-destructive"
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
               </div>
               <Separator />
               <div className="flex gap-2">
@@ -1389,7 +1046,6 @@ export default function PipelinePage({
                     setEditValue("")
                     setEditExpectedCloseDate("")
                     setEditNotes("")
-                    setAttachments([])
                   }} 
                   className="cursor-pointer"
                 >
@@ -1398,19 +1054,18 @@ export default function PipelinePage({
                 </Button>
               </div>
             </form>
-            </div>
           </SheetContent>
         </Sheet>
 
         {/* FILTER MODAL */}
         <Sheet open={isFilterOpen} onOpenChange={setIsFilterOpen}>
-          <SheetContent className="w-full sm:max-w-md border-l border-border p-6 md:p-8 flex flex-col">
-            <SheetHeader className="flex-shrink-0">
+          <SheetContent className="w-full sm:max-w-md border-l border-border p-6 md:p-8">
+            <SheetHeader>
               <SheetTitle>Filter leads</SheetTitle>
               <SheetDescription>Filter leads by any field to find specific records.</SheetDescription>
             </SheetHeader>
-            <Separator className="my-4 flex-shrink-0" />
-            <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+            <Separator className="my-4" />
+            <div className="space-y-4">
               <div className="space-y-2">
                 <label className="mb-1 block text-sm font-medium">Name</label>
                 <Input
@@ -1537,7 +1192,7 @@ export default function PipelinePage({
               </div>
               
               <Separator />
-              <div className="flex gap-2 flex-shrink-0">
+              <div className="flex gap-2">
                 <Button
                   onClick={() => {
                     applyModalFilters()
