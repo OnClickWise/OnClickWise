@@ -158,7 +158,7 @@ export default function ChangePasswordModal({ isOpen, onClose, onSuccess }: Chan
                 <button
                   type="button"
                   onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
                   {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -183,7 +183,7 @@ export default function ChangePasswordModal({ isOpen, onClose, onSuccess }: Chan
                 <button
                   type="button"
                   onClick={() => setShowNewPassword(!showNewPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
                   {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -208,7 +208,7 @@ export default function ChangePasswordModal({ isOpen, onClose, onSuccess }: Chan
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
                   {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -226,14 +226,14 @@ export default function ChangePasswordModal({ isOpen, onClose, onSuccess }: Chan
                 type="button"
                 variant="outline"
                 onClick={onClose}
-                className="flex-1 cursor-pointer"
+                className="flex-1"
                 disabled={loading}
               >
                 Cancelar
               </Button>
               <Button
                 type="submit"
-                className="flex-1 bg-orange-600 hover:bg-orange-700 cursor-pointer"
+                className="flex-1 bg-orange-600 hover:bg-orange-700"
                 disabled={loading}
               >
                 {loading ? 'Alterando...' : 'Alterar Senha'}

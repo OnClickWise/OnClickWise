@@ -1,15 +1,5 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
-export interface Attachment {
-  id: string;
-  filename: string;
-  originalName: string;
-  mimeType: string;
-  size: number;
-  url: string;
-  uploadedAt: string;
-}
-
 export interface Lead {
   id: string;
   organization_id: string;
@@ -25,7 +15,6 @@ export interface Lead {
   description?: string;
   estimated_close_date?: string;
   show_on_pipeline: boolean;
-  attachments?: Attachment[];
   created_at: string;
   updated_at: string;
 }
@@ -43,7 +32,6 @@ export interface CreateLeadRequest {
   estimated_close_date?: string;
   assigned_user_id?: string;
   show_on_pipeline?: boolean;
-  attachments?: Attachment[];
 }
 
 export interface UpdateLeadRequest {
@@ -60,7 +48,6 @@ export interface UpdateLeadRequest {
   estimated_close_date?: string;
   assigned_user_id?: string;
   show_on_pipeline?: boolean;
-  attachments?: Attachment[];
 }
 
 export interface ApiResponse<T> {
@@ -485,8 +472,8 @@ class ApiService {
     });
   }
 
-'  // Upload attachment to lead
-  async uploadAttachment(leadId: string, file: File): Promise<ApiResponse<{ lead: Lead }>> {
+  // Auth API methods
+  async getCurrentUser(): Promise<ApiResponse<{ user: any; organization: any }>> {
     if (typeof window === 'undefined') {
       return {
         success: false,
@@ -494,24 +481,10 @@ class ApiService {
       };
     }
 
-    const token = this.getAuthToken();
-    const formData = new FormData();
-    formData.append('file', file);
-
-    const response = await fetch(`${API_BASE_URL}/api/leads/${leadId}/attachments`, {
-      method: 'POST',
-      headers: {
-        ...(token && { Authorization: `Bearer ${token}` }),
-      },
-      body: formData,
-    });
-
-    const data = await response.json();
-    return data;
+    return this.request<{ user: any; organization: any }>('/auth/me');
   }
 
-  // Delete attachment from lead
-  async deleteAttachment(leadId: string, attachmentId: string): Promise<ApiResponse<{ lead: Lead }>> {
+  async getUserOrganization(): Promise<ApiResponse<{ organization: any }>> {
     if (typeof window === 'undefined') {
       return {
         success: false,
@@ -519,48 +492,7 @@ class ApiService {
       };
     }
 
-    const token = this.getAuthToken();
-    const response = await fetch(`${API_BASE_URL}/api/leads/${leadId}/attachments/${attachmentId}`, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token && { Authorization: `Bearer ${token}` }),
-      },
-    });
-
-    const data = await response.json();
-    return data;
-  }
-
-  // Get attachment file data
-  async getAttachment(leadId: string, attachmentId: string): Promise<{ success: boolean; data?: ArrayBuffer; error?: string }> {
-    if (typeof window === 'undefined') {
-      return {
-        success: false,
-        error: 'API calls only available on client side'
-      };
-    }
-
-    const token = this.getAuthToken();
-    const response = await fetch(`${API_BASE_URL}/api/leads/${leadId}/attachments/${attachmentId}`, {
-      method: 'GET',
-      headers: {
-        ...(token && { Authorization: `Bearer ${token}` }),
-      },
-    });
-
-    if (!response.ok) {
-      return {
-        success: false,
-        error: `HTTP ${response.status}: ${response.statusText}`
-      };
-    }
-
-    const data = await response.arrayBuffer();
-    return {
-      success: true,
-      data: data
-    };
+    return this.request<{ organization: any }>('/auth/user-organization');
   }
 }
 
