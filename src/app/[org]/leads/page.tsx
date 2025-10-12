@@ -36,13 +36,13 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/s
 
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 
-import { Search, Plus, Download, Upload, Trash2, Edit, X, ChevronDown, CheckCircle2, AlertTriangle, AlertCircle, Check, Filter, XCircle, ArrowUp, ArrowDown, Copy } from "lucide-react"
+import { Search, Plus, Download, Upload, Trash2, Edit, X, ChevronDown, CheckCircle2, AlertTriangle, AlertCircle, Check, Filter, XCircle, ArrowUp, ArrowDown, Copy, File, FileText, Image, FileImage, FileVideo, FileAudio, Archive, Loader2, Eye, Trash } from "lucide-react"
 
 import * as XLSX from "xlsx"
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
-import { apiService, Lead, CreateLeadRequest, UpdateLeadRequest } from "@/lib/api"
+import { apiService, Lead, CreateLeadRequest, UpdateLeadRequest, Attachment } from "@/lib/api"
 
 import { useApi } from "@/hooks/useApi"
 
@@ -185,6 +185,87 @@ export default function LeadsPage({
   const [isImportCancelled, setIsImportCancelled] = React.useState(false)
   // Ref for immediate access to import cancellation state
   const isImportCancelledRef = React.useRef(false)
+
+  // Attachment states
+  const [isAttachmentDragActive, setIsAttachmentDragActive] = React.useState(false)
+  const [uploadingAttachments, setUploadingAttachments] = React.useState<{ [leadId: string]: boolean }>({})
+  const [attachmentProgress, setAttachmentProgress] = React.useState<{ [leadId: string]: number }>({})
+  const attachmentFileInputRef = React.useRef<HTMLInputElement | null>(null)
+  
+  // Local attachment management (pending changes)
+  const [pendingAttachments, setPendingAttachments] = React.useState<{ [leadId: string]: { toAdd: File[], toRemove: string[] } }>({})
+  const [hasUnsavedChanges, setHasUnsavedChanges] = React.useState(false)
+  
+  // Track original form values for change detection
+  const [originalFormValues, setOriginalFormValues] = React.useState<{
+    name: string
+    email: string
+    phone: string
+    ssn: string
+    ein: string
+    source: string
+    status: string
+    value: string
+    estimatedCloseDate: string
+  } | null>(null)
+  
+  // Toast notification for unsaved changes
+  const [unsavedChangesToast, setUnsavedChangesToast] = React.useState<{
+    show: boolean
+    message: string
+  }>({ show: false, message: '' })
+  
+  // Function to check if form has changes
+  const hasFormChanges = () => {
+    if (!originalFormValues) return false
+    
+    return (
+      name !== originalFormValues.name ||
+      email !== originalFormValues.email ||
+      phone !== originalFormValues.phone ||
+      ssn !== originalFormValues.ssn ||
+      ein !== originalFormValues.ein ||
+      source !== originalFormValues.source ||
+      status !== originalFormValues.status ||
+      value !== originalFormValues.value ||
+      estimatedCloseDate !== originalFormValues.estimatedCloseDate
+    )
+  }
+  
+  // Function to check for unsaved changes and show confirmation
+  const handleModalClose = () => {
+    const hasAttachmentChanges = Object.keys(pendingAttachments).length > 0 && 
+      Object.values(pendingAttachments).some(p => p.toAdd.length > 0 || p.toRemove.length > 0)
+    const hasFieldChanges = hasFormChanges()
+    
+    if (hasAttachmentChanges || hasFieldChanges) {
+      setUnsavedChangesToast({
+        show: true,
+        message: 'You have unsaved changes. Click outside again to discard them.'
+      })
+      // Auto-hide after 3 seconds
+      setTimeout(() => {
+        setUnsavedChangesToast({ show: false, message: '' })
+      }, 3000)
+    } else {
+      setIsModalOpen(false)
+      setEditingId(null)
+      setPreview({ open: false, lead: null })
+    }
+  }
+  
+  // Function to confirm discard changes (called when clicking outside again)
+  const confirmDiscardChanges = () => {
+    // Clear all pending changes
+    setPendingAttachments({})
+    setHasUnsavedChanges(false)
+    setUnsavedChangesToast({ show: false, message: '' })
+    setOriginalFormValues(null)
+    setIsModalOpen(false)
+    setEditingId(null)
+    setPreview({ open: false, lead: null })
+  }
+
 
 
   // Preview modal for viewing selected lead details
@@ -1147,6 +1228,17 @@ export default function LeadsPage({
     setDescription("")
 
     setIsModalOpen(false)
+    
+    // Clear pending attachments when closing modal
+    if (editingId) {
+      setPendingAttachments(prev => {
+        const newPending = { ...prev }
+        delete newPending[editingId]
+        return newPending
+      })
+    }
+    setHasUnsavedChanges(false)
+    setOriginalFormValues(null)
 
   }
 
@@ -1286,6 +1378,9 @@ export default function LeadsPage({
 
           )
 
+          // Process pending attachments after successful lead update
+          await processPendingAttachments(editingId)
+
           pushToast(`Lead "${safeName}" atualizado com sucesso.`, "success")
 
         } else {
@@ -1390,6 +1485,19 @@ export default function LeadsPage({
 
     }
 
+    // Save original values for change detection
+    setOriginalFormValues({
+      name: lead.name,
+      email: lead.email,
+      phone: lead.phone || "",
+      ssn: lead.ssn || "",
+      ein: lead.ein || "",
+      source: lead.source || "",
+      status: lead.status,
+      value: lead.value ? lead.value.toString() : "",
+      estimatedCloseDate: lead.estimated_close_date || ""
+    })
+
     setIsModalOpen(true)
 
   }
@@ -1444,12 +1552,10 @@ export default function LeadsPage({
     if (selectedLeads.size === leads.length) {
       // Se todos estão selecionados, desmarcar todos
       setSelectedLeads(new Set())
-      pushToast(`Unselected all ${leads.length} leads`, 'success')
     } else {
       // Selecionar todos os leads que já estão carregados no frontend
       const allLeadIds = new Set(leads.map(lead => lead.id))
       setSelectedLeads(allLeadIds)
-      pushToast(`Selected all ${leads.length} leads`, 'success')
     }
   }
 
@@ -1463,12 +1569,10 @@ export default function LeadsPage({
       const newSelected = new Set(selectedLeads)
       currentPageLeadIds.forEach(id => newSelected.delete(id))
       setSelectedLeads(newSelected)
-      pushToast(`Unselected ${currentLeads.length} leads from current page`, 'success')
     } else {
       // Selecionar todos os leads da página atual
       const newSelected = new Set([...selectedLeads, ...currentPageLeadIds])
       setSelectedLeads(newSelected)
-      pushToast(`Selected ${currentLeads.length} leads from current page`, 'success')
     }
   }
 
@@ -1478,7 +1582,6 @@ export default function LeadsPage({
     setSelectedLeads(allLeadIds)
     setShowSelectAllConfirm(false)
     setShowSelectAllButton(false)
-    pushToast(`Selected all ${leads.length} leads`, 'success')
   }
 
 
@@ -1841,6 +1944,8 @@ export default function LeadsPage({
       pushToast('Error updating leads', 'error')
     } finally {
       setEditNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
+      
+      
       setOriginalLeads([])
       setCurrentEditLeads([])
     }
@@ -2006,6 +2111,356 @@ export default function LeadsPage({
 
     return s
 
+  }
+
+  // Attachment functions
+  const getFileIcon = (mimeType: string) => {
+    if (mimeType.startsWith('image/')) return FileImage
+    if (mimeType === 'application/pdf') return FileText
+    if (mimeType.includes('word') || mimeType.includes('document')) return FileText
+    if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) return FileText
+    if (mimeType.startsWith('video/')) return FileVideo
+    if (mimeType.startsWith('audio/')) return FileAudio
+    if (mimeType.includes('zip') || mimeType.includes('rar') || mimeType.includes('tar')) return Archive
+    return File
+  }
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes'
+    const k = 1024
+    const sizes = ['Bytes', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
+  }
+
+  const validateFile = (file: File): { valid: boolean; error?: string } => {
+    const maxSize = 50 * 1024 * 1024 // 50MB
+    if (file.size > maxSize) {
+      return { valid: false, error: `File size exceeds 50MB limit. Current size: ${formatFileSize(file.size)}` }
+    }
+    return { valid: true }
+  }
+
+  const handleAttachmentFileSelect = (event: React.ChangeEvent<HTMLInputElement>, leadId: string) => {
+    const files = event.target.files
+    if (!files || files.length === 0) return
+
+    const validFiles: File[] = []
+    const invalidFiles: string[] = []
+
+    // Process all selected files
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      const validation = validateFile(file)
+      
+      if (validation.valid) {
+        validFiles.push(file)
+      } else {
+        invalidFiles.push(`${file.name}: ${validation.error}`)
+      }
+    }
+
+    // Show errors for invalid files
+    if (invalidFiles.length > 0) {
+      pushToast(`Some files were invalid: ${invalidFiles.join(', ')}`, 'error')
+    }
+
+    // Add valid files to pending attachments
+    if (validFiles.length > 0) {
+      setPendingAttachments(prev => ({
+        ...prev,
+        [leadId]: {
+          toAdd: [...(prev[leadId]?.toAdd || []), ...validFiles],
+          toRemove: prev[leadId]?.toRemove || []
+        }
+      }))
+      setHasUnsavedChanges(true)
+    }
+    
+    // Reset input
+    if (attachmentFileInputRef.current) {
+      attachmentFileInputRef.current.value = ''
+    }
+  }
+
+  const handleAttachmentDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsAttachmentDragActive(true)
+  }
+
+  const handleAttachmentDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsAttachmentDragActive(false)
+  }
+
+  const handleAttachmentDrop = (e: React.DragEvent, leadId: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsAttachmentDragActive(false)
+
+    const files = e.dataTransfer.files
+    if (!files || files.length === 0) return
+
+    const validFiles: File[] = []
+    const invalidFiles: string[] = []
+
+    // Process all dropped files
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      const validation = validateFile(file)
+      
+      if (validation.valid) {
+        validFiles.push(file)
+      } else {
+        invalidFiles.push(`${file.name}: ${validation.error}`)
+      }
+    }
+
+    // Show errors for invalid files
+    if (invalidFiles.length > 0) {
+      pushToast(`Some files were invalid: ${invalidFiles.join(', ')}`, 'error')
+    }
+
+    // Add valid files to pending attachments
+    if (validFiles.length > 0) {
+      setPendingAttachments(prev => ({
+        ...prev,
+        [leadId]: {
+          toAdd: [...(prev[leadId]?.toAdd || []), ...validFiles],
+          toRemove: prev[leadId]?.toRemove || []
+        }
+      }))
+      setHasUnsavedChanges(true)
+    }
+    
+  }
+
+  const uploadAttachment = async (leadId: string, file: File) => {
+    try {
+      setUploadingAttachments(prev => ({ ...prev, [leadId]: true }))
+      setAttachmentProgress(prev => ({ ...prev, [leadId]: 0 }))
+
+      const response = await apiService.uploadLeadAttachment(leadId, file)
+      
+      console.log('Upload response:', response)
+      
+      if (response.success && response.data) {
+        
+        // Check if the response has the expected structure
+        let newAttachment = null
+        
+        if (response.data.attachment) {
+          newAttachment = response.data.attachment
+        } else if ((response.data as any).data && (response.data as any).data.attachment) {
+          newAttachment = (response.data as any).data.attachment
+        } else if (response.data) {
+          // Maybe the response.data is the attachment itself
+          newAttachment = response.data as any
+        }
+        
+        console.log('New attachment object:', newAttachment)
+        
+        if (newAttachment && newAttachment.id && newAttachment.mimeType && newAttachment.originalName) {
+          // Update local state with new attachment
+          setLeads(prev => prev.map(lead => {
+            if (lead.id === leadId) {
+              const attachments = lead.attachments || []
+              return { ...lead, attachments: [...attachments, newAttachment] }
+            }
+            return lead
+          }))
+          
+          setFilteredLeads(prev => prev.map(lead => {
+            if (lead.id === leadId) {
+              const attachments = lead.attachments || []
+              return { ...lead, attachments: [...attachments, newAttachment] }
+            }
+            return lead
+          }))
+        } else {
+          console.warn('Invalid attachment received from server:', newAttachment)
+        }
+        
+        // Refresh to ensure sync
+        await syncAfterOperation()
+      } else {
+        pushToast(response.error || 'Failed to upload file', 'error')
+      }
+    } catch (error) {
+      console.error('Error uploading attachment:', error)
+      pushToast('Error uploading file', 'error')
+    } finally {
+      setUploadingAttachments(prev => ({ ...prev, [leadId]: false }))
+      setAttachmentProgress(prev => ({ ...prev, [leadId]: 0 }))
+    }
+  }
+
+  const uploadAttachmentSilently = async (leadId: string, file: File) => {
+    try {
+      const response = await apiService.uploadLeadAttachment(leadId, file)
+      
+      if (response.success && response.data) {
+        // Check if the response has the expected structure
+        let newAttachment = null
+        
+        if (response.data.attachment) {
+          newAttachment = response.data.attachment
+        } else if ((response.data as any).data && (response.data as any).data.attachment) {
+          newAttachment = (response.data as any).data.attachment
+        } else if (response.data) {
+          newAttachment = response.data as any
+        }
+        
+        if (newAttachment && newAttachment.id && newAttachment.mimeType && newAttachment.originalName) {
+          // Update local state to add attachment
+          setLeads(prev => prev.map(lead => {
+            if (lead.id === leadId) {
+              const attachments = lead.attachments || []
+              return { ...lead, attachments: [...attachments, newAttachment] }
+            }
+            return lead
+          }))
+          
+          setFilteredLeads(prev => prev.map(lead => {
+            if (lead.id === leadId) {
+              const attachments = lead.attachments || []
+              return { ...lead, attachments: [...attachments, newAttachment] }
+            }
+            return lead
+          }))
+        }
+      } else {
+        throw new Error(response.error || 'Failed to upload file')
+      }
+    } catch (error) {
+      console.error('Error uploading attachment silently:', error)
+      throw error
+    }
+  }
+
+  const removeAttachmentFromPending = (leadId: string, attachmentId: string) => {
+    // Add to pending removals instead of deleting immediately
+    setPendingAttachments(prev => ({
+      ...prev,
+      [leadId]: {
+        toAdd: prev[leadId]?.toAdd || [],
+        toRemove: [...(prev[leadId]?.toRemove || []), attachmentId]
+      }
+    }))
+    setHasUnsavedChanges(true)
+  }
+
+  const deleteAttachment = async (leadId: string, attachmentId: string) => {
+    try {
+      const response = await apiService.deleteLeadAttachment(leadId, attachmentId)
+      
+      if (response.success) {
+        
+        // Update local state to remove attachment
+        setLeads(prev => prev.map(lead => {
+          if (lead.id === leadId) {
+            const attachments = (lead.attachments || []).filter(a => a.id !== attachmentId)
+            return { ...lead, attachments }
+          }
+          return lead
+        }))
+        
+        setFilteredLeads(prev => prev.map(lead => {
+          if (lead.id === leadId) {
+            const attachments = (lead.attachments || []).filter(a => a.id !== attachmentId)
+            return { ...lead, attachments }
+          }
+          return lead
+        }))
+        
+        // Refresh to ensure sync
+        await syncAfterOperation()
+      } else {
+        pushToast(response.error || 'Failed to delete file', 'error')
+      }
+    } catch (error) {
+      console.error('Error deleting attachment:', error)
+      pushToast('Error deleting file', 'error')
+    }
+  }
+
+  const downloadAttachment = async (leadId: string, attachmentId: string, filename: string) => {
+    try {
+      const blob = await apiService.getLeadAttachment(leadId, attachmentId)
+      
+      if (blob) {
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = filename
+        document.body.appendChild(a)
+        a.click()
+        window.URL.revokeObjectURL(url)
+        document.body.removeChild(a)
+        pushToast('File downloaded successfully', 'success')
+      } else {
+        pushToast('Failed to download file', 'error')
+      }
+    } catch (error) {
+      console.error('Error downloading attachment:', error)
+      pushToast('Error downloading file', 'error')
+    }
+  }
+
+  const viewAttachment = async (leadId: string, attachmentId: string) => {
+    try {
+      const blob = await apiService.getLeadAttachment(leadId, attachmentId)
+      
+      if (blob) {
+        const url = window.URL.createObjectURL(blob)
+        window.open(url, '_blank')
+      } else {
+        pushToast('Failed to view file', 'error')
+      }
+    } catch (error) {
+      console.error('Error viewing attachment:', error)
+      pushToast('Error viewing file', 'error')
+    }
+  }
+
+  const processPendingAttachments = async (leadId: string) => {
+    const pending = pendingAttachments[leadId]
+    if (!pending || (pending.toAdd.length === 0 && pending.toRemove.length === 0)) {
+      return
+    }
+
+    try {
+      setUploadingAttachments(prev => ({ ...prev, [leadId]: true }))
+      
+      // Process deletions first
+      for (const attachmentId of pending.toRemove) {
+        await deleteAttachment(leadId, attachmentId)
+      }
+      
+      // Process uploads - but don't update local state immediately
+      for (const file of pending.toAdd) {
+        await uploadAttachmentSilently(leadId, file)
+      }
+      
+      // Refresh the lead data to get updated attachments
+      await syncAfterOperation()
+      
+      // Clear pending changes
+      setPendingAttachments(prev => {
+        const newPending = { ...prev }
+        delete newPending[leadId]
+        return newPending
+      })
+      setHasUnsavedChanges(false)
+      
+    } catch (error) {
+      console.error('Error processing pending attachments:', error)
+      pushToast('Error saving attachment changes', 'error')
+    } finally {
+      setUploadingAttachments(prev => ({ ...prev, [leadId]: false }))
+    }
   }
 
 
@@ -2770,18 +3225,17 @@ export default function LeadsPage({
           }, (newLeads) => {
             // Track leads as they are imported for immediate rollback capability
             setCurrentImportLeads(prev => [...prev, ...newLeads])
+            
+            // Update leads list in real-time as batches are processed
+            setLeads(prev => [...newLeads, ...prev])
+            setFilteredLeads(prev => [...newLeads, ...prev])
+            
+            // Track all imported leads for potential rollback
+            setImportedLeads(prev => [...prev, ...newLeads])
           })
           
 
-          // Atualizar estado local com os leads salvos
-
-          if (savedLeads.length > 0) {
-
-            setLeads((prev) => [...savedLeads, ...prev])
-
-            // Track all imported leads for potential rollback
-            setImportedLeads(prev => [...prev, ...savedLeads])
-          }
+          // Leads are now updated in real-time during batch processing
           
           // Show comprehensive results
           if (cancelled) {
@@ -2833,13 +3287,13 @@ export default function LeadsPage({
       setImportNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
       if (fileInputRef.current) fileInputRef.current.value = ""
       
+      
       // Sync after operation to ensure complete sync with backend
       await syncAfterOperation()
 
     }
 
   }
-
 
 
   function exportData(format: "xlsx" | "csv" | "ods" | "json") {
@@ -3108,6 +3562,7 @@ export default function LeadsPage({
       setSelectedLeads(new Set())
       pushToast(`Successfully deleted ${deletedCount} lead(s)`, 'success')
       
+      
       // Sync after operation to ensure complete sync with backend
       await syncAfterOperation()
       
@@ -3302,6 +3757,16 @@ export default function LeadsPage({
                     setCurrentImportLeads([])
                   }
                   
+                  // Reset file input to allow reimporting the same file
+                  if (fileInputRef.current) {
+                    fileInputRef.current.value = ""
+                  }
+                  
+                  // Reset file preview state
+                  setFilePreview(null)
+                  setShowPreview(false)
+                  setIsProcessingFile(false)
+                  
                   setImportNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: true })
                 }}
                 className="cursor-pointer text-muted-foreground hover:text-foreground"
@@ -3438,6 +3903,102 @@ export default function LeadsPage({
                   className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                   style={{ 
                     width: `${(editNotification.progress.current / editNotification.progress.total) * 100}%` 
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* DELETE PROGRESS NOTIFICATION */}
+        {deleteNotification.show && (
+          <div className="fixed top-4 right-4 z-[100] bg-background border rounded-lg shadow-lg p-4 w-80">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
+                <span className="font-medium">
+                  {isDeletionCancelled ? 'Cancelling Deletion...' : 'Deleting Leads'}
+                </span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={async () => {
+                  setIsDeletionCancelled(true)
+                  isDeletionCancelledRef.current = true
+                  
+                  // Rollback: restore deleted leads in backend
+                  if (deletedLeads.length > 0) {
+                    let successfullyRestored = 0
+                    let errors = 0
+                    
+                    try {
+                      // Restore leads that were already deleted in this batch
+                      for (const lead of deletedLeads) {
+                        try {
+                          const createData: CreateLeadRequest = {
+                            name: lead.name,
+                            email: lead.email,
+                            phone: lead.phone || undefined,
+                            ssn: lead.ssn || undefined,
+                            ein: lead.ein || undefined,
+                            source: lead.source || undefined,
+                            status: lead.status,
+                            value: lead.value,
+                            description: lead.description,
+                            estimated_close_date: lead.estimated_close_date,
+                          }
+                          const result = await apiService.createLead(createData)
+                          if (result.success) {
+                            successfullyRestored++
+                          } else {
+                            errors++
+                          }
+                        } catch (error) {
+                          errors++
+                        }
+                      }
+                      
+                      if (successfullyRestored > 0) {
+                        pushToast(`Deletion cancelled - ${successfullyRestored} leads restored`, 'success')
+                      }
+                      if (errors > 0) {
+                        pushToast(`Deletion cancelled - ${errors} leads could not be restored`, 'warning')
+                      }
+                    } catch (error) {
+                      pushToast('Deletion cancelled - leads restored locally only', 'warning')
+                    }
+                    
+                    // Restore frontend state regardless of backend success
+                    setLeads(prev => [...deletedLeads, ...prev])
+                    setFilteredLeads(prev => [...deletedLeads, ...prev])
+                    setDeletedLeads([])
+                  }
+                  
+                  setDeleteNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: true })
+                  
+                  // Force refresh leads to ensure sync with backend after rollback
+                  setTimeout(async () => {
+                    await forceRefreshLeads()
+                  }, 100)
+                }}
+                className="cursor-pointer text-muted-foreground hover:text-foreground"
+              >
+                Cancel
+              </Button>
+            </div>
+            
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>Batch {deleteNotification.progress.batch} of {deleteNotification.progress.totalBatches}</span>
+                <span>{deleteNotification.progress.current} / {deleteNotification.progress.total}</span>
+              </div>
+              
+              <div className="w-full bg-muted rounded-full h-2">
+                <div 
+                  className="bg-red-600 h-2 rounded-full transition-all duration-300"
+                  style={{ 
+                    width: `${(deleteNotification.progress.current / deleteNotification.progress.total) * 100}%` 
                   }}
                 />
               </div>
@@ -4149,9 +4710,26 @@ export default function LeadsPage({
           </div>
         </div>
         {/* ADD/EDIT MODAL */}
-        <Sheet open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <Sheet open={isModalOpen} onOpenChange={(open) => {
+          if (!open) {
+            if (unsavedChangesToast.show) {
+              // User clicked outside again after seeing the toast
+              confirmDiscardChanges()
+            } else {
+              handleModalClose()
+            }
+          } else {
+            setIsModalOpen(open)
+          }
+        }}>
 
-          <SheetContent className="w-full sm:max-w-md border-l border-border p-6 md:p-8">
+          <SheetContent 
+            className="w-full sm:max-w-md border-l border-border p-6 md:p-8 flex flex-col max-h-screen"
+            onDragOver={handleAttachmentDragOver}
+            onDragLeave={handleAttachmentDragLeave}
+            onDrop={(e) => editingId && handleAttachmentDrop(e, editingId)}
+          >
+            <div className="flex-shrink-0">
 
             <SheetHeader>
 
@@ -4170,7 +4748,9 @@ export default function LeadsPage({
             </SheetHeader>
 
             <Separator className="my-4" />
+            </div>
 
+            <div className="flex-1 overflow-y-auto pr-2">
             <form onSubmit={handleSubmit} className="space-y-6">
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -4461,6 +5041,195 @@ export default function LeadsPage({
 
               </div>
 
+              {/* Attachments Section */}
+              {editingId && (
+                <>
+                  <Separator />
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-semibold text-muted-foreground">Attachments</h3>
+                      {(() => {
+                        const lead = leads.find(l => l.id === editingId)
+                        const attachments = lead?.attachments || []
+                        const pending = pendingAttachments[editingId]
+                        const pendingToAdd = pending?.toAdd || []
+                        const pendingToRemove = pending?.toRemove || []
+                        const visibleAttachments = attachments.filter(att => !pendingToRemove.includes(att.id))
+                        const hasAnyAttachments = visibleAttachments.length > 0 || pendingToAdd.length > 0
+                        
+                        if (hasAnyAttachments) {
+                          return (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="cursor-pointer"
+                              onClick={() => attachmentFileInputRef.current?.click()}
+                            >
+                              <Upload className="h-4 w-4 mr-2" />
+                              Add Files
+                            </Button>
+                          )
+                        }
+                        return null
+                      })()}
+                    </div>
+                    
+                    <input
+                      ref={attachmentFileInputRef}
+                      type="file"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => handleAttachmentFileSelect(e, editingId)}
+                    />
+                    
+                    {/* Upload Zone - Conditional display */}
+                    {(() => {
+                      const lead = leads.find(l => l.id === editingId)
+                      const attachments = lead?.attachments || []
+                      const pending = pendingAttachments[editingId]
+                      const pendingToAdd = pending?.toAdd || []
+                      const pendingToRemove = pending?.toRemove || []
+                      const visibleAttachments = attachments.filter(att => !pendingToRemove.includes(att.id))
+                      const hasAnyAttachments = visibleAttachments.length > 0 || pendingToAdd.length > 0
+                      
+                      if (!hasAnyAttachments) {
+                        return (
+                          <div
+                            className={`relative border-2 border-dashed rounded-lg p-6 transition-colors cursor-pointer ${
+                              isAttachmentDragActive
+                                ? 'border-primary bg-primary/5'
+                                : 'border-muted-foreground/25 hover:border-muted-foreground/50'
+                            }`}
+                            onDragOver={handleAttachmentDragOver}
+                            onDragLeave={handleAttachmentDragLeave}
+                            onDrop={(e) => handleAttachmentDrop(e, editingId)}
+                            onClick={() => attachmentFileInputRef.current?.click()}
+                          >
+                            <div className="flex flex-col items-center justify-center gap-2">
+                              {uploadingAttachments[editingId] ? (
+                                <>
+                                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                                  <p className="text-sm text-muted-foreground">Uploading...</p>
+                                </>
+                              ) : (
+                                <>
+                                  <Upload className="h-8 w-8 text-muted-foreground" />
+                                  <div className="text-center">
+                                    <p className="text-sm font-medium">
+                                      Drag and drop files here
+                                    </p>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                      or click to browse (max 50MB)
+                                    </p>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      }
+                      return null
+                    })()}
+
+                    {/* Existing Attachments */}
+                    {(() => {
+                      const lead = leads.find(l => l.id === editingId)
+                      const attachments = lead?.attachments || []
+                      const pending = pendingAttachments[editingId]
+                      const pendingToAdd = pending?.toAdd || []
+                      const pendingToRemove = pending?.toRemove || []
+                      
+                      // Filter out attachments that are marked for removal
+                      const visibleAttachments = attachments.filter(att => !pendingToRemove.includes(att.id))
+                      
+                      if (visibleAttachments.length === 0 && pendingToAdd.length === 0) {
+                        return null
+                      }
+                      
+                      return (
+                        <div className="space-y-2">
+                          {/* Existing attachments */}
+                          {visibleAttachments.map((attachment) => {
+                            // Add safety checks for attachment properties
+                            if (!attachment || !attachment.id || !attachment.mimeType) {
+                              console.warn('Invalid attachment object:', attachment)
+                              return null
+                            }
+                            
+                            const FileIcon = getFileIcon(attachment.mimeType)
+                            return (
+                              <div
+                                key={attachment.id}
+                                className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+                              >
+                                <FileIcon className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate">
+                                    {attachment.originalName || 'Unknown file'}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {formatFileSize(attachment.size || 0)}
+                                  </p>
+                                </div>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  className="cursor-pointer text-destructive hover:text-destructive"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    removeAttachmentFromPending(editingId, attachment.id)
+                                  }}
+                                >
+                                  <Trash className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            )
+                          })}
+                          
+                          {/* Pending files to add */}
+                          {pendingToAdd.map((file, index) => (
+                            <div
+                              key={`pending-${index}`}
+                              className="flex items-center gap-3 p-3 rounded-lg border bg-primary/5 border-primary/20"
+                            >
+                              <File className="h-5 w-5 text-primary flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate text-primary">
+                                  {file.name}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {formatFileSize(file.size)} (pending, save to upload)
+                                </p>
+                              </div>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                className="cursor-pointer text-destructive hover:text-destructive"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setPendingAttachments(prev => ({
+                                    ...prev,
+                                    [editingId]: {
+                                      toAdd: prev[editingId]?.toAdd.filter((_, i) => i !== index) || [],
+                                      toRemove: prev[editingId]?.toRemove || []
+                                    }
+                                  }))
+                                }}
+                              >
+                                <Trash className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )
+                    })()}
+                  </div>
+                </>
+              )}
+
               
 
               <Separator />
@@ -4473,17 +5242,24 @@ export default function LeadsPage({
 
                 </Button>
 
-                <Button type="button" variant="outline" onClick={resetForm} className="cursor-pointer">
-
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => {
+                    // Close toast if it's showing
+                    setUnsavedChangesToast({ show: false, message: '' })
+                    resetForm()
+                  }}
+                  className="cursor-pointer"
+                >
                   <X className="h-4 w-4 mr-1" />
-
                   Cancel
-
                 </Button>
 
               </div>
 
             </form>
+            </div>
 
           </SheetContent>
 
@@ -4495,8 +5271,8 @@ export default function LeadsPage({
 
     <Sheet open={preview.open} onOpenChange={(open) => setPreview((p) => ({ ...p, open }))}>
 
-      <SheetContent className="w-full sm:max-w-lg border-l border-border p-6 md:p-8">
-
+      <SheetContent className="w-full sm:max-w-lg border-l border-border p-6 md:p-8 flex flex-col max-h-screen">
+        <div className="flex-shrink-0">
         <SheetHeader>
 
           <SheetTitle>Lead Details</SheetTitle>
@@ -4506,8 +5282,9 @@ export default function LeadsPage({
         </SheetHeader>
 
         <Separator className="my-4" />
+        </div>
 
-        <div className="space-y-4">
+        <div className="flex-1 overflow-y-auto pr-2 space-y-4">
 
           {(() => {
 
@@ -4965,6 +5742,63 @@ export default function LeadsPage({
 
 
 
+                {/* Attachments Section */}
+                {l.attachments && l.attachments.length > 0 && (
+                  <>
+                    <Separator />
+                    <div className="space-y-3">
+                      <h3 className="text-sm font-semibold text-muted-foreground">Attachments</h3>
+                      <div className="space-y-2">
+                        {l.attachments.map((attachment) => {
+                          // Add safety checks for attachment properties
+                          if (!attachment || !attachment.id || !attachment.mimeType) {
+                            console.warn('Invalid attachment object:', attachment)
+                            return null
+                          }
+                          
+                          const FileIcon = getFileIcon(attachment.mimeType)
+                          return (
+                            <div
+                              key={attachment.id}
+                              className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+                            >
+                              <FileIcon className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate">
+                                  {attachment.originalName || 'Unknown file'}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {formatFileSize(attachment.size || 0)} • {attachment.uploadedAt ? new Date(attachment.uploadedAt).toLocaleDateString('en-US') : 'Unknown date'}
+                                </p>
+                              </div>
+                              <div className="flex gap-1">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="cursor-pointer"
+                                  onClick={() => viewAttachment(l.id, attachment.id)}
+                                  title="View file"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="cursor-pointer"
+                                  onClick={() => downloadAttachment(l.id, attachment.id, attachment.originalName || 'file')}
+                                  title="Download file"
+                                >
+                                  <Download className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </>
+                )}
+
                 {/* Activity History */}
 
                 <Separator />
@@ -4992,13 +5826,14 @@ export default function LeadsPage({
             )
 
           })()}
+        </div>
 
-          <div className="flex justify-end pt-4">
+        <div className="flex-shrink-0 pt-4 border-t">
+          <div className="flex justify-end">
 
             <Button className="cursor-pointer" onClick={() => setPreview({ open: false, lead: null })}>Close</Button>
 
           </div>
-
         </div>
 
       </SheetContent>
@@ -5747,6 +6582,18 @@ export default function LeadsPage({
           </SheetContent>
 
         </Sheet>
+
+        {/* UNSAVED CHANGES TOAST NOTIFICATION */}
+        {unsavedChangesToast.show && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none">
+            <div className="bg-yellow-50 dark:bg-yellow-900/90 text-yellow-800 dark:text-yellow-200 border border-yellow-200 dark:border-yellow-800 rounded-lg shadow-lg px-4 py-3 max-w-sm mx-4 pointer-events-auto">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                <span className="text-sm font-medium">{unsavedChangesToast.message}</span>
+              </div>
+            </div>
+          </div>
+        )}
 
       </SidebarInset>
 

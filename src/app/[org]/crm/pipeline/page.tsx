@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import { Search, Plus, Download, Upload, Trash2, Edit, X, ChevronDown, CheckCircle2, AlertTriangle, AlertCircle, Check, Filter, XCircle, ArrowUp, ArrowDown, Eye, Phone, Mail, Calendar, User, Building2 } from "lucide-react"
+import { Search, Plus, Download, Upload, Trash2, Edit, X, ChevronDown, CheckCircle2, AlertTriangle, AlertCircle, Check, Filter, XCircle, ArrowUp, ArrowDown, Eye, Phone, Mail, Calendar, User, Building2, File, FileText, Image, FileImage, FileVideo, FileAudio, Archive, Loader2, Trash } from "lucide-react"
 import * as XLSX from "xlsx"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { apiService, Lead, UpdateLeadRequest } from "@/lib/api"
@@ -129,6 +129,74 @@ export default function PipelinePage({
 
   // Preview modal
   const [preview, setPreview] = React.useState<{ open: boolean, lead: Lead | null }>({ open: false, lead: null })
+
+  // Attachment states
+  const [isAttachmentDragActive, setIsAttachmentDragActive] = React.useState(false)
+  const [uploadingAttachments, setUploadingAttachments] = React.useState<{ [leadId: string]: boolean }>({})
+  const [attachmentProgress, setAttachmentProgress] = React.useState<{ [leadId: string]: number }>({})
+  const attachmentFileInputRef = React.useRef<HTMLInputElement | null>(null)
+  
+  // Local attachment management (pending changes)
+  const [pendingAttachments, setPendingAttachments] = React.useState<{ [leadId: string]: { toAdd: File[], toRemove: string[] } }>({})
+  const [hasUnsavedChanges, setHasUnsavedChanges] = React.useState(false)
+  
+  // Track original form values for change detection
+  const [originalFormValues, setOriginalFormValues] = React.useState<{
+    value: string
+    expectedCloseDate: string
+    notes: string
+  } | null>(null)
+  
+  // Toast notification for unsaved changes
+  const [unsavedChangesToast, setUnsavedChangesToast] = React.useState<{
+    show: boolean
+    message: string
+  }>({ show: false, message: '' })
+  
+  // Function to check if form has changes
+  const hasFormChanges = () => {
+    if (!originalFormValues) return false
+    
+    return (
+      editValue !== originalFormValues.value ||
+      editExpectedCloseDate !== originalFormValues.expectedCloseDate ||
+      editNotes !== originalFormValues.notes
+    )
+  }
+  
+  // Function to check for unsaved changes and show confirmation
+  const handleModalClose = () => {
+    const hasAttachmentChanges = Object.keys(pendingAttachments).length > 0 && 
+      Object.values(pendingAttachments).some(p => p.toAdd.length > 0 || p.toRemove.length > 0)
+    const hasFieldChanges = hasFormChanges()
+    
+    if (hasAttachmentChanges || hasFieldChanges) {
+      setUnsavedChangesToast({
+        show: true,
+        message: 'You have unsaved changes. Click outside again to discard them.'
+      })
+      // Auto-hide after 3 seconds
+      setTimeout(() => {
+        setUnsavedChangesToast({ show: false, message: '' })
+      }, 3000)
+    } else {
+      setIsEditModalOpen(false)
+      setEditingId(null)
+      setPreview({ open: false, lead: null })
+    }
+  }
+  
+  // Function to confirm discard changes (called when clicking outside again)
+  const confirmDiscardChanges = () => {
+    // Clear all pending changes
+    setPendingAttachments({})
+    setHasUnsavedChanges(false)
+    setUnsavedChangesToast({ show: false, message: '' })
+    setOriginalFormValues(null)
+    setIsEditModalOpen(false)
+    setEditingId(null)
+    setPreview({ open: false, lead: null })
+  }
 
   // Load leads from API
   React.useEffect(() => {
@@ -431,12 +499,290 @@ export default function PipelinePage({
     }, timeoutMs)
   }
 
+  // Attachment utility functions
+  const getFileIcon = (mimeType: string) => {
+    if (mimeType.startsWith('image/')) return Image
+    if (mimeType.startsWith('video/')) return FileVideo
+    if (mimeType.startsWith('audio/')) return FileAudio
+    if (mimeType.includes('pdf')) return FileText
+    if (mimeType.includes('zip') || mimeType.includes('rar') || mimeType.includes('7z')) return Archive
+    return File
+  }
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes'
+    const k = 1024
+    const sizes = ['Bytes', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+  }
+
+  const validateFile = (file: File) => {
+    const maxSize = 50 * 1024 * 1024 // 50MB
+    if (file.size > maxSize) {
+      return { valid: false, error: `File size exceeds 50MB limit. Current size: ${formatFileSize(file.size)}` }
+    }
+    return { valid: true }
+  }
+
+  const handleAttachmentFileSelect = (event: React.ChangeEvent<HTMLInputElement>, leadId: string) => {
+    const files = event.target.files
+    if (!files || files.length === 0) return
+
+    const validFiles: File[] = []
+    const invalidFiles: string[] = []
+
+    // Process all selected files
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      const validation = validateFile(file)
+      
+      if (validation.valid) {
+        validFiles.push(file)
+      } else {
+        invalidFiles.push(`${file.name}: ${validation.error}`)
+      }
+    }
+
+    // Show errors for invalid files
+    if (invalidFiles.length > 0) {
+      pushToast(`Some files were invalid: ${invalidFiles.join(', ')}`, 'error')
+    }
+
+    // Add valid files to pending attachments
+    if (validFiles.length > 0) {
+      setPendingAttachments(prev => ({
+        ...prev,
+        [leadId]: {
+          toAdd: [...(prev[leadId]?.toAdd || []), ...validFiles],
+          toRemove: prev[leadId]?.toRemove || []
+        }
+      }))
+      setHasUnsavedChanges(true)
+    }
+    
+    // Reset input
+    if (attachmentFileInputRef.current) {
+      attachmentFileInputRef.current.value = ''
+    }
+  }
+
+  const handleAttachmentDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsAttachmentDragActive(true)
+  }
+
+  const handleAttachmentDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsAttachmentDragActive(false)
+  }
+
+  const handleAttachmentDrop = (e: React.DragEvent, leadId: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsAttachmentDragActive(false)
+
+    const files = e.dataTransfer.files
+    if (!files || files.length === 0) return
+
+    const validFiles: File[] = []
+    const invalidFiles: string[] = []
+
+    // Process all dropped files
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      const validation = validateFile(file)
+      
+      if (validation.valid) {
+        validFiles.push(file)
+      } else {
+        invalidFiles.push(`${file.name}: ${validation.error}`)
+      }
+    }
+
+    // Show errors for invalid files
+    if (invalidFiles.length > 0) {
+      pushToast(`Some files were invalid: ${invalidFiles.join(', ')}`, 'error')
+    }
+
+    // Add valid files to pending attachments
+    if (validFiles.length > 0) {
+      setPendingAttachments(prev => ({
+        ...prev,
+        [leadId]: {
+          toAdd: [...(prev[leadId]?.toAdd || []), ...validFiles],
+          toRemove: prev[leadId]?.toRemove || []
+        }
+      }))
+      setHasUnsavedChanges(true)
+    }
+  }
+
+  const uploadAttachmentSilently = async (leadId: string, file: File) => {
+    try {
+      const response = await apiService.uploadLeadAttachment(leadId, file)
+      
+      if (response.success && response.data) {
+        // Check if the response has the expected structure
+        let newAttachment = null
+        
+        if (response.data.attachment) {
+          newAttachment = response.data.attachment
+        } else if ((response.data as any).data && (response.data as any).data.attachment) {
+          newAttachment = (response.data as any).data.attachment
+        } else if (response.data) {
+          newAttachment = response.data as any
+        }
+        
+        if (newAttachment && newAttachment.id && newAttachment.mimeType && newAttachment.originalName) {
+          // Update local state to add attachment
+          setLeads(prev => prev.map(lead => {
+            if (lead.id === leadId) {
+              const attachments = lead.attachments || []
+              return { ...lead, attachments: [...attachments, newAttachment] }
+            }
+            return lead
+          }))
+        }
+      } else {
+        throw new Error(response.error || 'Failed to upload file')
+      }
+    } catch (error) {
+      console.error('Error uploading attachment silently:', error)
+      throw error
+    }
+  }
+
+  const removeAttachmentFromPending = (leadId: string, attachmentId: string) => {
+    // Add to pending removals instead of deleting immediately
+    setPendingAttachments(prev => ({
+      ...prev,
+      [leadId]: {
+        toAdd: prev[leadId]?.toAdd || [],
+        toRemove: [...(prev[leadId]?.toRemove || []), attachmentId]
+      }
+    }))
+    setHasUnsavedChanges(true)
+  }
+
+  const deleteAttachment = async (leadId: string, attachmentId: string) => {
+    try {
+      const response = await apiService.deleteLeadAttachment(leadId, attachmentId)
+      
+      if (response.success) {
+        // Update local state to remove attachment
+        setLeads(prev => prev.map(lead => {
+          if (lead.id === leadId) {
+            const attachments = (lead.attachments || []).filter(a => a.id !== attachmentId)
+            return { ...lead, attachments }
+          }
+          return lead
+        }))
+      } else {
+        pushToast(response.error || 'Failed to delete file', 'error')
+      }
+    } catch (error) {
+      console.error('Error deleting attachment:', error)
+      pushToast('Error deleting file', 'error')
+    }
+  }
+
+  const downloadAttachment = async (leadId: string, attachmentId: string, filename: string) => {
+    try {
+      const blob = await apiService.getLeadAttachment(leadId, attachmentId)
+      
+      if (blob) {
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = filename
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        window.URL.revokeObjectURL(url)
+      } else {
+        pushToast('Failed to download file', 'error')
+      }
+    } catch (error) {
+      console.error('Error downloading attachment:', error)
+      pushToast('Error downloading file', 'error')
+    }
+  }
+
+  const viewAttachment = async (leadId: string, attachmentId: string) => {
+    try {
+      const blob = await apiService.getLeadAttachment(leadId, attachmentId)
+      
+      if (blob) {
+        const url = window.URL.createObjectURL(blob)
+        window.open(url, '_blank')
+      } else {
+        pushToast('Failed to view file', 'error')
+      }
+    } catch (error) {
+      console.error('Error viewing attachment:', error)
+      pushToast('Error viewing file', 'error')
+    }
+  }
+
+  const processPendingAttachments = async (leadId: string) => {
+    const pending = pendingAttachments[leadId]
+    if (!pending || (pending.toAdd.length === 0 && pending.toRemove.length === 0)) {
+      return
+    }
+
+    try {
+      setUploadingAttachments(prev => ({ ...prev, [leadId]: true }))
+      
+      // Process deletions first
+      for (const attachmentId of pending.toRemove) {
+        await deleteAttachment(leadId, attachmentId)
+      }
+      
+      // Process uploads - but don't update local state immediately
+      for (const file of pending.toAdd) {
+        await uploadAttachmentSilently(leadId, file)
+      }
+      
+      // Refresh the lead data to get updated attachments
+      const response = await apiService.getLeadsByStatus()
+      if (response.success && response.data) {
+        setLeads(response.data.leads)
+        updatePipelineStages(response.data.leads)
+      }
+      
+      // Clear pending changes
+      setPendingAttachments(prev => {
+        const newPending = { ...prev }
+        delete newPending[leadId]
+        return newPending
+      })
+      setHasUnsavedChanges(false)
+      
+    } catch (error) {
+      console.error('Error processing pending attachments:', error)
+      pushToast('Error saving attachment changes', 'error')
+    } finally {
+      setUploadingAttachments(prev => ({ ...prev, [leadId]: false }))
+    }
+  }
+
 
   function handleEdit(lead: Lead) {
     setEditingId(lead.id)
     setEditValue(lead.value?.toString() || "")
     setEditExpectedCloseDate(lead.estimated_close_date || "")
     setEditNotes(lead.description || "")
+    
+    // Save original values for change detection
+    setOriginalFormValues({
+      value: lead.value?.toString() || "",
+      expectedCloseDate: lead.estimated_close_date || "",
+      notes: lead.description || ""
+    })
+    
     setIsEditModalOpen(true)
   }
 
@@ -469,6 +815,10 @@ export default function PipelinePage({
           updatePipelineStages(updatedLeads)
           return updatedLeads
         })
+        
+        // Process pending attachments after successful lead update
+        await processPendingAttachments(editingId)
+        
         pushToast("Lead atualizado com sucesso.", "success")
       } else {
         pushToast(`Erro ao atualizar lead: ${response.error}`, "error")
@@ -483,6 +833,16 @@ export default function PipelinePage({
     setEditValue("")
     setEditExpectedCloseDate("")
     setEditNotes("")
+    
+    // Clear pending attachments when closing modal
+    if (editingId) {
+      setPendingAttachments(prev => {
+        const newPending = { ...prev }
+        delete newPending[editingId]
+        return newPending
+      })
+    }
+    setHasUnsavedChanges(false)
   }
 
   function handleViewLead(lead: Lead) {
@@ -843,13 +1203,16 @@ export default function PipelinePage({
 
         {/* PREVIEW MODAL */}
         <Sheet open={preview.open} onOpenChange={(open) => setPreview((p) => ({ ...p, open }))}>
-          <SheetContent className="w-full sm:max-w-lg border-l border-border p-6 md:p-8">
-        <SheetHeader>
-          <SheetTitle>Lead Details</SheetTitle>
-          <SheetDescription>Complete lead information</SheetDescription>
-        </SheetHeader>
-            <Separator className="my-4" />
-            <div className="space-y-4">
+          <SheetContent className="w-full sm:max-w-lg border-l border-border p-6 md:p-8 flex flex-col max-h-screen">
+            <div className="flex-shrink-0">
+              <SheetHeader>
+                <SheetTitle>Lead Details</SheetTitle>
+                <SheetDescription>Complete lead information</SheetDescription>
+              </SheetHeader>
+              <Separator className="my-4" />
+            </div>
+            
+            <div className="flex-1 overflow-y-auto pr-2 space-y-4">
               {preview.lead && (
                 <>
                   {/* Basic Information */}
@@ -935,6 +1298,61 @@ export default function PipelinePage({
                     </>
                   )}
 
+                  {/* Attachments */}
+                  {preview.lead.attachments && preview.lead.attachments.length > 0 && (
+                    <>
+                      <Separator />
+                      <div className="space-y-3">
+                        <h3 className="text-sm font-semibold text-muted-foreground">Attachments</h3>
+                        <div className="space-y-2">
+                          {preview.lead.attachments.map((attachment) => {
+                            if (!attachment || !attachment.id || !attachment.mimeType) {
+                              console.warn('Invalid attachment object:', attachment)
+                              return null
+                            }
+                            const FileIcon = getFileIcon(attachment.mimeType)
+                            return (
+                              <div
+                                key={attachment.id}
+                                className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+                              >
+                                <FileIcon className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate">
+                                    {attachment.originalName || 'Unknown file'}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {formatFileSize(attachment.size || 0)} • {attachment.uploadedAt ? new Date(attachment.uploadedAt).toLocaleDateString('en-US') : 'Unknown date'}
+                                  </p>
+                                </div>
+                                <div className="flex gap-1">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="cursor-pointer"
+                                    onClick={() => viewAttachment(preview.lead!.id, attachment.id)}
+                                    title="View file"
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="cursor-pointer"
+                                    onClick={() => downloadAttachment(preview.lead!.id, attachment.id, attachment.originalName || 'file')}
+                                    title="Download file"
+                                  >
+                                    <Download className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    </>
+                  )}
+
                   {/* Activity History */}
                   <Separator />
                   <div className="space-y-3">
@@ -977,15 +1395,35 @@ export default function PipelinePage({
         </Sheet>
 
         {/* EDIT MODAL */}
-        <Sheet open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-          <SheetContent className="w-full sm:max-w-md border-l border-border p-6 md:p-8">
-            <SheetHeader>
-              <SheetTitle>Edit Lead</SheetTitle>
-              <SheetDescription>
-                Edit the lead's negotiation fields.
-              </SheetDescription>
-            </SheetHeader>
-            <Separator className="my-4" />
+        <Sheet open={isEditModalOpen} onOpenChange={(open) => {
+          if (!open) {
+            if (unsavedChangesToast.show) {
+              // User clicked outside again after seeing the toast
+              confirmDiscardChanges()
+            } else {
+              handleModalClose()
+            }
+          } else {
+            setIsEditModalOpen(open)
+          }
+        }}>
+          <SheetContent 
+            className="w-full sm:max-w-md border-l border-border p-6 md:p-8 flex flex-col max-h-screen"
+            onDragOver={handleAttachmentDragOver}
+            onDragLeave={handleAttachmentDragLeave}
+            onDrop={(e) => editingId && handleAttachmentDrop(e, editingId)}
+          >
+            <div className="flex-shrink-0">
+              <SheetHeader>
+                <SheetTitle>Edit Lead</SheetTitle>
+                <SheetDescription>
+                  Edit the lead's negotiation fields.
+                </SheetDescription>
+              </SheetHeader>
+              <Separator className="my-4" />
+            </div>
+            
+            <div className="flex-1 overflow-y-auto pr-2">
             <form onSubmit={handleEditSubmit} className="space-y-6">
               <div className="space-y-4">
                 <div>
@@ -1032,6 +1470,196 @@ export default function PipelinePage({
                   )}
                 </div>
               </div>
+
+              {/* Attachments Section */}
+              {editingId && (
+                <>
+                  <Separator />
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-semibold text-muted-foreground">Attachments</h3>
+                      {(() => {
+                        const lead = leads.find(l => l.id === editingId)
+                        const attachments = lead?.attachments || []
+                        const pending = pendingAttachments[editingId]
+                        const pendingToAdd = pending?.toAdd || []
+                        const pendingToRemove = pending?.toRemove || []
+                        const visibleAttachments = attachments.filter(att => !pendingToRemove.includes(att.id))
+                        const hasAnyAttachments = visibleAttachments.length > 0 || pendingToAdd.length > 0
+                        
+                        if (hasAnyAttachments) {
+                          return (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="cursor-pointer"
+                              onClick={() => attachmentFileInputRef.current?.click()}
+                            >
+                              <Upload className="h-4 w-4 mr-2" />
+                              Add Files
+                            </Button>
+                          )
+                        }
+                        return null
+                      })()}
+                    </div>
+                    
+                    <input
+                      ref={attachmentFileInputRef}
+                      type="file"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => handleAttachmentFileSelect(e, editingId)}
+                    />
+                    
+                    {/* Upload Zone - Conditional display */}
+                    {(() => {
+                      const lead = leads.find(l => l.id === editingId)
+                      const attachments = lead?.attachments || []
+                      const pending = pendingAttachments[editingId]
+                      const pendingToAdd = pending?.toAdd || []
+                      const pendingToRemove = pending?.toRemove || []
+                      const visibleAttachments = attachments.filter(att => !pendingToRemove.includes(att.id))
+                      const hasAnyAttachments = visibleAttachments.length > 0 || pendingToAdd.length > 0
+                      
+                      if (!hasAnyAttachments) {
+                        return (
+                          <div
+                            className={`relative border-2 border-dashed rounded-lg p-6 transition-colors cursor-pointer ${
+                              isAttachmentDragActive
+                                ? 'border-primary bg-primary/5'
+                                : 'border-muted-foreground/25 hover:border-muted-foreground/50'
+                            }`}
+                            onDragOver={handleAttachmentDragOver}
+                            onDragLeave={handleAttachmentDragLeave}
+                            onDrop={(e) => handleAttachmentDrop(e, editingId)}
+                            onClick={() => attachmentFileInputRef.current?.click()}
+                          >
+                            <div className="flex flex-col items-center justify-center gap-2">
+                              {uploadingAttachments[editingId] ? (
+                                <>
+                                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                                  <p className="text-sm text-muted-foreground">Uploading...</p>
+                                </>
+                              ) : (
+                                <>
+                                  <Upload className="h-8 w-8 text-muted-foreground" />
+                                  <div className="text-center">
+                                    <p className="text-sm font-medium">
+                                      Drag and drop files here
+                                    </p>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                      or click to browse (max 50MB)
+                                    </p>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      }
+                      return null
+                    })()}
+
+                    {/* Existing Attachments */}
+                    {(() => {
+                      const lead = leads.find(l => l.id === editingId)
+                      const attachments = lead?.attachments || []
+                      const pending = pendingAttachments[editingId]
+                      const pendingToAdd = pending?.toAdd || []
+                      const pendingToRemove = pending?.toRemove || []
+                      
+                      // Filter out attachments that are marked for removal
+                      const visibleAttachments = attachments.filter(att => !pendingToRemove.includes(att.id))
+                      
+                      if (visibleAttachments.length === 0 && pendingToAdd.length === 0) {
+                        return null
+                      }
+                      
+                      return (
+                        <div className="space-y-2">
+                          {/* Existing attachments */}
+                          {visibleAttachments.map((attachment) => {
+                            // Add safety checks for attachment properties
+                            if (!attachment || !attachment.id || !attachment.mimeType) {
+                              console.warn('Invalid attachment object:', attachment)
+                              return null
+                            }
+                            
+                            const FileIcon = getFileIcon(attachment.mimeType)
+                            return (
+                              <div
+                                key={attachment.id}
+                                className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+                              >
+                                <FileIcon className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate">
+                                    {attachment.originalName || 'Unknown file'}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {formatFileSize(attachment.size || 0)}
+                                  </p>
+                                </div>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="ghost"
+                                  className="cursor-pointer text-destructive hover:text-destructive"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    removeAttachmentFromPending(editingId, attachment.id)
+                                  }}
+                                >
+                                  <Trash className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            )
+                          })}
+                          
+                          {/* Pending files to add */}
+                          {pendingToAdd.map((file, index) => (
+                            <div
+                              key={`pending-${index}`}
+                              className="flex items-center gap-3 p-3 rounded-lg border bg-primary/5 border-primary/20"
+                            >
+                              <File className="h-5 w-5 text-primary flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate text-primary">
+                                  {file.name}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {formatFileSize(file.size)} (pending, save to upload)
+                                </p>
+                              </div>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                className="cursor-pointer text-destructive hover:text-destructive"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setPendingAttachments(prev => ({
+                                    ...prev,
+                                    [editingId]: {
+                                      toAdd: prev[editingId]?.toAdd.filter((_, i) => i !== index) || [],
+                                      toRemove: prev[editingId]?.toRemove || []
+                                    }
+                                  }))
+                                }}
+                              >
+                                <Trash className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )
+                    })()}
+                  </div>
+                </>
+              )}
+
               <Separator />
               <div className="flex gap-2">
                 <Button type="submit" className="flex-1 cursor-pointer">
@@ -1041,11 +1669,23 @@ export default function PipelinePage({
                   type="button" 
                   variant="outline" 
                   onClick={() => {
+                    // Close toast if it's showing
+                    setUnsavedChangesToast({ show: false, message: '' })
                     setIsEditModalOpen(false)
                     setEditingId(null)
                     setEditValue("")
                     setEditExpectedCloseDate("")
                     setEditNotes("")
+                    // Clear pending attachments when closing modal
+                    if (editingId) {
+                      setPendingAttachments(prev => {
+                        const newPending = { ...prev }
+                        delete newPending[editingId]
+                        return newPending
+                      })
+                    }
+                    setHasUnsavedChanges(false)
+                    setOriginalFormValues(null)
                   }} 
                   className="cursor-pointer"
                 >
@@ -1054,6 +1694,7 @@ export default function PipelinePage({
                 </Button>
               </div>
             </form>
+            </div>
           </SheetContent>
         </Sheet>
 
@@ -1217,6 +1858,18 @@ export default function PipelinePage({
             </div>
           </SheetContent>
         </Sheet>
+
+        {/* UNSAVED CHANGES TOAST NOTIFICATION */}
+        {unsavedChangesToast.show && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none">
+            <div className="bg-yellow-50 dark:bg-yellow-900/90 text-yellow-800 dark:text-yellow-200 border border-yellow-200 dark:border-yellow-800 rounded-lg shadow-lg px-4 py-3 max-w-sm mx-4 pointer-events-auto">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                <span className="text-sm font-medium">{unsavedChangesToast.message}</span>
+              </div>
+            </div>
+          </div>
+        )}
       </SidebarInset>
     </SidebarProvider>
     </AuthGuard>

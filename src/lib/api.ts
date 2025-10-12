@@ -1,5 +1,15 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
+export interface Attachment {
+  id: string;
+  filename: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+  url: string;
+  uploadedAt: string;
+}
+
 export interface Lead {
   id: string;
   organization_id: string;
@@ -15,6 +25,7 @@ export interface Lead {
   description?: string;
   estimated_close_date?: string;
   show_on_pipeline: boolean;
+  attachments?: Attachment[];
   created_at: string;
   updated_at: string;
 }
@@ -493,6 +504,135 @@ class ApiService {
     }
 
     return this.request<{ organization: any }>('/auth/user-organization');
+  }
+
+  // Attachment methods
+  async uploadLeadAttachment(leadId: string, file: File): Promise<ApiResponse<{ attachment: Attachment }>> {
+    if (typeof window === 'undefined') {
+      return {
+        success: false,
+        error: 'API calls only available on client side'
+      };
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const token = this.getAuthToken();
+    
+    const config: RequestInit = {
+      method: 'POST',
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: formData,
+    };
+
+    try {
+      const fullUrl = `${API_BASE_URL}/api/leads/${leadId}/attachments`;
+      console.log('Uploading attachment to:', fullUrl);
+      
+      const response = await fetch(fullUrl, config);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Upload Error:', response.status, errorText);
+        
+        if (response.status === 401) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('organization');
+          localStorage.removeItem('lastActivity');
+          if (typeof window !== 'undefined') {
+            const pathParts = window.location.pathname.split('/');
+            const orgSlug = pathParts[1];
+            if (orgSlug && orgSlug !== 'login' && orgSlug !== 'register') {
+              window.location.href = `/${orgSlug}/login`;
+            } else {
+              window.location.href = '/login';
+            }
+          }
+        }
+        
+        return {
+          success: false,
+          error: `HTTP ${response.status}: ${errorText}`
+        };
+      }
+
+      const data = await response.json();
+      console.log('Upload response:', data);
+      return {
+        success: true,
+        data: data
+      };
+    } catch (error) {
+      console.error('Upload request failed:', error);
+      return {
+        success: false,
+        error: `Network error: ${error instanceof Error ? error.message : 'Unknown error'}`
+      };
+    }
+  }
+
+  async deleteLeadAttachment(leadId: string, attachmentId: string): Promise<ApiResponse<{ message: string }>> {
+    if (typeof window === 'undefined') {
+      return {
+        success: false,
+        error: 'API calls only available on client side'
+      };
+    }
+
+    return this.request<{ message: string }>(`/api/leads/${leadId}/attachments/${attachmentId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getLeadAttachment(leadId: string, attachmentId: string): Promise<Blob | null> {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+
+    const token = this.getAuthToken();
+    
+    const config: RequestInit = {
+      method: 'GET',
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    };
+
+    try {
+      const fullUrl = `${API_BASE_URL}/api/leads/${leadId}/attachments/${attachmentId}`;
+      console.log('Downloading attachment from:', fullUrl);
+      
+      const response = await fetch(fullUrl, config);
+      
+      if (!response.ok) {
+        console.error('Download Error:', response.status);
+        
+        if (response.status === 401) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('organization');
+          localStorage.removeItem('lastActivity');
+          if (typeof window !== 'undefined') {
+            const pathParts = window.location.pathname.split('/');
+            const orgSlug = pathParts[1];
+            if (orgSlug && orgSlug !== 'login' && orgSlug !== 'register') {
+              window.location.href = `/${orgSlug}/login`;
+            } else {
+              window.location.href = '/login';
+            }
+          }
+        }
+        
+        return null;
+      }
+
+      return await response.blob();
+    } catch (error) {
+      console.error('Download request failed:', error);
+      return null;
+    }
   }
 }
 
