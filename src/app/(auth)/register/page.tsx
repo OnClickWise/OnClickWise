@@ -132,6 +132,13 @@ export default function RegisterPage() {
         }),
       });
 
+      // Check if response is HTML (API not running)
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('text/html')) {
+        setError('API not available. Please try again later.');
+        return;
+      }
+
       const result = await response.json();
 
       if (result.success) {
