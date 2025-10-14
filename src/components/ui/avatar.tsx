@@ -78,11 +78,38 @@ function UserAvatar({ src, name = "User", className, size = "md" }: UserAvatarPr
 
   const fallbackText = name ? name.charAt(0).toUpperCase() : "?"
 
+  // Generate consistent avatar with same colors as generateAvatar function
+  const generateConsistentAvatar = (name: string) => {
+    if (!name) return '';
+    
+    const firstLetter = name.charAt(0).toUpperCase();
+    const colors = [
+      '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
+      '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9'
+    ];
+    
+    const colorIndex = name.charCodeAt(0) % colors.length;
+    const backgroundColor = colors[colorIndex];
+    
+    return `data:image/svg+xml;base64,${btoa(`
+      <svg width="40" height="40" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="20" cy="20" r="20" fill="${backgroundColor}"/>
+        <text x="20" y="26" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="16" font-weight="bold">${firstLetter}</text>
+      </svg>
+    `)}`;
+  };
+
   return (
     <Avatar className={cn(sizeClasses[size], className)}>
       <AvatarImage src={src} alt={name} />
-      <AvatarFallback className={textSizeClasses[size]}>
-        {fallbackText}
+      <AvatarFallback 
+        className={cn(textSizeClasses[size], "bg-transparent")}
+        style={{ 
+          backgroundImage: `url(${generateConsistentAvatar(name)})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center'
+        }}
+      >
       </AvatarFallback>
     </Avatar>
   )
@@ -113,11 +140,49 @@ function OrganizationAvatar({ src, name = "Organization", className, size = "md"
 
   const fallbackText = name ? name.charAt(0).toUpperCase() : "?"
 
+  // Generate consistent organization logo with same colors as generateOrgLogo function
+  const generateConsistentOrgLogo = (name: string) => {
+    if (!name) return '';
+    
+    const firstLetter = name.charAt(0).toUpperCase();
+    const colors = [
+      '#3B82F6', '#1E40AF', '#2563EB', '#1D4ED8', '#1E3A8A',
+      '#3730A3', '#4C1D95', '#581C87', '#6B21A8', '#7C2D12'
+    ];
+    
+    const colorIndex = name.charCodeAt(0) % colors.length;
+    const backgroundColor = colors[colorIndex];
+    
+    return `data:image/svg+xml;base64,${btoa(`
+      <svg width="32" height="32" xmlns="http://www.w3.org/2000/svg">
+        <rect width="32" height="32" rx="8" fill="${backgroundColor}"/>
+        <text x="16" y="22" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="14" font-weight="bold">${firstLetter}</text>
+      </svg>
+    `)}`;
+  };
+
   return (
-    <Avatar className={cn(sizeClasses[size], "rounded-lg", className)}>
+    <Avatar className={cn(
+      sizeClasses[size], 
+      "rounded-lg transition-all duration-200",
+      // Quando a sidebar está colapsada, o avatar fica menor
+      "group-data-[state=collapsed]:size-6 group-data-[state=collapsed]:rounded-full",
+      className
+    )}>
       <AvatarImage src={src} alt={name} />
-      <AvatarFallback className={cn(textSizeClasses[size], "rounded-lg bg-primary text-primary-foreground")}>
-        {fallbackText}
+      <AvatarFallback 
+        className={cn(
+          textSizeClasses[size], 
+          "rounded-lg bg-transparent transition-all duration-200",
+          // Quando a sidebar está colapsada, o texto fica menor
+          "group-data-[state=collapsed]:text-xs group-data-[state=collapsed]:rounded-full"
+        )}
+        style={{ 
+          backgroundImage: `url(${generateConsistentOrgLogo(name)})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center'
+        }}
+      >
       </AvatarFallback>
     </Avatar>
   )

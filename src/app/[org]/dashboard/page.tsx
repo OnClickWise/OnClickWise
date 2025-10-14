@@ -1,3 +1,4 @@
+import * as React from "react"
 import { AppSidebar } from "@/components/app-sidebar"
 import AuthGuard from "@/components/AuthGuard"
 import {
@@ -18,12 +19,13 @@ import {
 export default function DashboardPage({
   params,
 }: {
-  params: { org: string }
+  params: Promise<{ org: string }>
 }) {
+  const { org } = React.use(params)
   return (
-    <AuthGuard orgSlug={params.org}>
+    <AuthGuard orgSlug={org}>
       <SidebarProvider>
-        <AppSidebar org={params.org} />
+        <AppSidebar org={org} />
         <SidebarInset>
         {/* HEADER */}
         <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4">
@@ -35,7 +37,7 @@ export default function DashboardPage({
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem className="hidden md:block">
-                <BreadcrumbLink href={`/${params.org}/dashboard`}>
+                <BreadcrumbLink href={`/${org}/dashboard`}>
                   Dashboard
                 </BreadcrumbLink>
               </BreadcrumbItem>
@@ -61,7 +63,7 @@ export default function DashboardPage({
             </div>
           </div>
           <div className="bg-muted/50 min-h-[100vh] flex-1 rounded-xl md:min-h-min flex items-center justify-center">
-            Conteúdo principal da {params.org}
+            Conteúdo principal da {org}
           </div>
         </div>
       </SidebarInset>

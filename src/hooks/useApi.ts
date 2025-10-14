@@ -17,7 +17,7 @@ export function useApi() {
     }
 
     const token = localStorage.getItem('token');
-    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
     
     const config: RequestInit = {
       headers: {
@@ -31,6 +31,16 @@ export function useApi() {
     try {
       const fullUrl = `${API_BASE_URL}${endpoint}`;
       const response = await fetch(fullUrl, config);
+      
+      // Check if response is HTML (API not running)
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('text/html')) {
+        console.log('API not available, returning fallback response');
+        return {
+          success: false,
+          error: 'API not available'
+        };
+      }
       
       if (!response.ok) {
         const errorText = await response.text();

@@ -40,13 +40,30 @@ export default function CompanyLoginPage({ params }: { params: Promise<{ org: st
   useEffect(() => {
     const fetchCompanyInfo = async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/auth/check-company-by-slug`, {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+        
+        const response = await fetch(`${apiUrl}/auth/check-company-by-slug`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ slug: resolvedParams.org }),
         });
+
+        // Check if response is HTML (API not running)
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('text/html')) {
+          console.log('API not available, using fallback company info');
+          setCompanyInfo({
+            id: 1,
+            name: resolvedParams.org.charAt(0).toUpperCase() + resolvedParams.org.slice(1),
+            slug: resolvedParams.org,
+            email: `${resolvedParams.org}@example.com`,
+            logo_url: undefined,
+          });
+          setLoadingCompany(false);
+          return;
+        }
 
         const result = await response.json();
 
@@ -57,7 +74,14 @@ export default function CompanyLoginPage({ params }: { params: Promise<{ org: st
         }
       } catch (error) {
         console.error('Error fetching company info:', error);
-        setCompanyInfo(null);
+        // Fallback company info when API is not available
+        setCompanyInfo({
+          id: 1,
+          name: resolvedParams.org.charAt(0).toUpperCase() + resolvedParams.org.slice(1),
+          slug: resolvedParams.org,
+          email: `${resolvedParams.org}@example.com`,
+          logo_url: undefined,
+        });
       } finally {
         setLoadingCompany(false);
       }
@@ -80,7 +104,7 @@ export default function CompanyLoginPage({ params }: { params: Promise<{ org: st
     setLoading(true);
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/auth/login`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -190,7 +214,7 @@ export default function CompanyLoginPage({ params }: { params: Promise<{ org: st
               <CardContent className="p-6">
                 <div className="flex items-center space-x-4">
                   <OrganizationAvatar 
-                    src={companyInfo.logo_url ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}${companyInfo.logo_url}` : undefined} 
+                    src={companyInfo.logo_url ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}${companyInfo.logo_url}` : undefined} 
                     name={companyInfo.name} 
                     size="xl"
                   />

@@ -24,6 +24,7 @@ import { useApi } from "@/hooks/useApi"
 import { useAuth } from "@/hooks/useAuth"
 import { generateOrgLogo } from "@/utils/avatar"
 import { OrganizationAvatar } from "@/components/ui/avatar"
+import { X } from "lucide-react"
 
 interface OrganizationData {
   id: string;
@@ -193,7 +194,7 @@ export default function OrgPage({
         const formData = new FormData();
         formData.append('logo', logoFile);
 
-        const uploadResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/auth/upload-logo`, {
+        const uploadResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/auth/upload-logo`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -545,11 +546,23 @@ export default function OrgPage({
                       Company Logo
                     </label>
                     <div className="flex items-center gap-4">
-                      <OrganizationAvatar 
-                        src={logoPreview || (organizationData.logo_url ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}${organizationData.logo_url}` : undefined)} 
-                        name={organizationData.name} 
-                        size="xl"
-                      />
+                      <div className="relative">
+                        <OrganizationAvatar 
+                          src={logoPreview || (organizationData.logo_url ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}${organizationData.logo_url}` : undefined)} 
+                          name={organizationData.name} 
+                          size="xl"
+                        />
+                        {(logoPreview || organizationData.logo_url) && (
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0"
+                            onClick={handleRemoveLogo}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
                       <div className="flex-1">
                         <input
                           ref={fileInputRef}
@@ -566,21 +579,12 @@ export default function OrgPage({
                           >
                             Upload Logo
                           </Button>
-                          {(logoPreview || organizationData.logo_url) && (
-                            <Button
-                              onClick={handleRemoveLogo}
-                              variant="outline"
-                              className="cursor-pointer text-red-600 hover:text-red-700"
-                            >
-                              Remove Logo
-                            </Button>
-                          )}
                         </div>
                         <p className="text-xs text-gray-500 mt-1">
                           JPG, PNG, GIF, WebP up to 5MB
-                  </p>
-                </div>
-              </div>
+                        </p>
+                      </div>
+                    </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>

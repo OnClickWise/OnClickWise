@@ -105,7 +105,7 @@ export default function AccountPage({ params }: { params: Promise<{ org: string 
         setUserData(response.user)
         setOriginalData(response.user)
         setProfilePreview(response.user.profile_image 
-          ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}${response.user.profile_image}` 
+          ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}${response.user.profile_image}` 
           : '')
       } else {
         addNotification('error', 'Failed to load user data')
@@ -150,6 +150,11 @@ export default function AccountPage({ params }: { params: Promise<{ org: string 
     setProfilePreview('')
     setProfileFile(null)
     setUserData(prev => ({ ...prev, profile_image: '' }))
+    // Reset the file input to allow selecting the same file again
+    const fileInput = document.getElementById('profile-upload') as HTMLInputElement
+    if (fileInput) {
+      fileInput.value = ''
+    }
   }
 
   const handleSave = async () => {
@@ -374,7 +379,7 @@ export default function AccountPage({ params }: { params: Promise<{ org: string 
             <div className="flex items-center gap-6">
               <div className="relative">
                 <UserAvatar 
-                  src={profilePreview || (userData.profile_image ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}${userData.profile_image}` : undefined)} 
+                  src={profilePreview || (userData.profile_image ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}${userData.profile_image}` : undefined)} 
                   name={userData.name} 
                   size="xl"
                 />
