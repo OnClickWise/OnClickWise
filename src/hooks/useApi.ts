@@ -19,9 +19,12 @@ export function useApi() {
     const token = localStorage.getItem('token');
     const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
     
+    // Se for FormData, não definir Content-Type (deixar o browser definir)
+    const isFormData = options.body instanceof FormData;
+    
     const config: RequestInit = {
       headers: {
-        'Content-Type': 'application/json',
+        ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
         ...(token && { Authorization: `Bearer ${token}` }),
         ...options.headers,
       },

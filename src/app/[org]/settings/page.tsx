@@ -74,6 +74,7 @@ export default function SettingsPage({
                   <ul className="text-left text-blue-700 space-y-2">
                     <li><strong>Organização:</strong> Informações básicas da empresa</li>
                     <li><strong>Usuários:</strong> Gerenciar funcionários e permissões</li>
+                    <li><strong>Telegram:</strong> Configurar bot do Telegram</li>
                     <li><strong>Planos & Billing:</strong> Assinatura e pagamentos</li>
                     <li><strong>Branding:</strong> Personalização visual</li>
                   </ul>

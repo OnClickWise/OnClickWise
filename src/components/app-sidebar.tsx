@@ -283,6 +283,7 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
         items: [
           { title: "Organization", url: `/${org}/settings/org` },
           { title: "Users", url: `/${org}/settings/users` },
+          { title: "Telegram", url: `/${org}/settings/telegram` },
           { title: "Plans & Billing", url: `/${org}/settings/billing` },
           { title: "Branding", url: `/${org}/settings/branding` },
         ],
