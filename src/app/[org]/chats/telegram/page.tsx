@@ -70,7 +70,6 @@ interface TelegramMessage {
   file_id?: string;
   file_url?: string;
   caption?: string;
-  is_read: boolean;
   is_delivered?: boolean;
   telegram_date?: string;
   created_at: string;
@@ -97,38 +96,10 @@ export default function TelegramPage({
   const [imageModal, setImageModal] = React.useState<{ isOpen: boolean; src: string }>({ isOpen: false, src: '' })
   const [uploading, setUploading] = React.useState(false)
   const [unreadCounts, setUnreadCounts] = React.useState<{[key: string]: number}>({})
+  const [isMarkingAsRead, setIsMarkingAsRead] = React.useState(false)
+  const [markAsReadTimeout, setMarkAsReadTimeout] = React.useState<NodeJS.Timeout | null>(null)
 
-  // Teste manual - adicionar contador para debug
-  React.useEffect(() => {
-    console.log('Current unread counts:', unreadCounts)
-    
-    // Teste manual - forçar contador para debug
-    if (conversations.length > 0 && Object.keys(unreadCounts).length === 0) {
-      console.log('Forcing test unread count for debugging')
-      setUnreadCounts({
-        [conversations[0].id]: 3 // Teste manual
-      })
-    }
-  }, [unreadCounts, conversations])
 
-  // Função para marcar mensagens como lidas
-  const markMessagesAsRead = async (conversationId: string) => {
-    try {
-      const response = await apiCall(`/telegram/conversations/${conversationId}/mark-read`, {
-        method: 'POST'
-      })
-      if (response.success) {
-        console.log('Mensagens marcadas como lidas')
-        // Atualizar contador local
-        setUnreadCounts(prev => ({
-          ...prev,
-          [conversationId]: 0
-        }))
-      }
-    } catch (error) {
-      console.error('Erro ao marcar mensagens como lidas:', error)
-    }
-  }
 
   // Carregar bot do Telegram
   React.useEffect(() => {
@@ -208,13 +179,9 @@ export default function TelegramPage({
     
     const loadMessages = async () => {
       try {
-        console.log('Carregando mensagens para conversa:', selectedChat)
-        console.log('Token no localStorage:', localStorage.getItem('token'))
         const response = await apiCall(`/telegram/conversations/${selectedChat}/messages`)
-        console.log('Resposta da API para mensagens:', response)
         if (response.success && response.messages) {
           setMessages(response.messages)
-          console.log('Mensagens carregadas:', response.messages.length)
           
           // Scroll para o final após carregar mensagens
           setTimeout(() => {
@@ -223,9 +190,6 @@ export default function TelegramPage({
               messagesContainer.scrollTop = messagesContainer.scrollHeight
             }
           }, 100)
-          
-          // Marcar mensagens como lidas
-          markMessagesAsRead(selectedChat)
         } else {
           console.error('Erro na resposta da API para mensagens:', response.error || 'Resposta inválida')
         }
@@ -238,7 +202,7 @@ export default function TelegramPage({
 
   // Auto-refresh das mensagens a cada 3 segundos
   React.useEffect(() => {
-    if (!selectedChat || !isClient) return
+    if (!selectedChat || !isClient || isMarkingAsRead) return
 
     const refreshMessages = async () => {
       if (isRefreshing) return
@@ -266,19 +230,23 @@ export default function TelegramPage({
 
     const interval = setInterval(refreshMessages, 3000) // Atualizar a cada 3 segundos
     return () => clearInterval(interval)
-  }, [selectedChat, isClient, isRefreshing])
+  }, [selectedChat, isClient, isRefreshing, isMarkingAsRead])
 
-  // Auto-refresh das contagens de não lidas a cada 5 segundos
+  // Auto-refresh das contagens de não lidas a cada 10 segundos (reduzido para evitar conflito)
   React.useEffect(() => {
     if (!isClient || !conversations.length) return
 
     const refreshUnreadCounts = async () => {
+      // Não atualizar se estiver marcando mensagens como lidas
+      if (isMarkingAsRead) {
+        return
+      }
+      
       try {
         const counts: {[key: string]: number} = {}
         for (const conversation of conversations) {
           try {
             const response = await apiCall(`/telegram/conversations/${conversation.id}/unread-count`)
-            console.log(`Unread count for ${conversation.id}:`, response)
             if (response.success) {
               counts[conversation.id] = response.unreadCount || 0
             }
@@ -287,16 +255,15 @@ export default function TelegramPage({
             counts[conversation.id] = 0
           }
         }
-        console.log('Final unread counts:', counts)
         setUnreadCounts(counts)
       } catch (error) {
         console.error('Erro ao atualizar contagens de não lidas:', error)
       }
     }
 
-    const interval = setInterval(refreshUnreadCounts, 5000) // Atualizar a cada 5 segundos
+    const interval = setInterval(refreshUnreadCounts, 10000) // Atualizar a cada 10 segundos
     return () => clearInterval(interval)
-  }, [isClient, conversations])
+  }, [isClient, conversations, isMarkingAsRead])
 
   // Carregar contagem de mensagens não lidas
   React.useEffect(() => {
@@ -329,26 +296,43 @@ export default function TelegramPage({
   React.useEffect(() => {
     if (!selectedChat || !isClient) return
 
+    // Limpar timeout anterior se existir
+    if (markAsReadTimeout) {
+      clearTimeout(markAsReadTimeout)
+    }
+
     const markAsRead = async () => {
       try {
+        setIsMarkingAsRead(true)
+        console.log(`Marking messages as read for conversation: ${selectedChat}`)
         const response = await apiCall(`/telegram/conversations/${selectedChat}/mark-read`, {
           method: 'POST'
         })
+        
         if (response.success) {
+          console.log(`Successfully marked ${response.unreadCount || 0} messages as read`)
           // Atualizar contagem local
           setUnreadCounts(prev => ({
             ...prev,
             [selectedChat]: 0
           }))
+        } else {
+          console.error('Failed to mark messages as read:', response.error)
         }
       } catch (error) {
         console.error('Erro ao marcar mensagens como lidas:', error)
+      } finally {
+        setIsMarkingAsRead(false)
       }
     }
 
-    // Marcar como lida após um pequeno delay para garantir que as mensagens foram carregadas
+    // Marcar como lida após um delay para garantir que as mensagens foram carregadas
     const timeout = setTimeout(markAsRead, 1000)
-    return () => clearTimeout(timeout)
+    setMarkAsReadTimeout(timeout)
+    
+    return () => {
+      if (timeout) clearTimeout(timeout)
+    }
   }, [selectedChat, isClient])
 
   const filteredConversations = conversations.filter(conv => {
@@ -637,13 +621,6 @@ export default function TelegramPage({
                                 <Badge variant="secondary" className="text-xs">
                                   Privado
                                 </Badge>
-                              )}
-                              {unreadCounts[conversation.id] > 0 && (
-                                <div className="w-3 h-3 bg-blue-500 rounded-full flex items-center justify-center">
-                                  <span className="text-xs text-white font-bold">
-                                    {unreadCounts[conversation.id] > 9 ? '9+' : unreadCounts[conversation.id]}
-                                  </span>
-                                </div>
                               )}
                             </div>
                           </div>
@@ -964,16 +941,12 @@ export default function TelegramPage({
                                       {/* Indicadores de status */}
                                       <div className="flex space-x-0.5">
                                         <div className={`w-1 h-1 rounded-full ${
-                                          message.is_read 
-                                            ? 'bg-blue-200' 
-                                            : message.is_delivered 
+                                          message.is_delivered 
                                             ? 'bg-blue-300' 
                                             : 'bg-gray-400'
                                         }`}></div>
                                         <div className={`w-1 h-1 rounded-full ${
-                                          message.is_read 
-                                            ? 'bg-blue-200' 
-                                            : message.is_delivered 
+                                          message.is_delivered 
                                             ? 'bg-blue-300' 
                                             : 'bg-gray-400'
                                         }`}></div>
