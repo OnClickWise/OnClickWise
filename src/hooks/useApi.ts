@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 export function useApi() {
   const [isClient, setIsClient] = useState(false);
@@ -10,7 +10,7 @@ export function useApi() {
     }
   }, []);
 
-  const apiCall = async (endpoint: string, options: RequestInit = {}) => {
+  const apiCall = useCallback(async (endpoint: string, options: RequestInit = {}) => {
     // Aguardar até estar no cliente
     if (!isClient) {
       return { success: false, error: 'API calls only available on client side' };
@@ -71,7 +71,7 @@ export function useApi() {
         error: `Network error: ${error instanceof Error ? error.message : 'Unknown error'}`
       };
     }
-  };
+  }, [isClient]);
 
   return { isClient, apiCall };
 }

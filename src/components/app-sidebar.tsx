@@ -7,7 +7,6 @@ import {
   KanbanSquare,
   MessageSquare,
   Settings2,
-  Building2,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -19,7 +18,6 @@ import {
   SidebarHeader,
   SidebarRail,
 } from "@/components/ui/sidebar"
-import { useAuth } from "@/hooks/useAuth"
 import { useApi } from "@/hooks/useApi"
 import { generateAvatar, generateOrgLogo } from "@/utils/avatar"
 import { OrganizationAvatar } from "@/components/ui/avatar"
@@ -29,7 +27,6 @@ type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
 }
 
 export function AppSidebar({ org, ...props }: AppSidebarProps) {
-  const { organization } = useAuth()
   const { apiCall, isClient } = useApi()
   const [userData, setUserData] = React.useState({
     name: "",
@@ -97,7 +94,7 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
     if (isClient) {
       fetchData()
     }
-  }, [isClient]) // Dependência do isClient para aguardar o cliente estar pronto
+  }, [isClient, apiCall]) // apiCall agora está memoizado com useCallback
 
   // Listen for organization updates
   React.useEffect(() => {
@@ -134,7 +131,7 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
 
     window.addEventListener('organizationUpdated', handleOrganizationUpdate)
     return () => window.removeEventListener('organizationUpdated', handleOrganizationUpdate)
-  }, [isClient, apiCall])
+  }, [isClient, apiCall]) // apiCall agora está memoizado com useCallback
 
   // Listen for user updates
   React.useEffect(() => {
@@ -173,7 +170,7 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
 
     window.addEventListener('userUpdated', handleUserUpdate)
     return () => window.removeEventListener('userUpdated', handleUserUpdate)
-  }, [isClient, apiCall])
+  }, [isClient, apiCall]) // apiCall agora está memoizado com useCallback
   
   // Use organization data from API
   const organizationData = {
@@ -210,6 +207,7 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
           { title: "Email Campaigns", url: `/${org}/marketing/email` },
           { title: "Social Media", url: `/${org}/marketing/social` },
           { title: "AI Content", url: `/${org}/marketing/ai` },
+          { title: "Landing Page Builder", url: `/${org}/marketing/landing-builder` },
         ],
       },
       {

@@ -120,4 +120,32 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Landing Page Dynamic Styles */
+.landing-page {
+  --primary-color: #3b82f6;
+  --secondary-color: #1e40af;
+  --background-color: #ffffff;
+  --text-color: #1f2937;
+}
+
+.landing-page .dynamic-primary {
+  color: var(--primary-color);
+}
+
+.landing-page .dynamic-secondary {
+  color: var(--secondary-color);
+}
+
+.landing-page .dynamic-bg {
+  background-color: var(--background-color);
+}
+
+.landing-page .dynamic-text {
+  color: var(--text-color);
+}
+
+.landing-page .dynamic-gradient {
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+}
  
