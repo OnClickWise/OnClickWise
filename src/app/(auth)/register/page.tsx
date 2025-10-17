@@ -104,7 +104,8 @@ export default function RegisterPage() {
     }
 
     try {
-      const response = await fetch('http://localhost:3000/auth/register', {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${apiUrl}/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -40,7 +40,7 @@ export default function CompanyLoginPage({ params }: { params: Promise<{ org: st
   useEffect(() => {
     const fetchCompanyInfo = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
         
         const response = await fetch(`${apiUrl}/auth/check-company-by-slug`, {
           method: 'POST',
@@ -53,14 +53,8 @@ export default function CompanyLoginPage({ params }: { params: Promise<{ org: st
         // Check if response is HTML (API not running)
         const contentType = response.headers.get('content-type');
         if (contentType && contentType.includes('text/html')) {
-          console.log('API not available, using fallback company info');
-          setCompanyInfo({
-            id: 1,
-            name: resolvedParams.org.charAt(0).toUpperCase() + resolvedParams.org.slice(1),
-            slug: resolvedParams.org,
-            email: `${resolvedParams.org}@example.com`,
-            logo_url: undefined,
-          });
+          console.log('API not available');
+          setCompanyInfo(null);
           setLoadingCompany(false);
           return;
         }
@@ -74,14 +68,8 @@ export default function CompanyLoginPage({ params }: { params: Promise<{ org: st
         }
       } catch (error) {
         console.error('Error fetching company info:', error);
-        // Fallback company info when API is not available
-        setCompanyInfo({
-          id: 1,
-          name: resolvedParams.org.charAt(0).toUpperCase() + resolvedParams.org.slice(1),
-          slug: resolvedParams.org,
-          email: `${resolvedParams.org}@example.com`,
-          logo_url: undefined,
-        });
+        // If there's an error, assume company doesn't exist
+        setCompanyInfo(null);
       } finally {
         setLoadingCompany(false);
       }
@@ -104,7 +92,8 @@ export default function CompanyLoginPage({ params }: { params: Promise<{ org: st
     setLoading(true);
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/auth/login`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${apiUrl}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

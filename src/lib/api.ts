@@ -1,4 +1,7 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002';
+
+// Export the API base URL for use in other components
+export const getApiBaseUrl = () => API_BASE_URL;
 
 export interface Attachment {
   id: string;

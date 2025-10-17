@@ -75,7 +75,8 @@ export default function ChangePasswordModal({ isOpen, onClose, onSuccess }: Chan
         return;
       }
 
-      const response = await fetch('http://localhost:3000/auth/change-temporary-password', {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${apiUrl}/auth/change-temporary-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

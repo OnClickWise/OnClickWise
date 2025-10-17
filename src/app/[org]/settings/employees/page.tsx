@@ -44,7 +44,8 @@ export default function EmployeesPage({ params }: { params: { org: string } }) {
         return;
       }
 
-      const response = await fetch('http://localhost:3000/auth/employees', {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${apiUrl}/auth/employees`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -98,7 +99,8 @@ export default function EmployeesPage({ params }: { params: { org: string } }) {
         return;
       }
 
-      const response = await fetch('http://localhost:3000/auth/create-employee', {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${apiUrl}/auth/create-employee`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

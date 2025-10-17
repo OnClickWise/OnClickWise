@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useApi } from './useApi';
 import { useRouter } from 'next/navigation';
 
 interface User {
@@ -28,6 +29,7 @@ interface AuthState {
 }
 
 export function useAuth() {
+  const { apiCall } = useApi();
   const [authState, setAuthState] = useState<AuthState>({
     isAuthenticated: false,
     user: null,
@@ -121,7 +123,11 @@ export function useAuth() {
   }, [authState.isAuthenticated, authState.organization?.slug]);
 
   // Fazer logout
-  const logout = useCallback((orgSlug?: string) => {
+  const logout = useCallback(async (orgSlug?: string) => {
+    try {
+      // best-effort notify backend before clearing token
+      await apiCall('/presence/force-logout', { method: 'POST' });
+    } catch {}
     localStorage.removeItem('token');
     localStorage.removeItem('organization');
     localStorage.removeItem('lastActivity');
@@ -133,13 +139,12 @@ export function useAuth() {
       isLoading: false,
       lastActivity: null,
     });
-    // Redirecionar para a página de login da empresa ou página principal
     if (orgSlug) {
       router.push(`/${orgSlug}/login`);
     } else {
       router.push('/');
     }
-  }, [router]);
+  }, [router, apiCall]);
 
   // Salvar dados de autenticação
   const saveAuthData = useCallback((token: string, organization: Organization) => {

@@ -101,7 +101,8 @@ export default function UsersPage({
         return;
       }
 
-      const response = await fetch('http://localhost:3000/auth/employees', {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${apiUrl}/auth/employees`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -142,7 +143,8 @@ export default function UsersPage({
       }
 
       console.log('Sending request to create employee...');
-      const response = await fetch('http://localhost:3000/auth/create-employee', {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${apiUrl}/auth/create-employee`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -231,7 +233,8 @@ export default function UsersPage({
         return;
       }
 
-      const response = await fetch('http://localhost:3000/auth/update-employee', {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${apiUrl}/auth/update-employee`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -287,7 +290,8 @@ export default function UsersPage({
         return;
       }
 
-      const response = await fetch('http://localhost:3000/auth/delete-employee', {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const response = await fetch(`${apiUrl}/auth/delete-employee`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
