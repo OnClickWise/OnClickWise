@@ -16,6 +16,7 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
+  useSidebar,
 } from "@/components/ui/sidebar"
 
 export function NavMain({
@@ -32,6 +33,15 @@ export function NavMain({
     }[]
   }[]
 }) {
+  const { state, setOpen } = useSidebar()
+
+  const handleItemClick = () => {
+    // Se o sidebar estiver recolhido (modo icon), expandir ele
+    if (state === "collapsed") {
+      setOpen(true)
+    }
+  }
+
   return (
     <SidebarGroup>
       <SidebarGroupLabel>Platform</SidebarGroupLabel>
@@ -45,7 +55,11 @@ export function NavMain({
           >
             <SidebarMenuItem>
               <CollapsibleTrigger asChild>
-                <SidebarMenuButton tooltip={item.title} className="cursor-pointer">
+                <SidebarMenuButton 
+                  tooltip={item.title} 
+                  className="cursor-pointer"
+                  onClick={handleItemClick}
+                >
                   {item.icon && <item.icon />}
                   <span>{item.title}</span>
                   <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
