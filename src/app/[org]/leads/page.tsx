@@ -3571,7 +3571,7 @@ export default function LeadsPage({
 
         <AppSidebar org={org} />
 
-        <SidebarInset className={totalPages > 1 ? "pb-20" : ""}>
+        <SidebarInset className={`flex flex-col h-screen ${totalPages > 1 ? "pb-20" : ""}`}>
 
         {/* HEADER */}
 
@@ -4179,7 +4179,7 @@ export default function LeadsPage({
 
           {/* LEADS TABLE */}
 
-          <div className="bg-muted/50 rounded-xl p-4">
+            <div className="bg-muted/50 rounded-xl p-4 flex-1 flex flex-col">
 
             <div className="flex items-center justify-between mb-3">
 
@@ -4297,7 +4297,7 @@ export default function LeadsPage({
 
             </div>
 
-            <div className="overflow-x-auto">
+              <div className="overflow-x-auto flex-1">
 
               <table className="w-full text-sm">
 
@@ -6530,62 +6530,62 @@ export default function LeadsPage({
           </div>
         )}
 
-      </SidebarInset>
-
-      {/* Fixed Bottom Pagination */}
-      {totalPages > 1 && (
-        <div className="fixed bottom-0 left-0 right-0 bg-background/1 backdrop-blur-sm border-t border-border p-4 z-50">
-          <div className="max-w-7xl mx-auto">
-            <div className="flex items-center justify-center">
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(1)}
-                  disabled={currentPage === 1}
-                  className="cursor-pointer"
-                >
-                  First
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className="cursor-pointer"
-                >
-                  Previous
-                </Button>
-                
-                <div className="flex items-center gap-2 px-4">
-                  <span className="text-sm text-muted-foreground">
-                    Page {currentPage} of {totalPages}
-                  </span>
+        {/* Fixed Bottom Pagination */}
+        {totalPages > 1 && (
+          <div className="sticky bottom-0 bg-background/1 backdrop-blur-md border-t border-border/50 p-4 z-10">
+            <div className="max-w-7xl mx-auto">
+              <div className="flex items-center justify-center">
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(1)}
+                    disabled={currentPage === 1}
+                    className="cursor-pointer"
+                  >
+                    First
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="cursor-pointer"
+                  >
+                    Previous
+                  </Button>
+                  
+                  <div className="flex items-center gap-2 px-4">
+                    <span className="text-sm text-muted-foreground">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                  </div>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="cursor-pointer"
+                  >
+                    Next
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(totalPages)}
+                    disabled={currentPage === totalPages}
+                    className="cursor-pointer"
+                  >
+                    Last
+                  </Button>
                 </div>
-                
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  className="cursor-pointer"
-                >
-                  Next
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(totalPages)}
-                  disabled={currentPage === totalPages}
-                  className="cursor-pointer"
-                >
-                  Last
-                </Button>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+
+      </SidebarInset>
 
     </SidebarProvider>
 
