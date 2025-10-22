@@ -193,7 +193,7 @@ export function AudioPlayer({
   const progressPercentage = audioDuration > 0 ? (currentTime / audioDuration) * 100 : 0
 
   return (
-    <div className={`flex items-center space-x-3 p-3 rounded-lg ${
+    <div className={`flex items-center space-x-3 p-3 rounded-lg max-w-full overflow-hidden w-full ${
       direction === 'outgoing' 
         ? 'bg-blue-600 text-white' 
         : 'bg-gray-50 text-gray-900'
@@ -220,12 +220,12 @@ export function AudioPlayer({
       </Button>
 
       {/* Waveform and Progress */}
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 max-w-full overflow-hidden">
         {/* Waveform Visualization */}
-        <div className="relative">
+        <div className="relative max-w-full overflow-hidden">
           <div 
             ref={waveformRef}
-            className="flex items-center h-4 mb-1 space-x-0.5"
+            className="flex items-center h-4 mb-1 space-x-0.5 max-w-full overflow-hidden"
           />
           {/* Progress overlay on waveform */}
           <div 
@@ -253,7 +253,7 @@ export function AudioPlayer({
         {/* Progress Bar */}
         <div 
           ref={progressRef}
-          className="relative h-1 bg-black/20 rounded-full cursor-pointer"
+          className="relative h-1 bg-black/20 rounded-full cursor-pointer max-w-full overflow-hidden"
           onClick={handleProgressClick}
         >
           <div 
