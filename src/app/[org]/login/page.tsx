@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Building2, Mail, Lock, User, Shield, ArrowLeft } from 'lucide-react';
+import { Building2, Mail, Lock, User, Shield, ArrowLeft, Loader2 } from 'lucide-react';
 import ChangePasswordModal from '@/components/ChangePasswordModal';
 import InactivityNotification from '@/components/InactivityNotification';
 import { useInactivityNotification } from '@/hooks/useInactivityNotification';
@@ -40,7 +40,7 @@ export default function CompanyLoginPage({ params }: { params: Promise<{ org: st
   useEffect(() => {
     const fetchCompanyInfo = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
         
         const response = await fetch(`${apiUrl}/auth/check-company-by-slug`, {
           method: 'POST',
@@ -92,7 +92,7 @@ export default function CompanyLoginPage({ params }: { params: Promise<{ org: st
     setLoading(true);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
       const response = await fetch(`${apiUrl}/auth/login`, {
         method: 'POST',
         headers: {
@@ -278,7 +278,14 @@ export default function CompanyLoginPage({ params }: { params: Promise<{ org: st
                     disabled={loading}
                     className="w-full cursor-pointer"
                   >
-                    {loading ? 'Signing in...' : 'Sign In'}
+                    {loading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Signing in...
+                      </>
+                    ) : (
+                      'Sign In'
+                    )}
                   </Button>
 
                   <div className="text-center">

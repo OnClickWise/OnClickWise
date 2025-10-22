@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import { Search, Plus, Download, Upload, Trash2, Edit, X, ChevronDown, CheckCircle2, AlertTriangle, AlertCircle, Check, Filter, XCircle, ArrowUp, ArrowDown, Eye, Phone, Mail, Calendar, User, Building2, File, FileText, Image, FileImage, FileVideo, FileAudio, Archive, Loader2, Trash } from "lucide-react"
+import { Search, Plus, Download, Upload, Trash2, Edit, X, ChevronDown, CheckCircle2, AlertTriangle, AlertCircle, Check, Filter, XCircle, ArrowUp, ArrowDown, Eye, Phone, Mail, Calendar, User, Building2, File, FileText, Image, FileImage, FileVideo, FileAudio, Archive, Loader2, Trash, MessageCircle, Send, Info, Settings2 } from "lucide-react"
 import * as XLSX from "xlsx"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { apiService, Lead, UpdateLeadRequest } from "@/lib/api"
@@ -61,7 +61,7 @@ const PIPELINE_STAGES: PipelineStage[] = [
     leads: []
   }
 ]
-
+  
 export default function PipelinePage({
   params,
 }: {
@@ -129,6 +129,17 @@ export default function PipelinePage({
 
   // Preview modal
   const [preview, setPreview] = React.useState<{ open: boolean, lead: Lead | null }>({ open: false, lead: null })
+  
+  // Contact method modal
+  const [contactModal, setContactModal] = React.useState<{ open: boolean, lead: Lead | null }>({ open: false, lead: null })
+  const [sendMessageModal, setSendMessageModal] = React.useState<{ open: boolean, lead: Lead | null, method: 'whatsapp' | 'telegram' | 'email' | null }>({ open: false, lead: null, method: null })
+  const [messageText, setMessageText] = React.useState("")
+  const [isSendingMessage, setIsSendingMessage] = React.useState(false)
+  const [telegramAccounts, setTelegramAccounts] = React.useState<any[]>([])
+  const [selectedAccountId, setSelectedAccountId] = React.useState<string>("")
+  const [telegramBots, setTelegramBots] = React.useState<any[]>([])
+  const [showTelegramWarning, setShowTelegramWarning] = React.useState(false)
+  const [telegramWarningMessage, setTelegramWarningMessage] = React.useState("")
 
   // Attachment states
   const [isAttachmentDragActive, setIsAttachmentDragActive] = React.useState(false)
@@ -219,6 +230,36 @@ export default function PipelinePage({
     // Always run, not just on client side
     loadLeads()
   }, [])
+
+  // Load Telegram accounts and bots
+  React.useEffect(() => {
+    const loadTelegramConfig = async () => {
+      try {
+        // Load accounts
+        const accountsResponse = await apiService.getTelegramAccounts()
+        if (accountsResponse.success && accountsResponse.data) {
+          setTelegramAccounts(accountsResponse.data.accounts || [])
+          // Select first active account by default
+          const activeAccount = accountsResponse.data.accounts?.find((acc: any) => acc.is_active)
+          if (activeAccount) {
+            setSelectedAccountId(activeAccount.id)
+          }
+        }
+
+        // Load bots
+        const botsResponse = await apiService.getTelegramBots()
+        if (botsResponse.success && botsResponse.data) {
+          setTelegramBots(botsResponse.data.bots || [])
+        }
+      } catch (error) {
+        console.error('Error loading telegram configuration:', error)
+      }
+    }
+
+    if (isClient) {
+      loadTelegramConfig()
+    }
+  }, [isClient])
 
   // Search leads with backend filters
   const searchLeads = React.useCallback(async (searchParams: {
@@ -922,6 +963,200 @@ export default function PipelinePage({
     return new Date(dateString).toLocaleDateString('en-US')
   }
 
+  // Extract and validate phone number with country code
+  const extractPhoneNumber = (lead: Lead): string | null => {
+    if (!lead.phone) {
+      return null
+    }
+    
+    // If phone already has country code, return as is
+    if (lead.phone.startsWith('+')) {
+      return lead.phone
+    }
+    
+    // Default to US country code if not specified
+    return `+1${lead.phone.replace(/\D/g, '')}`
+  }
+
+  // Handle contact method selection
+  const handleContactMethodSelect = (method: 'whatsapp' | 'telegram' | 'email') => {
+    if (!contactModal.lead) return
+
+    const phoneNumber = extractPhoneNumber(contactModal.lead)
+    
+    if ((method === 'whatsapp' || method === 'telegram') && !phoneNumber) {
+      pushToast('This lead does not have a phone number registered', 'error')
+      setContactModal({ open: false, lead: null })
+      return
+    }
+
+    // Check Telegram configuration
+    if (method === 'telegram') {
+      const hasActiveAccounts = telegramAccounts.some(acc => acc.is_active)
+      const hasActiveBots = telegramBots.some(bot => bot.is_active)
+
+      // No MTProto accounts configured
+      if (!hasActiveAccounts) {
+        if (hasActiveBots) {
+          // Only bot API configured
+          setTelegramWarningMessage(
+            "Telegram Bot API is configured, but it can only receive messages and respond passively. " +
+            "To initiate contact with leads, please configure a Telegram Account (MTProto API) in Settings > Telegram."
+          )
+        } else {
+          // No Telegram configured at all
+          setTelegramWarningMessage(
+            "Telegram is not configured. Please set up a Telegram Account (MTProto API) in Settings > Telegram " +
+            "to be able to contact leads via Telegram."
+          )
+        }
+        setShowTelegramWarning(true)
+        return
+      }
+    }
+
+    // Close contact method modal and open send message modal
+    setContactModal({ open: false, lead: null })
+    setSendMessageModal({ open: true, lead: contactModal.lead, method })
+  }
+
+  // Navigate to chat page with specific contact
+  const navigateToChat = (method: 'whatsapp' | 'telegram' | 'email', lead: Lead, conversationId?: string) => {
+    const phoneNumber = extractPhoneNumber(lead)
+    
+    if (method === 'telegram' && phoneNumber) {
+      // Navigate to telegram chat page with phone number and optional conversation ID
+      const params = new URLSearchParams()
+      params.append('phone', phoneNumber)
+      if (conversationId) {
+        params.append('conversationId', conversationId)
+      }
+      window.location.href = `/${org}/chats/telegram?${params.toString()}`
+    } else if (method === 'whatsapp' && phoneNumber) {
+      window.location.href = `/${org}/chats/whatsapp?phone=${encodeURIComponent(phoneNumber)}`
+    } else if (method === 'email') {
+      window.location.href = `/${org}/chats/email?email=${encodeURIComponent(lead.email)}`
+    }
+  }
+
+  // Send message only (without opening chat)
+  const handleSendMessageOnly = async () => {
+    if (!sendMessageModal.lead || !sendMessageModal.method || !messageText.trim()) {
+      pushToast('Please enter a message', 'warning')
+      return
+    }
+
+    setIsSendingMessage(true)
+
+    try {
+      if (sendMessageModal.method === 'telegram') {
+        if (!selectedAccountId) {
+          pushToast('No active Telegram account found', 'error')
+          setIsSendingMessage(false)
+          return
+        }
+
+        const phoneNumber = extractPhoneNumber(sendMessageModal.lead)
+        if (!phoneNumber) {
+          pushToast('Invalid phone number', 'error')
+          setIsSendingMessage(false)
+          return
+        }
+
+        // Start chat and send message via Telegram API
+        const response = await apiService.startTelegramAccountChat(
+          selectedAccountId,
+          phoneNumber,
+          messageText
+        )
+
+        if (response.success) {
+          pushToast('Message sent successfully via Telegram!', 'success')
+          
+          // Reset state
+          setSendMessageModal({ open: false, lead: null, method: null })
+          setMessageText("")
+        } else {
+          pushToast(response.error || 'Failed to send message', 'error')
+        }
+      } else if (sendMessageModal.method === 'whatsapp') {
+        // TODO: Implement WhatsApp sending
+        pushToast('WhatsApp integration coming soon', 'warning')
+      } else if (sendMessageModal.method === 'email') {
+        // TODO: Implement Email sending
+        pushToast('Email integration coming soon', 'warning')
+      }
+    } catch (error) {
+      console.error('Error sending message:', error)
+      pushToast('Error sending message', 'error')
+    } finally {
+      setIsSendingMessage(false)
+    }
+  }
+
+  // Send message and open chat
+  const handleSendMessageAndOpenChat = async () => {
+    if (!sendMessageModal.lead || !sendMessageModal.method || !messageText.trim()) {
+      pushToast('Please enter a message', 'warning')
+      return
+    }
+
+    setIsSendingMessage(true)
+
+    try {
+      if (sendMessageModal.method === 'telegram') {
+        if (!selectedAccountId) {
+          pushToast('No active Telegram account found', 'error')
+          setIsSendingMessage(false)
+          return
+        }
+
+        const phoneNumber = extractPhoneNumber(sendMessageModal.lead)
+        if (!phoneNumber) {
+          pushToast('Invalid phone number', 'error')
+          setIsSendingMessage(false)
+          return
+        }
+
+        // Start chat and send message via Telegram API
+        const response = await apiService.startTelegramAccountChat(
+          selectedAccountId,
+          phoneNumber,
+          messageText
+        )
+
+        if (response.success) {
+          pushToast('Message sent! Opening chat...', 'success')
+          
+          // Navigate to chat page with conversation ID
+          const conversationId = response.data?.conversation?.id
+          navigateToChat(sendMessageModal.method, sendMessageModal.lead, conversationId)
+          
+          // Reset state
+          setSendMessageModal({ open: false, lead: null, method: null })
+          setMessageText("")
+        } else {
+          pushToast(response.error || 'Failed to send message', 'error')
+          setIsSendingMessage(false)
+        }
+      } else if (sendMessageModal.method === 'whatsapp') {
+        // TODO: Implement WhatsApp sending
+        pushToast('WhatsApp integration coming soon', 'warning')
+        navigateToChat(sendMessageModal.method, sendMessageModal.lead)
+        setIsSendingMessage(false)
+      } else if (sendMessageModal.method === 'email') {
+        // TODO: Implement Email sending
+        pushToast('Email integration coming soon', 'warning')
+        navigateToChat(sendMessageModal.method, sendMessageModal.lead)
+        setIsSendingMessage(false)
+      }
+    } catch (error) {
+      console.error('Error sending message:', error)
+      pushToast('Error sending message', 'error')
+      setIsSendingMessage(false)
+    }
+  }
+
   const totalValue = leads.reduce((sum, lead) => {
     const value = lead.value
     console.log('Lead:', lead.name, 'Status:', lead.status, 'Value:', value, 'Type:', typeof value)
@@ -1137,6 +1372,15 @@ export default function PipelinePage({
                             </p>
                           </div>
                           <div className="flex gap-1 ml-2">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setContactModal({ open: true, lead })}
+                              className="h-6 w-6 p-0 cursor-pointer hover:bg-purple-50"
+                              title="Iniciar conversa"
+                            >
+                              <MessageCircle className="h-3 w-3" />
+                            </Button>
                             <Button
                               size="sm"
                               variant="ghost"
@@ -1870,6 +2114,296 @@ export default function PipelinePage({
             </div>
           </div>
         )}
+
+        {/* TELEGRAM WARNING MODAL */}
+        <Sheet open={showTelegramWarning} onOpenChange={(open) => {
+          setShowTelegramWarning(open)
+          if (!open) {
+            setTelegramWarningMessage("")
+          }
+        }}>
+          <SheetContent className="w-full sm:max-w-md border-l border-border p-6 md:p-8">
+            <SheetHeader>
+              <SheetTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-yellow-600" />
+                Telegram Configuration Required
+              </SheetTitle>
+              <SheetDescription>
+                Telegram needs to be configured before you can contact leads
+              </SheetDescription>
+            </SheetHeader>
+            <Separator className="my-4" />
+            
+            <div className="space-y-4">
+              {/* Warning message */}
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <p className="text-sm text-yellow-800 leading-relaxed">
+                  {telegramWarningMessage}
+                </p>
+              </div>
+
+              {/* Information box */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex gap-2">
+                  <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-blue-800">
+                    <p className="font-semibold mb-1">Understanding Telegram APIs:</p>
+                    <ul className="list-disc list-inside space-y-1 text-xs">
+                      <li><strong>Bot API:</strong> Can only respond to messages initiated by users. Cannot start conversations.</li>
+                      <li><strong>MTProto API (Account):</strong> Full featured. Can initiate conversations and contact leads directly.</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <Separator className="my-4" />
+            
+            <div className="flex gap-2">
+              <Button
+                onClick={() => {
+                  window.location.href = `/${org}/settings/telegram`
+                }}
+                className="flex-1 cursor-pointer"
+              >
+                <Settings2 className="h-4 w-4 mr-2" />
+                Go to Settings
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowTelegramWarning(false)
+                  setTelegramWarningMessage("")
+                }}
+                className="cursor-pointer"
+              >
+                Close
+              </Button>
+            </div>
+          </SheetContent>
+        </Sheet>
+
+        {/* CONTACT METHOD SELECTION MODAL */}
+        <Sheet open={contactModal.open} onOpenChange={(open) => setContactModal({ open, lead: contactModal.lead })}>
+          <SheetContent className="w-full sm:max-w-md border-l border-border p-6 md:p-8">
+            <SheetHeader>
+              <SheetTitle>Select Contact Method</SheetTitle>
+              <SheetDescription>
+                Choose how you want to communicate with {contactModal.lead?.name}
+              </SheetDescription>
+            </SheetHeader>
+            <Separator className="my-4" />
+            
+            <div className="space-y-3">
+              {/* WhatsApp Option */}
+              <Button
+                onClick={() => handleContactMethodSelect('whatsapp')}
+                variant="outline"
+                className="w-full justify-start gap-3 h-auto py-4 cursor-pointer hover:bg-green-50 hover:border-green-200"
+                disabled={!contactModal.lead?.phone}
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100">
+                  <Phone className="h-5 w-5 text-green-600" />
+                </div>
+                <div className="flex-1 text-left">
+                  <div className="font-semibold">WhatsApp</div>
+                  <div className="text-xs text-muted-foreground">
+                    {contactModal.lead?.phone || 'No phone number available'}
+                  </div>
+                </div>
+              </Button>
+
+              {/* Telegram Option */}
+              <Button
+                onClick={() => handleContactMethodSelect('telegram')}
+                variant="outline"
+                className="w-full justify-start gap-3 h-auto py-4 cursor-pointer hover:bg-blue-50 hover:border-blue-200"
+                disabled={!contactModal.lead?.phone}
+              >
+                <div className={`flex h-10 w-10 items-center justify-center rounded-full ${
+                  telegramAccounts.some(acc => acc.is_active) ? 'bg-blue-100' : 'bg-yellow-100'
+                }`}>
+                  {telegramAccounts.some(acc => acc.is_active) ? (
+                    <Send className="h-5 w-5 text-blue-600" />
+                  ) : (
+                    <AlertTriangle className="h-5 w-5 text-yellow-600" />
+                  )}
+                </div>
+                <div className="flex-1 text-left">
+                  <div className="font-semibold flex items-center gap-2">
+                    Telegram
+                    {!telegramAccounts.some(acc => acc.is_active) && (
+                      <span className="text-xs font-normal text-yellow-600">(Setup Required)</span>
+                    )}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {contactModal.lead?.phone || 'No phone number available'}
+                  </div>
+                </div>
+              </Button>
+
+              {/* Email Option */}
+              <Button
+                onClick={() => handleContactMethodSelect('email')}
+                variant="outline"
+                className="w-full justify-start gap-3 h-auto py-4 cursor-pointer hover:bg-purple-50 hover:border-purple-200"
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-100">
+                  <Mail className="h-5 w-5 text-purple-600" />
+                </div>
+                <div className="flex-1 text-left">
+                  <div className="font-semibold">Email</div>
+                  <div className="text-xs text-muted-foreground">
+                    {contactModal.lead?.email}
+                  </div>
+                </div>
+              </Button>
+            </div>
+
+            <Separator className="my-4" />
+            
+            <Button
+              variant="outline"
+              onClick={() => setContactModal({ open: false, lead: null })}
+              className="w-full cursor-pointer"
+            >
+              Cancel
+            </Button>
+          </SheetContent>
+        </Sheet>
+
+        {/* SEND MESSAGE MODAL */}
+        <Sheet open={sendMessageModal.open} onOpenChange={(open) => {
+          if (!open) {
+            setSendMessageModal({ open: false, lead: null, method: null })
+            setMessageText("")
+          }
+        }}>
+          <SheetContent className="w-full sm:max-w-md border-l border-border p-6 md:p-8 flex flex-col max-h-screen">
+            {sendMessageModal.lead ? (
+              <>
+            <div className="flex-shrink-0">
+              <SheetHeader>
+                <SheetTitle>Send Message</SheetTitle>
+                <SheetDescription>
+                  Send a message to {sendMessageModal.lead.name} via {sendMessageModal.method}
+                </SheetDescription>
+              </SheetHeader>
+              <Separator className="my-4" />
+            </div>
+
+            <div className="flex-1 overflow-y-auto pr-2 space-y-4">
+              {/* Contact Info */}
+              <div className="bg-muted/50 rounded-lg p-4">
+                <div className="flex items-center gap-3">
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-full ${
+                    sendMessageModal.method === 'whatsapp' ? 'bg-green-100' :
+                    sendMessageModal.method === 'telegram' ? 'bg-blue-100' :
+                    'bg-purple-100'
+                  }`}>
+                    {sendMessageModal.method === 'whatsapp' && <Phone className="h-5 w-5 text-green-600" />}
+                    {sendMessageModal.method === 'telegram' && <Send className="h-5 w-5 text-blue-600" />}
+                    {sendMessageModal.method === 'email' && <Mail className="h-5 w-5 text-purple-600" />}
+                  </div>
+                  <div>
+                    <div className="font-semibold">{sendMessageModal.lead.name}</div>
+                    <div className="text-sm text-muted-foreground">
+                      {sendMessageModal.method === 'email' 
+                        ? sendMessageModal.lead.email 
+                        : extractPhoneNumber(sendMessageModal.lead)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Telegram Account Selection (only for Telegram) */}
+              {sendMessageModal.method === 'telegram' && telegramAccounts.length > 1 && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Telegram Account</label>
+                  <select
+                    className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input h-9 w-full min-w-0 rounded-md border bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                    value={selectedAccountId}
+                    onChange={(e) => setSelectedAccountId(e.target.value)}
+                  >
+                    {telegramAccounts
+                      .filter((acc) => acc.is_active)
+                      .map((account) => (
+                        <option key={account.id} value={account.id}>
+                          {account.phone_number}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Message Input */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Message</label>
+                <textarea
+                  className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input w-full min-w-0 rounded-md border bg-transparent px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] resize-none min-h-[120px]"
+                  placeholder="Type your message here..."
+                  value={messageText}
+                  onChange={(e) => setMessageText(e.target.value)}
+                  rows={6}
+                />
+              </div>
+            </div>
+
+            <Separator className="my-4" />
+
+            {/* Action Buttons */}
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleSendMessageOnly}
+                  variant="outline"
+                  className="flex-1 cursor-pointer"
+                  disabled={!messageText.trim() || isSendingMessage}
+                >
+                  {isSendingMessage ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Check className="h-4 w-4 mr-2" />
+                  )}
+                  Send Only
+                </Button>
+                <Button
+                  onClick={handleSendMessageAndOpenChat}
+                  className="flex-1 cursor-pointer"
+                  disabled={!messageText.trim() || isSendingMessage}
+                >
+                  {isSendingMessage ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4 mr-2" />
+                  )}
+                  Send & Open Chat
+                </Button>
+              </div>
+              
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  if (sendMessageModal.lead && sendMessageModal.method) {
+                    navigateToChat(sendMessageModal.method, sendMessageModal.lead)
+                  }
+                }}
+                className="w-full cursor-pointer"
+                disabled={isSendingMessage}
+                title="Open chat without sending message"
+              >
+                <MessageCircle className="h-4 w-4 mr-2" />
+                Open Chat Without Sending
+              </Button>
+            </div>
+            </>
+            ) : (
+              <div className="flex items-center justify-center p-8">
+                <p className="text-muted-foreground">No lead selected</p>
+              </div>
+            )}
+          </SheetContent>
+        </Sheet>
       </SidebarInset>
     </SidebarProvider>
     </AuthGuard>

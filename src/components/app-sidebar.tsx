@@ -81,7 +81,7 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
               name: userResponse.user.name || "User",
               email: userResponse.user.email || "user@example.com",
               avatar: userResponse.user.profile_image 
-                ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}${userResponse.user.profile_image}` 
+                ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}${userResponse.user.profile_image}` 
                 : generateAvatar(userResponse.user.name || "User"),
             })
           }

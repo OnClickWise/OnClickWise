@@ -1725,14 +1725,9 @@ export default function LeadsPage({
     setOriginalLeads([...leadsToUpdate])
     setCurrentEditLeads([])
     
-    // Calculate batch size based on total leads (similar to import logic)
-    const totalLeads = leadsToUpdate.length
-    const batchSize = totalLeads > 10000 ? 1000 : 
-                     totalLeads > 5000 ? 800 : 
-                     totalLeads > 2000 ? 600 : 
-                     totalLeads > 1000 ? 400 : 
-                     totalLeads > 500 ? 200 : 
-                     totalLeads > 100 ? 100 : 50
+     // Always use batch size of 500 for maximum efficiency
+     const totalLeads = leadsToUpdate.length
+     const batchSize = 500
     const totalBatches = Math.ceil(totalLeads / batchSize)
     
     // Close the bulk edit modal immediately when starting
@@ -3208,13 +3203,8 @@ export default function LeadsPage({
 
         if (uniqueToAdd.length > 0) {
 
-          // Maximum speed optimization - no limits, maximum batches
-          const batchSize = uniqueToAdd.length > 10000 ? 1000 : 
-                           uniqueToAdd.length > 5000 ? 800 : 
-                           uniqueToAdd.length > 2000 ? 600 : 
-                           uniqueToAdd.length > 1000 ? 400 : 
-                           uniqueToAdd.length > 500 ? 200 : 
-                           uniqueToAdd.length > 100 ? 100 : 50
+           // Always use batch size of 500 for maximum efficiency
+           const batchSize = 500
           const delayMs = 0 // No delay for maximum speed
           
           console.log(`Processing ${uniqueToAdd.length} leads in batches of ${batchSize} with ${delayMs}ms delay`)
@@ -3433,13 +3423,8 @@ export default function LeadsPage({
     setIsConfirmOpen(false)
     
     const totalLeads = pendingDeletionIds.length
-    // Maximum speed optimization - no limits, maximum batches for deletion
-    const batchSize = totalLeads > 10000 ? 1000 : 
-                     totalLeads > 5000 ? 800 : 
-                     totalLeads > 2000 ? 600 : 
-                     totalLeads > 1000 ? 400 : 
-                     totalLeads > 500 ? 200 : 
-                     totalLeads > 100 ? 100 : 50
+     // Always use batch size of 500 for maximum efficiency
+     const batchSize = 500
     const totalBatches = Math.ceil(totalLeads / batchSize)
     
     // Show progress notification

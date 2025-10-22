@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Building2, Eye, EyeOff } from 'lucide-react';
+import { Building2, Eye, EyeOff, Loader2 } from 'lucide-react';
 
 interface CompanyData {
   name: string;
@@ -104,7 +104,7 @@ export default function RegisterPage() {
     }
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
       const response = await fetch(`${apiUrl}/auth/register`, {
         method: 'POST',
         headers: {
@@ -384,7 +384,14 @@ export default function RegisterPage() {
                     disabled={loading}
                     className="flex-1 cursor-pointer"
                   >
-                    {loading ? 'Creating Account...' : 'Create Account'}
+                    {loading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Creating Account...
+                      </>
+                    ) : (
+                      'Create Account'
+                    )}
                   </Button>
                   
                   <Button
@@ -392,6 +399,7 @@ export default function RegisterPage() {
                     variant="outline"
                     onClick={() => router.push('/login')}
                     className="flex-1 cursor-pointer"
+                    disabled={loading}
                   >
                     I already have an account
                   </Button>

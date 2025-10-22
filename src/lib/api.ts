@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 // Export the API base URL for use in other components
 export const getApiBaseUrl = () => API_BASE_URL;
@@ -703,6 +703,256 @@ class ApiService {
       console.error('Download request failed:', error);
       return null;
     }
+  }
+
+  // ==================== TELEGRAM API METHODS ====================
+
+  // Telegram Bot API methods
+  async getTelegramBots(): Promise<ApiResponse<{ bots: any[] }>> {
+    return this.request<{ bots: any[] }>('/telegram/bots');
+  }
+
+  async createTelegramBot(botData: {
+    bot_name: string;
+    bot_username: string;
+    token: string;
+    webhook_url?: string;
+  }): Promise<ApiResponse<{ bot: any }>> {
+    return this.request<{ bot: any }>('/telegram/bots', {
+      method: 'POST',
+      body: JSON.stringify(botData),
+    });
+  }
+
+  async updateTelegramBot(botId: string, botData: {
+    bot_name?: string;
+    bot_username?: string;
+    token?: string;
+    webhook_url?: string;
+    is_active?: boolean;
+  }): Promise<ApiResponse<{ bot: any }>> {
+    return this.request<{ bot: any }>(`/telegram/bots/${botId}`, {
+      method: 'PUT',
+      body: JSON.stringify(botData),
+    });
+  }
+
+  async deleteTelegramBot(botId: string): Promise<ApiResponse<{ message: string }>> {
+    return this.request<{ message: string }>(`/telegram/bots/${botId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Telegram Account API methods
+  async getTelegramAccounts(): Promise<ApiResponse<{ accounts: any[] }>> {
+    return this.request<{ accounts: any[] }>('/telegram/accounts');
+  }
+
+  async createTelegramAccount(accountData: {
+    api_id: string;
+    api_hash: string;
+    phone_number: string;
+  }): Promise<ApiResponse<{ account: any }>> {
+    return this.request<{ account: any }>('/telegram/accounts', {
+      method: 'POST',
+      body: JSON.stringify(accountData),
+    });
+  }
+
+  async updateTelegramAccount(accountId: string, accountData: {
+    api_id?: string;
+    api_hash?: string;
+    phone_number?: string;
+    is_active?: boolean;
+  }): Promise<ApiResponse<{ account: any }>> {
+    return this.request<{ account: any }>(`/telegram/accounts/${accountId}`, {
+      method: 'PUT',
+      body: JSON.stringify(accountData),
+    });
+  }
+
+  async deleteTelegramAccount(accountId: string): Promise<ApiResponse<{ message: string }>> {
+    return this.request<{ message: string }>(`/telegram/accounts/${accountId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async authenticateTelegramAccount(accountId: string): Promise<ApiResponse<{ message: string; requiresSmsCode?: boolean }>> {
+    return this.request<{ message: string; requiresSmsCode?: boolean }>(`/telegram/accounts/${accountId}/authenticate`, {
+      method: 'POST',
+    });
+  }
+
+  async verifyTelegramSmsCode(accountId: string, smsCode: string, twoFactorPassword?: string, rememberTwoFactor?: boolean): Promise<ApiResponse<{ message: string; requires2FA?: boolean }>> {
+    return this.request<{ message: string; requires2FA?: boolean }>(`/telegram/accounts/${accountId}/verify-sms`, {
+      method: 'POST',
+      body: JSON.stringify({ smsCode, twoFactorPassword, rememberTwoFactor }),
+    });
+  }
+
+  async verifyTelegram2FA(accountId: string, twoFactorPassword: string): Promise<ApiResponse<{ message: string }>> {
+    return this.request<{ message: string }>(`/telegram/accounts/${accountId}/verify-2fa`, {
+      method: 'POST',
+      body: JSON.stringify({ twoFactorPassword }),
+    });
+  }
+
+  async testTelegramAccountConnection(accountId: string): Promise<ApiResponse<{ message: string; account_info?: any }>> {
+    return this.request<{ message: string; account_info?: any }>(`/telegram/accounts/${accountId}/test`, {
+      method: 'POST',
+    });
+  }
+
+  async startTelegramAccountChat(accountId: string, identifier: string, firstMessage?: string): Promise<ApiResponse<{ message: string; conversation?: any }>> {
+    return this.request<{ message: string; conversation?: any }>(`/telegram/accounts/${accountId}/start-chat`, {
+      method: 'POST',
+      body: JSON.stringify({ identifier, firstMessage }),
+    });
+  }
+
+  // Telegram Conversations API methods
+  async getTelegramConversations(params?: {
+    bot_id?: string;
+    account_id?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<ApiResponse<{ conversations: any[]; total: number; page: number; limit: number }>> {
+    const queryParams = new URLSearchParams();
+    if (params?.bot_id) queryParams.append('bot_id', params.bot_id);
+    if (params?.account_id) queryParams.append('account_id', params.account_id);
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+
+    const endpoint = `/telegram/conversations${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return this.request<{ conversations: any[]; total: number; page: number; limit: number }>(endpoint);
+  }
+
+  async getTelegramConversation(conversationId: string): Promise<ApiResponse<{ conversation: any }>> {
+    return this.request<{ conversation: any }>(`/telegram/conversations/${conversationId}`);
+  }
+
+  async getTelegramMessages(conversationId: string, params?: {
+    page?: number;
+    limit?: number;
+  }): Promise<ApiResponse<{ messages: any[]; total: number; page: number; limit: number }>> {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+
+    const endpoint = `/telegram/conversations/${conversationId}/messages${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    return this.request<{ messages: any[]; total: number; page: number; limit: number }>(endpoint);
+  }
+
+  async getTelegramUnreadCount(conversationId: string): Promise<ApiResponse<{ unreadCount: number }>> {
+    return this.request<{ unreadCount: number }>(`/telegram/conversations/${conversationId}/unread-count`);
+  }
+
+  async markTelegramMessagesAsRead(conversationId: string): Promise<ApiResponse<{ message: string; unreadCount: number }>> {
+    return this.request<{ message: string; unreadCount: number }>(`/telegram/conversations/${conversationId}/mark-read`, {
+      method: 'POST',
+    });
+  }
+
+  // Telegram Message API methods
+  async sendTelegramMessage(messageData: {
+    conversation_id: string;
+    message_text: string;
+    message_type?: 'text' | 'photo' | 'video' | 'document' | 'audio' | 'voice';
+    file_id?: string;
+    caption?: string;
+  }): Promise<ApiResponse<{ message: any }>> {
+    return this.request<{ message: any }>('/telegram/send-message', {
+      method: 'POST',
+      body: JSON.stringify(messageData),
+    });
+  }
+
+  async sendTelegramFile(file: File, conversationId: string, messageType: string = 'document', caption?: string): Promise<ApiResponse<{ message: any }>> {
+    if (typeof window === 'undefined') {
+      return {
+        success: false,
+        error: 'File upload only available on client side'
+      };
+    }
+
+    const token = this.getAuthToken();
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('conversation_id', conversationId);
+    formData.append('message_type', messageType);
+    if (caption) {
+      formData.append('caption', caption);
+    }
+
+    const config: RequestInit = {
+      method: 'POST',
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: formData,
+    };
+
+    try {
+      const fullUrl = `${API_BASE_URL}/telegram/send-file`;
+      console.log('Sending file to Telegram:', fullUrl);
+      
+      const response = await fetch(fullUrl, config);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Send file error:', response.status, errorText);
+        
+        if (response.status === 401) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('organization');
+          localStorage.removeItem('lastActivity');
+          if (typeof window !== 'undefined') {
+            const pathParts = window.location.pathname.split('/');
+            const orgSlug = pathParts[1];
+            if (orgSlug && orgSlug !== 'login' && orgSlug !== 'register') {
+              window.location.href = `/${orgSlug}/login`;
+            } else {
+              window.location.href = '/login';
+            }
+          }
+        }
+        
+        return {
+          success: false,
+          error: `HTTP ${response.status}: ${errorText}`
+        };
+      }
+
+      const data = await response.json();
+      console.log('Send file response:', data);
+      return {
+        success: true,
+        data: data
+      };
+    } catch (error) {
+      console.error('Send file request failed:', error);
+      return {
+        success: false,
+        error: `Network error: ${error instanceof Error ? error.message : 'Unknown error'}`
+      };
+    }
+  }
+
+  async getTelegramFile(fileId: string): Promise<string> {
+    return `${API_BASE_URL}/telegram/files/${fileId}`;
+  }
+
+  async getTelegramMessageContent(messageId: string): Promise<ApiResponse<{ message: any; content?: any }>> {
+    return this.request<{ message: any; content?: any }>(`/telegram/messages/${messageId}/content`);
+  }
+
+  async linkTelegramConversationToLead(conversationId: string, leadId: string): Promise<ApiResponse<{ message: string; lead: any }>> {
+    return this.request<{ message: string; lead: any }>(`/telegram/conversations/${conversationId}/link-lead`, {
+      method: 'POST',
+      body: JSON.stringify({ lead_id: leadId }),
+    });
   }
 }
 
