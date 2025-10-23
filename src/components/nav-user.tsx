@@ -43,13 +43,31 @@ export function NavUser({
   const router = useRouter()
 
   const handleLogout = () => {
+    // Obter o slug da organização do localStorage antes de limpar
+    const organizationStr = localStorage.getItem('organization')
+    let organizationSlug = orgSlug
+    
+    if (organizationStr) {
+      try {
+        const organization = JSON.parse(organizationStr)
+        organizationSlug = organization.slug || orgSlug
+      } catch (error) {
+        console.error('Error parsing organization data:', error)
+      }
+    }
+    
     // Limpar dados de autenticação
     localStorage.removeItem('token')
     localStorage.removeItem('organization')
     localStorage.removeItem('lastActivity')
     
     // Redirecionar para a página de login da empresa
-    router.push(`/${orgSlug}/login`)
+    if (organizationSlug && organizationSlug !== 'undefined') {
+      router.push(`/${organizationSlug}/login`)
+    } else {
+      // Fallback para página inicial se não conseguir determinar a organização
+      router.push('/')
+    }
   }
 
   return (

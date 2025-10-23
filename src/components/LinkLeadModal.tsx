@@ -39,19 +39,14 @@ export function LinkLeadModal({ isOpen, onClose, onLink, onUnlink, onCreateNew, 
 
   // Search leads when query changes (with debounce)
   useEffect(() => {
-    if (!searchQuery.trim()) {
-      setSearchResults([]);
-      return;
-    }
-
     const timeoutId = setTimeout(async () => {
       setIsSearching(true);
       setError(null);
 
       try {
-        // Search by multiple fields
+        // Search by multiple fields, or get all leads if query is empty
         const response = await apiService.searchLeads({
-          search: searchQuery,
+          search: searchQuery.trim() || undefined,
           limit: 10
         });
 
@@ -68,7 +63,7 @@ export function LinkLeadModal({ isOpen, onClose, onLink, onUnlink, onCreateNew, 
       } finally {
         setIsSearching(false);
       }
-    }, 500); // Debounce 500ms
+    }, searchQuery.trim() ? 500 : 0); // No debounce when query is empty
 
     return () => clearTimeout(timeoutId);
   }, [searchQuery]);
@@ -188,50 +183,51 @@ export function LinkLeadModal({ isOpen, onClose, onLink, onUnlink, onCreateNew, 
           )}
 
           {/* Search Results */}
-          {searchQuery && (
-            <div className="space-y-2">
-              {searchResults.length > 0 ? (
-                <div className="space-y-1 max-h-[300px] overflow-y-auto border rounded-md">
-                  {searchResults.map((lead) => (
-                    <button
-                      key={lead.id}
-                      onClick={() => setSelectedLead(lead)}
-                      disabled={isLinking}
-                      className={`w-full text-left px-4 py-3 hover:bg-accent transition-colors cursor-pointer ${
-                        selectedLead?.id === lead.id ? 'bg-accent border-2 border-primary' : 'border-2 border-transparent'
-                      } disabled:opacity-50 disabled:cursor-not-allowed rounded-md`}
-                    >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <User className="h-4 w-4 text-muted-foreground" />
-                          <span className="font-medium">{lead.name}</span>
-                          {lead.status && (
-                            <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-                              {lead.status}
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Mail className="h-3 w-3" />
-                          <span>{lead.email}</span>
-                        </div>
-                        {lead.phone && (
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Phone className="h-3 w-3" />
-                            <span>{lead.phone}</span>
-                          </div>
+          <div className="space-y-2">
+            {searchResults.length > 0 ? (
+              <div className="space-y-1 max-h-[300px] overflow-y-auto border rounded-md">
+                {searchResults.map((lead) => (
+                  <button
+                    key={lead.id}
+                    onClick={() => setSelectedLead(lead)}
+                    disabled={isLinking}
+                    className={`w-full text-left px-4 py-3 hover:bg-accent transition-colors cursor-pointer ${
+                      selectedLead?.id === lead.id ? 'bg-accent border-2 border-primary' : 'border-2 border-transparent'
+                    } disabled:opacity-50 disabled:cursor-not-allowed rounded-md`}
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium">{lead.name}</span>
+                        {lead.status && (
+                          <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                            {lead.status}
+                          </span>
                         )}
                       </div>
-                    </button>
-                  ))}
-                </div>
-              ) : !isSearching ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  No leads found matching &quot;{searchQuery}&quot;
-                </div>
-              ) : null}
-            </div>
-          )}
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Mail className="h-3 w-3" />
+                        <span>{lead.email}</span>
+                      </div>
+                      {lead.phone && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Phone className="h-3 w-3" />
+                          <span>{lead.phone}</span>
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            ) : !isSearching ? (
+              <div className="text-center py-8 text-muted-foreground">
+                {searchQuery.trim() 
+                  ? `No leads found matching "${searchQuery}"`
+                  : 'No leads available'
+                }
+              </div>
+            ) : null}
+          </div>
 
         </div>
 

@@ -36,7 +36,7 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/s
 
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 
-import { Search, Plus, Download, Upload, Trash2, Edit, X, ChevronDown, CheckCircle2, AlertTriangle, AlertCircle, Check, Filter, XCircle, ArrowUp, ArrowDown, Copy, File, FileText, Image, FileImage, FileVideo, FileAudio, Archive, Loader2, Eye, Trash } from "lucide-react"
+import { Search, Plus, Download, Upload, Trash2, Edit, X, ChevronDown, CheckCircle2, AlertTriangle, AlertCircle, Check, Filter, XCircle, ArrowUp, ArrowDown, Copy, File, FileText, Image, FileImage, FileVideo, FileAudio, Archive, Loader2, Eye, Trash, UserPlus, Mail, Phone, Calendar, DollarSign, User, Hash, Clock, Info, Tag, Briefcase, CreditCard, FileDigit, MapPin, Columns, EyeOff, GripVertical } from "lucide-react"
 
 import * as XLSX from "xlsx"
 
@@ -58,7 +58,55 @@ function createId() {
 
 // Removed SAMPLE_LEADS - now using API
 
+// Sortable Column Item Component using HTML5 Drag and Drop
+interface SortableColumnItemProps {
+  id: string
+  label: string
+  visible: boolean
+  onToggle: () => void
+  onDragStart: (e: React.DragEvent, id: string) => void
+  onDragOver: (e: React.DragEvent, id: string) => void
+  onDragLeave: () => void
+  onDrop: (e: React.DragEvent, targetId: string) => void
+  isDragging: boolean
+  isDraggedOver: boolean
+}
 
+function SortableColumnItem({ id, label, visible, onToggle, onDragStart, onDragOver, onDragLeave, onDrop, isDragging, isDraggedOver }: SortableColumnItemProps) {
+  return (
+    <div
+      className={`
+        relative flex items-center gap-2 px-2 py-2 rounded-sm cursor-default 
+        transition-all duration-200
+        ${isDragging ? 'opacity-30 scale-95' : 'opacity-100 scale-100'} 
+        ${isDraggedOver ? 'bg-primary/10' : 'hover:bg-accent'}
+        ${isDraggedOver ? 'border-t-2 border-primary' : ''}
+      `}
+      draggable
+      onDragStart={(e) => onDragStart(e, id)}
+      onDragOver={(e) => onDragOver(e, id)}
+      onDragLeave={onDragLeave}
+      onDrop={(e) => onDrop(e, id)}
+    >
+      {isDraggedOver && (
+        <div className="absolute -top-1 left-0 right-0 h-0.5 bg-primary rounded-full" />
+      )}
+      <div
+        className="cursor-grab active:cursor-grabbing touch-none"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <GripVertical className="h-4 w-4 text-muted-foreground" />
+      </div>
+      <button
+        onClick={onToggle}
+        className="flex-1 flex items-center justify-between cursor-pointer"
+      >
+        <span className="text-sm">{label}</span>
+        {visible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4 text-muted-foreground" />}
+      </button>
+    </div>
+  )
+}
 
 export default function LeadsPage({
 
@@ -173,6 +221,17 @@ export default function LeadsPage({
   // Ref for immediate access to edit cancellation state
   const isEditCancelledRef = React.useRef(false)
   
+  // Track bulk assign modal and users
+  const [isBulkAssignOpen, setIsBulkAssignOpen] = React.useState(false)
+  const [selectedUserId, setSelectedUserId] = React.useState("")
+  const [bulkAssignConfirm, setBulkAssignConfirm] = React.useState("")
+  const [organizationUsers, setOrganizationUsers] = React.useState<Array<{id: string, name: string, email: string}>>([])
+  const [assignNotification, setAssignNotification] = React.useState({
+    show: false,
+    progress: { current: 0, total: 0, batch: 0, totalBatches: 0 },
+    cancelled: false
+  })
+  
   // Track deleted leads for potential rollback
   const [deletedLeads, setDeletedLeads] = React.useState<Lead[]>([])
   // Track imported leads for potential rollback
@@ -204,6 +263,8 @@ export default function LeadsPage({
     ssn: string
     ein: string
     source: string
+    location: string
+    interest: string
     status: string
     value: string
     estimatedCloseDate: string
@@ -226,6 +287,8 @@ export default function LeadsPage({
       ssn !== originalFormValues.ssn ||
       ein !== originalFormValues.ein ||
       source !== originalFormValues.source ||
+      leadLocation !== originalFormValues.location ||
+      interest !== originalFormValues.interest ||
       status !== originalFormValues.status ||
       value !== originalFormValues.value ||
       estimatedCloseDate !== originalFormValues.estimatedCloseDate
@@ -273,12 +336,343 @@ export default function LeadsPage({
   const [preview, setPreview] = React.useState<{ open: boolean, lead: Lead | null }>({ open: false, lead: null })
 
   const [copiedKey, setCopiedKey] = React.useState<string | null>(null)
+  
+  const [assignedUserName, setAssignedUserName] = React.useState<string>("")
+  const [createdByUserName, setCreatedByUserName] = React.useState<string>("")
+  
+  // Fetch assigned user and created by user names when preview opens
+  React.useEffect(() => {
+    const fetchUsers = async () => {
+      if (preview.open && (preview.lead?.assigned_user_id || preview.lead?.created_by)) {
+        try {
+          const response = await apiService.getOrganizationUsers(true) // Include master users
+          if (response.success && response.data) {
+            if (preview.lead?.assigned_user_id) {
+              const assignedUser = response.data.employees.find(u => u.id === preview.lead?.assigned_user_id)
+              setAssignedUserName(assignedUser?.name || "Unknown User")
+            }
+            if (preview.lead?.created_by) {
+              const createdByUser = response.data.employees.find(u => u.id === preview.lead?.created_by)
+              setCreatedByUserName(createdByUser?.name || "Unknown User")
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching users:', error)
+          if (preview.lead?.assigned_user_id) setAssignedUserName("Unknown User")
+          if (preview.lead?.created_by) setCreatedByUserName("Unknown User")
+        }
+      } else {
+        setAssignedUserName("")
+        setCreatedByUserName("")
+      }
+    }
+    
+    fetchUsers()
+  }, [preview.open, preview.lead?.assigned_user_id, preview.lead?.created_by])
 
 
   // Pagination state
   const [currentPage, setCurrentPage] = React.useState(1)
   const [itemsPerPage, setItemsPerPage] = React.useState(10)
 
+  // Column visibility state
+  const [visibleColumns, setVisibleColumns] = React.useState<Record<string, boolean>>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('leadColumns')
+      if (saved) {
+        return JSON.parse(saved)
+      }
+    }
+    return {
+      name: true,
+      email: true,
+      phone: true,
+      ssn: false,
+      ein: false,
+      source: true,
+      status: true,
+      value: false,
+      estimatedCloseDate: false,
+      location: true,
+      interest: true,
+    }
+  })
+
+  // Column order state
+  const [columnOrder, setColumnOrder] = React.useState<string[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('leadColumnOrder')
+      if (saved) {
+        return JSON.parse(saved)
+      }
+    }
+    return ['name', 'email', 'ssn', 'source', 'status', 'value', 'estimatedCloseDate', 'location', 'interest']
+  })
+
+  // Save column preferences to localStorage
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('leadColumns', JSON.stringify(visibleColumns))
+    }
+  }, [visibleColumns])
+
+  // Save column order to localStorage
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('leadColumnOrder', JSON.stringify(columnOrder))
+    }
+  }, [columnOrder])
+
+  // Clean up invalid columns from state and localStorage
+  React.useEffect(() => {
+    const validColumnIds = Object.keys(columnLabels)
+    const filteredOrder = columnOrder.filter(id => validColumnIds.includes(id))
+    const filteredVisibility = Object.fromEntries(
+      Object.entries(visibleColumns).filter(([key]) => validColumnIds.includes(key))
+    )
+    
+    if (filteredOrder.length !== columnOrder.length) {
+      setColumnOrder(filteredOrder)
+    }
+    
+    if (Object.keys(filteredVisibility).length !== Object.keys(visibleColumns).length) {
+      setVisibleColumns(filteredVisibility as Record<string, boolean>)
+    }
+  }, []) // Run only once on mount
+
+  const toggleColumn = (column: string) => {
+    setVisibleColumns(prev => ({
+      ...prev,
+      [column]: !prev[column]
+    }))
+  }
+
+  // HTML5 Drag and Drop for columns
+  const [draggedColumn, setDraggedColumn] = React.useState<string | null>(null)
+  const [dragOverColumn, setDragOverColumn] = React.useState<string | null>(null)
+
+  const handleColumnDragStart = (e: React.DragEvent, columnId: string) => {
+    setDraggedColumn(columnId)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  const handleColumnDragOver = (e: React.DragEvent, columnId: string) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    
+    if (draggedColumn && draggedColumn !== columnId) {
+      setDragOverColumn(columnId)
+    }
+  }
+
+  const handleColumnDragLeave = () => {
+    setDragOverColumn(null)
+  }
+
+  const handleColumnDrop = (e: React.DragEvent, targetColumnId: string) => {
+    e.preventDefault()
+    
+    if (!draggedColumn || draggedColumn === targetColumnId) {
+      setDraggedColumn(null)
+      setDragOverColumn(null)
+      return
+    }
+
+    const draggedIndex = columnOrder.indexOf(draggedColumn)
+    const targetIndex = columnOrder.indexOf(targetColumnId)
+
+    if (draggedIndex === -1 || targetIndex === -1) {
+      setDraggedColumn(null)
+      setDragOverColumn(null)
+      return
+    }
+
+    const newColumnOrder = [...columnOrder]
+    newColumnOrder.splice(draggedIndex, 1)
+    newColumnOrder.splice(targetIndex, 0, draggedColumn)
+    
+    setColumnOrder(newColumnOrder)
+    setDraggedColumn(null)
+    setDragOverColumn(null)
+  }
+
+  // Column labels mapping
+  const columnLabels: Record<string, string> = {
+    name: 'Name',
+    email: 'Email / Phone',
+    ssn: 'SSN/EIN',
+    source: 'Source',
+    status: 'Status',
+    value: 'Value',
+    estimatedCloseDate: 'Est. Close Date',
+    location: 'Location',
+    interest: 'Interest'
+  }
+
+  // Render table header for a column
+  const renderColumnHeader = (columnId: string) => {
+    if (!visibleColumns[columnId]) return null
+
+    const sortableColumns = ['name', 'source', 'status', 'value', 'estimatedCloseDate', 'location', 'interest']
+    const sortFieldMap: Record<string, string> = {
+      name: 'name',
+      source: 'source',
+      status: 'status',
+      value: 'value',
+      estimatedCloseDate: 'estimated_close_date',
+      location: 'location',
+      interest: 'interest'
+    }
+
+    const widthMap: Record<string, string> = {
+      name: 'w-[200px]',
+      email: 'w-[240px]',
+      ssn: 'w-[160px]',
+      source: 'w-[160px]',
+      status: 'w-[120px]',
+      value: 'w-[140px]',
+      estimatedCloseDate: 'w-[140px]',
+      location: 'w-[160px]',
+      interest: 'w-[160px]'
+    }
+
+    const isSortable = sortableColumns.includes(columnId)
+    const field = sortFieldMap[columnId]
+
+    return (
+      <th
+        key={columnId}
+        className={`py-2 pr-3 ${widthMap[columnId] || 'w-auto'}`}
+      >
+        {isSortable ? (
+          <div 
+            className="flex items-center gap-1 cursor-pointer hover:text-primary select-none w-fit"
+            onClick={() => handleSort(field as keyof Lead)}
+          >
+            {columnLabels[columnId]}
+            {sortField === field && (
+              sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+            )}
+          </div>
+        ) : (
+          columnLabels[columnId]
+        )}
+      </th>
+    )
+  }
+
+  // Render table cell for a column
+  const renderColumnCell = (columnId: string, lead: Lead) => {
+    if (!visibleColumns[columnId]) return null
+
+    switch (columnId) {
+      case 'name':
+        return (
+          <td key={columnId} className="py-2 pr-3">
+            <div className="flex items-center gap-2">
+              <div
+                className="max-w-[200px] truncate hover:underline decoration-dotted cursor-pointer font-medium"
+                title={lead.name}
+                onClick={() => setPreview({ open: true, lead })}
+              >
+                {lead.name}
+              </div>
+              {lead.show_on_pipeline && (
+                <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                  Pipeline
+                </span>
+              )}
+            </div>
+          </td>
+        )
+      case 'email':
+        return (
+          <td key={columnId} className="py-2 pr-3">
+            <div className="max-w-[220px] space-y-1">
+              <div className="truncate text-sm" title={lead.email}>
+                {lead.email}
+              </div>
+              {lead.phone && (
+                <div className="truncate text-xs text-muted-foreground" title={lead.phone}>
+                  {lead.phone}
+                </div>
+              )}
+            </div>
+          </td>
+        )
+      case 'ssn':
+        return (
+          <td key={columnId} className="py-2 pr-3">
+            <div className="max-w-[160px] space-y-1">
+              {lead.ssn && (
+                <div className="text-xs" title={`SSN: ${lead.ssn}`}>
+                  SSN: {lead.ssn}
+                </div>
+              )}
+              {lead.ein && (
+                <div className="text-xs" title={`EIN: ${lead.ein}`}>
+                  EIN: {lead.ein}
+                </div>
+              )}
+              {!lead.ssn && !lead.ein && (
+                <div className="text-xs text-muted-foreground">-</div>
+              )}
+            </div>
+          </td>
+        )
+      case 'source':
+        return (
+          <td key={columnId} className="py-2 pr-3">
+            <div className="max-w-[160px] truncate text-xs" title={lead.source}>
+              {lead.source || '-'}
+            </div>
+          </td>
+        )
+      case 'status':
+        return (
+          <td key={columnId} className="py-2 pr-3">
+            <span className="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium">
+              {lead.status}
+            </span>
+          </td>
+        )
+      case 'value':
+        return (
+          <td key={columnId} className="py-2 pr-3">
+            <div className="text-sm font-medium text-green-600">
+              {lead.value ? `$${lead.value.toLocaleString()}` : '-'}
+            </div>
+          </td>
+        )
+      case 'estimatedCloseDate':
+        return (
+          <td key={columnId} className="py-2 pr-3">
+            <div className="text-xs text-muted-foreground">
+              {lead.estimated_close_date ? new Date(lead.estimated_close_date).toLocaleDateString('pt-BR') : '-'}
+            </div>
+          </td>
+        )
+      case 'location':
+        return (
+          <td key={columnId} className="py-2 pr-3">
+            <div className="max-w-[160px] truncate text-xs" title={lead.location}>
+              {lead.location || '-'}
+            </div>
+          </td>
+        )
+      case 'interest':
+        return (
+          <td key={columnId} className="py-2 pr-3">
+            <div className="max-w-[160px] truncate text-xs" title={lead.interest}>
+              {lead.interest || '-'}
+            </div>
+          </td>
+        )
+      default:
+        return null
+    }
+  }
 
   // Filter modal and state
 
@@ -297,6 +691,10 @@ export default function LeadsPage({
     ein: "",
 
     source: "",
+
+    location: "",
+
+    interest: "",
 
     status: "",
 
@@ -374,6 +772,10 @@ export default function LeadsPage({
 
   const [source, setSource] = React.useState("")
 
+  const [leadLocation, setLeadLocation] = React.useState("")
+
+  const [interest, setInterest] = React.useState("")
+
   const [status, setStatus] = React.useState<Lead["status"]>("New")
 
   const [customStatus, setCustomStatus] = React.useState("")
@@ -418,18 +820,15 @@ export default function LeadsPage({
   React.useEffect(() => {
 
     const loadAllLeads = async () => {
-      console.log('Loading all leads...', { isClient })
       try {
 
         // Use only the basic call that works
         const response = await apiService.getLeads()
 
-        console.log('API response:', response)
 
         
         if (response.success && response.data) {
 
-          console.log('Setting all leads:', response.data.leads.length, 'leads')
           setLeads(response.data.leads)
 
         } else {
@@ -503,15 +902,12 @@ export default function LeadsPage({
 
     try {
 
-      console.log('Calling searchLeads with:', searchParams)
 
       const response = await apiService.searchLeads(searchParams)
 
-      console.log('Search response:', response)
 
       if (response.success && response.data) {
 
-        console.log('Setting leads from search:', response.data.leads.length, 'leads')
 
         setLeads(response.data.leads)
 
@@ -694,6 +1090,10 @@ export default function LeadsPage({
 
       source: '',
 
+      location: '',
+
+      interest: '',
+
       status: '',
 
       pipeline: ''
@@ -778,7 +1178,6 @@ export default function LeadsPage({
 
       
 
-      console.log('Searching with search term:', searchParams)
 
       debouncedSearch(searchParams)
 
@@ -824,7 +1223,7 @@ export default function LeadsPage({
 
     
 
-    const hasFilters = filters.name || filters.email || filters.phone || filters.ssn || filters.ein || filters.source || filters.status || filters.pipeline || sortField || valueRange.min || valueRange.max || dateRange.min || dateRange.max
+    const hasFilters = filters.name || filters.email || filters.phone || filters.ssn || filters.ein || filters.source || filters.location || filters.interest || filters.status || filters.pipeline || sortField || valueRange.min || valueRange.max || dateRange.min || dateRange.max
 
     
 
@@ -947,6 +1346,8 @@ export default function LeadsPage({
           if (filters.ssn) searchParams.ssn = filters.ssn
           if (filters.ein) searchParams.ein = filters.ein
           if (filters.source) searchParams.source = filters.source
+          if (filters.location) searchParams.location = filters.location
+          if (filters.interest) searchParams.interest = filters.interest
           if (filters.status) searchParams.status = filters.status
           if (valueRange.min && !isNaN(parseFloat(valueRange.min))) searchParams.value_min = parseFloat(valueRange.min)
           if (valueRange.max && !isNaN(parseFloat(valueRange.max))) searchParams.value_max = parseFloat(valueRange.max)
@@ -1115,9 +1516,6 @@ export default function LeadsPage({
 
         
 
-        console.log('Leads: Applying specific field filters')
-
-        console.log('Leads: Found leads:', filteredLeads.length)
 
         setLeads(filteredLeads)
 
@@ -1217,6 +1615,10 @@ export default function LeadsPage({
 
     setSource("")
 
+    setLeadLocation("")
+
+    setInterest("")
+
     setStatus("New")
 
     setCustomStatus("")
@@ -1261,6 +1663,10 @@ export default function LeadsPage({
     setEin("")
 
     setSource("")
+
+    setLeadLocation("")
+
+    setInterest("")
 
     setStatus("New")
 
@@ -1320,9 +1726,24 @@ export default function LeadsPage({
 
     const safeSource = truncateTo(source, FIELD_MAX.source)
 
+    const safeLocation = truncateTo(leadLocation, FIELD_MAX.source)
+
+    const safeInterest = truncateTo(interest, FIELD_MAX.source)
+
     const safeStatus = truncateTo(String(status), FIELD_MAX.status)
 
     const safeValue = value ? parseFloat(value) : undefined
+
+    // Validar valor máximo (9.999.999.999.999,99 com decimal(15,2))
+    if (safeValue !== undefined && safeValue > 9999999999999.99) {
+      pushToast('Valor muito grande. O valor máximo permitido é R$ 9.999.999.999.999,99', 'error')
+      return
+    }
+
+    if (safeValue !== undefined && safeValue < 0) {
+      pushToast('Valor não pode ser negativo', 'error')
+      return
+    }
 
     const safeEstimatedCloseDate = estimatedCloseDate ? estimatedCloseDate.slice(0, FIELD_MAX.date) : undefined
 
@@ -1351,6 +1772,10 @@ export default function LeadsPage({
           ein: safeEin || undefined,
 
           source: safeSource || undefined,
+
+          location: safeLocation || undefined,
+
+          interest: safeInterest || undefined,
 
           status: safeStatus,
 
@@ -1406,6 +1831,10 @@ export default function LeadsPage({
           ein: safeEin || undefined,
 
           source: safeSource || undefined,
+
+          location: safeLocation || undefined,
+
+          interest: safeInterest || undefined,
 
           status: safeStatus,
 
@@ -1467,6 +1896,10 @@ export default function LeadsPage({
 
     setSource(lead.source || "")
 
+    setLeadLocation(lead.location || "")
+
+    setInterest(lead.interest || "")
+
     setStatus(lead.status)
 
     setValue(lead.value ? lead.value.toString() : "")
@@ -1493,6 +1926,8 @@ export default function LeadsPage({
       ssn: lead.ssn || "",
       ein: lead.ein || "",
       source: lead.source || "",
+      location: lead.location || "",
+      interest: lead.interest || "",
       status: lead.status,
       value: lead.value ? lead.value.toString() : "",
       estimatedCloseDate: lead.estimated_close_date || ""
@@ -1653,6 +2088,26 @@ export default function LeadsPage({
     setIsBulkEditOpen(true)
 
   }
+  
+  async function openBulkAssign() {
+    try {
+      const response = await apiService.getOrganizationUsers(true) // Include master users
+      if (response.success && response.data) {
+        setOrganizationUsers(response.data.employees)
+      } else {
+        pushToast('Error loading users', 'error')
+        return
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error)
+      pushToast('Error loading users', 'error')
+      return
+    }
+    
+    setSelectedUserId("")
+    setBulkAssignConfirm("")
+    setIsBulkAssignOpen(true)
+  }
 
   function openPipelineModal(action: 'add' | 'remove') {
     setPipelineAction(action)
@@ -1696,20 +2151,48 @@ export default function LeadsPage({
 
 
 
-  async function applyBulkEdit() {
+  // Helper function to update a lead with retry logic
+  async function updateLeadWithRetry(lead: Lead, updateData: any, maxRetries: number = 5): Promise<{ success: boolean, lead: Lead, error?: string }> {
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const result = await apiService.updateLead(updateData)
+        
+        if (result.success) {
+          return { success: true, lead }
+        } else if (attempt < maxRetries - 1) {
+          // Retry on failure with exponential backoff
+          const backoffDelay = 50 * Math.pow(2, attempt) // 50ms, 100ms, 200ms, 400ms, 800ms
+          await new Promise(resolve => setTimeout(resolve, backoffDelay))
+          continue
+        } else {
+          console.error(`Failed to update lead after ${maxRetries} attempts:`, lead.id, result.error)
+          return { success: false, lead, error: result.error }
+        }
+      } catch (error) {
+        if (attempt < maxRetries - 1) {
+          // Retry on network errors with exponential backoff
+          const backoffDelay = 50 * Math.pow(2, attempt)
+          await new Promise(resolve => setTimeout(resolve, backoffDelay))
+          continue
+        } else {
+          console.error(`Network error after ${maxRetries} attempts:`, lead.id, error)
+          return { success: false, lead, error: String(error) }
+        }
+      }
+    }
+    
+    return { success: false, lead, error: 'Max retries exceeded' }
+  }
 
+  async function applyBulkEdit() {
     if (selectedLeads.size === 0) return
 
     const shouldUpdateStatus = bulkStatus.trim() !== ""
-
     const shouldUpdateSource = bulkSource.trim() !== ""
 
     if (!shouldUpdateStatus && !shouldUpdateSource) {
-
       setIsBulkEditOpen(false)
-
       return
-
     }
 
     // Check confirmation input
@@ -1722,13 +2205,14 @@ export default function LeadsPage({
     const leadsToUpdate = leads.filter(l => idsToUpdate.includes(l.id))
     
     // Store original leads before editing for potential rollback
-    setOriginalLeads([...leadsToUpdate])
+    const originalLeads = [...leadsToUpdate]
+    setOriginalLeads(originalLeads)
     setCurrentEditLeads([])
     
-     // Always use batch size of 500 for maximum efficiency
      const totalLeads = leadsToUpdate.length
-     const batchSize = 500
+    const batchSize = 1000
     const totalBatches = Math.ceil(totalLeads / batchSize)
+    const parallelLimit = 30
     
     // Close the bulk edit modal immediately when starting
     setIsBulkEditOpen(false)
@@ -1744,109 +2228,121 @@ export default function LeadsPage({
 
     try {
       let successCount = 0
-      let errorCount = 0
-      const updatedLeads: Lead[] = []
+      const successfullyUpdatedIds: string[] = []
+      const updatedLeadsMap = new Map<string, Lead>()
+      const failedUpdates: Array<{ lead: Lead, error: string }> = []
       
-      // Process leads in batches
-      for (let i = 0; i < totalLeads; i += batchSize) {
-        // Check if cancelled
+      // Process batches
+      for (let i = 0; i < totalBatches; i++) {
+        // Check if cancelled at start of batch
         if (isEditCancelledRef.current) {
-          // Rollback: restore original leads in backend
-          try {
-            const leadsToRestore = currentEditLeads
-            let successfullyRestored = 0
-            let errors = 0
-            
-            for (const editedLead of leadsToRestore) {
-              try {
-                // Find the original lead to get the original values
-                const originalLead = originalLeads.find(orig => orig.id === editedLead.id)
+          // Rollback: restore original leads
+          if (successfullyUpdatedIds.length > 0) {
+            for (const id of successfullyUpdatedIds) {
+              const originalLead = originalLeads.find(l => l.id === id)
                 if (originalLead) {
+                try {
                   const updateData: any = { 
-                    id: editedLead.id,
+                    id: originalLead.id,
                     status: originalLead.status,
                     source: originalLead.source
                   }
-                  const result = await apiService.updateLead(updateData)
-                  if (result.success) {
-                    successfullyRestored++
-                  } else {
-                    errors++
-                    console.log(`Lead ${editedLead.id} could not be restored:`, result.error)
-                  }
-                }
+                  await apiService.updateLead(updateData)
               } catch (error) {
-                errors++
-                console.log(`Error restoring lead ${editedLead.id}:`, error)
+                  console.error('Error restoring lead:', error)
+                }
               }
             }
-            
-            if (successfullyRestored > 0) {
-              pushToast(`Bulk edit cancelled - ${successfullyRestored} leads restored`, 'success')
-            }
-            if (errors > 0) {
-              pushToast(`Bulk edit cancelled - ${errors} leads could not be restored`, 'warning')
-            }
-          } catch (error) {
-            console.error('Error during rollback:', error)
-            pushToast('Bulk edit cancelled - leads restored locally only', 'warning')
           }
           
           // Restore frontend state
-          setLeads(prev => 
-            prev.map(l => {
-              if (!idsToUpdate.includes(l.id)) return l
-              
+          setLeads(prev => prev.map(l => {
               const originalLead = originalLeads.find(orig => orig.id === l.id)
-              if (originalLead) {
-                return originalLead
-              }
-              return l
-            })
-          )
+            return originalLead || l
+          }))
+          setFilteredLeads(prev => prev.map(l => {
+            const originalLead = originalLeads.find(orig => orig.id === l.id)
+            return originalLead || l
+          }))
           
-          setFilteredLeads(prev => 
-            prev.map(l => {
-              if (!idsToUpdate.includes(l.id)) return l
-              
-              const originalLead = originalLeads.find(orig => orig.id === l.id)
-              if (originalLead) {
-                return originalLead
-              }
-              return l
-            })
-          )
-          
-          setEditNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: true })
-          setOriginalLeads([])
-          setCurrentEditLeads([])
-          
-          // Force refresh leads to ensure sync with backend after rollback
-          setTimeout(async () => {
-            await forceRefreshLeads()
-          }, 100)
+          setEditNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
+          pushToast('Bulk edit cancelled and leads restored', 'success')
           return
         }
         
-        const batch = leadsToUpdate.slice(i, i + batchSize)
-        const batchNumber = Math.floor(i / batchSize) + 1
+        const startIndex = i * batchSize
+        const endIndex = Math.min(startIndex + batchSize, totalLeads)
+        const batch = leadsToUpdate.slice(startIndex, endIndex)
         
-        // Update progress notification
+        // Update progress
         setEditNotification({ 
           show: true, 
           progress: { 
-            current: i + batch.length, 
+            current: startIndex, 
             total: totalLeads, 
-            batch: batchNumber, 
+            batch: i + 1, 
             totalBatches 
           }, 
           cancelled: false 
         })
         
-        console.log(`Processing edit batch ${batchNumber}/${totalBatches} (${batch.length} leads)`)
+        // Process batch in controlled parallel chunks
+        const batchSuccessIds: string[] = []
+        for (let j = 0; j < batch.length; j += parallelLimit) {
+          // Check cancellation during chunk processing
+          if (isEditCancelledRef.current) {
+            // Rollback all successfully updated leads so far
+            const allUpdatedIds = [...successfullyUpdatedIds, ...batchSuccessIds]
+            if (allUpdatedIds.length > 0) {
+              for (const id of allUpdatedIds) {
+                const originalLead = originalLeads.find(l => l.id === id)
+              if (originalLead) {
+                  try {
+                    const updateData: any = { 
+                      id: originalLead.id,
+                      status: originalLead.status,
+                      source: originalLead.source
+                    }
+                    await apiService.updateLead(updateData)
+                  } catch (error) {
+                    console.error('Error restoring lead:', error)
+                  }
+                }
+              }
+            }
+            
+            // Restore frontend state
+            setLeads(prev => prev.map(l => {
+              const originalLead = originalLeads.find(orig => orig.id === l.id)
+              return originalLead || l
+            }))
+            setFilteredLeads(prev => prev.map(l => {
+              const originalLead = originalLeads.find(orig => orig.id === l.id)
+              return originalLead || l
+            }))
+            
+            setEditNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
+            pushToast('Bulk edit cancelled and leads restored', 'success')
+          return
+        }
         
-        // Process batch in parallel
-        const batchPromises = batch.map(async (lead) => {
+          const chunk = batch.slice(j, j + parallelLimit)
+          const leadIndex = startIndex + j
+        
+          // Update progress
+        setEditNotification({ 
+          show: true, 
+          progress: { 
+              current: leadIndex, 
+            total: totalLeads, 
+              batch: i + 1, 
+            totalBatches 
+          }, 
+          cancelled: false 
+        })
+        
+          // Prepare updates for this chunk
+          const chunkPromises = chunk.map(async (lead) => {
           const updateData: any = { id: lead.id }
           
           if (shouldUpdateStatus) {
@@ -1857,81 +2353,171 @@ export default function LeadsPage({
             updateData.source = bulkSource
           }
 
-          try {
-            const result = await apiService.updateLead(updateData)
-            return { success: result.success, lead, result }
-          } catch (error) {
-            console.error(`Failed to update lead ${lead.id}:`, error)
-            return { success: false, lead, error }
-          }
-        })
-        
-        const batchResults = await Promise.all(batchPromises)
-        
-        // Count successes and errors
-        const batchSuccesses = batchResults.filter(r => r.success)
-        const batchErrors = batchResults.filter(r => !r.success)
-        
-        successCount += batchSuccesses.length
-        errorCount += batchErrors.length
-        
-        // Store successfully updated leads
-        batchSuccesses.forEach(({ lead }) => {
-          const updatedLead = {
-            ...lead,
-            status: shouldUpdateStatus ? (bulkStatus as Lead["status"]) : lead.status,
-            source: shouldUpdateSource ? bulkSource : lead.source,
-          }
-          updatedLeads.push(updatedLead)
+            return updateLeadWithRetry(lead, updateData, 5)
+          })
           
-          // Track leads as they are edited for immediate rollback capability
-          setCurrentEditLeads(prev => [...prev, updatedLead])
-        })
-        
-        // Update local state for this batch
-        setLeads(prev => 
-          prev.map(l => {
-            if (!idsToUpdate.includes(l.id)) return l
-            
-            const updatedLead = batchSuccesses.find(r => r.lead.id === l.id)
-            if (updatedLead) {
-              return {
-                ...l,
-                status: shouldUpdateStatus ? (bulkStatus as Lead["status"]) : l.status,
-                source: shouldUpdateSource ? bulkSource : l.source,
+          const chunkResults = await Promise.all(chunkPromises)
+          
+          // Collect results
+          chunkResults.forEach(result => {
+            if (result.success) {
+              successCount++
+              batchSuccessIds.push(result.lead.id)
+              const updatedLead = {
+                ...result.lead,
+                status: shouldUpdateStatus ? (bulkStatus as Lead["status"]) : result.lead.status,
+                source: shouldUpdateSource ? bulkSource : result.lead.source,
               }
+              updatedLeadsMap.set(result.lead.id, updatedLead)
+            } else {
+              failedUpdates.push({ lead: result.lead, error: result.error || 'Unknown error' })
             }
-            return l
           })
-        )
+
+          // Small delay to prevent server overload
+          if (j + parallelLimit < batch.length) {
+            await new Promise(resolve => setTimeout(resolve, 20))
+          }
+        }
         
-        setFilteredLeads(prev => 
-          prev.map(l => {
-            if (!idsToUpdate.includes(l.id)) return l
-            
-            const updatedLead = batchSuccesses.find(r => r.lead.id === l.id)
-            if (updatedLead) {
-              return {
-                ...l,
-                status: shouldUpdateStatus ? (bulkStatus as Lead["status"]) : l.status,
-                source: shouldUpdateSource ? bulkSource : l.source,
-              }
-            }
-            return l
-          })
-        )
+        // Update UI progressively after each batch
+        successfullyUpdatedIds.push(...batchSuccessIds)
+        if (batchSuccessIds.length > 0) {
+          setLeads(prev => prev.map(l => updatedLeadsMap.get(l.id) || l))
+          setFilteredLeads(prev => prev.map(l => updatedLeadsMap.get(l.id) || l))
+        }
       }
       
-      // Clear selections and show success
-      setSelectedLeads(new Set())
+      // Check for cancellation before retry phase
+      if (isEditCancelledRef.current) {
+        // Rollback all successfully updated leads
+        if (successfullyUpdatedIds.length > 0) {
+          for (const id of successfullyUpdatedIds) {
+            const originalLead = originalLeads.find(l => l.id === id)
+            if (originalLead) {
+              try {
+                const updateData: any = { 
+                  id: originalLead.id,
+                  status: originalLead.status,
+                  source: originalLead.source
+                }
+                await apiService.updateLead(updateData)
+              } catch (error) {
+                console.error('Error restoring lead:', error)
+              }
+            }
+          }
+        }
+        
+        // Restore frontend state
+        setLeads(prev => prev.map(l => {
+          const originalLead = originalLeads.find(orig => orig.id === l.id)
+          return originalLead || l
+        }))
+        setFilteredLeads(prev => prev.map(l => {
+          const originalLead = originalLeads.find(orig => orig.id === l.id)
+          return originalLead || l
+        }))
+        
+        setEditNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
+        pushToast('Bulk edit cancelled and leads restored', 'success')
+        return
+      }
       
-      if (errorCount > 0) {
-        pushToast(`Updated ${successCount} leads, ${errorCount} failed`, 'warning')
+      // Retry failed updates if any
+      if (failedUpdates.length > 0 && !isEditCancelledRef.current) {
+        pushToast(`Retrying ${failedUpdates.length} failed updates...`, "warning")
+        
+        const retriedSuccessIds: string[] = []
+        
+        for (let k = 0; k < failedUpdates.length; k += parallelLimit) {
+          if (isEditCancelledRef.current) {
+            // Rollback all successfully updated leads including retries
+            const allUpdatedIds = [...successfullyUpdatedIds, ...retriedSuccessIds]
+            if (allUpdatedIds.length > 0) {
+              for (const id of allUpdatedIds) {
+                const originalLead = originalLeads.find(l => l.id === id)
+                if (originalLead) {
+                  try {
+                    const updateData: any = { 
+                      id: originalLead.id,
+                      status: originalLead.status,
+                      source: originalLead.source
+                    }
+                    await apiService.updateLead(updateData)
+                  } catch (error) {
+                    console.error('Error restoring lead:', error)
+                  }
+                }
+              }
+            }
+            
+            // Restore frontend state
+            setLeads(prev => prev.map(l => {
+              const originalLead = originalLeads.find(orig => orig.id === l.id)
+              return originalLead || l
+            }))
+            setFilteredLeads(prev => prev.map(l => {
+              const originalLead = originalLeads.find(orig => orig.id === l.id)
+              return originalLead || l
+            }))
+            
+            setEditNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
+            pushToast('Bulk edit cancelled and leads restored', 'success')
+            return
+          }
+          
+          const retryChunk = failedUpdates.slice(k, k + parallelLimit)
+          const retryPromises = retryChunk.map(({ lead }) => {
+            const updateData: any = { id: lead.id }
+            if (shouldUpdateStatus) updateData.status = bulkStatus as Lead["status"]
+            if (shouldUpdateSource) updateData.source = bulkSource
+            return updateLeadWithRetry(lead, updateData, 5)
+          })
+          
+          const retryResults = await Promise.all(retryPromises)
+          
+          retryResults.forEach(result => {
+            if (result.success) {
+              successCount++
+              retriedSuccessIds.push(result.lead.id)
+              const updatedLead = {
+                ...result.lead,
+                status: shouldUpdateStatus ? (bulkStatus as Lead["status"]) : result.lead.status,
+                source: shouldUpdateSource ? bulkSource : result.lead.source,
+              }
+              updatedLeadsMap.set(result.lead.id, updatedLead)
+            }
+          })
+          
+          // No delay between retry chunks for maximum speed
+        }
+        
+        // Update UI for successful retries
+        if (retriedSuccessIds.length > 0) {
+          setLeads(prev => prev.map(l => updatedLeadsMap.get(l.id) || l))
+          setFilteredLeads(prev => prev.map(l => updatedLeadsMap.get(l.id) || l))
+        }
+        
+        const finalErrors = failedUpdates.length - retriedSuccessIds.length
+        if (finalErrors > 0) {
+          pushToast(`Updated ${successCount} leads, ${finalErrors} failed even after retry`, 'warning')
       } else {
         pushToast(`Successfully updated ${successCount} leads`, 'success')
+        }
+      } else {
+        // Show success message
+        if (failedUpdates.length > 0) {
+          pushToast(`Updated ${successCount} leads, ${failedUpdates.length} failed`, 'warning')
+        } else {
+          pushToast(`Successfully updated ${successCount} leads`, 'success')
+        }
       }
       
-      // Sync after operation to ensure complete sync with backend
+      // Clear selections
+      setSelectedLeads(new Set())
+      
+      // Sync after operation
       await syncAfterOperation()
 
     } catch (error) {
@@ -1939,48 +2525,192 @@ export default function LeadsPage({
       pushToast('Error updating leads', 'error')
     } finally {
       setEditNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
-      
-      
       setOriginalLeads([])
       setCurrentEditLeads([])
+      setIsEditCancelled(false)
+      isEditCancelledRef.current = false
+    }
+  }
+  
+  async function applyBulkAssign() {
+    if (selectedLeads.size === 0) return
+
+    if (!selectedUserId) {
+      pushToast("Please select a user", "error")
+      return
     }
 
-  }
+    // Check confirmation input
+    if (bulkAssignConfirm.trim().toLowerCase() !== "assign") {
+      pushToast("Please type 'assign' to confirm", "error")
+      return
+    }
 
-
-
-  function exportToXLSX() {
-
-    const data = filteredLeads.map(lead => ({
-
-      Name: lead.name,
-
-      Email: lead.email,
-
-      Phone: lead.phone,
-
-      SSN: lead.ssn,
-
-      Source: lead.source,
-
-      Status: lead.status
-
-    }))
-
-
-
-    const ws = XLSX.utils.json_to_sheet(data)
-
-    const wb = XLSX.utils.book_new()
-
-    XLSX.utils.book_append_sheet(wb, ws, "Leads")
-
+    const idsToUpdate = Array.from(selectedLeads)
+    const leadsToUpdate = leads.filter(l => idsToUpdate.includes(l.id))
     
+    const totalLeads = leadsToUpdate.length
+    const batchSize = 1000
+    const totalBatches = Math.ceil(totalLeads / batchSize)
+    const parallelLimit = 30
+    
+    // Close the bulk assign modal immediately when starting
+    setIsBulkAssignOpen(false)
+    
+    // Show progress notification
+    setAssignNotification({
+      show: true,
+      progress: { current: 0, total: totalLeads, batch: 0, totalBatches },
+      cancelled: false
+    })
 
-    const fileName = `leads_${org}_${new Date().toISOString().split('T')[0]}.xlsx`
+    try {
+      let successCount = 0
+      const successfullyUpdatedIds: string[] = []
+      const updatedLeadsMap = new Map<string, Lead>()
+      const failedUpdates: Array<{ lead: Lead, error: string }> = []
+      
+      // Process batches
+      for (let i = 0; i < totalBatches; i++) {
+        const startIndex = i * batchSize
+        const endIndex = Math.min(startIndex + batchSize, totalLeads)
+        const batch = leadsToUpdate.slice(startIndex, endIndex)
+        
+        // Update progress
+        setAssignNotification({ 
+          show: true, 
+          progress: { 
+            current: startIndex, 
+            total: totalLeads, 
+            batch: i + 1, 
+            totalBatches 
+          }, 
+          cancelled: false 
+        })
+        
+        // Process batch in controlled parallel chunks
+        const batchSuccessIds: string[] = []
+        for (let j = 0; j < batch.length; j += parallelLimit) {
+          const chunk = batch.slice(j, j + parallelLimit)
+          const leadIndex = startIndex + j
+          
+          // Update progress
+          setAssignNotification({ 
+            show: true, 
+            progress: { 
+              current: leadIndex, 
+              total: totalLeads, 
+              batch: i + 1, 
+              totalBatches 
+            }, 
+            cancelled: false 
+          })
+          
+          // Prepare updates for this chunk
+          const chunkPromises = chunk.map(async (lead) => {
+            const updateData: any = { 
+              id: lead.id,
+              assigned_user_id: selectedUserId 
+            }
+            return updateLeadWithRetry(lead, updateData, 5)
+          })
+          
+          const chunkResults = await Promise.all(chunkPromises)
+          
+          // Collect results
+          chunkResults.forEach(result => {
+            if (result.success) {
+              successCount++
+              batchSuccessIds.push(result.lead.id)
+              const updatedLead = {
+                ...result.lead,
+                assigned_user_id: selectedUserId,
+              }
+              updatedLeadsMap.set(result.lead.id, updatedLead)
+            } else {
+              failedUpdates.push({ lead: result.lead, error: result.error || 'Unknown error' })
+            }
+          })
 
-    XLSX.writeFile(wb, fileName)
+          // Small delay to prevent server overload
+          if (j + parallelLimit < batch.length) {
+            await new Promise(resolve => setTimeout(resolve, 20))
+          }
+        }
+        
+        // Update UI progressively after each batch
+        successfullyUpdatedIds.push(...batchSuccessIds)
+        if (batchSuccessIds.length > 0) {
+          setLeads(prev => prev.map(l => updatedLeadsMap.get(l.id) || l))
+          setFilteredLeads(prev => prev.map(l => updatedLeadsMap.get(l.id) || l))
+        }
+      }
+      
+      // Retry failed updates if any
+      if (failedUpdates.length > 0) {
+        pushToast(`Retrying ${failedUpdates.length} failed assignments...`, "warning")
+        
+        const retriedSuccessIds: string[] = []
+        
+        for (let k = 0; k < failedUpdates.length; k += parallelLimit) {
+          const retryChunk = failedUpdates.slice(k, k + parallelLimit)
+          const retryPromises = retryChunk.map(({ lead }) => {
+            const updateData: any = { id: lead.id, assigned_user_id: selectedUserId }
+            return updateLeadWithRetry(lead, updateData, 5)
+          })
+          
+          const retryResults = await Promise.all(retryPromises)
+          
+          retryResults.forEach(result => {
+            if (result.success) {
+              successCount++
+              retriedSuccessIds.push(result.lead.id)
+              const updatedLead = {
+                ...result.lead,
+                assigned_user_id: selectedUserId,
+              }
+              updatedLeadsMap.set(result.lead.id, updatedLead)
+            }
+          })
+          
+          // No delay between retry chunks for maximum speed
+        }
+        
+        // Update UI for successful retries
+        if (retriedSuccessIds.length > 0) {
+          setLeads(prev => prev.map(l => updatedLeadsMap.get(l.id) || l))
+          setFilteredLeads(prev => prev.map(l => updatedLeadsMap.get(l.id) || l))
+        }
+        
+        const finalErrors = failedUpdates.length - retriedSuccessIds.length
+        if (finalErrors > 0) {
+          pushToast(`Assigned ${successCount} lead(s) to user. ${finalErrors} failed even after retry`, 'warning')
+        } else {
+          pushToast(`Successfully assigned ${successCount} lead(s) to user`, 'success')
+        }
+      } else {
+        // Show success message
+        if (failedUpdates.length > 0) {
+          pushToast(`Assigned ${successCount} lead(s). ${failedUpdates.length} failed`, 'warning')
+        } else {
+          pushToast(`Successfully assigned ${successCount} lead(s) to user`, 'success')
+        }
+      }
+      
+      // Clear selections
+      setSelectedLeads(new Set())
+      
+      // Sync after operation
+      await syncAfterOperation()
 
+    } catch (error) {
+      console.error('Error assigning leads:', error)
+      pushToast('Error assigning leads to user', 'error')
+    } finally {
+      setAssignNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
+      setSelectedUserId("")
+      setBulkAssignConfirm("")
+    }
   }
 
 
@@ -2007,11 +2737,11 @@ export default function LeadsPage({
 
 
 
-  function headerToCanonical(normalized: string): "name" | "email" | "phone" | "ssn" | "ein" | "source" | "status" | "value" | "estimated_close_date" | "description" | null {
+  function headerToCanonical(normalized: string): "name" | "email" | "phone" | "ssn" | "ein" | "source" | "status" | "value" | "estimated_close_date" | "location" | "interest" | "description" | null {
 
     // Map of supported header synonyms (normalized via normalizeHeader)
 
-    const headerAliases: Record<"name" | "email" | "phone" | "ssn" | "ein" | "source" | "status" | "value" | "estimated_close_date" | "description", string[]> = {
+    const headerAliases: Record<"name" | "email" | "phone" | "ssn" | "ein" | "source" | "status" | "value" | "estimated_close_date" | "location" | "interest" | "description", string[]> = {
 
       name: [
 
@@ -2064,6 +2794,18 @@ export default function LeadsPage({
         "estimated close date", "close date", "data de fechamento", "data estimada", "data prevista", "expected close date", "estimated close date", "close date", "estimated close date", "close date", "close date", "expected close", "close", "date", "close date", "closing date", "deal close date", "expected close date", "target close date", "close date", "closing date", "deal close date", "expected close date", "target close date", "data", "data de fechamento", "data estimada", "data prevista", "data de venda", "data de conclusao", "data de conclusão", "data final", "data limite", "deadline", "due date", "end date", "final date", "completion date", "finish date"
       ],
 
+      location: [
+
+        "location", "city", "state", "country", "localizacao", "localização", "cidade", "estado", "pais", "país", "address", "endereco", "endereço", "place", "local"
+
+      ],
+
+      interest: [
+
+        "interest", "interests", "product interest", "interest in", "interested in", "interesse", "interesses", "interesse em", "product", "produto", "service", "servico", "serviço"
+
+      ],
+
       description: [
 
         "description", "notes", "observations", "descricao", "descrição", "notas", "observacoes", "observações", "comentarios", "comentários", "description", "notes"
@@ -2074,7 +2816,7 @@ export default function LeadsPage({
 
 
 
-    for (const [key, aliases] of Object.entries(headerAliases) as ["name" | "email" | "phone" | "ssn" | "ein" | "source" | "status" | "value" | "estimated_close_date" | "description", string[]][]) {
+    for (const [key, aliases] of Object.entries(headerAliases) as ["name" | "email" | "phone" | "ssn" | "ein" | "source" | "status" | "value" | "estimated_close_date" | "location" | "interest" | "description", string[]][]) {
 
       if (aliases.includes(normalized)) return key
 
@@ -2239,7 +2981,6 @@ export default function LeadsPage({
 
       const response = await apiService.uploadLeadAttachment(leadId, file)
       
-      console.log('Upload response:', response)
       
       if (response.success && response.data) {
         
@@ -2255,7 +2996,6 @@ export default function LeadsPage({
           newAttachment = response.data as any
         }
         
-        console.log('New attachment object:', newAttachment)
         
         if (newAttachment && newAttachment.id && newAttachment.mimeType && newAttachment.originalName) {
           // Update local state with new attachment
@@ -2492,12 +3232,9 @@ export default function LeadsPage({
     
     // 🔹 Trata valores numéricos (Excel serial date)
     if (typeof dateString === "number") {
-      console.log(`Converting Excel serial date: ${dateString}`)
       const excelEpoch = new Date(1899, 11, 30) // Excel epoch is 1900-01-01, but JavaScript Date is 1899-12-30
       const date = new Date(excelEpoch.getTime() + dateString * 86400000)
-      const result = date.toISOString().split("T")[0]
-      console.log(`Excel serial ${dateString} -> ${result}`)
-      return result
+      return date.toISOString().split("T")[0]
     }
     
     const cleanDate = dateString.toString().trim()
@@ -2573,7 +3310,7 @@ export default function LeadsPage({
             }
           }
         } catch (error) {
-          console.log(`Error parsing date with pattern: ${error}`)
+          // Try next pattern
         }
       }
     }
@@ -2589,7 +3326,7 @@ export default function LeadsPage({
         }
       }
     } catch (error) {
-      console.log(`Native date parsing failed: ${error}`)
+      // Date parsing failed
     }
     
     return null
@@ -2637,10 +3374,7 @@ export default function LeadsPage({
     const headerKeys = Object.keys(sampleRow)
 
     
-    console.log("=== FILE MAPPING DEBUG ===")
-    console.log("Available columns:", headerKeys)
-    console.log("Sample row data:", sampleRow)
-    const mapping: Partial<Record<string, "name" | "email" | "phone" | "ssn" | "ein" | "source" | "status" | "value" | "estimated_close_date" | "description">> = {}
+    const mapping: Partial<Record<string, "name" | "email" | "phone" | "ssn" | "ein" | "source" | "status" | "value" | "estimated_close_date" | "location" | "interest" | "description">> = {}
 
     
 
@@ -2713,7 +3447,6 @@ export default function LeadsPage({
 
         const text = String(value ?? "").trim()
 
-        console.log(`Processing field: ${header} -> ${key} = "${text}"`)
 
         
 
@@ -2729,9 +3462,7 @@ export default function LeadsPage({
 
           // Check if this field contains both email and phone (concatenated)
           if (text.includes('@') && /\d/.test(text)) {
-            console.log(`Detected concatenated email/phone: "${text}"`)
             const separated = separateEmailAndPhone(text)
-            console.log(`Separated: email="${separated.email}", phone="${separated.phone}"`)
             draft.email = truncateTo(separated.email, FIELD_MAX.email)
             if (separated.phone && !draft.phone) {
               draft.phone = truncateTo(separated.phone, FIELD_MAX.phone)
@@ -2752,9 +3483,7 @@ export default function LeadsPage({
 
           // Check if this field contains SSN (with or without EIN)
           if (text.includes('SSN')) {
-            console.log(`Detected SSN field: "${text}"`)
             const separated = separateSSNAndEIN(text)
-            console.log(`Separated: ssn="${separated.ssn}", ein="${separated.ein}"`)
             draft.ssn = truncateTo(separated.ssn, FIELD_MAX.ssn)
             if (separated.ein && !draft.ein) {
               draft.ein = truncateTo(separated.ein, FIELD_MAX.ein)
@@ -2762,14 +3491,12 @@ export default function LeadsPage({
           } else {
           draft.ssn = truncateTo(text, FIELD_MAX.ssn)
 
-          console.log(`Set SSN: ${draft.ssn}`)
 
           }
         } else if (key === "ein") {
 
           draft.ein = truncateTo(text, FIELD_MAX.ein)
 
-          console.log(`Set EIN: ${draft.ein}`)
 
         } else if (key === "value") {
 
@@ -2792,12 +3519,9 @@ export default function LeadsPage({
               const parsedDate = parseAnyDateFormat(text.trim())
               if (parsedDate) {
                 draft.estimated_close_date = parsedDate.slice(0, FIELD_MAX.date)
-                console.log(`Set Close Date: ${draft.estimated_close_date} (from "${text}")`)
-              } else {
-                console.log(`Could not parse date: ${text}`)
               }
             } catch (error) {
-              console.log(`Error parsing date: ${text}`, error)
+              // Date parsing failed, skip
             }
           }
 
@@ -2805,7 +3529,6 @@ export default function LeadsPage({
 
           draft.description = truncateTo(text, FIELD_MAX.description)
 
-          console.log(`Set Description: ${draft.description}`)
 
         }
 
@@ -2813,7 +3536,6 @@ export default function LeadsPage({
 
       // Validate required fields
       if (!draft.name || !draft.email) {
-        console.log(`Skipping lead - missing required fields: name="${draft.name}", email="${draft.email}"`)
         continue
       }
       
@@ -2824,7 +3546,6 @@ export default function LeadsPage({
           // Validate the date format and ensure it's reasonable
           const testDate = new Date(safeEstimatedCloseDate)
           if (isNaN(testDate.getTime())) {
-            console.log(`Invalid date format, removing: ${safeEstimatedCloseDate}`)
             safeEstimatedCloseDate = undefined
           } else {
             // Ensure it's in YYYY-MM-DD format
@@ -2834,7 +3555,6 @@ export default function LeadsPage({
             safeEstimatedCloseDate = `${year}-${month}-${day}`
           }
         } catch (error) {
-          console.log(`Error validating date, removing: ${safeEstimatedCloseDate}`, error)
           safeEstimatedCloseDate = undefined
         }
       }
@@ -2869,8 +3589,6 @@ export default function LeadsPage({
 
       }
 
-      console.log('Final lead created:', finalLead)
-
       imported.push(finalLead)
 
     }
@@ -2880,13 +3598,69 @@ export default function LeadsPage({
   }
 
 
-  // Function to process leads in batches with minimal delay for speed
-  async function processBatch(leads: Lead[], batchSize: number = 50, initialDelayMs: number = 100, isCancelled: () => boolean = () => importCancelled, onBatchSaved?: (leads: Lead[]) => void): Promise<{ saved: Lead[], errors: number, duplicates: number, cancelled: boolean }> {
+  // Helper function to retry a lead creation with exponential backoff
+  async function createLeadWithRetry(lead: Lead, maxRetries: number = 5): Promise<{ success: boolean, lead: Lead | null, type: string, error?: string }> {
+    const createData: CreateLeadRequest = {
+      name: lead.name,
+      email: lead.email,
+      phone: lead.phone || undefined,
+      ssn: lead.ssn || undefined,
+      ein: lead.ein || undefined,
+      source: lead.source || undefined,
+      location: lead.location || undefined,
+      interest: lead.interest || undefined,
+      status: lead.status,
+      value: lead.value,
+      description: lead.description,
+      estimated_close_date: lead.estimated_close_date,
+    }
+    
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const response = await apiService.createLead(createData)
+        
+        if (response.success && response.data) {
+          return { success: true, lead: response.data.lead, type: 'saved' }
+        } else {
+          // Check if it's a duplicate error
+          const errorMsg = response.error?.toLowerCase() || ''
+          if (errorMsg.includes('duplicado') || errorMsg.includes('duplicate')) {
+            // Don't retry duplicates
+            return { success: true, lead: null, type: 'duplicate' }
+          } else if (attempt < maxRetries - 1) {
+            // Retry on other errors with exponential backoff
+            const backoffDelay = 50 * Math.pow(2, attempt) // 50ms, 100ms, 200ms, 400ms, 800ms
+            await new Promise(resolve => setTimeout(resolve, backoffDelay))
+            continue
+          } else {
+            console.error(`Failed to save lead after ${maxRetries} attempts:`, lead.name, response.error)
+            return { success: false, lead: null, type: 'error', error: response.error }
+          }
+        }
+      } catch (error) {
+        if (attempt < maxRetries - 1) {
+          // Retry on network errors with exponential backoff
+          const backoffDelay = 50 * Math.pow(2, attempt)
+          await new Promise(resolve => setTimeout(resolve, backoffDelay))
+          continue
+        } else {
+          console.error(`Network error after ${maxRetries} attempts:`, lead.name, error)
+          return { success: false, lead: null, type: 'error', error: String(error) }
+        }
+      }
+    }
+    
+    return { success: false, lead: null, type: 'error', error: 'Max retries exceeded' }
+  }
+
+  // Function to process leads in batches with controlled parallel processing and retry logic
+  async function processBatch(leads: Lead[], batchSize: number = 1000, initialDelayMs: number = 0, isCancelled: () => boolean = () => importCancelled, onBatchSaved?: (leads: Lead[]) => void): Promise<{ saved: Lead[], errors: number, duplicates: number, cancelled: boolean, failedLeads: Array<{lead: Lead, error: string}> }> {
     const totalBatches = Math.ceil(leads.length / batchSize)
     const savedLeads: Lead[] = []
+    const failedLeads: Array<{lead: Lead, error: string}> = []
     let errorCount = 0
     let duplicateCount = 0
-    let currentDelay = initialDelayMs
+    const parallelLimit = 30 // Process 30 leads in parallel to avoid server overload
 
     for (let i = 0; i < leads.length; i += batchSize) {
       // Check if import was cancelled
@@ -2906,11 +3680,9 @@ export default function LeadsPage({
                   successfullyDeleted++
                 } else {
                   errors++
-                  console.log(`Lead ${lead.id} not found or already deleted:`, response.error)
                 }
               } catch (error) {
                 errors++
-                console.log(`Error deleting lead ${lead.id}:`, error)
               }
             }
             
@@ -2935,14 +3707,14 @@ export default function LeadsPage({
         setImportNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: true })
         setIsImportCancelled(false)
         isImportCancelledRef.current = false
-        return { saved: savedLeads, errors: errorCount, duplicates: duplicateCount, cancelled: true }
+        return { saved: savedLeads, errors: errorCount, duplicates: duplicateCount, cancelled: true, failedLeads }
       }
 
       const batch = leads.slice(i, i + batchSize)
       const batchNumber = Math.floor(i / batchSize) + 1
       
       setImportProgress({
-        current: i + batch.length,
+        current: i,
         total: leads.length,
         batch: batchNumber,
         totalBatches
@@ -2950,101 +3722,158 @@ export default function LeadsPage({
       setImportNotification({ 
         show: true, 
         progress: { 
-          current: i + batch.length, 
+          current: i, 
           total: leads.length, 
           batch: batchNumber, 
           totalBatches 
         }, 
         cancelled: false 
       })
-
-      console.log(`Processing batch ${batchNumber}/${totalBatches} (${batch.length} leads) with ${currentDelay}ms delay`)
       
       // Check if import was cancelled before processing batch
-      if (isCancelled()) {
-        console.log('Import cancelled before processing batch')
-        setImportNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: true })
-        return { saved: savedLeads, errors: errorCount, duplicates: duplicateCount, cancelled: true }
-      }
-
-      // Process batch in parallel
-      const batchPromises = batch.map(async (lead) => {
-        // Check cancellation before each lead
-        if (isCancelled()) {
-          return { success: false, lead: null, type: 'cancelled' }
-        }
-        
-        try {
-          const createData: CreateLeadRequest = {
-            name: lead.name,
-            email: lead.email,
-            phone: lead.phone || undefined,
-            ssn: lead.ssn || undefined,
-            ein: lead.ein || undefined,
-            source: lead.source || undefined,
-            status: lead.status,
-            value: lead.value,
-            description: lead.description,
-            estimated_close_date: lead.estimated_close_date,
+      if (isCancelled() || isImportCancelledRef.current) {
+        // Rollback: remove imported leads from backend and frontend
+        if (savedLeads.length > 0) {
+          let successfullyDeleted = 0
+          let errors = 0
+          
+          try {
+            for (const lead of savedLeads) {
+              try {
+                const response = await apiService.deleteLead(lead.id)
+                if (response.success) {
+                  successfullyDeleted++
+                } else {
+                  errors++
+                }
+              } catch (error) {
+                errors++
+              }
+            }
+            
+            if (successfullyDeleted > 0) {
+              pushToast(`Import cancelled - ${successfullyDeleted} leads removed from backend`, 'success')
+            }
+          } catch (error) {
+            console.error('Error during rollback:', error)
           }
           
-          const response = await apiService.createLead(createData)
-          if (response.success && response.data) {
-            return { success: true, lead: response.data.lead, type: 'saved' }
+          // Remove from frontend state
+          const importedIds = savedLeads.map(lead => lead.id)
+          setLeads(prev => prev.filter(lead => !importedIds.includes(lead.id)))
+          setFilteredLeads(prev => prev.filter(lead => !importedIds.includes(lead.id)))
+          setImportedLeads(prev => prev.filter(lead => !importedIds.includes(lead.id)))
+          setCurrentImportLeads([])
+        }
+        setImportNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: true })
+        setIsImportCancelled(false)
+        isImportCancelledRef.current = false
+        return { saved: savedLeads, errors: errorCount, duplicates: duplicateCount, cancelled: true, failedLeads }
+      }
+
+      // Process batch in controlled parallel chunks (parallelLimit at a time)
+      const batchSavedLeads: Lead[] = []
+      for (let j = 0; j < batch.length; j += parallelLimit) {
+        // Check cancellation
+        if (isCancelled() || isImportCancelledRef.current) {
+          // Rollback: remove imported leads from backend and frontend
+          if (savedLeads.length > 0) {
+            let successfullyDeleted = 0
+            let errors = 0
+            
+            try {
+              for (const lead of savedLeads) {
+                try {
+                  const response = await apiService.deleteLead(lead.id)
+                  if (response.success) {
+                    successfullyDeleted++
           } else {
-            // Check if it's a duplicate error
-            const errorMsg = response.error?.toLowerCase() || ''
-            if (errorMsg.includes('duplicado') || errorMsg.includes('duplicate')) {
-              // Don't log as error - it's expected behavior
-              console.log(`Lead duplicate skipped: ${lead.name} (${lead.email})`)
-              return { success: true, lead: null, type: 'duplicate' }
-            } else {
-              console.error('Failed to save lead:', response.error)
-              return { success: false, lead: null, type: 'error' }
-            }
+                    errors++
+                  }
+                } catch (error) {
+                  errors++
+                }
+              }
+              
+              if (successfullyDeleted > 0) {
+                pushToast(`Import cancelled - ${successfullyDeleted} leads removed from backend`, 'success')
           }
         } catch (error) {
-          console.error('Error saving lead:', error)
-          return { success: false, lead: null, type: 'error' }
+              console.error('Error during rollback:', error)
+            }
+            
+            // Remove from frontend state
+            const importedIds = savedLeads.map(lead => lead.id)
+            setLeads(prev => prev.filter(lead => !importedIds.includes(lead.id)))
+            setFilteredLeads(prev => prev.filter(lead => !importedIds.includes(lead.id)))
+            setImportedLeads(prev => prev.filter(lead => !importedIds.includes(lead.id)))
+            setCurrentImportLeads([])
+          }
+          setImportNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: true })
+          setIsImportCancelled(false)
+          isImportCancelledRef.current = false
+          return { saved: savedLeads, errors: errorCount, duplicates: duplicateCount, cancelled: true, failedLeads }
         }
-      })
 
-      const batchResults = await Promise.all(batchPromises)
-      
-      // Collect results and adapt delay
-      let batchSuccesses = 0
-      batchResults.forEach(result => {
+        const chunk = batch.slice(j, j + parallelLimit)
+        const leadIndex = i + j
+        
+        // Update progress
+        setImportProgress({
+          current: leadIndex,
+          total: leads.length,
+          batch: batchNumber,
+          totalBatches
+        })
+        setImportNotification({ 
+          show: true, 
+          progress: { 
+            current: leadIndex, 
+            total: leads.length, 
+            batch: batchNumber, 
+            totalBatches 
+          }, 
+          cancelled: false 
+        })
+        
+        // Process chunk in parallel
+        const chunkPromises = chunk.map(lead => createLeadWithRetry(lead, 5))
+        const chunkResults = await Promise.all(chunkPromises)
+        
+        // Collect results
+        chunkResults.forEach(result => {
         if (result.success) {
           if (result.type === 'saved' && result.lead) {
             savedLeads.push(result.lead)
-            batchSuccesses++
+              batchSavedLeads.push(result.lead)
           } else if (result.type === 'duplicate') {
             duplicateCount++
-            batchSuccesses++ // Duplicates are considered successful
           }
         } else {
           errorCount++
+            // Extract lead from error - need to match back
+            const leadData = chunk[chunkResults.indexOf(result)]
+            if (leadData) {
+              failedLeads.push({ lead: leadData, error: result.error || 'Unknown error' })
+            }
         }
       })
 
-      // Call callback with newly saved leads from this batch
-      if (onBatchSaved && savedLeads.length > 0) {
-        const newLeads = savedLeads.slice(-batchSuccesses) // Get only the leads from this batch
-        onBatchSaved(newLeads)
+        // Small delay to prevent server overload
+        if (j + parallelLimit < batch.length) {
+          await new Promise(resolve => setTimeout(resolve, 20))
+        }
       }
 
-      // No adaptive delay - keep it fast
+      // Call callback with newly saved leads from this batch
+      if (onBatchSaved && batchSavedLeads.length > 0) {
+        onBatchSaved(batchSavedLeads)
+      }
 
       // No delay between batches for maximum speed
-      // Only check for cancellation if there are more batches
-      if (i + batchSize < leads.length && isCancelled()) {
-        console.log('Import cancelled between batches')
-        setImportNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: true })
-        return { saved: savedLeads, errors: errorCount, duplicates: duplicateCount, cancelled: true }
-      }
     }
 
-    return { saved: savedLeads, errors: errorCount, duplicates: duplicateCount, cancelled: false }
+    return { saved: savedLeads, errors: errorCount, duplicates: duplicateCount, cancelled: false, failedLeads }
   }
 
   async function processFileForPreview(file: File) {
@@ -3203,14 +4032,11 @@ export default function LeadsPage({
 
         if (uniqueToAdd.length > 0) {
 
-           // Always use batch size of 500 for maximum efficiency
-           const batchSize = 500
-          const delayMs = 0 // No delay for maximum speed
+          // Use optimized batch size to avoid server overload
+          const batchSize = 1000
+          const delayMs = 0
           
-          console.log(`Processing ${uniqueToAdd.length} leads in batches of ${batchSize} with ${delayMs}ms delay`)
-          
-          const { saved: savedLeads, errors: errorCount, duplicates: duplicateCount, cancelled } = await processBatch(uniqueToAdd, batchSize, delayMs, () => {
-            console.log('Checking cancellation:', importCancelled)
+          const { saved: savedLeads, errors: errorCount, duplicates: duplicateCount, cancelled, failedLeads } = await processBatch(uniqueToAdd, batchSize, delayMs, () => {
             return importCancelled
           }, (newLeads) => {
             // Track leads as they are imported for immediate rollback capability
@@ -3224,9 +4050,40 @@ export default function LeadsPage({
             setImportedLeads(prev => [...prev, ...newLeads])
           })
           
-
-          // Leads are now updated in real-time during batch processing
-          
+          // Retry failed leads one more time if any failed
+          if (failedLeads.length > 0 && !cancelled) {
+            console.log(`Retrying ${failedLeads.length} failed leads...`)
+            pushToast(`Retrying ${failedLeads.length} failed leads...`, "warning")
+            
+            const retryLeads = failedLeads.map(f => f.lead)
+            const { saved: retrySaved, errors: retryErrors, duplicates: retryDuplicates, failedLeads: stillFailed } = await processBatch(retryLeads, 500, 0, () => importCancelled, (newLeads) => {
+              setCurrentImportLeads(prev => [...prev, ...newLeads])
+              setLeads(prev => [...newLeads, ...prev])
+              setFilteredLeads(prev => [...newLeads, ...prev])
+              setImportedLeads(prev => [...prev, ...newLeads])
+            })
+            
+            // Update final counts
+            savedLeads.push(...retrySaved)
+            const finalErrors = retryErrors
+            const finalDuplicates = duplicateCount + retryDuplicates
+            
+            // Log remaining failures
+            if (stillFailed.length > 0) {
+              console.error(`Still failed after retry (${stillFailed.length} leads):`)
+              stillFailed.forEach(f => console.error(`- ${f.lead.name} (${f.lead.email}): ${f.error}`))
+            }
+            
+            // Show comprehensive results
+            let message = `${savedLeads.length} lead(s) imported successfully.`
+            if (finalDuplicates > 0) {
+              message += ` ${finalDuplicates} duplicate(s) skipped.`
+            }
+            if (finalErrors > 0) {
+              message += ` ${finalErrors} lead(s) failed even after retry.`
+            }
+            pushToast(message, finalErrors > 0 ? "warning" : "success")
+          } else {
           // Show comprehensive results
           if (cancelled) {
             pushToast(`Import cancelled. ${savedLeads.length} lead(s) saved, ${duplicateCount} duplicate(s) skipped.`, "warning")
@@ -3236,7 +4093,6 @@ export default function LeadsPage({
               message += ` ${duplicateCount} duplicate(s) were skipped.`
             }
           if (errorCount > 0) {
-
               message += ` ${errorCount} lead(s) failed to save.`
             }
             pushToast(message, errorCount > 0 ? "warning" : "success")
@@ -3244,6 +4100,7 @@ export default function LeadsPage({
           
           if (cancelled && savedLeads.length === 0 && duplicateCount === 0) {
             pushToast(`Import cancelled. No leads were processed.`, "warning")
+            }
           }
 
         } else {
@@ -3287,112 +4144,84 @@ export default function LeadsPage({
 
 
   function exportData(format: "xlsx" | "csv" | "ods" | "json") {
-
+    try {
     const selectedIds = selectedLeads
 
-    const baseList = selectedIds.size > 0
+      // Se não há seleção, exporta template vazio
+      const isTemplate = selectedIds.size === 0
 
+      // Apenas pega leads se houver seleção
+      const baseList = selectedIds.size > 0
       ? leads.filter(l => selectedIds.has(l.id))
+        : []
 
-      : filteredLeads
+      // Template vazio com todas as colunas aceitas na importação
+      const templateData = [{
+        Name: '',
+        Email: '',
+        Phone: '',
+        SSN: '',
+        EIN: '',
+        Source: '',
+        Status: '',
+        Value: '',
+        'Estimated Close Date': '',
+        Description: '',
+      }]
 
-    // Se não há leads, criar template vazio com colunas
-    const data = baseList.length > 0 ? baseList.map(lead => ({
-
+      // Dados dos leads selecionados
+      const leadsData = baseList.map(lead => ({
       Name: lead.name,
-
       Email: lead.email,
-
       Phone: lead.phone || '',
-
       SSN: lead.ssn || '',
-
       EIN: lead.ein || '',
-
       Source: lead.source || '',
-
       Status: lead.status,
-
       Value: lead.value || '',
-
       'Estimated Close Date': lead.estimated_close_date || '',
-
       Description: lead.description || '',
+      }))
 
-      'Created At': lead.created_at,
-
-      'Updated At': lead.updated_at,
-
-    })) : [{
-
-      Name: '',
-
-      Email: '',
-
-      Phone: '',
-
-      SSN: '',
-
-      EIN: '',
-
-      Source: '',
-
-      Status: '',
-
-      Value: '',
-
-      'Estimated Close Date': '',
-
-      Description: '',
-
-      'Created At': '',
-
-      'Updated At': '',
-
-    }]
+      // Usa template se não há seleção, caso contrário usa os dados dos leads
+      const data = isTemplate ? templateData : leadsData
 
     const date = new Date().toISOString().split('T')[0]
-
-    const base = baseList.length > 0 
-      ? `leads_${org}_${date}`
-      : `leads_template_${org}_${date}`
+      const base = isTemplate 
+        ? `leads_template_${org}_${date}`
+        : `leads_${org}_${date}`
 
     if (format === "json") {
-
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json;charset=utf-8" })
-
       const a = document.createElement("a")
-
       a.href = URL.createObjectURL(blob)
-
       a.download = `${base}.json`
-
       a.click()
-
       URL.revokeObjectURL(a.href)
 
-      pushToast(`${data.length} lead(s) exported as JSON.`, "success")
-
+        if (isTemplate) {
+          pushToast(`Template exported successfully as JSON`, "success")
+        } else {
+          pushToast(`${data.length} lead(s) exported as JSON`, "success")
+        }
       return
-
     }
 
     const ws = XLSX.utils.json_to_sheet(data)
-
     const wb = XLSX.utils.book_new()
-
     XLSX.utils.book_append_sheet(wb, ws, "Leads")
-
     const bookType = format
-
     XLSX.writeFile(wb, `${base}.${format}`, { bookType: bookType as XLSX.BookType })
 
-    const message = baseList.length > 0 
-      ? `${data.length} lead(s) exported as ${format.toUpperCase()}.`
-      : `Template exported as ${format.toUpperCase()}. Use this file to import leads.`
-
-    pushToast(message, "success")
-
+      if (isTemplate) {
+        pushToast(`Template exported successfully as ${format.toUpperCase()}`, "success")
+      } else {
+        pushToast(`${data.length} lead(s) exported as ${format.toUpperCase()}`, "success")
+      }
+    } catch (error) {
+      console.error('Export error:', error)
+      pushToast('Error exporting data', 'error')
+    }
   }
 
 
@@ -3415,17 +4244,47 @@ export default function LeadsPage({
 
 
 
-  async function performDeletion() {
+  // Helper function to delete a lead with retry logic
+  async function deleteLeadWithRetry(leadId: string, maxRetries: number = 5): Promise<{ success: boolean, id: string, error?: string }> {
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const response = await apiService.deleteLead(leadId)
+        
+        if (response.success) {
+          return { success: true, id: leadId }
+        } else if (attempt < maxRetries - 1) {
+          // Retry on failure with exponential backoff
+          const backoffDelay = 50 * Math.pow(2, attempt) // 50ms, 100ms, 200ms, 400ms, 800ms
+          await new Promise(resolve => setTimeout(resolve, backoffDelay))
+          continue
+        } else {
+          return { success: false, id: leadId, error: response.error }
+        }
+      } catch (error) {
+        if (attempt < maxRetries - 1) {
+          // Retry on network errors with exponential backoff
+          const backoffDelay = 50 * Math.pow(2, attempt)
+          await new Promise(resolve => setTimeout(resolve, backoffDelay))
+          continue
+        } else {
+          return { success: false, id: leadId, error: String(error) }
+        }
+      }
+    }
+    
+    return { success: false, id: leadId, error: 'Max retries exceeded' }
+  }
 
+  async function performDeletion() {
     if (!canConfirmDeletion) return
 
     // Close confirmation modal immediately when starting deletion
     setIsConfirmOpen(false)
     
     const totalLeads = pendingDeletionIds.length
-     // Always use batch size of 500 for maximum efficiency
-     const batchSize = 500
+    const batchSize = 1000
     const totalBatches = Math.ceil(totalLeads / batchSize)
+    const parallelLimit = 30
     
     // Show progress notification
     setDeleteNotification({
@@ -3438,117 +4297,257 @@ export default function LeadsPage({
     
     try {
       let deletedCount = 0
-      const leadsToDelete: Lead[] = []
+      const successfullyDeletedIds: string[] = []
+      const failedDeletions: Array<{ id: string, error: string }> = []
       
       // Store leads before deletion for potential rollback
       const leadsBeforeDeletion = [...leads]
+      const idsToDelete = [...pendingDeletionIds]
       
+      // Process batches
       for (let i = 0; i < totalBatches; i++) {
-        // Check if cancelled
+        // Check if cancelled at start of batch
         if (isDeletionCancelledRef.current) {
-          // Rollback: restore deleted leads in backend
-          try {
-            // Restore leads that were already deleted in this batch
-            const leadsToRestore = leadsToDelete.slice(0, deletedCount)
+          // Rollback: restore deleted leads
+          if (successfullyDeletedIds.length > 0) {
+            const leadsToRestore = leadsBeforeDeletion.filter(lead => successfullyDeletedIds.includes(lead.id))
             for (const lead of leadsToRestore) {
+              try {
               await apiService.createLead(lead)
-            }
-            pushToast(`Deletion cancelled - ${leadsToRestore.length} leads restored`, 'success')
           } catch (error) {
-            console.error('Error restoring leads:', error)
+                console.error('Error restoring lead:', error)
+              }
+            }
           }
           
           // Restore frontend state
           setLeads(leadsBeforeDeletion)
           setFilteredLeads(leadsBeforeDeletion)
-          setDeletedLeads([])
           setDeleteNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
-          setIsDeletionCancelled(false)
-          isDeletionCancelledRef.current = false
+          pushToast('Deletion cancelled and leads restored', 'success')
           return
-
         }
-
         
         const startIndex = i * batchSize
         const endIndex = Math.min(startIndex + batchSize, totalLeads)
-        const batchIds = pendingDeletionIds.slice(startIndex, endIndex)
-        
-        // Store leads being deleted in this batch
-        const batchLeads = leadsBeforeDeletion.filter(lead => batchIds.includes(lead.id))
-        leadsToDelete.push(...batchLeads)
+        const batchIds = idsToDelete.slice(startIndex, endIndex)
         
         // Update progress
         setDeleteNotification(prev => ({
           ...prev,
           progress: { 
-            current: deletedCount, 
+            current: startIndex, 
             total: totalLeads, 
             batch: i + 1, 
             totalBatches 
           }
         }))
         
-        try {
-          // Check cancellation before processing batch
+        // Delete leads in controlled parallel chunks
+        const batchSuccessIds: string[] = []
+        for (let j = 0; j < batchIds.length; j += parallelLimit) {
+          // Check cancellation during chunk processing
           if (isDeletionCancelledRef.current) {
-            // Rollback: restore deleted leads in backend
-            try {
-              const leadsToRestore = leadsToDelete.slice(0, deletedCount)
+            // Rollback all successfully deleted leads so far
+            const allDeletedIds = [...successfullyDeletedIds, ...batchSuccessIds]
+            if (allDeletedIds.length > 0) {
+              const leadsToRestore = leadsBeforeDeletion.filter(lead => allDeletedIds.includes(lead.id))
               for (const lead of leadsToRestore) {
+                try {
                 await apiService.createLead(lead)
-              }
-              pushToast(`Deletion cancelled - ${leadsToRestore.length} leads restored`, 'success')
             } catch (error) {
-              console.error('Error restoring leads:', error)
+                  console.error('Error restoring lead:', error)
+                }
+              }
             }
             
             // Restore frontend state
             setLeads(leadsBeforeDeletion)
             setFilteredLeads(leadsBeforeDeletion)
-            setDeletedLeads([])
             setDeleteNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
-            setIsDeletionCancelled(false)
-            isDeletionCancelledRef.current = false
+            pushToast('Deletion cancelled and leads restored', 'success')
             return
           }
           
-          // Delete leads in parallel for maximum speed
-          const deletePromises = batchIds.map(async (id) => {
-            try {
-              const response = await apiService.deleteLead(id)
-              return { success: response.success, id }
-    } catch (error) {
+          const chunk = batchIds.slice(j, j + parallelLimit)
+          const leadIndex = startIndex + j
+          
+          // Update progress
+          setDeleteNotification(prev => ({
+            ...prev,
+            progress: { 
+              current: leadIndex, 
+              total: totalLeads, 
+              batch: i + 1, 
+              totalBatches 
+            }
+          }))
+          
+          // Process chunk in parallel
+          const chunkPromises = chunk.map(id => deleteLeadWithRetry(id, 5))
+          const chunkResults = await Promise.all(chunkPromises)
+          
+          // Collect results
+          chunkResults.forEach(result => {
+            if (result.success) {
+              deletedCount++
+              batchSuccessIds.push(result.id)
+            } else {
+              failedDeletions.push({ id: result.id, error: result.error || 'Unknown error' })
+            }
+          })
 
-              console.error(`Failed to delete lead ${id}:`, error)
-              return { success: false, id }
+          // No delay between parallel chunks for maximum speed
+        }
+        
+        // Update UI progressively after each batch
+        successfullyDeletedIds.push(...batchSuccessIds)
+        if (batchSuccessIds.length > 0) {
+          setLeads(prev => prev.filter(lead => !batchSuccessIds.includes(lead.id)))
+          setFilteredLeads(prev => prev.filter(lead => !batchSuccessIds.includes(lead.id)))
+        }
+      }
+      
+      // Check for cancellation before retry phase
+      if (isDeletionCancelledRef.current) {
+        // Rollback all successfully deleted leads
+        if (successfullyDeletedIds.length > 0) {
+          const leadsToRestore = leadsBeforeDeletion.filter(lead => successfullyDeletedIds.includes(lead.id))
+          for (const lead of leadsToRestore) {
+            try {
+              await apiService.createLead(lead)
+            } catch (error) {
+              console.error('Error restoring lead:', error)
+            }
+          }
+            }
+            
+            // Restore frontend state
+            setLeads(leadsBeforeDeletion)
+            setFilteredLeads(leadsBeforeDeletion)
+            setDeleteNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
+        pushToast('Deletion cancelled and leads restored', 'success')
+            return
+          }
+          
+      // Retry failed deletions one more time if any failed
+      if (failedDeletions.length > 0 && !isDeletionCancelledRef.current) {
+        pushToast(`Retrying ${failedDeletions.length} failed deletions...`, "warning")
+        
+        const retryIds = failedDeletions.map(f => f.id)
+        const retriedSuccessIds: string[] = []
+        
+        // Process retries in parallel chunks
+        for (let k = 0; k < retryIds.length; k += parallelLimit) {
+          if (isDeletionCancelledRef.current) {
+            // Rollback all successfully deleted leads
+            const allDeletedIds = [...successfullyDeletedIds, ...retriedSuccessIds]
+            if (allDeletedIds.length > 0) {
+              const leadsToRestore = leadsBeforeDeletion.filter(lead => allDeletedIds.includes(lead.id))
+              for (const lead of leadsToRestore) {
+                try {
+                  await apiService.createLead(lead)
+    } catch (error) {
+                  console.error('Error restoring lead:', error)
+                }
+              }
+            }
+            
+            // Restore frontend state
+            setLeads(leadsBeforeDeletion)
+            setFilteredLeads(leadsBeforeDeletion)
+            setDeleteNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
+            pushToast('Deletion cancelled and leads restored', 'success')
+            return
+          }
+          
+          const retryChunk = retryIds.slice(k, k + parallelLimit)
+          const retryPromises = retryChunk.map(id => deleteLeadWithRetry(id, 5))
+          const retryResults = await Promise.all(retryPromises)
+          
+          // Collect successful retries and remaining failures
+          const stillFailedIds: string[] = []
+          retryResults.forEach(result => {
+            if (result.success) {
+              deletedCount++
+              retriedSuccessIds.push(result.id)
+            } else {
+              stillFailedIds.push(result.id)
             }
           })
           
-          const deleteResults = await Promise.all(deletePromises)
-          const successfulDeletions = deleteResults.filter(result => result.success)
-          deletedCount += successfulDeletions.length
-          
-          // Update local state for this batch
-          setLeads(prev => prev.filter(lead => !batchIds.includes(lead.id)))
-          setFilteredLeads(prev => prev.filter(lead => !batchIds.includes(lead.id)))
-          
-        } catch (error) {
-          console.error('Error deleting batch:', error)
+          // No delay between retry chunks for maximum speed
         }
         
-        // No delay between batches for maximum speed
+        // Update UI for successful retries
+        if (retriedSuccessIds.length > 0) {
+          setLeads(prev => prev.filter(lead => !retriedSuccessIds.includes(lead.id)))
+          setFilteredLeads(prev => prev.filter(lead => !retriedSuccessIds.includes(lead.id)))
+        }
+        
+        // Third retry phase for remaining failures (with more aggressive retries)
+        const stillFailed = failedDeletions.filter(f => !retriedSuccessIds.includes(f.id))
+        if (stillFailed.length > 0 && !isDeletionCancelledRef.current) {
+          pushToast(`Final retry for ${stillFailed.length} remaining deletions...`, "warning")
+          
+          const finalRetryIds = stillFailed.map(f => f.id)
+          const finalSuccessIds: string[] = []
+          
+          // Process with smaller chunks for better reliability
+          const smallerChunkSize = 20
+          for (let m = 0; m < finalRetryIds.length; m += smallerChunkSize) {
+            if (isDeletionCancelledRef.current) break
+            
+            const finalChunk = finalRetryIds.slice(m, m + smallerChunkSize)
+            const finalPromises = finalChunk.map(id => deleteLeadWithRetry(id, 6))
+            const finalResults = await Promise.all(finalPromises)
+            
+            finalResults.forEach(result => {
+              if (result.success) {
+                deletedCount++
+                finalSuccessIds.push(result.id)
+              }
+            })
+            
+            // Small delay between final retry chunks for stability
+            if (m + smallerChunkSize < finalRetryIds.length) {
+              await new Promise(resolve => setTimeout(resolve, 50))
+            }
+          }
+          
+          // Update UI for final successful retries
+          if (finalSuccessIds.length > 0) {
+            setLeads(prev => prev.filter(lead => !finalSuccessIds.includes(lead.id)))
+            setFilteredLeads(prev => prev.filter(lead => !finalSuccessIds.includes(lead.id)))
+          }
+          
+          const absoluteFinalErrors = stillFailed.length - finalSuccessIds.length
+          if (absoluteFinalErrors > 0) {
+            pushToast(`${deletedCount} lead(s) deleted. ${absoluteFinalErrors} lead(s) failed after all retries.`, 'warning')
+          } else {
+      pushToast(`Successfully deleted ${deletedCount} lead(s)`, 'success')
+          }
+        } else {
+          const finalErrors = failedDeletions.length - retriedSuccessIds.length
+          if (finalErrors > 0) {
+            pushToast(`${deletedCount} lead(s) deleted. ${finalErrors} lead(s) failed even after retry.`, 'warning')
+          } else {
+            pushToast(`Successfully deleted ${deletedCount} lead(s)`, 'success')
+          }
+        }
+      } else {
+        // Show success message
+        if (failedDeletions.length > 0) {
+          pushToast(`Deleted ${deletedCount} lead(s). ${failedDeletions.length} lead(s) failed.`, 'warning')
+        } else {
+          pushToast(`Successfully deleted ${deletedCount} lead(s)`, 'success')
+        }
       }
       
-      // Store deleted leads for potential rollback
-      setDeletedLeads(leadsToDelete)
-      
-      // Clear selections and show success
+      // Clear selections
       setSelectedLeads(new Set())
-      pushToast(`Successfully deleted ${deletedCount} lead(s)`, 'success')
       
-      
-      // Sync after operation to ensure complete sync with backend
+      // Sync after operation
       await syncAfterOperation()
       
     } catch (error) {
@@ -3558,6 +4557,8 @@ export default function LeadsPage({
       setDeleteNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
       setPendingDeletionIds([])
       setConfirmInput("")
+      setIsDeletionCancelled(false)
+      isDeletionCancelledRef.current = false
     }
   }
 
@@ -3894,6 +4895,34 @@ export default function LeadsPage({
             </div>
           </div>
         )}
+        
+        {/* BULK ASSIGN PROGRESS NOTIFICATION */}
+        {assignNotification.show && (
+          <div className="fixed top-4 right-4 z-[100] bg-background border rounded-lg shadow-lg p-4 w-80">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                <span className="font-medium">Assigning Leads</span>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm text-muted-foreground">
+                <span>Batch {assignNotification.progress.batch} of {assignNotification.progress.totalBatches}</span>
+                <span>{assignNotification.progress.current} / {assignNotification.progress.total}</span>
+              </div>
+              
+              <div className="w-full bg-muted rounded-full h-2">
+                <div 
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  style={{ 
+                    width: `${(assignNotification.progress.current / assignNotification.progress.total) * 100}%` 
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* DELETE PROGRESS NOTIFICATION */}
         {deleteNotification.show && (
@@ -3928,6 +4957,8 @@ export default function LeadsPage({
                             ssn: lead.ssn || undefined,
                             ein: lead.ein || undefined,
                             source: lead.source || undefined,
+                            location: lead.location || undefined,
+                            interest: lead.interest || undefined,
                             status: lead.status,
                             value: lead.value,
                             description: lead.description,
@@ -4035,6 +5066,34 @@ export default function LeadsPage({
                   <XCircle className="h-4 w-4" />
                 </Button>
               )}
+              
+              {/* Column Visibility Selector */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="cursor-pointer">
+                    <Columns className="h-4 w-4 mr-2" />
+                    Columns
+                    <ChevronDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 p-1">
+                  {columnOrder.filter(columnId => columnLabels[columnId]).map((columnId) => (
+                    <SortableColumnItem
+                      key={columnId}
+                      id={columnId}
+                      label={columnLabels[columnId]}
+                      visible={visibleColumns[columnId]}
+                      onToggle={() => toggleColumn(columnId)}
+                      onDragStart={handleColumnDragStart}
+                      onDragOver={handleColumnDragOver}
+                      onDragLeave={handleColumnDragLeave}
+                      onDrop={handleColumnDrop}
+                      isDragging={draggedColumn === columnId}
+                      isDraggedOver={dragOverColumn === columnId}
+                    />
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
             {/* Actions */}
@@ -4153,6 +5212,10 @@ export default function LeadsPage({
                     <DropdownMenuItem onClick={openBulkEdit} className="cursor-pointer">
                       <Edit className="h-4 w-4 mr-2" />
                       Edit Selected
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={openBulkAssign} className="cursor-pointer">
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Assign to User
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => openPipelineModal('add')} className="cursor-pointer">
                       <CheckCircle2 className="h-4 w-4 mr-2" />
@@ -4330,119 +5393,7 @@ export default function LeadsPage({
                       )}
                     </th>
 
-                    <th 
-
-                      className="py-2 pr-3 w-[200px] cursor-pointer hover:bg-muted/50 select-none"
-
-                      onClick={() => handleSort('name')}
-
-                    >
-
-                      <div className="flex items-center gap-1">
-
-                        Name
-
-                        {sortField === 'name' && (
-
-                          sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
-
-                        )}
-
-                      </div>
-
-                    </th>
-
-                    <th className="py-2 pr-3 w-[240px]">Email / Phone</th>
-
-                    <th className="py-2 pr-3 w-[160px]">SSN/EIN</th>
-
-                    <th 
-
-                      className="py-2 pr-3 w-[160px] cursor-pointer hover:bg-muted/50 select-none"
-
-                      onClick={() => handleSort('source')}
-
-                    >
-
-                      <div className="flex items-center gap-1">
-
-                        Source
-
-                        {sortField === 'source' && (
-
-                          sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
-
-                        )}
-
-                      </div>
-
-                    </th>
-
-                    <th 
-
-                      className="py-2 pr-3 w-[120px] cursor-pointer hover:bg-muted/50 select-none"
-
-                      onClick={() => handleSort('status')}
-
-                    >
-
-                      <div className="flex items-center gap-1">
-
-                        Status
-
-                        {sortField === 'status' && (
-
-                          sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
-
-                        )}
-
-                      </div>
-
-                    </th>
-
-                    <th 
-
-                      className="py-2 pr-3 w-[140px] cursor-pointer hover:bg-muted/50 select-none"
-
-                      onClick={() => handleSort('value')}
-
-                    >
-
-                      <div className="flex items-center gap-1">
-
-                        Value
-
-                        {sortField === 'value' && (
-
-                          sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
-
-                        )}
-
-                      </div>
-
-                    </th>
-
-                    <th 
-
-                      className="py-2 pr-3 w-[140px] cursor-pointer hover:bg-muted/50 select-none"
-
-                      onClick={() => handleSort('estimated_close_date')}
-
-                    >
-
-                      <div className="flex items-center gap-1">
-
-                        Close Date
-
-                        {sortField === 'estimated_close_date' && (
-
-                          sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
-
-                        )}
-
-                      </div>
-
-                    </th>
+                    {columnOrder.filter(columnId => columnLabels[columnId]).map(columnId => renderColumnHeader(columnId))}
 
                     <th className="py-2 pr-0 text-right w-[100px]">Actions</th>
 
@@ -4472,129 +5423,7 @@ export default function LeadsPage({
 
                       </td>
 
-                      <td className="py-2 pr-3">
-
-                        <div className="flex items-center gap-2">
-                          <div
-
-                            className="max-w-[200px] truncate hover:underline decoration-dotted cursor-pointer font-medium"
-
-                            title={lead.name}
-
-                            onClick={() => setPreview({ open: true, lead })}
-
-                          >
-
-                            {lead.name}
-
-                          </div>
-                          {lead.show_on_pipeline && (
-                            <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
-                              <CheckCircle2 className="h-3 w-3 mr-1" />
-                              Pipeline
-                            </span>
-                          )}
-                        </div>
-
-                      </td>
-
-                      <td className="py-2 pr-3">
-
-                        <div className="max-w-[220px] space-y-1">
-
-                          <div className="truncate text-sm" title={lead.email}>
-
-                            {lead.email}
-
-                          </div>
-
-                          {lead.phone && (
-
-                            <div className="truncate text-xs text-muted-foreground" title={lead.phone}>
-
-                              {lead.phone}
-
-                            </div>
-
-                          )}
-
-                        </div>
-
-                      </td>
-
-                      <td className="py-2 pr-3">
-
-                        <div className="max-w-[160px] space-y-1">
-
-                          {lead.ssn && (
-
-                            <div className="text-xs" title={`SSN: ${lead.ssn}`}>
-
-                              SSN: {lead.ssn}
-
-                            </div>
-
-                          )}
-
-                          {lead.ein && (
-
-                            <div className="text-xs" title={`EIN: ${lead.ein}`}>
-
-                              EIN: {lead.ein}
-
-                            </div>
-
-                          )}
-
-                          {!lead.ssn && !lead.ein && (
-
-                            <div className="text-xs text-muted-foreground">-</div>
-
-                          )}
-
-                        </div>
-
-                      </td>
-
-                      <td className="py-2 pr-3">
-
-                        <div className="max-w-[160px] truncate text-xs" title={lead.source}>
-
-                          {lead.source || '-'}
-
-                        </div>
-
-                      </td>
-
-                      <td className="py-2 pr-3">
-
-                        <span className="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium">
-
-                          {lead.status}
-
-                        </span>
-
-                      </td>
-
-                      <td className="py-2 pr-3">
-
-                        <div className="text-sm font-medium text-green-600">
-
-                          {lead.value ? `$${lead.value.toLocaleString()}` : '-'}
-
-                        </div>
-
-                      </td>
-
-                      <td className="py-2 pr-3">
-
-                        <div className="text-xs text-muted-foreground">
-
-                          {lead.estimated_close_date ? new Date(lead.estimated_close_date).toLocaleDateString('pt-BR') : '-'}
-
-                        </div>
-
-                      </td>
+                      {columnOrder.filter(columnId => columnLabels[columnId]).map(columnId => renderColumnCell(columnId, lead))}
 
                       <td className="py-2 pr-0">
 
@@ -4624,15 +5453,10 @@ export default function LeadsPage({
 
                   {currentLeads.length === 0 && (
                     <tr>
-
-                      <td colSpan={7} className="py-6 text-center text-muted-foreground">
-
+                      <td colSpan={Object.values(visibleColumns).filter(Boolean).length + 2} className="py-6 text-center text-muted-foreground">
                         {searchTerm ? "No leads found for this search." : "No leads yet. Add the first one above."}
-
                       </td>
-
                     </tr>
-
                   )}
 
                 </tbody>
@@ -4852,6 +5676,26 @@ export default function LeadsPage({
 
               />
 
+            </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-medium">Location</label>
+                  <Input
+                    placeholder="e.g., New York, USA"
+                    value={leadLocation}
+                    onChange={(e) => setLeadLocation(e.target.value.slice(0, FIELD_MAX.source))}
+                    maxLength={FIELD_MAX.source}
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm font-medium">Interest</label>
+                  <Input
+                    placeholder="e.g., Product A, Service B"
+                    value={interest}
+                    onChange={(e) => setInterest(e.target.value.slice(0, FIELD_MAX.source))}
+                    maxLength={FIELD_MAX.source}
+                  />
             </div>
 
                 <div className="md:col-span-2 space-y-2">
@@ -5919,6 +6763,24 @@ export default function LeadsPage({
               </div>
 
               <div className="space-y-2">
+                <label className="mb-1 block text-sm font-medium">Location</label>
+                <Input
+                  placeholder="Filter by location..."
+                  value={filters.location}
+                  onChange={(e) => setFilters(prev => ({ ...prev, location: e.target.value }))}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="mb-1 block text-sm font-medium">Interest</label>
+                <Input
+                  placeholder="Filter by interest..."
+                  value={filters.interest}
+                  onChange={(e) => setFilters(prev => ({ ...prev, interest: e.target.value }))}
+                />
+              </div>
+
+              <div className="space-y-2">
                 <label className="mb-1 block text-sm font-medium">Status</label>
                 <select
                   className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input h-9 w-full min-w-0 rounded-md border bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
@@ -6465,6 +7327,67 @@ export default function LeadsPage({
         </div>
       </SheetContent>
     </Sheet>
+    
+    {/* BULK ASSIGN MODAL */}
+    <Sheet open={isBulkAssignOpen} onOpenChange={setIsBulkAssignOpen}>
+      <SheetContent className="w-full sm:max-w-md border-l border-border p-6 md:p-8">
+        <SheetHeader>
+          <SheetTitle>Assign Leads to User</SheetTitle>
+          <SheetDescription>
+            Assign {selectedLeads.size} selected lead(s) to a user.
+          </SheetDescription>
+        </SheetHeader>
+        
+        <Separator className="my-4" />
+        
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <label className="mb-1 block text-sm font-medium">Select User</label>
+            <select
+              value={selectedUserId}
+              onChange={(e) => setSelectedUserId(e.target.value)}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              <option value="">-- Select a user --</option>
+              {organizationUsers.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.name} ({user.email})
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <Separator />
+          
+          <div className="space-y-2">
+            <label className="mb-1 block text-sm font-medium">Confirmation</label>
+            <Input
+              placeholder="Type 'assign' to confirm"
+              value={bulkAssignConfirm}
+              onChange={(e) => setBulkAssignConfirm(e.target.value)}
+            />
+            <div className="text-xs text-muted-foreground">
+              This action will assign {selectedLeads.size} lead(s) to the selected user. Type 'assign' to confirm.
+            </div>
+          </div>
+          
+          <Separator />
+          
+          <div className="flex gap-2">
+            <Button 
+              onClick={applyBulkAssign} 
+              className="flex-1 cursor-pointer"
+              disabled={bulkAssignConfirm.trim().toLowerCase() !== "assign" || !selectedUserId}
+            >
+              Assign Leads
+            </Button>
+            <Button variant="outline" onClick={() => setIsBulkAssignOpen(false)} className="cursor-pointer">
+              Cancel
+            </Button>
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
 
         {/* CONFIRMATION MODAL */}
 
@@ -6583,6 +7506,488 @@ export default function LeadsPage({
       </SidebarInset>
 
     </SidebarProvider>
+    
+    {/* LEAD DETAILS MODAL - MODERN DESIGN */}
+    <Sheet open={preview.open} onOpenChange={(open) => setPreview({ open, lead: open ? preview.lead : null })}>
+      <SheetContent className="w-full sm:max-w-3xl border-l border-border p-0 overflow-y-auto">
+        {preview.lead && (
+          <>
+            <SheetTitle className="sr-only">Lead Details: {preview.lead.name}</SheetTitle>
+            <SheetDescription className="sr-only">Complete information about the lead including contact details, business information, and metadata.</SheetDescription>
+            {/* Header */}
+            <div className="sticky top-0 z-10 bg-background border-b p-6">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <User className="h-6 w-6" />
+                    <h2 className="text-2xl font-bold">{preview.lead.name}</h2>
+                  </div>
+                  <p className="text-muted-foreground text-sm">Complete lead information and details</p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  onClick={() => setPreview({ open: false, lead: null })}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              
+              {/* Status Badge */}
+              <div className="mt-4 flex items-center gap-2">
+                <div className="inline-flex items-center gap-2 bg-muted px-3 py-1.5 rounded-full">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span className="text-sm font-medium capitalize">{preview.lead.status}</span>
+                </div>
+                {preview.lead.value && (
+                  <div className="inline-flex items-center gap-2 bg-muted px-3 py-1.5 rounded-full">
+                    <DollarSign className="h-4 w-4" />
+                    <span className="text-sm font-medium">
+                      {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(preview.lead.value)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Contact Information Card */}
+              <div className="bg-muted/50 rounded-xl p-5 border">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <Mail className="h-5 w-5" />
+                  Contact Information
+                </h3>
+                <div className="grid gap-3">
+                  {preview.lead.email && (
+                    <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
+                      <div className="flex items-center gap-3 flex-1">
+                        <Mail className="h-4 w-4 text-muted-foreground" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-muted-foreground">Email</p>
+                          <p className="text-sm font-medium truncate">{preview.lead.email}</p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 shrink-0"
+                        onClick={() => {
+                          navigator.clipboard.writeText(preview.lead?.email || '')
+                          setCopiedKey('email')
+                          setTimeout(() => setCopiedKey(null), 2000)
+                        }}
+                      >
+                        {copiedKey === 'email' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  )}
+                  
+                  {preview.lead.phone && (
+                    <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
+                      <div className="flex items-center gap-3 flex-1">
+                        <Phone className="h-4 w-4 text-muted-foreground" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-muted-foreground">Phone</p>
+                          <p className="text-sm font-medium truncate">{preview.lead.phone}</p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 shrink-0"
+                        onClick={() => {
+                          navigator.clipboard.writeText(preview.lead?.phone || '')
+                          setCopiedKey('phone')
+                          setTimeout(() => setCopiedKey(null), 2000)
+                        }}
+                      >
+                        {copiedKey === 'phone' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Business Information Card */}
+              {(preview.lead.ssn || preview.lead.ein || preview.lead.source) && (
+                <div className="bg-muted/50 rounded-xl p-5 border">
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <Briefcase className="h-5 w-5" />
+                    Business Information
+                  </h3>
+                  <div className="grid gap-3">
+                    {preview.lead.ssn && (
+                      <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
+                        <div className="flex items-center gap-3 flex-1">
+                          <CreditCard className="h-4 w-4 text-muted-foreground" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-muted-foreground">SSN</p>
+                            <p className="text-sm font-medium font-mono">{preview.lead.ssn}</p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 shrink-0"
+                          onClick={() => {
+                            navigator.clipboard.writeText(preview.lead?.ssn || '')
+                            setCopiedKey('ssn')
+                            setTimeout(() => setCopiedKey(null), 2000)
+                          }}
+                        >
+                          {copiedKey === 'ssn' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    )}
+                    
+                    {preview.lead.ein && (
+                      <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
+                        <div className="flex items-center gap-3 flex-1">
+                          <FileDigit className="h-4 w-4 text-muted-foreground" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-muted-foreground">EIN</p>
+                            <p className="text-sm font-medium font-mono">{preview.lead.ein}</p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 shrink-0"
+                          onClick={() => {
+                            navigator.clipboard.writeText(preview.lead?.ein || '')
+                            setCopiedKey('ein')
+                            setTimeout(() => setCopiedKey(null), 2000)
+                          }}
+                        >
+                          {copiedKey === 'ein' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    )}
+                    
+                    {preview.lead.source && (
+                      <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
+                        <div className="flex items-center gap-3 flex-1">
+                          <MapPin className="h-4 w-4 text-muted-foreground" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-muted-foreground">Source</p>
+                            <p className="text-sm font-medium">{preview.lead.source}</p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 shrink-0"
+                          onClick={() => {
+                            navigator.clipboard.writeText(preview.lead?.source || '')
+                            setCopiedKey('source')
+                            setTimeout(() => setCopiedKey(null), 2000)
+                          }}
+                        >
+                          {copiedKey === 'source' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Deal Information Card */}
+              {preview.lead.estimated_close_date && (
+                <div className="bg-muted/50 rounded-xl p-5 border">
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <Calendar className="h-5 w-5" />
+                    Deal Timeline
+                  </h3>
+                  <div className="grid gap-3">
+                    <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
+                      <div className="flex items-center gap-3 flex-1">
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-muted-foreground">Estimated Close Date</p>
+                          <p className="text-sm font-medium">{new Date(preview.lead.estimated_close_date).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 shrink-0"
+                        onClick={() => {
+                          navigator.clipboard.writeText(new Date(preview.lead?.estimated_close_date || '').toLocaleDateString())
+                          setCopiedKey('close_date')
+                          setTimeout(() => setCopiedKey(null), 2000)
+                        }}
+                      >
+                        {copiedKey === 'close_date' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Assignment Card */}
+              <div className="bg-muted/50 rounded-xl p-5 border">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <UserPlus className="h-5 w-5" />
+                  Assignment
+                </h3>
+                <div className="grid gap-3">
+                  <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
+                    <div className="flex items-center gap-3 flex-1">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-muted-foreground">Assigned to</p>
+                        <p className="text-sm font-medium">
+                          {preview.lead.assigned_user_id ? (assignedUserName || "Loading...") : "Not assigned"}
+                        </p>
+                      </div>
+                    </div>
+                    {preview.lead.assigned_user_id && assignedUserName && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 shrink-0"
+                        onClick={() => {
+                          navigator.clipboard.writeText(assignedUserName)
+                          setCopiedKey('assigned_user')
+                          setTimeout(() => setCopiedKey(null), 2000)
+                        }}
+                      >
+                        {copiedKey === 'assigned_user' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                      </Button>
+                    )}
+                  </div>
+                  
+                  {preview.lead.assigned_user_id && (
+                    <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
+                      <div className="flex items-center gap-3 flex-1">
+                        <Clock className="h-4 w-4 text-muted-foreground" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-muted-foreground">Assigned since</p>
+                          <p className="text-sm font-medium">{new Date(preview.lead.updated_at).toLocaleString()}</p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 shrink-0"
+                        onClick={() => {
+                          navigator.clipboard.writeText(new Date(preview.lead?.updated_at || '').toLocaleString())
+                          setCopiedKey('assigned_date')
+                          setTimeout(() => setCopiedKey(null), 2000)
+                        }}
+                      >
+                        {copiedKey === 'assigned_date' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Location & Interest Card */}
+              {(preview.lead.location || preview.lead.interest) && (
+                <div className="bg-muted/50 rounded-xl p-5 border">
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <MapPin className="h-5 w-5" />
+                    Additional Information
+                  </h3>
+                  <div className="grid gap-3">
+                    {preview.lead.location && (
+                      <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
+                        <div className="flex items-center gap-3 flex-1">
+                          <MapPin className="h-4 w-4 text-muted-foreground" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-muted-foreground">Location</p>
+                            <p className="text-sm font-medium">{preview.lead.location}</p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 shrink-0"
+                          onClick={() => {
+                            navigator.clipboard.writeText(preview.lead?.location || '')
+                            setCopiedKey('location')
+                            setTimeout(() => setCopiedKey(null), 2000)
+                          }}
+                        >
+                          {copiedKey === 'location' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    )}
+                    
+                    {preview.lead.interest && (
+                      <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
+                        <div className="flex items-center gap-3 flex-1">
+                          <Tag className="h-4 w-4 text-muted-foreground" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-muted-foreground">Interest</p>
+                            <p className="text-sm font-medium">{preview.lead.interest}</p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 shrink-0"
+                          onClick={() => {
+                            navigator.clipboard.writeText(preview.lead?.interest || '')
+                            setCopiedKey('interest')
+                            setTimeout(() => setCopiedKey(null), 2000)
+                          }}
+                        >
+                          {copiedKey === 'interest' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Description Card */}
+              {preview.lead.description && (
+                <div className="bg-muted/50 rounded-xl p-5 border">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                      <Info className="h-5 w-5" />
+                      Description
+                    </h3>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      onClick={() => {
+                        navigator.clipboard.writeText(preview.lead?.description || '')
+                        setCopiedKey('description')
+                        setTimeout(() => setCopiedKey(null), 2000)
+                      }}
+                    >
+                      {copiedKey === 'description' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                  <div className="bg-background rounded-lg p-4 border">
+                    <p className="text-sm whitespace-pre-wrap leading-relaxed">{preview.lead.description}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Metadata Card */}
+              <div className="bg-muted/50 rounded-xl p-5 border">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <Clock className="h-5 w-5" />
+                  Metadata
+                </h3>
+                <div className="grid gap-3">
+                  <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
+                    <div className="flex items-center gap-3 flex-1">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-muted-foreground">Created</p>
+                        <p className="text-sm font-medium">{new Date(preview.lead.created_at).toLocaleString()}</p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 shrink-0"
+                      onClick={() => {
+                        navigator.clipboard.writeText(new Date(preview.lead?.created_at || '').toLocaleString())
+                        setCopiedKey('created_at')
+                        setTimeout(() => setCopiedKey(null), 2000)
+                      }}
+                    >
+                      {copiedKey === 'created_at' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                  
+                  {preview.lead.created_by && (
+                    <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
+                      <div className="flex items-center gap-3 flex-1">
+                        <User className="h-4 w-4 text-muted-foreground" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-muted-foreground">Created by</p>
+                          <p className="text-sm font-medium">{createdByUserName || "Loading..."}</p>
+                        </div>
+                      </div>
+                      {createdByUserName && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 shrink-0"
+                          onClick={() => {
+                            navigator.clipboard.writeText(createdByUserName)
+                            setCopiedKey('created_by')
+                            setTimeout(() => setCopiedKey(null), 2000)
+                          }}
+                        >
+                          {copiedKey === 'created_by' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                  
+                  <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
+                    <div className="flex items-center gap-3 flex-1">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-muted-foreground">Last Updated</p>
+                        <p className="text-sm font-medium">{new Date(preview.lead.updated_at).toLocaleString()}</p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 shrink-0"
+                      onClick={() => {
+                        navigator.clipboard.writeText(new Date(preview.lead?.updated_at || '').toLocaleString())
+                        setCopiedKey('updated_at')
+                        setTimeout(() => setCopiedKey(null), 2000)
+                      }}
+                    >
+                      {copiedKey === 'updated_at' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                  
+                  <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
+                    <div className="flex items-center gap-3 flex-1">
+                      <Hash className="h-4 w-4 text-muted-foreground" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-muted-foreground">Lead ID</p>
+                        <p className="text-sm font-medium font-mono text-xs truncate">{preview.lead.id}</p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 shrink-0"
+                      onClick={() => {
+                        navigator.clipboard.writeText(preview.lead?.id || '')
+                        setCopiedKey('id')
+                        setTimeout(() => setCopiedKey(null), 2000)
+                      }}
+                    >
+                      {copiedKey === 'id' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Close Button */}
+              <div className="pt-4">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setPreview({ open: false, lead: null })} 
+                  className="w-full cursor-pointer"
+                  size="lg"
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Close
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
+      </SheetContent>
+    </Sheet>
 
     </AuthGuard>
   )

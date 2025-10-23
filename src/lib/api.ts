@@ -17,6 +17,7 @@ export interface Lead {
   id: string;
   organization_id: string;
   assigned_user_id?: string;
+  created_by?: string;
   name: string;
   email: string;
   phone?: string;
@@ -27,6 +28,8 @@ export interface Lead {
   value?: number;
   description?: string;
   estimated_close_date?: string;
+  location?: string;
+  interest?: string;
   show_on_pipeline: boolean;
   attachments?: Attachment[];
   created_at: string;
@@ -40,6 +43,8 @@ export interface CreateLeadRequest {
   ssn?: string;
   ein?: string;
   source?: string;
+  location?: string;
+  interest?: string;
   status?: string;
   value?: number;
   description?: string;
@@ -57,6 +62,8 @@ export interface UpdateLeadRequest {
   ssn?: string;
   ein?: string;
   source?: string;
+  location?: string;
+  interest?: string;
   status?: string;
   value?: number;
   description?: string;
@@ -188,6 +195,14 @@ class ApiService {
     }
   }
 
+  // Users/Employees API methods
+  async getOrganizationUsers(includeMaster: boolean = false) {
+    const url = includeMaster ? '/auth/employees?include_master=true' : '/auth/employees';
+    return this.request<{ success: boolean; employees: Array<{id: string, name: string, email: string, role: string}> }>(url, {
+      method: 'GET'
+    });
+  }
+
   // Leads API methods
   async getLeads(params?: {
     search?: string;
@@ -287,6 +302,8 @@ class ApiService {
     ein?: string;
     status?: string;
     source?: string;
+    location?: string;
+    interest?: string;
     value_min?: number;
     value_max?: number;
     date_min?: string;
@@ -314,6 +331,8 @@ class ApiService {
     if (params.ein) queryParams.append('ein', params.ein);
     if (params.status) queryParams.append('status', params.status);
     if (params.source) queryParams.append('source', params.source);
+    if (params.location) queryParams.append('location', params.location);
+    if (params.interest) queryParams.append('interest', params.interest);
     if (params.value_min !== undefined) queryParams.append('value_min', params.value_min.toString());
     if (params.value_max !== undefined) queryParams.append('value_max', params.value_max.toString());
     if (params.date_min) queryParams.append('date_min', params.date_min);

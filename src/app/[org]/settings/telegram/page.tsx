@@ -958,7 +958,7 @@ export default function TelegramSettingsPage({
                         disabled={authenticating}
                         className="cursor-pointer"
                       >
-                        {authenticating ? 'Authenticating...' : 'Authenticate Account'}
+                        {authenticating ? 'Authenticating...' : 'Re-Authenticate Account'}
                       </Button>
                     )}
                   </div>

@@ -56,7 +56,17 @@ import {
   Mic,
   Play,
   Pause,
-  Square
+  Square,
+  Briefcase,
+  CreditCard,
+  FileDigit,
+  MapPin,
+  Calendar,
+  Clock,
+  Tag,
+  Hash,
+  DollarSign,
+  CheckCircle2
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -223,6 +233,8 @@ export default function TelegramPage({
   const [linkedLeads, setLinkedLeads] = React.useState<Record<string, any>>({})
   const [leadPreview, setLeadPreview] = React.useState<{ open: boolean, lead: any | null }>({ open: false, lead: null })
   const [copiedKey, setCopiedKey] = React.useState<string | null>(null)
+  const [assignedUserName, setAssignedUserName] = React.useState<string>("")
+  const [createdByUserName, setCreatedByUserName] = React.useState<string>("")
   const router = useRouter()
   
   // Estados para edição de lead
@@ -231,14 +243,17 @@ export default function TelegramPage({
   const [editValue, setEditValue] = React.useState("")
   const [editExpectedCloseDate, setEditExpectedCloseDate] = React.useState("")
   const [editNotes, setEditNotes] = React.useState("")
+  const [editInterest, setEditInterest] = React.useState("")
   const [originalFormValues, setOriginalFormValues] = React.useState<{
     value: string;
     expectedCloseDate: string;
     notes: string;
+    interest: string;
   }>({
     value: "",
     expectedCloseDate: "",
-    notes: ""
+    notes: "",
+    interest: ""
   })
   const [pendingAttachments, setPendingAttachments] = React.useState<Record<string, {
     toAdd: File[];
@@ -422,6 +437,36 @@ export default function TelegramPage({
       apiCall('/presence/telegram-page-exit', { method: 'POST' }).catch(() => {})
     }
   }, [isClient, apiCall])
+
+  // Fetch assigned user and created by user names when preview opens
+  React.useEffect(() => {
+    const fetchUsers = async () => {
+      if (leadPreview.open && (leadPreview.lead?.assigned_user_id || leadPreview.lead?.created_by)) {
+        try {
+          const response = await apiService.getOrganizationUsers(true) // Include master users
+          if (response.success && response.data) {
+            if (leadPreview.lead?.assigned_user_id) {
+              const assignedUser = response.data.employees.find((u: any) => u.id === leadPreview.lead?.assigned_user_id)
+              setAssignedUserName(assignedUser?.name || "Unknown User")
+            }
+            if (leadPreview.lead?.created_by) {
+              const createdByUser = response.data.employees.find((u: any) => u.id === leadPreview.lead?.created_by)
+              setCreatedByUserName(createdByUser?.name || "Unknown User")
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching users:', error)
+          if (leadPreview.lead?.assigned_user_id) setAssignedUserName("Unknown User")
+          if (leadPreview.lead?.created_by) setCreatedByUserName("Unknown User")
+        }
+      } else {
+        setAssignedUserName("")
+        setCreatedByUserName("")
+      }
+    }
+    
+    fetchUsers()
+  }, [leadPreview.open, leadPreview.lead?.assigned_user_id, leadPreview.lead?.created_by])
 
   // Save chat type to localStorage
   const saveChatType = (type: 'bot' | 'account') => {
@@ -1677,12 +1722,14 @@ export default function TelegramPage({
     setEditValue(lead.value?.toString() || "")
     setEditExpectedCloseDate(lead.estimated_close_date || "")
     setEditNotes(lead.description || "")
+    setEditInterest(lead.interest || "")
     
     // Save original values for change detection
     setOriginalFormValues({
       value: lead.value?.toString() || "",
       expectedCloseDate: lead.estimated_close_date || "",
-      notes: lead.description || ""
+      notes: lead.description || "",
+      interest: lead.interest || ""
     })
     
     setIsEditModalOpen(true)
@@ -1704,6 +1751,9 @@ export default function TelegramPage({
       }
       if (editNotes !== originalFormValues.notes) {
         updates.description = editNotes || null
+      }
+      if (editInterest !== originalFormValues.interest) {
+        updates.interest = editInterest || null
       }
 
       // Process pending attachments
@@ -3346,6 +3396,16 @@ export default function TelegramPage({
                   />
                 </div>
                 <div>
+                  <label className="mb-1 block text-sm font-medium">Interest</label>
+                  <Input
+                    type="text"
+                    placeholder="e.g., Product A, Service B"
+                    value={editInterest}
+                    onChange={(e) => setEditInterest(e.target.value.slice(0, 100))}
+                    maxLength={100}
+                  />
+                </div>
+                <div>
                   <label className="mb-1 block text-sm font-medium">
                     Notes
                     <span className="text-xs text-muted-foreground ml-2">
@@ -3562,6 +3622,7 @@ export default function TelegramPage({
                     setEditValue("")
                     setEditExpectedCloseDate("")
                     setEditNotes("")
+                    setEditInterest("")
                     if (editingId) {
                       setPendingAttachments(prev => {
                         const newPending = { ...prev }
@@ -3764,352 +3825,485 @@ export default function TelegramPage({
         </SheetContent>
       </Sheet>
 
-      {/* Lead Preview Modal */}
-      <Sheet open={leadPreview.open} onOpenChange={(open) => setLeadPreview((p) => ({ ...p, open }))}>
-        <SheetContent className="w-full sm:max-w-lg border-l border-border p-6 md:p-8 flex flex-col max-h-screen">
-          <div className="flex-shrink-0">
-            <SheetHeader>
-              <SheetTitle>Lead Details</SheetTitle>
-              <SheetDescription>Complete lead information</SheetDescription>
-            </SheetHeader>
-            <Separator className="my-4" />
-          </div>
-          
+      {/* LEAD DETAILS MODAL - MODERN DESIGN */}
+      <Sheet open={leadPreview.open} onOpenChange={(open) => setLeadPreview({ open, lead: open ? leadPreview.lead : null })}>
+        <SheetContent className="w-full sm:max-w-3xl border-l border-border p-0 overflow-y-auto">
           {leadPreview.lead && (
-            <div className="flex-1 overflow-y-auto pr-2 space-y-4">
-              {(() => {
-                const l = leadPreview.lead
-                if (!l) return null
-
-                return (
-                  <>
-                    {/* Basic Information */}
-                    <div className="space-y-3">
-                      <h3 className="text-sm font-semibold text-muted-foreground">Basic Information</h3>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <div className="text-xs text-muted-foreground">Name</div>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-5 w-5 p-0 cursor-pointer"
-                              onClick={() => {
-                                navigator.clipboard.writeText(l.name)
-                                setCopiedKey('name')
-                                window.setTimeout(() => setCopiedKey(null), 700)
-                              }}
-                            >
-                              {copiedKey === 'name' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                            </Button>
-                          </div>
-                          <div className="text-sm font-medium">{l.name}</div>
-                        </div>
-
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <div className="text-xs text-muted-foreground">Status</div>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-5 w-5 p-0 cursor-pointer"
-                              onClick={() => {
-                                navigator.clipboard.writeText(l.status || '')
-                                setCopiedKey('status')
-                                window.setTimeout(() => setCopiedKey(null), 700)
-                              }}
-                            >
-                              {copiedKey === 'status' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                            </Button>
-                          </div>
-                          <div className="text-sm">
-                            <span className="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium">
-                              {l.status || 'No status'}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <div className="text-xs text-muted-foreground">Email</div>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-5 w-5 p-0 cursor-pointer"
-                              onClick={() => {
-                                navigator.clipboard.writeText(l.email || '')
-                                setCopiedKey('email')
-                                window.setTimeout(() => setCopiedKey(null), 700)
-                              }}
-                            >
-                              {copiedKey === 'email' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                            </Button>
-                          </div>
-                          <div className="text-sm">{l.email || '-'}</div>
-                        </div>
-
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <div className="text-xs text-muted-foreground">Phone</div>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-5 w-5 p-0 cursor-pointer"
-                              onClick={() => {
-                                navigator.clipboard.writeText(l.phone || '')
-                                setCopiedKey('phone')
-                                window.setTimeout(() => setCopiedKey(null), 700)
-                              }}
-                            >
-                              {copiedKey === 'phone' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                            </Button>
-                          </div>
-                          <div className="text-sm">{l.phone || '-'}</div>
-                        </div>
-
-                        {l.ssn && (
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <div className="text-xs text-muted-foreground">SSN</div>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-5 w-5 p-0 cursor-pointer"
-                                onClick={() => {
-                                  navigator.clipboard.writeText(l.ssn || '')
-                                  setCopiedKey('ssn')
-                                  window.setTimeout(() => setCopiedKey(null), 700)
-                                }}
-                              >
-                                {copiedKey === 'ssn' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                              </Button>
-                            </div>
-                            <div className="text-sm">{l.ssn}</div>
-                          </div>
-                        )}
-
-                        {l.ein && (
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <div className="text-xs text-muted-foreground">EIN</div>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-5 w-5 p-0 cursor-pointer"
-                                onClick={() => {
-                                  navigator.clipboard.writeText(l.ein || '')
-                                  setCopiedKey('ein')
-                                  window.setTimeout(() => setCopiedKey(null), 700)
-                                }}
-                              >
-                                {copiedKey === 'ein' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                              </Button>
-                            </div>
-                            <div className="text-sm">{l.ein}</div>
-                          </div>
-                        )}
-
-                        {!l.ssn && !l.ein && (
-                          <div className="space-y-1">
-                            <div className="text-xs text-muted-foreground">SSN/EIN</div>
-                            <div className="text-sm text-muted-foreground">-</div>
-                          </div>
-                        )}
-
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <div className="text-xs text-muted-foreground">Source</div>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-5 w-5 p-0 cursor-pointer"
-                              onClick={() => {
-                                navigator.clipboard.writeText(l.source || '')
-                                setCopiedKey('source')
-                                window.setTimeout(() => setCopiedKey(null), 700)
-                              }}
-                            >
-                              {copiedKey === 'source' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                            </Button>
-                          </div>
-                          <div className="text-sm">{l.source || '-'}</div>
-                        </div>
-                      </div>
+            <>
+              <SheetTitle className="sr-only">Lead Details: {leadPreview.lead.name}</SheetTitle>
+              <SheetDescription className="sr-only">Complete information about the lead including contact details, business information, and metadata.</SheetDescription>
+              {/* Header */}
+              <div className="sticky top-0 z-10 bg-background border-b p-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <User className="h-6 w-6" />
+                      <h2 className="text-2xl font-bold">{leadPreview.lead.name}</h2>
                     </div>
-
-                    <Separator />
-
-                    {/* Commercial Information */}
-                    <div className="space-y-3">
-                      <h3 className="text-sm font-semibold text-muted-foreground">Commercial Information</h3>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <div className="text-xs text-muted-foreground">Value</div>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-5 w-5 p-0 cursor-pointer"
-                              onClick={() => {
-                                navigator.clipboard.writeText(l.value ? `$${l.value.toLocaleString()}` : '')
-                                setCopiedKey('value')
-                                window.setTimeout(() => setCopiedKey(null), 700)
-                              }}
-                            >
-                              {copiedKey === 'value' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                            </Button>
-                          </div>
-                          <div className="text-sm font-medium text-green-600">
-                            {l.value ? `$${l.value.toLocaleString()}` : '-'}
-                          </div>
-                        </div>
-
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <div className="text-xs text-muted-foreground">Estimated Close Date</div>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-5 w-5 p-0 cursor-pointer"
-                              onClick={() => {
-                                navigator.clipboard.writeText(l.estimated_close_date ? new Date(l.estimated_close_date).toLocaleDateString('en-US') : '')
-                                setCopiedKey('closeDate')
-                                window.setTimeout(() => setCopiedKey(null), 700)
-                              }}
-                            >
-                              {copiedKey === 'closeDate' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                            </Button>
-                          </div>
-                          <div className="text-sm">
-                            {l.estimated_close_date ? new Date(l.estimated_close_date).toLocaleDateString('en-US') : '-'}
-                          </div>
-                        </div>
-                      </div>
+                    <p className="text-muted-foreground text-sm">Complete lead information and details</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0"
+                    onClick={() => setLeadPreview({ open: false, lead: null })}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+                
+                {/* Status Badge */}
+                <div className="mt-4 flex items-center gap-2">
+                  <div className="inline-flex items-center gap-2 bg-muted px-3 py-1.5 rounded-full">
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span className="text-sm font-medium capitalize">{leadPreview.lead.status}</span>
+                  </div>
+                  {leadPreview.lead.value && (
+                    <div className="inline-flex items-center gap-2 bg-muted px-3 py-1.5 rounded-full">
+                      <DollarSign className="h-4 w-4" />
+                      <span className="text-sm font-medium">
+                        {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(leadPreview.lead.value)}
+                      </span>
                     </div>
+                  )}
+                </div>
+              </div>
 
-                    {/* Notes */}
-                    {l.description && (
-                      <>
-                        <Separator />
-                        <div className="space-y-3">
-                          <div className="flex items-center gap-2">
-                            <h3 className="text-sm font-semibold text-muted-foreground">Notes / Observations</h3>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-5 w-5 p-0 cursor-pointer"
-                              onClick={() => {
-                                navigator.clipboard.writeText(l.description || '')
-                                setCopiedKey('description')
-                                window.setTimeout(() => setCopiedKey(null), 700)
-                              }}
-                            >
-                              {copiedKey === 'description' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                            </Button>
-                          </div>
-                          <div className="bg-muted/30 rounded-md p-3 text-sm">
-                            {l.description}
+              <div className="p-6 space-y-6">
+                {/* Contact Information Card */}
+                <div className="bg-muted/50 rounded-xl p-5 border">
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <Mail className="h-5 w-5" />
+                    Contact Information
+                  </h3>
+                  <div className="grid gap-3">
+                    {leadPreview.lead.email && (
+                      <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
+                        <div className="flex items-center gap-3 flex-1">
+                          <Mail className="h-4 w-4 text-muted-foreground" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-muted-foreground">Email</p>
+                            <p className="text-sm font-medium truncate">{leadPreview.lead.email}</p>
                           </div>
                         </div>
-                      </>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 shrink-0"
+                          onClick={() => {
+                            navigator.clipboard.writeText(leadPreview.lead?.email || '')
+                            setCopiedKey('email')
+                            setTimeout(() => setCopiedKey(null), 2000)
+                          }}
+                        >
+                          {copiedKey === 'email' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                        </Button>
+                      </div>
                     )}
-
-                    {/* Attachments Section */}
-                    {l.attachments && l.attachments.length > 0 && (
-                      <>
-                        <Separator />
-                        <div className="space-y-3">
-                          <h3 className="text-sm font-semibold text-muted-foreground">Attachments</h3>
-                          <div className="space-y-2">
-                            {l.attachments.map((attachment: any) => {
-                              if (!attachment || !attachment.id || !attachment.mimeType) {
-                                console.warn('Invalid attachment object:', attachment)
-                                return null
-                              }
-                              
-                              const FileIcon = getFileIcon(attachment.mimeType)
-                              return (
-                                <div
-                                  key={attachment.id}
-                                  className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
-                                >
-                                  <FileIcon className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium truncate">
-                                      {attachment.originalName || 'Unknown file'}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground">
-                                      {formatFileSize(attachment.size || 0)} • {attachment.uploadedAt ? new Date(attachment.uploadedAt).toLocaleDateString('en-US') : 'Unknown date'}
-                                    </p>
-                                  </div>
-                                  <div className="flex gap-1">
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      className="cursor-pointer"
-                                      onClick={() => viewAttachment(l.id, attachment.id)}
-                                      title="View file"
-                                    >
-                                      <Eye className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      className="cursor-pointer"
-                                      onClick={() => downloadAttachment(l.id, attachment.id, attachment.originalName || 'file')}
-                                      title="Download file"
-                                    >
-                                      <Download className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                </div>
-                              )
-                            })}
+                    
+                    {leadPreview.lead.phone && (
+                      <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
+                        <div className="flex items-center gap-3 flex-1">
+                          <Phone className="h-4 w-4 text-muted-foreground" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-muted-foreground">Phone</p>
+                            <p className="text-sm font-medium truncate">{leadPreview.lead.phone}</p>
                           </div>
                         </div>
-                      </>
-                    )}
-
-                    {/* Activity History */}
-                    <Separator />
-                    <div className="space-y-3">
-                      <h3 className="text-sm font-semibold text-muted-foreground">Activity History</h3>
-                      <div className="text-sm text-muted-foreground">
-                        Created: {new Date(l.created_at).toLocaleDateString('en-US')}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 shrink-0"
+                          onClick={() => {
+                            navigator.clipboard.writeText(leadPreview.lead?.phone || '')
+                            setCopiedKey('phone')
+                            setTimeout(() => setCopiedKey(null), 2000)
+                          }}
+                        >
+                          {copiedKey === 'phone' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                        </Button>
                       </div>
-                      <div className="text-sm text-muted-foreground">
-                        Last updated: {new Date(l.updated_at).toLocaleDateString('en-US')}
+                    )}
+                  </div>
+                </div>
+
+                {/* Business Information Card */}
+                {(leadPreview.lead.ssn || leadPreview.lead.ein || leadPreview.lead.source) && (
+                  <div className="bg-muted/50 rounded-xl p-5 border">
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                      <Briefcase className="h-5 w-5" />
+                      Business Information
+                    </h3>
+                    <div className="grid gap-3">
+                      {leadPreview.lead.ssn && (
+                        <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
+                          <div className="flex items-center gap-3 flex-1">
+                            <CreditCard className="h-4 w-4 text-muted-foreground" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs text-muted-foreground">SSN</p>
+                              <p className="text-sm font-medium font-mono">{leadPreview.lead.ssn}</p>
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 shrink-0"
+                            onClick={() => {
+                              navigator.clipboard.writeText(leadPreview.lead?.ssn || '')
+                              setCopiedKey('ssn')
+                              setTimeout(() => setCopiedKey(null), 2000)
+                            }}
+                          >
+                            {copiedKey === 'ssn' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                      )}
+                      
+                      {leadPreview.lead.ein && (
+                        <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
+                          <div className="flex items-center gap-3 flex-1">
+                            <FileDigit className="h-4 w-4 text-muted-foreground" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs text-muted-foreground">EIN</p>
+                              <p className="text-sm font-medium font-mono">{leadPreview.lead.ein}</p>
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 shrink-0"
+                            onClick={() => {
+                              navigator.clipboard.writeText(leadPreview.lead?.ein || '')
+                              setCopiedKey('ein')
+                              setTimeout(() => setCopiedKey(null), 2000)
+                            }}
+                          >
+                            {copiedKey === 'ein' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                      )}
+                      
+                      {leadPreview.lead.source && (
+                        <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
+                          <div className="flex items-center gap-3 flex-1">
+                            <MapPin className="h-4 w-4 text-muted-foreground" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs text-muted-foreground">Source</p>
+                              <p className="text-sm font-medium">{leadPreview.lead.source}</p>
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 shrink-0"
+                            onClick={() => {
+                              navigator.clipboard.writeText(leadPreview.lead?.source || '')
+                              setCopiedKey('source')
+                              setTimeout(() => setCopiedKey(null), 2000)
+                            }}
+                          >
+                            {copiedKey === 'source' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Deal Information Card */}
+                {leadPreview.lead.estimated_close_date && (
+                  <div className="bg-muted/50 rounded-xl p-5 border">
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                      <Calendar className="h-5 w-5" />
+                      Deal Timeline
+                    </h3>
+                    <div className="grid gap-3">
+                      <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
+                        <div className="flex items-center gap-3 flex-1">
+                          <Calendar className="h-4 w-4 text-muted-foreground" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-muted-foreground">Estimated Close Date</p>
+                            <p className="text-sm font-medium">{new Date(leadPreview.lead.estimated_close_date).toLocaleDateString()}</p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 shrink-0"
+                          onClick={() => {
+                            navigator.clipboard.writeText(new Date(leadPreview.lead?.estimated_close_date || '').toLocaleDateString())
+                            setCopiedKey('close_date')
+                            setTimeout(() => setCopiedKey(null), 2000)
+                          }}
+                        >
+                          {copiedKey === 'close_date' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                        </Button>
                       </div>
                     </div>
-                  </>
-                )
-              })()}
-            </div>
+                  </div>
+                )}
+
+                {/* Assignment Card */}
+                <div className="bg-muted/50 rounded-xl p-5 border">
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <UserPlus className="h-5 w-5" />
+                    Assignment
+                  </h3>
+                  <div className="grid gap-3">
+                    <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
+                      <div className="flex items-center gap-3 flex-1">
+                        <User className="h-4 w-4 text-muted-foreground" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-muted-foreground">Assigned to</p>
+                          <p className="text-sm font-medium">
+                            {leadPreview.lead.assigned_user_id ? (assignedUserName || "Loading...") : "Not assigned"}
+                          </p>
+                        </div>
+                      </div>
+                      {leadPreview.lead.assigned_user_id && assignedUserName && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 shrink-0"
+                          onClick={() => {
+                            navigator.clipboard.writeText(assignedUserName)
+                            setCopiedKey('assigned_user')
+                            setTimeout(() => setCopiedKey(null), 2000)
+                          }}
+                        >
+                          {copiedKey === 'assigned_user' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                        </Button>
+                      )}
+                    </div>
+                    
+                    {leadPreview.lead.assigned_user_id && (
+                      <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
+                        <div className="flex items-center gap-3 flex-1">
+                          <Clock className="h-4 w-4 text-muted-foreground" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-muted-foreground">Assigned since</p>
+                            <p className="text-sm font-medium">{new Date(leadPreview.lead.updated_at).toLocaleString()}</p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 shrink-0"
+                          onClick={() => {
+                            navigator.clipboard.writeText(new Date(leadPreview.lead?.updated_at || '').toLocaleString())
+                            setCopiedKey('assigned_date')
+                            setTimeout(() => setCopiedKey(null), 2000)
+                          }}
+                        >
+                          {copiedKey === 'assigned_date' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Location & Interest Card */}
+                {(leadPreview.lead.location || leadPreview.lead.interest) && (
+                  <div className="bg-muted/50 rounded-xl p-5 border">
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                      <MapPin className="h-5 w-5" />
+                      Additional Information
+                    </h3>
+                    <div className="grid gap-3">
+                      {leadPreview.lead.location && (
+                        <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
+                          <div className="flex items-center gap-3 flex-1">
+                            <MapPin className="h-4 w-4 text-muted-foreground" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs text-muted-foreground">Location</p>
+                              <p className="text-sm font-medium">{leadPreview.lead.location}</p>
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 shrink-0"
+                            onClick={() => {
+                              navigator.clipboard.writeText(leadPreview.lead?.location || '')
+                              setCopiedKey('location')
+                              setTimeout(() => setCopiedKey(null), 2000)
+                            }}
+                          >
+                            {copiedKey === 'location' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                      )}
+                      
+                      {leadPreview.lead.interest && (
+                        <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
+                          <div className="flex items-center gap-3 flex-1">
+                            <Tag className="h-4 w-4 text-muted-foreground" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs text-muted-foreground">Interest</p>
+                              <p className="text-sm font-medium">{leadPreview.lead.interest}</p>
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 shrink-0"
+                            onClick={() => {
+                              navigator.clipboard.writeText(leadPreview.lead?.interest || '')
+                              setCopiedKey('interest')
+                              setTimeout(() => setCopiedKey(null), 2000)
+                            }}
+                          >
+                            {copiedKey === 'interest' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Description Card */}
+                {leadPreview.lead.description && (
+                  <div className="bg-muted/50 rounded-xl p-5 border">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-lg font-semibold flex items-center gap-2">
+                        <Info className="h-5 w-5" />
+                        Description
+                      </h3>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        onClick={() => {
+                          navigator.clipboard.writeText(leadPreview.lead?.description || '')
+                          setCopiedKey('description')
+                          setTimeout(() => setCopiedKey(null), 2000)
+                        }}
+                      >
+                        {copiedKey === 'description' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                    <div className="bg-background rounded-lg p-4 border">
+                      <p className="text-sm whitespace-pre-wrap leading-relaxed">{leadPreview.lead.description}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Metadata Card */}
+                <div className="bg-muted/50 rounded-xl p-5 border">
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <Clock className="h-5 w-5" />
+                    Metadata
+                  </h3>
+                  <div className="grid gap-3">
+                    <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
+                      <div className="flex items-center gap-3 flex-1">
+                        <Clock className="h-4 w-4 text-muted-foreground" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-muted-foreground">Created</p>
+                          <p className="text-sm font-medium">{new Date(leadPreview.lead.created_at).toLocaleString()}</p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 shrink-0"
+                        onClick={() => {
+                          navigator.clipboard.writeText(new Date(leadPreview.lead?.created_at || '').toLocaleString())
+                          setCopiedKey('created_at')
+                          setTimeout(() => setCopiedKey(null), 2000)
+                        }}
+                      >
+                        {copiedKey === 'created_at' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                    
+                    {leadPreview.lead.created_by && (
+                      <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
+                        <div className="flex items-center gap-3 flex-1">
+                          <User className="h-4 w-4 text-muted-foreground" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-muted-foreground">Created by</p>
+                            <p className="text-sm font-medium">{createdByUserName || "Loading..."}</p>
+                          </div>
+                        </div>
+                        {createdByUserName && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 shrink-0"
+                            onClick={() => {
+                              navigator.clipboard.writeText(createdByUserName)
+                              setCopiedKey('created_by')
+                              setTimeout(() => setCopiedKey(null), 2000)
+                            }}
+                          >
+                            {copiedKey === 'created_by' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                    
+                    <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
+                      <div className="flex items-center gap-3 flex-1">
+                        <Clock className="h-4 w-4 text-muted-foreground" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-muted-foreground">Last Updated</p>
+                          <p className="text-sm font-medium">{new Date(leadPreview.lead.updated_at).toLocaleString()}</p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 shrink-0"
+                        onClick={() => {
+                          navigator.clipboard.writeText(new Date(leadPreview.lead?.updated_at || '').toLocaleString())
+                          setCopiedKey('updated_at')
+                          setTimeout(() => setCopiedKey(null), 2000)
+                        }}
+                      >
+                        {copiedKey === 'updated_at' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                    
+                    <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
+                      <div className="flex items-center gap-3 flex-1">
+                        <Hash className="h-4 w-4 text-muted-foreground" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-muted-foreground">Lead ID</p>
+                          <p className="text-sm font-medium font-mono text-xs truncate">{leadPreview.lead.id}</p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 shrink-0"
+                        onClick={() => {
+                          navigator.clipboard.writeText(leadPreview.lead?.id || '')
+                          setCopiedKey('id')
+                          setTimeout(() => setCopiedKey(null), 2000)
+                        }}
+                      >
+                        {copiedKey === 'id' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Close Button */}
+                <div className="pt-4">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setLeadPreview({ open: false, lead: null })} 
+                    className="w-full cursor-pointer"
+                    size="lg"
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    Close
+                  </Button>
+                </div>
+              </div>
+            </>
           )}
-
-          <div className="flex-shrink-0 pt-4 border-t">
-            <div className="flex justify-between">
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  setLeadPreview({ open: false, lead: null })
-                  if (leadPreview.lead) {
-                    handleViewLead(leadPreview.lead)
-                  }
-                }}
-                className="cursor-pointer"
-              >
-                <Eye className="h-4 w-4 mr-2" />
-                View in Complete List
-              </Button>
-              <Button 
-                onClick={() => setLeadPreview({ open: false, lead: null })}
-                className="cursor-pointer"
-              >
-                Close
-              </Button>
-            </div>
-          </div>
         </SheetContent>
       </Sheet>
     </AuthGuard>

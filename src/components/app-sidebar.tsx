@@ -8,6 +8,8 @@ import {
   MessageSquare,
   Settings2,
   Building2,
+  BarChart3,
+  LayoutDashboard,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -35,6 +37,7 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
     name: "",
     email: "",
     avatar: "",
+    role: "",
   })
   const [orgData, setOrgData] = React.useState({
     name: "",
@@ -83,6 +86,7 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
               avatar: userResponse.user.profile_image 
                 ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}${userResponse.user.profile_image}` 
                 : generateAvatar(userResponse.user.name || "User"),
+              role: userResponse.user.role || "employee",
             })
           }
         } catch (error) {
@@ -91,6 +95,7 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
             name: "User",
             email: "user@example.com",
             avatar: generateAvatar("User"),
+            role: "employee",
           })
         }
 
@@ -204,6 +209,7 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
               avatar: userResponse.user.profile_image 
               ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}${userResponse.user.profile_image}` 
               : generateAvatar(userResponse.user.name || "User"),
+              role: userResponse.user.role || "employee",
             })
             setDataLoaded(true)
           }
@@ -228,6 +234,94 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
     plan: dataLoaded ? orgData.plan : "",
   }
 
+  // Base navigation items
+  const baseNavItems = [
+    {
+      title: "Leads",
+      url: `/${org}/leads`,
+      icon: Users,
+      items: [
+        { title: "Lead List", url: `/${org}/leads` },
+        { title: "Capture Sources", url: `/${org}/leads/sources` },
+      ],
+    },
+    {
+      title: "Marketing",
+      url: `/${org}/marketing`,
+      icon: Mail,
+      items: [
+        { title: "Email Campaigns", url: `/${org}/marketing/email` },
+        { title: "Social Media", url: `/${org}/marketing/social` },
+        { title: "AI Content", url: `/${org}/marketing/ai` },
+      ],
+    },
+    {
+      title: "CRM",
+      url: `/${org}/crm`,
+      icon: KanbanSquare,
+      items: [
+        { title: "Opportunities", url: `/${org}/crm/opportunities` },
+        { title: "Pipeline (Kanban)", url: `/${org}/crm/pipeline` },
+        { title: "Reports", url: `/${org}/crm/reports` },
+      ],
+    },
+    {
+      title: "Chats",
+      url: `/${org}/chats`,
+      icon: MessageSquare,
+      items: [
+        { title: "WhatsApp", url: `/${org}/chats/whatsapp` },
+        { title: "Telegram", url: `/${org}/chats/telegram` },
+        { title: "Email", url: `/${org}/chats/email` },
+      ],
+    },
+  ]
+
+  // Settings navigation (available to all)
+  const settingsNavItem = {
+    title: "Settings",
+    url: `/${org}/settings`,
+    icon: Settings2,
+    items: [
+      { title: "Organization", url: `/${org}/settings/org` },
+      { title: "Users", url: `/${org}/settings/users` },
+      { title: "Telegram", url: `/${org}/settings/telegram` },
+      { title: "Plans & Billing", url: `/${org}/settings/billing` },
+      { title: "Branding", url: `/${org}/settings/branding` },
+    ],
+  }
+
+  // Combine navigation items
+  const navMain = [...baseNavItems, settingsNavItem]
+
+  // Function to handle dashboard redirect - all users go to same URL
+  const handleDashboardClick = () => {
+    const baseUrl = 'http://localhost:3001'
+    let orgSlug = org
+    
+    // Se org estiver undefined, tentar obter do localStorage
+    if (!orgSlug || orgSlug === 'undefined') {
+      const organizationStr = localStorage.getItem('organization')
+      if (organizationStr) {
+        try {
+          const organization = JSON.parse(organizationStr)
+          orgSlug = organization.slug
+        } catch (error) {
+          console.error('Error parsing organization data:', error)
+        }
+      }
+    }
+    
+    // Se ainda não tiver orgSlug válido, não redirecionar
+    if (!orgSlug || orgSlug === 'undefined') {
+      console.error('Unable to determine organization slug for dashboard redirect')
+      return
+    }
+    
+    const dashboardUrl = `${baseUrl}/${orgSlug}/dashboard`
+    window.location.href = dashboardUrl
+  }
+
   const data = {
     user: {
       ...userData,
@@ -236,59 +330,8 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
       avatar: dataLoaded ? userData.avatar : generateAvatar("Loading"),
     },
     organization: organizationData,
-    navMain: [
-      {
-        title: "Leads",
-        url: `/${org}/leads`,
-        icon: Users,
-        items: [
-          { title: "Lead List", url: `/${org}/leads` },
-          { title: "Capture Sources", url: `/${org}/leads/sources` },
-        ],
-      },
-      {
-        title: "Marketing",
-        url: `/${org}/marketing`,
-        icon: Mail,
-        items: [
-          { title: "Email Campaigns", url: `/${org}/marketing/email` },
-          { title: "Social Media", url: `/${org}/marketing/social` },
-          { title: "AI Content", url: `/${org}/marketing/ai` },
-        ],
-      },
-      {
-        title: "CRM",
-        url: `/${org}/crm`,
-        icon: KanbanSquare,
-        items: [
-          { title: "Opportunities", url: `/${org}/crm/opportunities` },
-          { title: "Pipeline (Kanban)", url: `/${org}/crm/pipeline` },
-          { title: "Reports", url: `/${org}/crm/reports` },
-        ],
-      },
-      {
-        title: "Chats",
-        url: `/${org}/chats`,
-        icon: MessageSquare,
-        items: [
-          { title: "WhatsApp", url: `/${org}/chats/whatsapp` },
-          { title: "Telegram", url: `/${org}/chats/telegram` },
-          { title: "Email", url: `/${org}/chats/email` },
-        ],
-      },
-      {
-        title: "Settings",
-        url: `/${org}/settings`,
-        icon: Settings2,
-        items: [
-          { title: "Organization", url: `/${org}/settings/org` },
-          { title: "Users", url: `/${org}/settings/users` },
-          { title: "Telegram", url: `/${org}/settings/telegram` },
-          { title: "Plans & Billing", url: `/${org}/settings/billing` },
-          { title: "Branding", url: `/${org}/settings/branding` },
-        ],
-      },
-    ],
+    navMain,
+    handleDashboardClick,
   }
 
 
@@ -316,6 +359,17 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
 
       {/* CONTEÚDO PRINCIPAL */}
       <SidebarContent>
+        {/* Dashboard Button */}
+        <div className="p-2">
+          <button
+            onClick={data.handleDashboardClick}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground cursor-pointer"
+          >
+            <LayoutDashboard className="h-4 w-4" />
+            <span className="group-data-[state=collapsed]:hidden">Dashboard</span>
+          </button>
+        </div>
+        
         <NavMain items={data.navMain} />
       </SidebarContent>
 

@@ -128,6 +128,20 @@ export function useAuth() {
       // best-effort notify backend before clearing token
       await apiCall('/presence/force-logout', { method: 'POST' });
     } catch {}
+    
+    // Obter o slug da organização do localStorage antes de limpar
+    const organizationStr = localStorage.getItem('organization');
+    let organizationSlug = orgSlug;
+    
+    if (organizationStr && !orgSlug) {
+      try {
+        const organization = JSON.parse(organizationStr);
+        organizationSlug = organization.slug;
+      } catch (error) {
+        console.error('Error parsing organization data:', error);
+      }
+    }
+    
     localStorage.removeItem('token');
     localStorage.removeItem('organization');
     localStorage.removeItem('lastActivity');
@@ -139,8 +153,9 @@ export function useAuth() {
       isLoading: false,
       lastActivity: null,
     });
-    if (orgSlug) {
-      router.push(`/${orgSlug}/login`);
+    
+    if (organizationSlug && organizationSlug !== 'undefined') {
+      router.push(`/${organizationSlug}/login`);
     } else {
       router.push('/');
     }

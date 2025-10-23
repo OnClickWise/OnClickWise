@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import { Search, Plus, Download, Upload, Trash2, Edit, X, ChevronDown, CheckCircle2, AlertTriangle, AlertCircle, Check, Filter, XCircle, ArrowUp, ArrowDown, Eye, Phone, Mail, Calendar, User, Building2, File, FileText, Image, FileImage, FileVideo, FileAudio, Archive, Loader2, Trash, MessageCircle, Send, Info, Settings2 } from "lucide-react"
+import { Search, Plus, Download, Upload, Trash2, Edit, X, ChevronDown, CheckCircle2, AlertTriangle, AlertCircle, Check, Filter, XCircle, ArrowUp, ArrowDown, Eye, Phone, Mail, Calendar, User, Building2, File, FileText, Image, FileImage, FileVideo, FileAudio, Archive, Loader2, Trash, MessageCircle, Send, Info, Settings2, DollarSign, Briefcase, CreditCard, FileDigit, MapPin, Tag, Clock, Hash, UserPlus, Copy } from "lucide-react"
 import * as XLSX from "xlsx"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { apiService, Lead, UpdateLeadRequest } from "@/lib/api"
@@ -81,6 +81,8 @@ export default function PipelinePage({
     ssn: '',
     ein: '',
     source: '',
+    location: '',
+    interest: '',
     status: ''
   })
   const [valueRange, setValueRange] = React.useState({
@@ -122,6 +124,7 @@ export default function PipelinePage({
   const [editValue, setEditValue] = React.useState("")
   const [editExpectedCloseDate, setEditExpectedCloseDate] = React.useState("")
   const [editNotes, setEditNotes] = React.useState("")
+  const [editInterest, setEditInterest] = React.useState("")
 
 
   // Toast notifications
@@ -129,6 +132,50 @@ export default function PipelinePage({
 
   // Preview modal
   const [preview, setPreview] = React.useState<{ open: boolean, lead: Lead | null }>({ open: false, lead: null })
+  const [copiedKey, setCopiedKey] = React.useState<string | null>(null)
+  const [assignedUserName, setAssignedUserName] = React.useState<string>("")
+  const [createdByUserName, setCreatedByUserName] = React.useState<string>("")
+  
+  // Fetch assigned user and created by user names when preview opens
+  React.useEffect(() => {
+    async function fetchUsers() {
+      if (preview.open && preview.lead && (preview.lead.assigned_user_id || preview.lead.created_by)) {
+        try {
+          const response = await apiService.getOrganizationUsers(true)
+          if (response.success && response.data) {
+            const employees = response.data.employees
+            
+            if (preview.lead.assigned_user_id) {
+              const assignedUser = employees.find((emp: any) => emp.id === preview.lead!.assigned_user_id)
+              if (assignedUser) {
+                setAssignedUserName(assignedUser.name)
+              } else {
+                setAssignedUserName("Unknown User")
+              }
+            }
+            
+            if (preview.lead.created_by) {
+              const createdByUser = employees.find((emp: any) => emp.id === preview.lead!.created_by)
+              if (createdByUser) {
+                setCreatedByUserName(createdByUser.name)
+              } else {
+                setCreatedByUserName("Unknown User")
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching users:', error)
+          if (preview.lead?.assigned_user_id) setAssignedUserName("Unknown User")
+          if (preview.lead?.created_by) setCreatedByUserName("Unknown User")
+        }
+      } else {
+        setAssignedUserName("")
+        setCreatedByUserName("")
+      }
+    }
+    
+    fetchUsers()
+  }, [preview.open, preview.lead?.assigned_user_id, preview.lead?.created_by])
   
   // Contact method modal
   const [contactModal, setContactModal] = React.useState<{ open: boolean, lead: Lead | null }>({ open: false, lead: null })
@@ -156,6 +203,7 @@ export default function PipelinePage({
     value: string
     expectedCloseDate: string
     notes: string
+    interest: string
   } | null>(null)
   
   // Toast notification for unsaved changes
@@ -171,7 +219,8 @@ export default function PipelinePage({
     return (
       editValue !== originalFormValues.value ||
       editExpectedCloseDate !== originalFormValues.expectedCloseDate ||
-      editNotes !== originalFormValues.notes
+      editNotes !== originalFormValues.notes ||
+      editInterest !== originalFormValues.interest
     )
   }
   
@@ -207,6 +256,11 @@ export default function PipelinePage({
     setIsEditModalOpen(false)
     setEditingId(null)
     setPreview({ open: false, lead: null })
+    // Reset form fields
+    setEditValue("")
+    setEditExpectedCloseDate("")
+    setEditNotes("")
+    setEditInterest("")
   }
 
   // Load leads from API
@@ -303,6 +357,8 @@ export default function PipelinePage({
       ssn: '',
       ein: '',
       source: '',
+      location: '',
+      interest: '',
       status: ''
     })
     setValueRange({
@@ -372,120 +428,37 @@ export default function PipelinePage({
   const applyModalFilters = React.useCallback(async () => {
     if (!isClient) return
     
-    const hasFilters = filters.name || filters.email || filters.phone || filters.ssn || filters.ein || filters.source || filters.status || valueRange.min || valueRange.max || dateRange.min || dateRange.max
+    const hasFilters = filters.name || filters.email || filters.phone || filters.ssn || filters.ein || filters.source || filters.location || filters.interest || filters.status || valueRange.min || valueRange.max || dateRange.min || dateRange.max
     
     if (hasFilters) {
       try {
-        let allLeads: Lead[] = []
-        
-        // Buscar por cada campo específico usando rotas separadas
-        if (filters.name) {
-          const response = await apiService.searchLeadsByName(filters.name)
-          if (response.success && response.data) {
-            allLeads = [...allLeads, ...response.data.leads]
-          }
+        // Usar a rota de busca unificada com todos os parâmetros
+        const searchParams: any = {
+          show_on_pipeline: true // Pipeline sempre mostra apenas leads no pipeline
         }
         
-        if (filters.email) {
-          const response = await apiService.searchLeadsByEmail(filters.email)
-          if (response.success && response.data) {
-            allLeads = [...allLeads, ...response.data.leads]
-          }
+        // Adicionar filtros se existirem
+        if (filters.name) searchParams.name = filters.name
+        if (filters.email) searchParams.email = filters.email
+        if (filters.phone) searchParams.phone = filters.phone
+        if (filters.ssn) searchParams.ssn = filters.ssn
+        if (filters.ein) searchParams.ein = filters.ein
+        if (filters.source) searchParams.source = filters.source
+        if (filters.location) searchParams.location = filters.location
+        if (filters.interest) searchParams.interest = filters.interest
+        if (filters.status) searchParams.status = filters.status
+        if (valueRange.min && !isNaN(parseFloat(valueRange.min))) searchParams.value_min = parseFloat(valueRange.min)
+        if (valueRange.max && !isNaN(parseFloat(valueRange.max))) searchParams.value_max = parseFloat(valueRange.max)
+        if (dateRange.min) searchParams.date_min = dateRange.min
+        if (dateRange.max) searchParams.date_max = dateRange.max
+
+        const response = await apiService.searchLeads(searchParams)
+        if (response.success && response.data) {
+          console.log('Pipeline: Applying unified filters')
+          console.log('Pipeline: Found leads:', response.data.leads.length)
+          setLeads(response.data.leads)
+          updatePipelineStages(response.data.leads)
         }
-        
-        if (filters.phone) {
-          const response = await apiService.searchLeadsByPhone(filters.phone)
-          if (response.success && response.data) {
-            allLeads = [...allLeads, ...response.data.leads]
-          }
-        }
-        
-        if (filters.ssn) {
-          const response = await apiService.searchLeadsBySSN(filters.ssn)
-          if (response.success && response.data) {
-            allLeads = [...allLeads, ...response.data.leads]
-          }
-        }
-        
-        if (filters.ein) {
-          const response = await apiService.searchLeadsByEIN(filters.ein)
-          if (response.success && response.data) {
-            allLeads = [...allLeads, ...response.data.leads]
-          }
-        }
-        
-        if (filters.source) {
-          const response = await apiService.searchLeadsBySource(filters.source)
-          if (response.success && response.data) {
-            allLeads = [...allLeads, ...response.data.leads]
-          }
-        }
-        
-        if (filters.status) {
-          const response = await apiService.searchLeadsByStatus(filters.status)
-          if (response.success && response.data) {
-            allLeads = [...allLeads, ...response.data.leads]
-          }
-        }
-        
-        if (valueRange.min && !isNaN(parseFloat(valueRange.min))) {
-          const response = await apiService.searchLeadsByValueMin(parseFloat(valueRange.min))
-          if (response.success && response.data) {
-            allLeads = [...allLeads, ...response.data.leads]
-          }
-        }
-        
-        if (valueRange.max && !isNaN(parseFloat(valueRange.max))) {
-          const response = await apiService.searchLeadsByValueMax(parseFloat(valueRange.max))
-          if (response.success && response.data) {
-            allLeads = [...allLeads, ...response.data.leads]
-          }
-        }
-        
-        if (dateRange.min) {
-          const response = await apiService.searchLeadsByDateMin(dateRange.min)
-          if (response.success && response.data) {
-            allLeads = [...allLeads, ...response.data.leads]
-          }
-        }
-        
-        if (dateRange.max) {
-          const response = await apiService.searchLeadsByDateMax(dateRange.max)
-          if (response.success && response.data) {
-            allLeads = [...allLeads, ...response.data.leads]
-          }
-        }
-        
-        // Remover duplicatas baseado no ID
-        const uniqueLeads = allLeads.filter((lead, index, self) => 
-          index === self.findIndex(l => l.id === lead.id)
-        )
-        
-        // Aplicar filtros adicionais nos resultados (intersecção)
-        let filteredLeads = uniqueLeads
-        
-        // Se temos filtros de valor, aplicar intersecção
-        if (valueRange.min && valueRange.max && !isNaN(parseFloat(valueRange.min)) && !isNaN(parseFloat(valueRange.max))) {
-          filteredLeads = filteredLeads.filter(lead => 
-            lead.value && 
-            lead.value >= parseFloat(valueRange.min) && 
-            lead.value <= parseFloat(valueRange.max)
-          )
-        }
-        
-        // Se temos filtros de data, aplicar intersecção
-        if (dateRange.min && dateRange.max) {
-          filteredLeads = filteredLeads.filter(lead => 
-            lead.estimated_close_date && 
-            lead.estimated_close_date >= dateRange.min && 
-            lead.estimated_close_date <= dateRange.max
-          )
-        }
-        
-        console.log('Pipeline: Applying specific field filters')
-        console.log('Pipeline: Found leads:', filteredLeads.length)
-        setLeads(filteredLeads)
-        updatePipelineStages(filteredLeads)
         
       } catch (error) {
         console.error('Error applying filters:', error)
@@ -816,12 +789,14 @@ export default function PipelinePage({
     setEditValue(lead.value?.toString() || "")
     setEditExpectedCloseDate(lead.estimated_close_date || "")
     setEditNotes(lead.description || "")
+    setEditInterest(lead.interest || "")
     
     // Save original values for change detection
     setOriginalFormValues({
       value: lead.value?.toString() || "",
       expectedCloseDate: lead.estimated_close_date || "",
-      notes: lead.description || ""
+      notes: lead.description || "",
+      interest: lead.interest || ""
     })
     
     setIsEditModalOpen(true)
@@ -842,7 +817,8 @@ export default function PipelinePage({
         id: editingId,
         value: editValue ? parseFloat(editValue) : undefined,
         estimated_close_date: editExpectedCloseDate || undefined,
-        description: editNotes || undefined
+        description: editNotes || undefined,
+        interest: editInterest || undefined
       }
 
       console.log('Updating lead with data:', updateData)
@@ -1445,172 +1421,526 @@ export default function PipelinePage({
         </div>
 
 
-        {/* PREVIEW MODAL */}
-        <Sheet open={preview.open} onOpenChange={(open) => setPreview((p) => ({ ...p, open }))}>
-          <SheetContent className="w-full sm:max-w-lg border-l border-border p-6 md:p-8 flex flex-col max-h-screen">
-            <div className="flex-shrink-0">
-              <SheetHeader>
-                <SheetTitle>Lead Details</SheetTitle>
-                <SheetDescription>Complete lead information</SheetDescription>
-              </SheetHeader>
-              <Separator className="my-4" />
-            </div>
-            
-            <div className="flex-1 overflow-y-auto pr-2 space-y-4">
-              {preview.lead && (
-                <>
-                  {/* Basic Information */}
-                  <div className="space-y-3">
-                    <h3 className="text-sm font-semibold text-muted-foreground">Basic Information</h3>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <div className="text-xs text-muted-foreground">Name</div>
-                        <div className="text-sm font-medium">{preview.lead.name}</div>
+        {/* PREVIEW MODAL - MODERN DESIGN */}
+        <Sheet open={preview.open} onOpenChange={(open) => setPreview({ open, lead: open ? preview.lead : null })}>
+          <SheetContent className="w-full sm:max-w-3xl border-l border-border p-0 overflow-y-auto overflow-x-hidden">
+            {preview.lead && (
+              <>
+                <SheetTitle className="sr-only">Lead Details: {preview.lead.name}</SheetTitle>
+                <SheetDescription className="sr-only">Complete information about the lead including contact details, business information, and metadata.</SheetDescription>
+                {/* Header */}
+                <div className="sticky top-0 z-10 bg-background border-b p-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-3 mb-2">
+                        <User className="h-6 w-6 flex-shrink-0" />
+                        <h2 className="text-2xl font-bold break-words">{preview.lead.name}</h2>
                       </div>
-                      <div className="space-y-1">
-                        <div className="text-xs text-muted-foreground">Status</div>
-                        <div className="text-sm">
-                          <span className="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium">
-                            {preview.lead.status}
-                          </span>
-                        </div>
+                      <p className="text-muted-foreground text-sm">Complete lead information and details</p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 flex-shrink-0"
+                      onClick={() => setPreview({ open: false, lead: null })}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  
+                  {/* Status Badge */}
+                  <div className="mt-4 flex items-center gap-2 flex-wrap">
+                    <div className="inline-flex items-center gap-2 bg-muted px-3 py-1.5 rounded-full">
+                      <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+                      <span className="text-sm font-medium capitalize">{preview.lead.status}</span>
+                    </div>
+                    {preview.lead.value && (
+                      <div className="inline-flex items-center gap-2 bg-muted px-3 py-1.5 rounded-full">
+                        <DollarSign className="h-4 w-4 flex-shrink-0" />
+                        <span className="text-sm font-medium">
+                          {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(preview.lead.value)}
+                        </span>
                       </div>
-                      <div className="space-y-1">
-                        <div className="text-xs text-muted-foreground">Email</div>
-                        <div className="text-sm">{preview.lead.email}</div>
-                      </div>
-                      <div className="space-y-1">
-                        <div className="text-xs text-muted-foreground">Phone</div>
-                        <div className="text-sm">{preview.lead.phone || '-'}</div>
-                      </div>
-                      {preview.lead.ssn && (
-                        <div className="space-y-1">
-                          <div className="text-xs text-muted-foreground">SSN</div>
-                          <div className="text-sm">{preview.lead.ssn}</div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="p-6 space-y-6">
+                  {/* Contact Information Card */}
+                  <div className="bg-muted/50 rounded-xl p-5 border">
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                      <Mail className="h-5 w-5 flex-shrink-0" />
+                      Contact Information
+                    </h3>
+                    <div className="grid gap-3">
+                      {preview.lead.email && (
+                        <div className="flex items-center justify-between bg-background rounded-lg p-3 border overflow-hidden">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs text-muted-foreground">Email</p>
+                              <p className="text-sm font-medium truncate">{preview.lead.email}</p>
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 shrink-0"
+                            onClick={() => {
+                              navigator.clipboard.writeText(preview.lead?.email || '')
+                              setCopiedKey('email')
+                              setTimeout(() => setCopiedKey(null), 2000)
+                            }}
+                          >
+                            {copiedKey === 'email' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                          </Button>
                         </div>
                       )}
-                      {preview.lead.ein && (
-                        <div className="space-y-1">
-                          <div className="text-xs text-muted-foreground">EIN</div>
-                          <div className="text-sm">{preview.lead.ein}</div>
+                      
+                      {preview.lead.phone && (
+                        <div className="flex items-center justify-between bg-background rounded-lg p-3 border overflow-hidden">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs text-muted-foreground">Phone</p>
+                              <p className="text-sm font-medium truncate">{preview.lead.phone}</p>
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 shrink-0"
+                            onClick={() => {
+                              navigator.clipboard.writeText(preview.lead?.phone || '')
+                              setCopiedKey('phone')
+                              setTimeout(() => setCopiedKey(null), 2000)
+                            }}
+                          >
+                            {copiedKey === 'phone' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                          </Button>
                         </div>
                       )}
-                      {!preview.lead.ssn && !preview.lead.ein && (
-                        <div className="space-y-1">
-                          <div className="text-xs text-muted-foreground">SSN/EIN</div>
-                          <div className="text-sm text-muted-foreground">-</div>
-                        </div>
-                      )}
-                      <div className="space-y-1">
-                        <div className="text-xs text-muted-foreground">Source</div>
-                        <div className="text-sm">{preview.lead.source || '-'}</div>
-                      </div>
                     </div>
                   </div>
 
-                  <Separator />
-
-                  {/* Commercial Information */}
-                  <div className="space-y-3">
-                    <h3 className="text-sm font-semibold text-muted-foreground">Commercial Information</h3>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <div className="text-xs text-muted-foreground">Value</div>
-                        <div className="text-sm font-medium text-green-600">
-                          {preview.lead.value ? formatCurrency(preview.lead.value) : '-'}
-                        </div>
+                  {/* Business Information Card */}
+                  {(preview.lead.ssn || preview.lead.ein || preview.lead.source) && (
+                    <div className="bg-muted/50 rounded-xl p-5 border">
+                      <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <Briefcase className="h-5 w-5 flex-shrink-0" />
+                        Business Information
+                      </h3>
+                      <div className="grid gap-3">
+                        {preview.lead.ssn && (
+                          <div className="flex items-center justify-between bg-background rounded-lg p-3 border overflow-hidden">
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                              <CreditCard className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs text-muted-foreground">SSN</p>
+                                <p className="text-sm font-medium font-mono break-all">{preview.lead.ssn}</p>
+                              </div>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 shrink-0"
+                              onClick={() => {
+                                navigator.clipboard.writeText(preview.lead?.ssn || '')
+                                setCopiedKey('ssn')
+                                setTimeout(() => setCopiedKey(null), 2000)
+                              }}
+                            >
+                              {copiedKey === 'ssn' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                            </Button>
+                          </div>
+                        )}
+                        
+                        {preview.lead.ein && (
+                          <div className="flex items-center justify-between bg-background rounded-lg p-3 border overflow-hidden">
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                              <FileDigit className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs text-muted-foreground">EIN</p>
+                                <p className="text-sm font-medium font-mono break-all">{preview.lead.ein}</p>
+                              </div>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 shrink-0"
+                              onClick={() => {
+                                navigator.clipboard.writeText(preview.lead?.ein || '')
+                                setCopiedKey('ein')
+                                setTimeout(() => setCopiedKey(null), 2000)
+                              }}
+                            >
+                              {copiedKey === 'ein' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                            </Button>
+                          </div>
+                        )}
+                        
+                        {preview.lead.source && (
+                          <div className="flex items-center justify-between bg-background rounded-lg p-3 border overflow-hidden">
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                              <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs text-muted-foreground">Source</p>
+                                <p className="text-sm font-medium break-words">{preview.lead.source}</p>
+                              </div>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 shrink-0"
+                              onClick={() => {
+                                navigator.clipboard.writeText(preview.lead?.source || '')
+                                setCopiedKey('source')
+                                setTimeout(() => setCopiedKey(null), 2000)
+                              }}
+                            >
+                              {copiedKey === 'source' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                            </Button>
+                          </div>
+                        )}
                       </div>
-                      <div className="space-y-1">
-                        <div className="text-xs text-muted-foreground">Estimated Close Date</div>
-                        <div className="text-sm">
-                          {preview.lead.estimated_close_date ? formatDate(preview.lead.estimated_close_date) : '-'}
+                    </div>
+                  )}
+
+                  {/* Deal Information Card */}
+                  {preview.lead.estimated_close_date && (
+                    <div className="bg-muted/50 rounded-xl p-5 border">
+                      <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <Calendar className="h-5 w-5 flex-shrink-0" />
+                        Deal Timeline
+                      </h3>
+                      <div className="grid gap-3">
+                        <div className="flex items-center justify-between bg-background rounded-lg p-3 border overflow-hidden">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <Calendar className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs text-muted-foreground">Estimated Close Date</p>
+                              <p className="text-sm font-medium">{new Date(preview.lead.estimated_close_date).toLocaleDateString()}</p>
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 shrink-0"
+                            onClick={() => {
+                              navigator.clipboard.writeText(new Date(preview.lead?.estimated_close_date || '').toLocaleDateString())
+                              setCopiedKey('close_date')
+                              setTimeout(() => setCopiedKey(null), 2000)
+                            }}
+                          >
+                            {copiedKey === 'close_date' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                          </Button>
                         </div>
                       </div>
                     </div>
+                  )}
+
+                  {/* Assignment Card */}
+                  <div className="bg-muted/50 rounded-xl p-5 border">
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                      <UserPlus className="h-5 w-5 flex-shrink-0" />
+                      Assignment
+                    </h3>
+                    <div className="grid gap-3">
+                      <div className="flex items-center justify-between bg-background rounded-lg p-3 border overflow-hidden">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-muted-foreground">Assigned to</p>
+                            <p className="text-sm font-medium break-words">
+                              {preview.lead.assigned_user_id ? (assignedUserName || "Loading...") : "Not assigned"}
+                            </p>
+                          </div>
+                        </div>
+                        {preview.lead.assigned_user_id && assignedUserName && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 shrink-0"
+                            onClick={() => {
+                              navigator.clipboard.writeText(assignedUserName)
+                              setCopiedKey('assigned_user')
+                              setTimeout(() => setCopiedKey(null), 2000)
+                            }}
+                          >
+                            {copiedKey === 'assigned_user' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                          </Button>
+                        )}
+                      </div>
+                      
+                      {preview.lead.assigned_user_id && (
+                        <div className="flex items-center justify-between bg-background rounded-lg p-3 border overflow-hidden">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs text-muted-foreground">Assigned since</p>
+                              <p className="text-sm font-medium break-words">{new Date(preview.lead.updated_at).toLocaleString()}</p>
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 shrink-0"
+                            onClick={() => {
+                              navigator.clipboard.writeText(new Date(preview.lead?.updated_at || '').toLocaleString())
+                              setCopiedKey('assigned_date')
+                              setTimeout(() => setCopiedKey(null), 2000)
+                            }}
+                          >
+                            {copiedKey === 'assigned_date' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Notes */}
+                  {/* Location & Interest Card */}
+                  {(preview.lead.location || preview.lead.interest) && (
+                    <div className="bg-muted/50 rounded-xl p-5 border">
+                      <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <MapPin className="h-5 w-5 flex-shrink-0" />
+                        Additional Information
+                      </h3>
+                      <div className="grid gap-3">
+                        {preview.lead.location && (
+                          <div className="flex items-center justify-between bg-background rounded-lg p-3 border overflow-hidden">
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                              <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs text-muted-foreground">Location</p>
+                                <p className="text-sm font-medium break-words">{preview.lead.location}</p>
+                              </div>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 shrink-0"
+                              onClick={() => {
+                                navigator.clipboard.writeText(preview.lead?.location || '')
+                                setCopiedKey('location')
+                                setTimeout(() => setCopiedKey(null), 2000)
+                              }}
+                            >
+                              {copiedKey === 'location' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                            </Button>
+                          </div>
+                        )}
+                        
+                        {preview.lead.interest && (
+                          <div className="flex items-center justify-between bg-background rounded-lg p-3 border overflow-hidden">
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                              <Tag className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs text-muted-foreground">Interest</p>
+                                <p className="text-sm font-medium break-words">{preview.lead.interest}</p>
+                              </div>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 shrink-0"
+                              onClick={() => {
+                                navigator.clipboard.writeText(preview.lead?.interest || '')
+                                setCopiedKey('interest')
+                                setTimeout(() => setCopiedKey(null), 2000)
+                              }}
+                            >
+                              {copiedKey === 'interest' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Description Card */}
                   {preview.lead.description && (
-                    <>
-                      <Separator />
-                      <div className="space-y-3">
-                        <h3 className="text-sm font-semibold text-muted-foreground">Notes / Observations</h3>
-                        <div className="bg-muted/30 rounded-md p-3 text-sm">
-                          {preview.lead.description}
-                        </div>
+                    <div className="bg-muted/50 rounded-xl p-5 border">
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-lg font-semibold flex items-center gap-2">
+                          <Info className="h-5 w-5 flex-shrink-0" />
+                          Description
+                        </h3>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 flex-shrink-0"
+                          onClick={() => {
+                            navigator.clipboard.writeText(preview.lead?.description || '')
+                            setCopiedKey('description')
+                            setTimeout(() => setCopiedKey(null), 2000)
+                          }}
+                        >
+                          {copiedKey === 'description' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                        </Button>
                       </div>
-                    </>
+                      <div className="bg-background rounded-lg p-4 border overflow-hidden">
+                        <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{preview.lead.description}</p>
+                      </div>
+                    </div>
                   )}
 
                   {/* Attachments */}
                   {preview.lead.attachments && preview.lead.attachments.length > 0 && (
-                    <>
-                      <Separator />
-                      <div className="space-y-3">
-                        <h3 className="text-sm font-semibold text-muted-foreground">Attachments</h3>
-                        <div className="space-y-2">
-                          {preview.lead.attachments.map((attachment) => {
-                            if (!attachment || !attachment.id || !attachment.mimeType) {
-                              console.warn('Invalid attachment object:', attachment)
-                              return null
-                            }
-                            const FileIcon = getFileIcon(attachment.mimeType)
-                            return (
-                              <div
-                                key={attachment.id}
-                                className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
-                              >
-                                <FileIcon className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium truncate">
-                                    {attachment.originalName || 'Unknown file'}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground">
-                                    {formatFileSize(attachment.size || 0)} • {attachment.uploadedAt ? new Date(attachment.uploadedAt).toLocaleDateString('en-US') : 'Unknown date'}
-                                  </p>
-                                </div>
-                                <div className="flex gap-1">
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="cursor-pointer"
-                                    onClick={() => viewAttachment(preview.lead!.id, attachment.id)}
-                                    title="View file"
-                                  >
-                                    <Eye className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="cursor-pointer"
-                                    onClick={() => downloadAttachment(preview.lead!.id, attachment.id, attachment.originalName || 'file')}
-                                    title="Download file"
-                                  >
-                                    <Download className="h-4 w-4" />
-                                  </Button>
-                                </div>
+                    <div className="bg-muted/50 rounded-xl p-5 border">
+                      <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <File className="h-5 w-5 flex-shrink-0" />
+                        Attachments
+                      </h3>
+                      <div className="space-y-2">
+                        {preview.lead.attachments.map((attachment) => {
+                          if (!attachment || !attachment.id || !attachment.mimeType) {
+                            console.warn('Invalid attachment object:', attachment)
+                            return null
+                          }
+                          const FileIcon = getFileIcon(attachment.mimeType)
+                          return (
+                            <div
+                              key={attachment.id}
+                              className="flex items-center gap-3 p-3 rounded-lg border bg-background hover:bg-accent/50 transition-colors overflow-hidden"
+                            >
+                              <FileIcon className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate">
+                                  {attachment.originalName || 'Unknown file'}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {formatFileSize(attachment.size || 0)} • {attachment.uploadedAt ? new Date(attachment.uploadedAt).toLocaleDateString('en-US') : 'Unknown date'}
+                                </p>
                               </div>
-                            )
-                          })}
-                        </div>
+                              <div className="flex gap-1 flex-shrink-0">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="cursor-pointer h-8 w-8 p-0"
+                                  onClick={() => viewAttachment(preview.lead!.id, attachment.id)}
+                                  title="View file"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="cursor-pointer h-8 w-8 p-0"
+                                  onClick={() => downloadAttachment(preview.lead!.id, attachment.id, attachment.originalName || 'file')}
+                                  title="Download file"
+                                >
+                                  <Download className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          )
+                        })}
                       </div>
-                    </>
+                    </div>
                   )}
 
-                  {/* Activity History */}
-                  <Separator />
-                  <div className="space-y-3">
-                    <h3 className="text-sm font-semibold text-muted-foreground">Activity History</h3>
-                    <div className="text-sm text-muted-foreground">
-                      Created: {new Date(preview.lead.created_at).toLocaleDateString('en-US')}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      Last updated: {new Date(preview.lead.updated_at).toLocaleDateString('en-US')}
+                  {/* Metadata Card */}
+                  <div className="bg-muted/50 rounded-xl p-5 border">
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                      <Clock className="h-5 w-5 flex-shrink-0" />
+                      Metadata
+                    </h3>
+                    <div className="grid gap-3">
+                      <div className="flex items-center justify-between bg-background rounded-lg p-3 border overflow-hidden">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-muted-foreground">Created</p>
+                            <p className="text-sm font-medium">{new Date(preview.lead.created_at).toLocaleString()}</p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 shrink-0"
+                          onClick={() => {
+                            navigator.clipboard.writeText(new Date(preview.lead?.created_at || '').toLocaleString())
+                            setCopiedKey('created_at')
+                            setTimeout(() => setCopiedKey(null), 2000)
+                          }}
+                        >
+                          {copiedKey === 'created_at' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                      
+                      {preview.lead.created_by && (
+                        <div className="flex items-center justify-between bg-background rounded-lg p-3 border overflow-hidden">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs text-muted-foreground">Created by</p>
+                              <p className="text-sm font-medium break-words">{createdByUserName || "Loading..."}</p>
+                            </div>
+                          </div>
+                          {createdByUserName && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 shrink-0"
+                              onClick={() => {
+                                navigator.clipboard.writeText(createdByUserName)
+                                setCopiedKey('created_by')
+                                setTimeout(() => setCopiedKey(null), 2000)
+                              }}
+                            >
+                              {copiedKey === 'created_by' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                      
+                      <div className="flex items-center justify-between bg-background rounded-lg p-3 border overflow-hidden">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-muted-foreground">Last Updated</p>
+                            <p className="text-sm font-medium">{new Date(preview.lead.updated_at).toLocaleString()}</p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 shrink-0"
+                          onClick={() => {
+                            navigator.clipboard.writeText(new Date(preview.lead?.updated_at || '').toLocaleString())
+                            setCopiedKey('updated_at')
+                            setTimeout(() => setCopiedKey(null), 2000)
+                          }}
+                        >
+                          {copiedKey === 'updated_at' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                      
+                      <div className="flex items-center justify-between bg-background rounded-lg p-3 border overflow-hidden">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <Hash className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-muted-foreground">Lead ID</p>
+                            <p className="text-sm font-medium font-mono text-xs break-all">{preview.lead.id}</p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 shrink-0"
+                          onClick={() => {
+                            navigator.clipboard.writeText(preview.lead?.id || '')
+                            setCopiedKey('lead_id')
+                            setTimeout(() => setCopiedKey(null), 2000)
+                          }}
+                        >
+                          {copiedKey === 'lead_id' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                  
-                  <Separator />
-                  
+
+                  {/* Action Buttons */}
                   <div className="flex gap-2">
                     <Button 
                       onClick={() => {
@@ -1621,7 +1951,7 @@ export default function PipelinePage({
                       }}
                       className="flex-1 cursor-pointer"
                     >
-                      <Eye className="h-4 w-4 mr-2" />
+                      <Eye className="h-4 w-4 mr-2 flex-shrink-0" />
                       View in Complete List
                     </Button>
                     <Button 
@@ -1632,9 +1962,9 @@ export default function PipelinePage({
                       Close
                     </Button>
                   </div>
-                </>
-              )}
-            </div>
+                </div>
+              </>
+            )}
           </SheetContent>
         </Sheet>
 
@@ -1712,6 +2042,16 @@ export default function PipelinePage({
                       {500 - editNotes.length} characters remaining
                     </p>
                   )}
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">Interest</label>
+                  <Input
+                    type="text"
+                    placeholder="Product or service interest..."
+                    value={editInterest}
+                    onChange={(e) => setEditInterest(e.target.value)}
+                    maxLength={100}
+                  />
                 </div>
               </div>
 
@@ -1944,13 +2284,15 @@ export default function PipelinePage({
 
         {/* FILTER MODAL */}
         <Sheet open={isFilterOpen} onOpenChange={setIsFilterOpen}>
-          <SheetContent className="w-full sm:max-w-md border-l border-border p-6 md:p-8">
-            <SheetHeader>
-              <SheetTitle>Filter leads</SheetTitle>
-              <SheetDescription>Filter leads by any field to find specific records.</SheetDescription>
-            </SheetHeader>
-            <Separator className="my-4" />
-            <div className="space-y-4">
+          <SheetContent className="w-full sm:max-w-md border-l border-border p-0 flex flex-col overflow-hidden">
+            <div className="p-6 md:p-8 border-b">
+              <SheetHeader>
+                <SheetTitle>Filter leads</SheetTitle>
+                <SheetDescription>Filter leads by any field to find specific records.</SheetDescription>
+              </SheetHeader>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6 md:p-8">
+              <div className="space-y-4">
               <div className="space-y-2">
                 <label className="mb-1 block text-sm font-medium">Name</label>
                 <Input
@@ -1997,6 +2339,22 @@ export default function PipelinePage({
                   placeholder="Filter by source..."
                   value={filters.source}
                   onChange={(e) => setFilters(prev => ({ ...prev, source: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="mb-1 block text-sm font-medium">Location</label>
+                <Input
+                  placeholder="Filter by location..."
+                  value={filters.location}
+                  onChange={(e) => setFilters(prev => ({ ...prev, location: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="mb-1 block text-sm font-medium">Interest</label>
+                <Input
+                  placeholder="Filter by interest..."
+                  value={filters.interest}
+                  onChange={(e) => setFilters(prev => ({ ...prev, interest: e.target.value }))}
                 />
               </div>
               <div className="space-y-2">
@@ -2075,8 +2433,11 @@ export default function PipelinePage({
                   </div>
                 </div>
               </div>
-              
-              <Separator />
+            </div>
+            </div>
+            
+            {/* Fixed Action Buttons */}
+            <div className="flex-shrink-0 border-t p-6 md:p-8">
               <div className="flex gap-2">
                 <Button
                   onClick={() => {
@@ -2093,7 +2454,7 @@ export default function PipelinePage({
                     setIsFilterOpen(false)
                   }}
                   variant="outline"
-                  className="cursor-pointer"
+                  className="flex-1 cursor-pointer"
                 >
                   <X className="h-4 w-4 mr-1" />
                   Clear All
