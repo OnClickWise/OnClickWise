@@ -81,6 +81,46 @@ export interface ApiResponse<T> {
 }
 
 class ApiService {
+  private isValidJWT(token: string): boolean {
+    if (!token) return false;
+    
+    // JWT deve ter exatamente 3 partes separadas por ponto
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      console.error('Invalid JWT format: token does not have 3 parts');
+      return false;
+    }
+    
+    // Verificar se as partes não estão vazias
+    if (parts.some(part => !part || part.trim() === '')) {
+      console.error('Invalid JWT format: token has empty parts');
+      return false;
+    }
+    
+    // Tentar decodificar o payload para verificar se é um JWT válido
+    try {
+      const payload = JSON.parse(atob(parts[1]));
+      
+      // Verificar se tem as propriedades básicas de um JWT
+      if (!payload.exp || !payload.userId || !payload.organizationId) {
+        console.error('Invalid JWT: missing required claims');
+        return false;
+      }
+      
+      // Verificar se o token não está expirado
+      const now = Math.floor(Date.now() / 1000);
+      if (payload.exp < now) {
+        console.error('JWT token has expired');
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Invalid JWT format: cannot decode payload', error);
+      return false;
+    }
+  }
+
   private getAuthToken(): string | null {
     // Verificar se estamos no cliente
     if (typeof window === 'undefined') {
@@ -91,6 +131,27 @@ class ApiService {
     const token = localStorage.getItem('token');
     if (!token) {
       console.log('No auth token found');
+      return null;
+    }
+    
+    // Validar formato do JWT antes de usar
+    if (!this.isValidJWT(token)) {
+      console.error('Invalid or malformed JWT token detected, clearing auth');
+      localStorage.removeItem('token');
+      localStorage.removeItem('organization');
+      localStorage.removeItem('lastActivity');
+      
+      // Redirecionar para login
+      if (typeof window !== 'undefined') {
+        const pathParts = window.location.pathname.split('/');
+        const orgSlug = pathParts[1];
+        if (orgSlug && orgSlug !== 'login' && orgSlug !== 'register') {
+          window.location.href = `/${orgSlug}/login`;
+        } else {
+          window.location.href = '/login';
+        }
+      }
+      
       return null;
     }
     
@@ -304,6 +365,7 @@ class ApiService {
     source?: string;
     location?: string;
     interest?: string;
+    assigned_user_id?: string;
     value_min?: number;
     value_max?: number;
     date_min?: string;
@@ -333,6 +395,7 @@ class ApiService {
     if (params.source) queryParams.append('source', params.source);
     if (params.location) queryParams.append('location', params.location);
     if (params.interest) queryParams.append('interest', params.interest);
+    if (params.assigned_user_id !== undefined) queryParams.append('assigned_user_id', params.assigned_user_id);
     if (params.value_min !== undefined) queryParams.append('value_min', params.value_min.toString());
     if (params.value_max !== undefined) queryParams.append('value_max', params.value_max.toString());
     if (params.date_min) queryParams.append('date_min', params.date_min);

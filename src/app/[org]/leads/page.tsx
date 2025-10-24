@@ -122,7 +122,69 @@ export default function LeadsPage({
 
   const { isClient } = useApi()
 
+  // Função para obter identificador único e persistente do usuário
+  const getUserIdentifier = React.useCallback(() => {
+    if (typeof window === 'undefined') return null
+    try {
+      const token = localStorage.getItem('token')
+      const organizationStr = localStorage.getItem('organization')
+      
+      if (!token || !organizationStr) return null
+      
+      const organization = JSON.parse(organizationStr)
+      
+      // Decodificar o payload do JWT para pegar o email do usuário
+      const parts = token.split('.')
+      if (parts.length !== 3) return null
+      
+      const payload = JSON.parse(atob(parts[1]))
+      const userEmail = payload.email || payload.sub || ''
+      
+      // Usar orgId + email do usuário como identificador único
+      // Cada usuário da mesma org terá seu próprio ID
+      const identifier = `${organization.id}_${userEmail}`.replace(/[^a-zA-Z0-9_-]/g, '_')
+      return identifier
+    } catch (error) {
+      console.error('Error getting user identifier:', error)
+      return null
+    }
+  }, [])
+
+  const [userId, setUserId] = React.useState<string | null>(null)
+
+  // Obter o userId quando o componente montar ou quando a organização mudar
+  React.useEffect(() => {
+    const updateUserId = () => {
+      const id = getUserIdentifier()
+      setUserId(id)
+    }
+    
+    updateUserId()
+    
+    // Listener para detectar mudanças no localStorage (quando trocar de conta em outra aba)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'organization' || e.key === 'token' || e.key === null) {
+        updateUserId()
+      }
+    }
+    
+    // Listener para quando a aba recebe foco (usuário volta à aba)
+    const handleFocus = () => {
+      updateUserId()
+    }
+    
+    window.addEventListener('storage', handleStorageChange)
+    window.addEventListener('focus', handleFocus)
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [getUserIdentifier])
+
   const storageKey = React.useMemo(() => `leads_${org}`, [org])
+  const columnsStorageKey = React.useMemo(() => userId ? `leadColumns_${org}_${userId}` : null, [org, userId])
+  const columnOrderStorageKey = React.useMemo(() => userId ? `leadColumnOrder_${org}_${userId}` : null, [org, userId])
 
   const searchParams = useSearchParams()
 
@@ -231,6 +293,11 @@ export default function LeadsPage({
     progress: { current: 0, total: 0, batch: 0, totalBatches: 0 },
     cancelled: false
   })
+  
+  // Track quick assign for individual lead
+  const [quickAssignLeadId, setQuickAssignLeadId] = React.useState<string | null>(null)
+  const [quickAssignUserId, setQuickAssignUserId] = React.useState("")
+  const [isLoadingUsers, setIsLoadingUsers] = React.useState(false)
   
   // Track deleted leads for potential rollback
   const [deletedLeads, setDeletedLeads] = React.useState<Lead[]>([])
@@ -376,52 +443,69 @@ export default function LeadsPage({
   const [itemsPerPage, setItemsPerPage] = React.useState(10)
 
   // Column visibility state
-  const [visibleColumns, setVisibleColumns] = React.useState<Record<string, boolean>>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('leadColumns')
-      if (saved) {
-        return JSON.parse(saved)
-      }
-    }
-    return {
-      name: true,
-      email: true,
-      phone: true,
-      ssn: false,
-      ein: false,
-      source: true,
-      status: true,
-      value: false,
-      estimatedCloseDate: false,
-      location: true,
-      interest: true,
-    }
+  const [visibleColumns, setVisibleColumns] = React.useState<Record<string, boolean>>({
+    name: true,
+    email: true,
+    phone: true,
+    ssn: false,
+    ein: false,
+    source: true,
+    status: true,
+    value: false,
+    estimatedCloseDate: false,
+    location: true,
+    interest: true,
   })
 
   // Column order state
-  const [columnOrder, setColumnOrder] = React.useState<string[]>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('leadColumnOrder')
-      if (saved) {
-        return JSON.parse(saved)
+  const [columnOrder, setColumnOrder] = React.useState<string[]>([
+    'name', 'email', 'phone', 'ssn', 'ein', 'source', 'status', 'value', 'estimatedCloseDate', 'location', 'interest'
+  ])
+  
+  // Cleanup old shared keys from localStorage (run once)
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' && isClient) {
+      // Remove old shared keys that shouldn't be used anymore
+      const oldKeys = [
+        `leadColumns_${org}`,
+        `leadColumnOrder_${org}`
+      ]
+      oldKeys.forEach(key => {
+        if (localStorage.getItem(key)) {
+          localStorage.removeItem(key)
+        }
+      })
+    }
+  }, [isClient, org])
+
+  // Load column preferences from localStorage after org and userId are available
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' && org && userId && columnsStorageKey && columnOrderStorageKey) {
+      const savedColumns = localStorage.getItem(columnsStorageKey)
+      if (savedColumns) {
+        setVisibleColumns(JSON.parse(savedColumns))
+      }
+      
+      const savedOrder = localStorage.getItem(columnOrderStorageKey)
+      if (savedOrder) {
+        setColumnOrder(JSON.parse(savedOrder))
       }
     }
-    return ['name', 'email', 'ssn', 'source', 'status', 'value', 'estimatedCloseDate', 'location', 'interest']
-  })
+  }, [org, userId, columnsStorageKey, columnOrderStorageKey])
 
-  // Save column preferences to localStorage
+  // Save column preferences to localStorage (only if keys are not null)
   React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('leadColumns', JSON.stringify(visibleColumns))
+    if (typeof window !== 'undefined' && org && userId && columnsStorageKey !== null) {
+      localStorage.setItem(columnsStorageKey, JSON.stringify(visibleColumns))
     }
-  }, [visibleColumns])
+  }, [visibleColumns, org, userId, columnsStorageKey])
 
-  // Save column order to localStorage
+  // Save column order to localStorage (only if keys are not null)
   React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('leadColumnOrder', JSON.stringify(columnOrder))
+    if (typeof window !== 'undefined' && org && userId && columnOrderStorageKey !== null) {
+      localStorage.setItem(columnOrderStorageKey, JSON.stringify(columnOrder))
     }
-  }, [columnOrder])
+  }, [columnOrder, org, userId, columnOrderStorageKey])
 
   // Clean up invalid columns from state and localStorage
   React.useEffect(() => {
@@ -499,14 +583,16 @@ export default function LeadsPage({
   // Column labels mapping
   const columnLabels: Record<string, string> = {
     name: 'Name',
-    email: 'Email / Phone',
-    ssn: 'SSN/EIN',
+    email: 'Email',
+    phone: 'Phone',
+    ssn: 'SSN',
+    ein: 'EIN',
     source: 'Source',
     status: 'Status',
     value: 'Value',
-    estimatedCloseDate: 'Est. Close Date',
     location: 'Location',
-    interest: 'Interest'
+    interest: 'Interest',
+    estimatedCloseDate: 'Est. Close Date'
   }
 
   // Render table header for a column
@@ -525,15 +611,17 @@ export default function LeadsPage({
     }
 
     const widthMap: Record<string, string> = {
-      name: 'w-[200px]',
-      email: 'w-[240px]',
-      ssn: 'w-[160px]',
-      source: 'w-[160px]',
-      status: 'w-[120px]',
-      value: 'w-[140px]',
-      estimatedCloseDate: 'w-[140px]',
-      location: 'w-[160px]',
-      interest: 'w-[160px]'
+      name: 'min-w-[150px] w-[180px]',
+      email: 'min-w-[160px] w-[200px]',
+      phone: 'min-w-[120px] w-[130px]',
+      ssn: 'min-w-[110px] w-[120px]',
+      ein: 'min-w-[110px] w-[120px]',
+      source: 'min-w-[100px] w-[110px]',
+      status: 'min-w-[100px] w-[110px]',
+      value: 'min-w-[90px] w-[100px]',
+      estimatedCloseDate: 'min-w-[100px] w-[110px]',
+      location: 'min-w-[120px] w-[140px]',
+      interest: 'min-w-[100px] w-[110px]'
     }
 
     const isSortable = sortableColumns.includes(columnId)
@@ -542,11 +630,11 @@ export default function LeadsPage({
     return (
       <th
         key={columnId}
-        className={`py-2 pr-3 ${widthMap[columnId] || 'w-auto'}`}
+        className={`py-2.5 px-2 border-r border-border/40 font-semibold text-xs ${widthMap[columnId] || 'w-auto'}`}
       >
         {isSortable ? (
           <div 
-            className="flex items-center gap-1 cursor-pointer hover:text-primary select-none w-fit"
+            className="flex items-center gap-1 cursor-pointer hover:text-primary select-none w-fit transition-colors"
             onClick={() => handleSort(field as keyof Lead)}
           >
             {columnLabels[columnId]}
@@ -555,7 +643,7 @@ export default function LeadsPage({
             )}
           </div>
         ) : (
-          columnLabels[columnId]
+          <span className="font-semibold">{columnLabels[columnId]}</span>
         )}
       </th>
     )
@@ -568,103 +656,114 @@ export default function LeadsPage({
     switch (columnId) {
       case 'name':
         return (
-          <td key={columnId} className="py-2 pr-3">
-            <div className="flex items-center gap-2">
-              <div
-                className="max-w-[200px] truncate hover:underline decoration-dotted cursor-pointer font-medium"
-                title={lead.name}
-                onClick={() => setPreview({ open: true, lead })}
-              >
-                {lead.name}
+          <td key={columnId} className="py-2.5 px-2 border-r border-border/30">
+            <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1 min-w-0 flex-1">
+                <div
+                  className="truncate hover:underline decoration-dotted cursor-pointer font-medium text-sm"
+                  title={lead.name}
+                  onClick={() => setPreview({ open: true, lead })}
+                >
+                  {lead.name}
+                </div>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  {lead.show_on_pipeline && (
+                    <span 
+                      className="inline-flex items-center justify-center rounded-full bg-green-100 p-1" 
+                      title="On Pipeline"
+                    >
+                      <CheckCircle2 className="h-3 w-3 text-green-700" />
+                    </span>
+                  )}
+                  {lead.assigned_user_id && (
+                    <span 
+                      className="inline-flex items-center justify-center rounded-full bg-blue-100 p-1" 
+                      title="Assigned to user"
+                    >
+                      <UserPlus className="h-3 w-3 text-blue-700" />
+                    </span>
+                  )}
+                </div>
               </div>
-              {lead.show_on_pipeline && (
-                <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
-                  <CheckCircle2 className="h-3 w-3 mr-1" />
-                  Pipeline
-                </span>
-              )}
             </div>
           </td>
         )
       case 'email':
         return (
-          <td key={columnId} className="py-2 pr-3">
-            <div className="max-w-[220px] space-y-1">
-              <div className="truncate text-sm" title={lead.email}>
-                {lead.email}
-              </div>
-              {lead.phone && (
-                <div className="truncate text-xs text-muted-foreground" title={lead.phone}>
-                  {lead.phone}
-                </div>
-              )}
+          <td key={columnId} className="py-2.5 px-2 border-r border-border/30">
+            <div className="truncate text-xs" title={lead.email}>
+              {lead.email || '-'}
+            </div>
+          </td>
+        )
+      case 'phone':
+        return (
+          <td key={columnId} className="py-2.5 px-2 border-r border-border/30">
+            <div className="truncate text-xs" title={lead.phone}>
+              {lead.phone || '-'}
             </div>
           </td>
         )
       case 'ssn':
         return (
-          <td key={columnId} className="py-2 pr-3">
-            <div className="max-w-[160px] space-y-1">
-              {lead.ssn && (
-                <div className="text-xs" title={`SSN: ${lead.ssn}`}>
-                  SSN: {lead.ssn}
-                </div>
-              )}
-              {lead.ein && (
-                <div className="text-xs" title={`EIN: ${lead.ein}`}>
-                  EIN: {lead.ein}
-                </div>
-              )}
-              {!lead.ssn && !lead.ein && (
-                <div className="text-xs text-muted-foreground">-</div>
-              )}
+          <td key={columnId} className="py-2.5 px-2 border-r border-border/30">
+            <div className="truncate text-xs font-mono" title={lead.ssn}>
+              {lead.ssn || '-'}
+            </div>
+          </td>
+        )
+      case 'ein':
+        return (
+          <td key={columnId} className="py-2.5 px-2 border-r border-border/30">
+            <div className="truncate text-xs font-mono" title={lead.ein}>
+              {lead.ein || '-'}
             </div>
           </td>
         )
       case 'source':
         return (
-          <td key={columnId} className="py-2 pr-3">
-            <div className="max-w-[160px] truncate text-xs" title={lead.source}>
+          <td key={columnId} className="py-2.5 px-2 border-r border-border/30">
+            <div className="truncate text-xs" title={lead.source}>
               {lead.source || '-'}
             </div>
           </td>
         )
       case 'status':
         return (
-          <td key={columnId} className="py-2 pr-3">
-            <span className="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium">
+          <td key={columnId} className="py-2.5 px-2 border-r border-border/30">
+            <span className="inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-medium whitespace-nowrap">
               {lead.status}
             </span>
           </td>
         )
       case 'value':
         return (
-          <td key={columnId} className="py-2 pr-3">
-            <div className="text-sm font-medium text-green-600">
+          <td key={columnId} className="py-2.5 px-2 border-r border-border/30">
+            <div className="text-xs font-semibold text-green-600 whitespace-nowrap">
               {lead.value ? `$${lead.value.toLocaleString()}` : '-'}
             </div>
           </td>
         )
       case 'estimatedCloseDate':
         return (
-          <td key={columnId} className="py-2 pr-3">
-            <div className="text-xs text-muted-foreground">
+          <td key={columnId} className="py-2.5 px-2 border-r border-border/30">
+            <div className="text-xs text-muted-foreground whitespace-nowrap">
               {lead.estimated_close_date ? new Date(lead.estimated_close_date).toLocaleDateString('pt-BR') : '-'}
             </div>
           </td>
         )
       case 'location':
         return (
-          <td key={columnId} className="py-2 pr-3">
-            <div className="max-w-[160px] truncate text-xs" title={lead.location}>
+          <td key={columnId} className="py-2.5 px-2 border-r border-border/30">
+            <div className="truncate text-xs" title={lead.location}>
               {lead.location || '-'}
             </div>
           </td>
         )
       case 'interest':
         return (
-          <td key={columnId} className="py-2 pr-3">
-            <div className="max-w-[160px] truncate text-xs" title={lead.interest}>
+          <td key={columnId} className="py-2.5 px-2 border-r border-border/30">
+            <div className="truncate text-xs" title={lead.interest}>
               {lead.interest || '-'}
             </div>
           </td>
@@ -698,7 +797,9 @@ export default function LeadsPage({
 
     status: "",
 
-    pipeline: ""
+    pipeline: "",
+
+    assignedUserId: ""
 
   })
 
@@ -717,6 +818,24 @@ export default function LeadsPage({
     max: ""
 
   })
+
+  // Load users when filter modal opens
+  React.useEffect(() => {
+    const loadUsers = async () => {
+      if (isFilterOpen && organizationUsers.length === 0) {
+        try {
+          const response = await apiService.getOrganizationUsers(true)
+          if (response.success && response.data) {
+            setOrganizationUsers(response.data.employees)
+          }
+        } catch (error) {
+          console.error('Error loading users for filter:', error)
+        }
+      }
+    }
+    
+    loadUsers()
+  }, [isFilterOpen, organizationUsers.length])
 
   // Função para validar data
 
@@ -1096,7 +1215,9 @@ export default function LeadsPage({
 
       status: '',
 
-      pipeline: ''
+      pipeline: '',
+
+      assignedUserId: ''
 
     })
 
@@ -1223,7 +1344,7 @@ export default function LeadsPage({
 
     
 
-    const hasFilters = filters.name || filters.email || filters.phone || filters.ssn || filters.ein || filters.source || filters.location || filters.interest || filters.status || filters.pipeline || sortField || valueRange.min || valueRange.max || dateRange.min || dateRange.max
+    const hasFilters = filters.name || filters.email || filters.phone || filters.ssn || filters.ein || filters.source || filters.location || filters.interest || filters.status || filters.pipeline || filters.assignedUserId || sortField || valueRange.min || valueRange.max || dateRange.min || dateRange.max
 
     
 
@@ -1235,108 +1356,20 @@ export default function LeadsPage({
 
         
 
-        // Buscar por cada campo específico usando rotas separadas
-
-        if (filters.name) {
-
-          const response = await apiService.searchLeadsByName(filters.name)
-
-          if (response.success && response.data) {
-
-            allLeads = [...allLeads, ...response.data.leads]
-
+        // Se temos filtro de pipeline ou assigned user, usar APENAS busca unificada com todos os filtros
+        if (filters.pipeline || filters.assignedUserId) {
+          const searchParams: any = {}
+          
+          if (filters.pipeline) {
+            searchParams.show_on_pipeline = filters.pipeline === 'true'
           }
-
-        }
-
-        
-
-        if (filters.email) {
-
-          const response = await apiService.searchLeadsByEmail(filters.email)
-
-          if (response.success && response.data) {
-
-            allLeads = [...allLeads, ...response.data.leads]
-
-          }
-
-        }
-
-        
-
-        if (filters.phone) {
-
-          const response = await apiService.searchLeadsByPhone(filters.phone)
-
-          if (response.success && response.data) {
-
-            allLeads = [...allLeads, ...response.data.leads]
-
-          }
-
-        }
-
-        
-
-        if (filters.ssn) {
-
-          const response = await apiService.searchLeadsBySSN(filters.ssn)
-
-          if (response.success && response.data) {
-
-            allLeads = [...allLeads, ...response.data.leads]
-
-          }
-
-        }
-
-        
-
-        if (filters.ein) {
-
-          const response = await apiService.searchLeadsByEIN(filters.ein)
-
-          if (response.success && response.data) {
-
-            allLeads = [...allLeads, ...response.data.leads]
-
-          }
-
-        }
-
-        
-
-        if (filters.source) {
-
-          const response = await apiService.searchLeadsBySource(filters.source)
-
-          if (response.success && response.data) {
-
-            allLeads = [...allLeads, ...response.data.leads]
-
-          }
-
-        }
-
-        
-
-        if (filters.status) {
-
-          const response = await apiService.searchLeadsByStatus(filters.status)
-
-          if (response.success && response.data) {
-
-            allLeads = [...allLeads, ...response.data.leads]
-
-          }
-
-        }
-
-        // Se temos filtro de pipeline, usar busca unificada com todos os filtros
-        if (filters.pipeline) {
-          const searchParams: any = {
-            show_on_pipeline: filters.pipeline === 'true'
+          
+          if (filters.assignedUserId) {
+            if (filters.assignedUserId === 'unassigned') {
+              searchParams.assigned_user_id = 'null'
+            } else {
+              searchParams.assigned_user_id = filters.assignedUserId
+            }
           }
           
           // Adicionar outros filtros se existirem
@@ -1358,62 +1391,160 @@ export default function LeadsPage({
           if (response.success && response.data) {
             allLeads = response.data.leads
           }
-        }
+        } else {
+          // Caso contrário, buscar por cada campo específico usando rotas separadas
 
-        
+          if (filters.name) {
 
-        if (valueRange.min && !isNaN(parseFloat(valueRange.min))) {
+            const response = await apiService.searchLeadsByName(filters.name)
 
-          const response = await apiService.searchLeadsByValueMin(parseFloat(valueRange.min))
+            if (response.success && response.data) {
 
-          if (response.success && response.data) {
+              allLeads = [...allLeads, ...response.data.leads]
 
-            allLeads = [...allLeads, ...response.data.leads]
-
-          }
-
-        }
-
-        
-
-        if (valueRange.max && !isNaN(parseFloat(valueRange.max))) {
-
-          const response = await apiService.searchLeadsByValueMax(parseFloat(valueRange.max))
-
-          if (response.success && response.data) {
-
-            allLeads = [...allLeads, ...response.data.leads]
+            }
 
           }
 
-        }
+          
 
-        
+          if (filters.email) {
 
-        if (dateRange.min) {
+            const response = await apiService.searchLeadsByEmail(filters.email)
 
-          const response = await apiService.searchLeadsByDateMin(dateRange.min)
+            if (response.success && response.data) {
 
-          if (response.success && response.data) {
+              allLeads = [...allLeads, ...response.data.leads]
 
-            allLeads = [...allLeads, ...response.data.leads]
-
-          }
-
-        }
-
-        
-
-        if (dateRange.max) {
-
-          const response = await apiService.searchLeadsByDateMax(dateRange.max)
-
-          if (response.success && response.data) {
-
-            allLeads = [...allLeads, ...response.data.leads]
+            }
 
           }
 
+          
+
+          if (filters.phone) {
+
+            const response = await apiService.searchLeadsByPhone(filters.phone)
+
+            if (response.success && response.data) {
+
+              allLeads = [...allLeads, ...response.data.leads]
+
+            }
+
+          }
+
+          
+
+          if (filters.ssn) {
+
+            const response = await apiService.searchLeadsBySSN(filters.ssn)
+
+            if (response.success && response.data) {
+
+              allLeads = [...allLeads, ...response.data.leads]
+
+            }
+
+          }
+
+          
+
+          if (filters.ein) {
+
+            const response = await apiService.searchLeadsByEIN(filters.ein)
+
+            if (response.success && response.data) {
+
+              allLeads = [...allLeads, ...response.data.leads]
+
+            }
+
+          }
+
+          
+
+          if (filters.source) {
+
+            const response = await apiService.searchLeadsBySource(filters.source)
+
+            if (response.success && response.data) {
+
+              allLeads = [...allLeads, ...response.data.leads]
+
+            }
+
+          }
+
+          
+
+          if (filters.status) {
+
+            const response = await apiService.searchLeadsByStatus(filters.status)
+
+            if (response.success && response.data) {
+
+              allLeads = [...allLeads, ...response.data.leads]
+
+            }
+
+          }
+          
+          // Buscas de valueRange e dateRange só se NÃO usamos busca unificada
+          // (se usamos, esses filtros já foram incluídos nos parâmetros)
+          if (valueRange.min && !isNaN(parseFloat(valueRange.min))) {
+
+            const response = await apiService.searchLeadsByValueMin(parseFloat(valueRange.min))
+
+            if (response.success && response.data) {
+
+              allLeads = [...allLeads, ...response.data.leads]
+
+            }
+
+          }
+
+          
+
+          if (valueRange.max && !isNaN(parseFloat(valueRange.max))) {
+
+            const response = await apiService.searchLeadsByValueMax(parseFloat(valueRange.max))
+
+            if (response.success && response.data) {
+
+              allLeads = [...allLeads, ...response.data.leads]
+
+            }
+
+          }
+
+          
+
+          if (dateRange.min) {
+
+            const response = await apiService.searchLeadsByDateMin(dateRange.min)
+
+            if (response.success && response.data) {
+
+              allLeads = [...allLeads, ...response.data.leads]
+
+            }
+
+          }
+
+          
+
+          if (dateRange.max) {
+
+            const response = await apiService.searchLeadsByDateMax(dateRange.max)
+
+            if (response.success && response.data) {
+
+              allLeads = [...allLeads, ...response.data.leads]
+
+            }
+
+          }
         }
 
         
@@ -1573,7 +1704,7 @@ export default function LeadsPage({
 
     
 
-    const hasFilters = searchTerm || filters.email || filters.phone || filters.ssn || filters.ein || filters.source || filters.status || filters.pipeline || sortField
+    const hasFilters = searchTerm || filters.name || filters.email || filters.phone || filters.ssn || filters.ein || filters.source || filters.location || filters.interest || filters.status || filters.pipeline || filters.assignedUserId || sortField
 
     
 
@@ -1583,7 +1714,7 @@ export default function LeadsPage({
 
     }
 
-  }, [leads, searchTerm, filters.email, filters.phone, filters.ssn, filters.source, filters.status, filters.pipeline, sortField, isClient])
+  }, [leads, searchTerm, filters.name, filters.email, filters.phone, filters.ssn, filters.ein, filters.source, filters.location, filters.interest, filters.status, filters.pipeline, filters.assignedUserId, sortField, isClient])
 
 
   // Pagination calculations
@@ -1949,6 +2080,92 @@ export default function LeadsPage({
 
     setIsConfirmOpen(true)
 
+  }
+
+  async function handleQuickAssign(leadId: string) {
+    setIsLoadingUsers(true)
+    setQuickAssignLeadId(leadId)
+    setQuickAssignUserId("")
+    
+    try {
+      const response = await apiService.getOrganizationUsers(true) // Include master users
+      if (response.success && response.data) {
+        setOrganizationUsers(response.data.employees)
+      } else {
+        pushToast('Error loading users', 'error')
+        setQuickAssignLeadId(null)
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error)
+      pushToast('Error loading users', 'error')
+      setQuickAssignLeadId(null)
+    } finally {
+      setIsLoadingUsers(false)
+    }
+  }
+
+  async function handleTogglePipeline(leadId: string, currentStatus: boolean) {
+    try {
+      const response = await apiService.bulkUpdatePipeline([leadId], !currentStatus)
+      
+      if (response.success) {
+        // Atualizar o lead localmente
+        setLeads(prevLeads => 
+          prevLeads.map(lead => 
+            lead.id === leadId 
+              ? { ...lead, show_on_pipeline: !currentStatus }
+              : lead
+          )
+        )
+        setFilteredLeads(prevLeads => 
+          prevLeads.map(lead => 
+            lead.id === leadId 
+              ? { ...lead, show_on_pipeline: !currentStatus }
+              : lead
+          )
+        )
+      } else {
+        pushToast('Error updating pipeline', 'error')
+      }
+    } catch (error) {
+      console.error('Error toggling pipeline:', error)
+      pushToast('Error updating pipeline', 'error')
+    }
+  }
+
+  async function applyQuickAssign() {
+    if (!quickAssignLeadId || !quickAssignUserId) return
+
+    try {
+      const lead = leads.find(l => l.id === quickAssignLeadId)
+      if (!lead) return
+
+      const updateData: any = { 
+        id: lead.id,
+        assigned_user_id: quickAssignUserId 
+      }
+
+      const response = await apiService.updateLead(updateData)
+      
+      if (response.success) {
+        const updatedLead = {
+          ...lead,
+          assigned_user_id: quickAssignUserId,
+        }
+        
+        setLeads(prevLeads => prevLeads.map(l => l.id === lead.id ? updatedLead : l))
+        setFilteredLeads(prevLeads => prevLeads.map(l => l.id === lead.id ? updatedLead : l))
+        
+        pushToast('Lead assigned successfully', 'success')
+        setQuickAssignLeadId(null)
+        setQuickAssignUserId("")
+      } else {
+        pushToast(response.error || 'Error assigning lead', 'error')
+      }
+    } catch (error) {
+      console.error('Error assigning lead:', error)
+      pushToast('Error assigning lead', 'error')
+    }
   }
 
 
@@ -2744,72 +2961,219 @@ export default function LeadsPage({
     const headerAliases: Record<"name" | "email" | "phone" | "ssn" | "ein" | "source" | "status" | "value" | "estimated_close_date" | "location" | "interest" | "description", string[]> = {
 
       name: [
-
-        "name", "full name", "fullname", "nome", "nome completo"
-
+        // English
+        "name", "full name", "fullname", "lead name", "contact name", "customer name", "client name",
+        "person name", "person", "contact", "lead",
+        // Portuguese
+        "nome", "nome completo", "nome do lead", "nome do contato", "nome do cliente",
+        "contato", "cliente", "pessoa"
       ],
 
       email: [
-
-        "email", "e mail", "mail", "email address", "endereco de email", "correio", "correo", "email / phone", "email phone", "email/phone"
+        // English
+        "email", "e mail", "e-mail", "mail", "email address", "e mail address", "e-mail address",
+        "contact email", "email contact", "electronic mail", "email / phone", "email phone", "email/phone",
+        // Portuguese
+        "endereco de email", "endereço de email", "endereco eletronico", "endereço eletrônico",
+        "correio", "correio eletronico", "correio eletrônico", "e-mail", "e mail"
       ],
 
       phone: [
-
-        "phone", "phone number", "cell", "cellphone", "mobile", "mobile phone", "telefone", "celular", "telemovel", "whatsapp"
-
+        // English
+        "phone", "phone number", "phone no", "phone no.", "phone #", "tel", "tel.", "telephone",
+        "cell", "cellphone", "cell phone", "mobile", "mobile phone", "mobile number",
+        "contact number", "contact phone", "whatsapp", "whatsapp number", "whatsapp no",
+        // Portuguese
+        "telefone", "telefone celular", "tel", "tel.", "fone", "celular", "cel", "cel.",
+        "telemovel", "telemóvel", "numero de telefone", "número de telefone",
+        "contato", "numero de contato", "número de contato", "whatsapp", "zap"
       ],
 
       ssn: [
-
-        "ssn", "social security number", "social security", "social security no", "social security n", "social security #", "social sec number", "social sec no",
-
-        "cpf", "c p f", "cadastro de pessoa fisica", "cadastro de pessoa física", "numero do cpf", "n cpf", "número do cpf", "ssn ein", "ssn/ein", "ssn / ein", "ssn/ein"
+        // English
+        "ssn", "social security number", "social security", "social security no", "social security no.",
+        "social security n", "social security #", "social sec number", "social sec no",
+        "social sec", "ss number", "ss no", "ss #", "tax id", "personal tax id",
+        // Portuguese
+        "cpf", "c p f", "cadastro de pessoa fisica", "cadastro de pessoa física",
+        "numero do cpf", "número do cpf", "n cpf", "no cpf", "no. cpf",
+        "cpf numero", "cpf número", "documento cpf", "doc cpf",
+        // Combined (legacy)
+        "ssn ein", "ssn/ein", "ssn / ein"
       ],
 
       ein: [
-
-        "ein", "employer identification number", "cnpj", "cadastro nacional da pessoa juridica", "numero do cnpj", "n cnpj", "número do cnpj", "ssn ein", "ssn/ein", "ssn / ein", "ssn/ein"
+        // English
+        "ein", "employer identification number", "employer id", "employer id number",
+        "business tax id", "company tax id", "federal tax id", "tax identification number",
+        "tin", "business id", "company id", "corporate id",
+        // Portuguese
+        "cnpj", "cadastro nacional da pessoa juridica", "cadastro nacional da pessoa jurídica",
+        "cadastro nacional pessoa juridica", "numero do cnpj", "número do cnpj",
+        "n cnpj", "no cnpj", "no. cnpj", "cnpj numero", "cnpj número",
+        "documento cnpj", "doc cnpj", "cnpj empresa",
+        // Combined (legacy)
+        "ssn ein", "ssn/ein", "ssn / ein"
       ],
 
       source: [
-
-        "source", "lead source", "leadsource", "origem", "fonte", "canal", "canal de origem", "origem do lead", "fonte do lead"
-
+        // English
+        "source", "lead source", "leadsource", "lead origin", "origin", "channel",
+        "marketing channel", "acquisition channel", "traffic source", "referral source",
+        "campaign", "medium", "source/medium", "utm source", "how did you find us",
+        // Portuguese
+        "origem", "origem do lead", "fonte", "fonte do lead", "canal", "canal de origem",
+        "canal de marketing", "canal de aquisicao", "canal de aquisição",
+        "campanha", "meio", "referencia", "referência", "indicacao", "indicação",
+        "como nos conheceu", "como conheceu", "de onde veio"
       ],
 
       status: [
-
-        "status", "lead status", "leadstatus", "situacao", "estado", "etapa", "situacao do lead", "situacao do contato"
-
+        // English
+        "status", "lead status", "leadstatus", "current status", "stage", "pipeline stage",
+        "deal stage", "sales stage", "phase", "state", "condition",
+        // Portuguese
+        "situacao", "situação", "situacao do lead", "situação do lead",
+        "estado", "estado do lead", "etapa", "etapa do lead", "fase", "fase do lead",
+        "estagio", "estágio", "pipeline", "funil", "status do contato"
       ],
 
       value: [
-
-        "value", "deal value", "valor", "valor da venda", "preco", "preço", "amount", "montante", "price", "sale value", "value", "deal value", "deal amount", "total value", "contract value"
+        // English
+        "value", "deal value", "dealvalue", "opportunity value", "sale value", "sales value",
+        "amount", "deal amount", "total", "total value", "total amount",
+        "price", "cost", "revenue", "contract value", "order value", "purchase value",
+        // Portuguese
+        "valor", "valor do negocio", "valor do negócio", "valor da venda", "valor do deal",
+        "valor total", "total", "montante", "quantia", "soma",
+        "preco", "preço", "custo", "receita", "valor do contrato", "valor do pedido"
       ],
 
       estimated_close_date: [
 
-        "estimated close date", "close date", "data de fechamento", "data estimada", "data prevista", "expected close date", "estimated close date", "close date", "estimated close date", "close date", "close date", "expected close", "close", "date", "close date", "closing date", "deal close date", "expected close date", "target close date", "close date", "closing date", "deal close date", "expected close date", "target close date", "data", "data de fechamento", "data estimada", "data prevista", "data de venda", "data de conclusao", "data de conclusão", "data final", "data limite", "deadline", "due date", "end date", "final date", "completion date", "finish date"
+        // English variations
+        "estimated close date", "est close date", "est. close date",
+        "close date", "closing date", "closed date",
+        "expected close date", "exp close date", "exp. close date",
+        "target close date", "target closing date",
+        "deal close date", "deal closing date", "deal close",
+        "expected close", "expected closing",
+        "estimated closing date", "est closing date", "est. closing date",
+        "projected close date", "proj close date", "proj. close date",
+        "anticipated close date", "forecast close date",
+        "expected date", "target date", "due date", "deadline",
+        "completion date", "finish date", "end date", "final date",
+        "sale close date", "contract close date",
+        "close", "closing", "date",
+        
+        // Portuguese variations
+        "data de fechamento", "data fechamento", "dt fechamento", "dt. fechamento",
+        "data estimada", "data estimada de fechamento", "dt estimada",
+        "data prevista", "data prevista de fechamento", "dt prevista",
+        "data esperada", "data esperada de fechamento",
+        "data alvo", "data objetivo", "data meta",
+        "data de conclusao", "data de conclusão", "dt conclusao", "dt conclusão",
+        "data de venda", "data da venda", "dt venda",
+        "data final", "data limite", "prazo", "prazo final",
+        "previsao de fechamento", "previsão de fechamento",
+        "estimativa de fechamento", "est. fechamento",
+        "data do contrato", "data do negocio", "data do negócio",
+        "data", "data estimada fechamento"
       ],
 
       location: [
-
-        "location", "city", "state", "country", "localizacao", "localização", "cidade", "estado", "pais", "país", "address", "endereco", "endereço", "place", "local"
-
+        // English - Primary
+        "location", "locations", "loc", "loc.", "locate",
+        // English - Address variations
+        "address", "full address", "street address", "mailing address", "physical address",
+        "addr", "addr.", "street", "st", "st.",
+        // English - Geographic
+        "city", "town", "municipality", "village", "borough",
+        "state", "province", "region", "territory", "county",
+        "country", "nation", "area", "zone", "district",
+        "place", "places", "where", "geographic location", "geography", "geo",
+        "city/state", "city state", "city-state",
+        "state/country", "state country", "state-country",
+        "city, state", "city,state",
+        // English - Postal
+        "zip", "zipcode", "zip code", "zip-code", "postal", "postal code", "postcode", "post code",
+        // Portuguese - Primary
+        "localizacao", "localização", "localizacoes", "localizações",
+        "local", "locais", "lugar", "lugares", "onde",
+        // Portuguese - Address
+        "endereco", "endereço", "enderecos", "endereços",
+        "endereco completo", "endereço completo",
+        "end", "end.", "rua", "logradouro",
+        // Portuguese - Geographic
+        "cidade", "cidades", "municipio", "município", "municipios", "municípios",
+        "estado", "estados", "uf", "regiao", "região", "regioes", "regiões",
+        "pais", "país", "paises", "países", "nacao", "nação", "nacoes", "nações",
+        "area", "área", "areas", "áreas", "zona", "distrito",
+        "cidade/estado", "cidade estado", "cidade-estado",
+        "estado/pais", "estado pais", "estado-pais",
+        "cidade, estado", "cidade,estado",
+        // Portuguese - Postal
+        "cep", "codigo postal", "código postal", "cod postal", "cód postal"
       ],
 
       interest: [
-
-        "interest", "interests", "product interest", "interest in", "interested in", "interesse", "interesses", "interesse em", "product", "produto", "service", "servico", "serviço"
-
+        // English - Primary
+        "interest", "interests", "interested", "interest in", "interested in",
+        "area of interest", "areas of interest", "interest area", "interest areas",
+        // English - Product/Service
+        "product", "products", "product interest", "product of interest",
+        "service", "services", "service interest", "service of interest",
+        "solution", "solutions", "offering", "offerings", "offer",
+        "item", "items", "item of interest",
+        // English - Needs/Wants
+        "need", "needs", "needed", "needing",
+        "want", "wants", "wanted", "wanting",
+        "requirement", "requirements", "required", "requires",
+        "looking for", "searching for", "seeking", "search",
+        "preference", "preferences", "preferred", "prefers",
+        "choice", "choices", "choose", "chosen",
+        "desire", "desires", "desired", "desiring",
+        // English - Questions
+        "what interested", "what interests", "what are you interested in",
+        "what do you need", "what product", "which product", "which service",
+        "interested in what", "interest what",
+        // Portuguese - Primary
+        "interesse", "interesses", "interessado", "interessada",
+        "interesse em", "interessado em", "interessada em",
+        "area de interesse", "área de interesse", "areas de interesse", "áreas de interesse",
+        // Portuguese - Product/Service
+        "produto", "produtos", "interesse no produto", "produto de interesse",
+        "servico", "serviço", "servicos", "serviços",
+        "interesse no servico", "interesse no serviço",
+        "solucao", "solução", "solucoes", "soluções",
+        "oferta", "ofertas", "item", "itens",
+        // Portuguese - Needs/Wants
+        "necessidade", "necessidades", "necessita", "necessitando",
+        "quer", "querer", "deseja", "desejar", "desejando",
+        "requisito", "requisitos", "requer", "requerido",
+        "procurando", "procurando por", "procura", "procura por",
+        "buscando", "buscando por", "busca", "busca por",
+        "preferencia", "preferência", "preferencias", "preferências",
+        "escolha", "escolhas", "escolher", "escolhido",
+        // Portuguese - Questions
+        "o que interessa", "o que te interessa", "qual interesse",
+        "qual produto", "que produto", "que servico", "que serviço",
+        "em que esta interessado", "em que está interessado"
       ],
 
       description: [
-
-        "description", "notes", "observations", "descricao", "descrição", "notas", "observacoes", "observações", "comentarios", "comentários", "description", "notes"
-
+        // English
+        "description", "desc", "desc.", "notes", "note", "observations", "observation",
+        "comments", "comment", "remarks", "remark", "details", "additional info",
+        "additional information", "extra info", "info", "information",
+        "about", "summary", "overview", "background", "context",
+        // Portuguese
+        "descricao", "descrição", "desc", "desc.", "notas", "nota",
+        "observacoes", "observações", "observacao", "observação",
+        "comentarios", "comentários", "comentario", "comentário",
+        "detalhes", "informacoes adicionais", "informações adicionais",
+        "info adicional", "informacao", "informação", "info", "infos",
+        "sobre", "resumo", "visao geral", "visão geral", "contexto", "historico", "histórico"
       ],
 
     }
@@ -3529,6 +3893,15 @@ export default function LeadsPage({
 
           draft.description = truncateTo(text, FIELD_MAX.description)
 
+        } else if (key === "location") {
+
+          draft.location = truncateTo(text, FIELD_MAX.source)
+          console.log(`✅ Set Location: "${draft.location}" (from "${text}")`)
+
+        } else if (key === "interest") {
+
+          draft.interest = truncateTo(text, FIELD_MAX.source)
+          console.log(`✅ Set Interest: "${draft.interest}" (from "${text}")`)
 
         }
 
@@ -3580,6 +3953,8 @@ export default function LeadsPage({
         value: draft.value,
 
         estimated_close_date: safeEstimatedCloseDate,
+        location: draft.location || "",
+        interest: draft.interest || "",
         description: draft.description,
         show_on_pipeline: false,
 
@@ -3588,6 +3963,13 @@ export default function LeadsPage({
         updated_at: new Date().toISOString(),
 
       }
+
+      console.log(`📦 Final Lead for "${finalLead.name}":`, {
+        location: finalLead.location,
+        interest: finalLead.interest,
+        hasLocation: !!finalLead.location,
+        hasInterest: !!finalLead.interest
+      })
 
       imported.push(finalLead)
 
@@ -4166,6 +4548,8 @@ export default function LeadsPage({
         Status: '',
         Value: '',
         'Estimated Close Date': '',
+        Location: '',
+        Interest: '',
         Description: '',
       }]
 
@@ -4180,6 +4564,8 @@ export default function LeadsPage({
       Status: lead.status,
       Value: lead.value || '',
       'Estimated Close Date': lead.estimated_close_date || '',
+      Location: lead.location || '',
+      Interest: lead.interest || '',
       Description: lead.description || '',
       }))
 
@@ -5360,15 +5746,15 @@ export default function LeadsPage({
 
             </div>
 
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto border rounded-lg">
 
-              <table className="w-full text-sm">
+              <table className="w-full text-sm border-collapse">
 
                 <thead>
 
-                  <tr className="text-left border-b">
+                  <tr className="text-left border-b-2 border-border bg-muted/60">
 
-                    <th className="py-2 pr-3 w-12">
+                    <th className="py-2.5 px-2 w-10 border-r border-border/40">
                       {leads.length > 0 && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -5395,7 +5781,7 @@ export default function LeadsPage({
 
                     {columnOrder.filter(columnId => columnLabels[columnId]).map(columnId => renderColumnHeader(columnId))}
 
-                    <th className="py-2 pr-0 text-right w-[100px]">Actions</th>
+                    <th className="py-2.5 px-2 text-right min-w-[110px] w-[120px] font-semibold text-xs">Actions</th>
 
                   </tr>
 
@@ -5403,9 +5789,17 @@ export default function LeadsPage({
 
                 <tbody>
 
-                  {currentLeads.map((lead, index) => (
-                    <tr key={lead.id} className={`border-b last:border-b-0 hover:bg-muted/30 ${index % 2 === 0 ? 'bg-background' : 'bg-muted/40'}`}>
-                      <td className="py-2 pr-3">
+                  {currentLeads.map((lead, index) => {
+                    const hasSpecialStatus = lead.show_on_pipeline || lead.assigned_user_id
+                    const borderColorClass = lead.show_on_pipeline 
+                      ? 'border-l-2 border-l-green-500' 
+                      : lead.assigned_user_id 
+                      ? 'border-l-2 border-l-blue-500' 
+                      : ''
+                    
+                    return (
+                    <tr key={lead.id} className={`border-b last:border-b-0 transition-colors ${index % 2 === 0 ? 'bg-background hover:bg-muted/30' : 'bg-muted/20 hover:bg-muted/40'} ${borderColorClass}`}>
+                      <td className="py-2.5 px-2 border-r border-border/30">
 
                         <input
 
@@ -5417,7 +5811,7 @@ export default function LeadsPage({
 
                           readOnly
 
-                          className="rounded border-input"
+                          className="rounded border-input cursor-pointer"
 
                         />
 
@@ -5425,19 +5819,45 @@ export default function LeadsPage({
 
                       {columnOrder.filter(columnId => columnLabels[columnId]).map(columnId => renderColumnCell(columnId, lead))}
 
-                      <td className="py-2 pr-0">
+                      <td className="py-2.5 px-2">
 
-                        <div className="flex justify-end gap-1.5">
+                        <div className="flex justify-end gap-1">
 
-                          <Button size="sm" variant="outline" onClick={() => handleEdit(lead)} className="cursor-pointer">
+                          <Button size="sm" variant="outline" onClick={() => handleEdit(lead)} className="cursor-pointer h-7 w-7 p-0" title="Edit lead">
 
-                            <Edit className="h-3 w-3 mr-1" />
-
-                            Edit
+                            <Edit className="h-3 w-3" />
 
                           </Button>
 
-                          <Button size="sm" variant="destructive" onClick={() => handleDelete(lead.id)} className="cursor-pointer">
+                          <Button size="sm" variant="outline" onClick={() => handleQuickAssign(lead.id)} className="cursor-pointer h-7 w-7 p-0" title="Assign to user">
+
+                            <UserPlus className="h-3 w-3" />
+
+                          </Button>
+
+                          {lead.show_on_pipeline ? (
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              onClick={() => handleTogglePipeline(lead.id, lead.show_on_pipeline)} 
+                              className="cursor-pointer h-7 w-7 p-0 border-orange-300 hover:bg-orange-50" 
+                              title="Remove from pipeline"
+                            >
+                              <X className="h-3 w-3 text-orange-600" />
+                            </Button>
+                          ) : (
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              onClick={() => handleTogglePipeline(lead.id, lead.show_on_pipeline)} 
+                              className="cursor-pointer h-7 w-7 p-0 border-green-300 hover:bg-green-50" 
+                              title="Add to pipeline"
+                            >
+                              <CheckCircle2 className="h-3 w-3 text-green-600" />
+                            </Button>
+                          )}
+
+                          <Button size="sm" variant="destructive" onClick={() => handleDelete(lead.id)} className="cursor-pointer h-7 w-7 p-0" title="Delete lead">
 
                             <Trash2 className="h-3 w-3" />
 
@@ -5448,8 +5868,8 @@ export default function LeadsPage({
                       </td>
 
                     </tr>
-
-                  ))}
+                    );
+                  })}
 
                   {currentLeads.length === 0 && (
                     <tr>
@@ -6365,18 +6785,6 @@ export default function LeadsPage({
 
                     )}
 
-                    {!l.ssn && !l.ein && (
-
-                      <div className="space-y-1">
-
-                        <div className="text-xs text-muted-foreground">SSN/EIN</div>
-
-                        <div className="text-sm text-muted-foreground">-</div>
-
-                      </div>
-
-                    )}
-
                     <div className="space-y-1">
 
                       <div className="flex items-center gap-2">
@@ -6807,6 +7215,23 @@ export default function LeadsPage({
                   <option value="false">Not in Pipeline</option>
                 </select>
               </div>
+
+              <div className="space-y-2">
+                <label className="mb-1 block text-sm font-medium">Assigned User</label>
+                <select
+                  className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input h-9 w-full min-w-0 rounded-md border bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] cursor-pointer"
+                  value={filters.assignedUserId || ""}
+                  onChange={(e) => setFilters(prev => ({ ...prev, assignedUserId: e.target.value }))}
+                >
+                  <option value="">All users</option>
+                  <option value="unassigned">Unassigned</option>
+                  {organizationUsers.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
 
@@ -6926,7 +7351,7 @@ export default function LeadsPage({
 
                 <h3 className="text-lg font-semibold leading-none tracking-tight">Import leads</h3>
 
-                <p className="text-sm text-muted-foreground">Accepted formats: .xlsx, .xls, .csv, .ods, .json. <br></br>Columns: name, email, phone, ssn, ein, source, status, value, close date, notes</p>
+                <p className="text-sm text-muted-foreground">Accepted formats: .xlsx, .xls, .csv, .ods, .json. <br></br>Columns: name, email, phone, ssn, ein, source, status, value, close date, location, interest, notes</p>
 
               </div>
 
@@ -7386,6 +7811,60 @@ export default function LeadsPage({
             </Button>
           </div>
         </div>
+      </SheetContent>
+    </Sheet>
+    
+    {/* QUICK ASSIGN MODAL */}
+    <Sheet open={quickAssignLeadId !== null} onOpenChange={(open) => !open && setQuickAssignLeadId(null)}>
+      <SheetContent className="w-full sm:max-w-md border-l border-border p-6 md:p-8">
+        <SheetHeader>
+          <SheetTitle>Assign Lead to User</SheetTitle>
+          <SheetDescription>
+            Select a user to assign this lead.
+          </SheetDescription>
+        </SheetHeader>
+        
+        <Separator className="my-4" />
+        
+        {isLoadingUsers ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <span className="ml-2 text-sm text-muted-foreground">Loading users...</span>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <label className="mb-1 block text-sm font-medium">Select User</label>
+              <select
+                value={quickAssignUserId}
+                onChange={(e) => setQuickAssignUserId(e.target.value)}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 cursor-pointer"
+              >
+                <option value="">-- Select a user --</option>
+                {organizationUsers.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.name} ({user.email})
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <Separator />
+            
+            <div className="flex gap-2">
+              <Button 
+                onClick={applyQuickAssign} 
+                className="flex-1 cursor-pointer"
+                disabled={!quickAssignUserId}
+              >
+                Assign Lead
+              </Button>
+              <Button variant="outline" onClick={() => setQuickAssignLeadId(null)} className="cursor-pointer">
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
       </SheetContent>
     </Sheet>
 

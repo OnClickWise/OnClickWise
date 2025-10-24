@@ -205,6 +205,67 @@ export default function TelegramPage({
 }) {
   const { org } = React.use(params)
   const { apiCall, isClient } = useApi()
+  
+  // Função para obter identificador único e persistente do usuário
+  const getUserIdentifier = React.useCallback(() => {
+    if (typeof window === 'undefined') return null
+    try {
+      const token = localStorage.getItem('token')
+      const organizationStr = localStorage.getItem('organization')
+      
+      if (!token || !organizationStr) return null
+      
+      const organization = JSON.parse(organizationStr)
+      
+      // Decodificar o payload do JWT para pegar o email do usuário
+      const parts = token.split('.')
+      if (parts.length !== 3) return null
+      
+      const payload = JSON.parse(atob(parts[1]))
+      const userEmail = payload.email || payload.sub || ''
+      
+      // Usar orgId + email do usuário como identificador único
+      // Cada usuário da mesma org terá seu próprio ID
+      const identifier = `${organization.id}_${userEmail}`.replace(/[^a-zA-Z0-9_-]/g, '_')
+      return identifier
+    } catch (error) {
+      console.error('Error getting user identifier:', error)
+      return null
+    }
+  }, [])
+
+  const [userId, setUserId] = React.useState<string | null>(null)
+
+  // Obter o userId quando o componente montar ou quando a organização mudar
+  React.useEffect(() => {
+    const updateUserId = () => {
+      const id = getUserIdentifier()
+      setUserId(id)
+    }
+    
+    updateUserId()
+    
+    // Listener para detectar mudanças no localStorage (quando trocar de conta em outra aba)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'organization' || e.key === 'token' || e.key === null) {
+        updateUserId()
+      }
+    }
+    
+    // Listener para quando a aba recebe foco (usuário volta à aba)
+    const handleFocus = () => {
+      updateUserId()
+    }
+    
+    window.addEventListener('storage', handleStorageChange)
+    window.addEventListener('focus', handleFocus)
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [getUserIdentifier])
+  
   const [urlParams, setUrlParams] = React.useState<{ phone?: string; conversationId?: string }>({})
   const [autoOpenProcessed, setAutoOpenProcessed] = React.useState(false)
   
@@ -357,15 +418,33 @@ export default function TelegramPage({
   const [unreadOverrides, setUnreadOverrides] = React.useState<{[key: string]: number}>({})
 
 
-  // Persistence key for localStorage
-  const persistenceKey = `telegram_chat_type_${org}`
-  const pinsKey = `telegram_pins_${org}`
-  const deletedKey = `telegram_deleted_${org}`
-  const unreadOverrideKey = `telegram_unread_overrides_${org}`
+  // Persistence key for localStorage (unique per user) - NEVER use shared keys
+  const persistenceKey = React.useMemo(() => userId ? `telegram_chat_type_${org}_${userId}` : null, [org, userId])
+  const pinsKey = React.useMemo(() => userId ? `telegram_pins_${org}_${userId}` : null, [org, userId])
+  const deletedKey = React.useMemo(() => userId ? `telegram_deleted_${org}_${userId}` : null, [org, userId])
+  const unreadOverrideKey = React.useMemo(() => userId ? `telegram_unread_overrides_${org}_${userId}` : null, [org, userId])
 
-  // Load saved chat type from localStorage
+  // Cleanup old shared keys from localStorage (run once)
   React.useEffect(() => {
     if (typeof window !== 'undefined' && isClient) {
+      // Remove old shared keys that shouldn't be used anymore
+      const oldKeys = [
+        `telegram_pins_${org}`,
+        `telegram_deleted_${org}`,
+        `telegram_unread_overrides_${org}`,
+        `telegram_chat_type_${org}`
+      ]
+      oldKeys.forEach(key => {
+        if (localStorage.getItem(key)) {
+          localStorage.removeItem(key)
+        }
+      })
+    }
+  }, [isClient, org])
+
+  // Load saved chat type from localStorage (only after userId is available)
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' && isClient && userId && persistenceKey && pinsKey && deletedKey && unreadOverrideKey) {
       const savedChatType = localStorage.getItem(persistenceKey) as 'bot' | 'account' | null
       if (savedChatType && (savedChatType === 'bot' || savedChatType === 'account')) {
         setChatType(savedChatType)
@@ -373,14 +452,24 @@ export default function TelegramPage({
       // load pins/hidden/unread overrides
       try {
         const ps = localStorage.getItem(pinsKey)
-        if (ps) setPinned(new Set(JSON.parse(ps)))
+        if (ps) {
+          setPinned(new Set(JSON.parse(ps)))
+        } else {
+          setPinned(new Set())
+        }
+        
         const ds = localStorage.getItem(deletedKey)
         if (ds) setHiddenConversations(new Set(JSON.parse(ds)))
+        else setHiddenConversations(new Set())
+        
         const uo = localStorage.getItem(unreadOverrideKey)
         if (uo) setUnreadOverrides(JSON.parse(uo))
-      } catch {}
+        else setUnreadOverrides({})
+      } catch (e) {
+        console.error('Error loading preferences:', e)
+      }
     }
-  }, [isClient, persistenceKey])
+  }, [isClient, userId, persistenceKey, pinsKey, deletedKey, unreadOverrideKey])
 
   // Parse URL parameters on mount
   React.useEffect(() => {
@@ -468,31 +557,31 @@ export default function TelegramPage({
     fetchUsers()
   }, [leadPreview.open, leadPreview.lead?.assigned_user_id, leadPreview.lead?.created_by])
 
-  // Save chat type to localStorage
+  // Save chat type to localStorage (only if userId and key are available)
   const saveChatType = (type: 'bot' | 'account') => {
     setChatType(type)
     setSelectedChat(null) // Clear selected chat when switching types
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && userId && persistenceKey) {
       localStorage.setItem(persistenceKey, type)
     }
   }
 
-  // Helpers to persist pins/hidden/unread overrides
+  // Helpers to persist pins/hidden/unread overrides (only if userId and keys are available)
   const persistPins = (next: Set<string>) => {
     setPinned(new Set(next))
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && userId && pinsKey) {
       localStorage.setItem(pinsKey, JSON.stringify(Array.from(next)))
     }
   }
   const persistHidden = (next: Set<string>) => {
     setHiddenConversations(new Set(next))
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && userId && deletedKey) {
       localStorage.setItem(deletedKey, JSON.stringify(Array.from(next)))
     }
   }
   const persistUnreadOverrides = (next: {[key: string]: number}) => {
     setUnreadOverrides({...next})
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && userId && unreadOverrideKey) {
       localStorage.setItem(unreadOverrideKey, JSON.stringify(next))
     }
   }

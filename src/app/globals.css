@@ -120,4 +120,108 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Remove outlines from chart elements */
+.recharts-wrapper,
+.recharts-surface,
+.recharts-layer,
+.recharts-pie,
+.recharts-bar,
+.recharts-line,
+.recharts-area,
+.recharts-pie-sector,
+.recharts-sector {
+  outline: none !important;
+  stroke-width: 0 !important;
+}
+
+.recharts-wrapper:focus,
+.recharts-surface:focus,
+.recharts-layer:focus,
+.recharts-pie-sector:focus,
+.recharts-sector:focus,
+.recharts-pie:focus {
+  outline: none !important;
+  stroke: none !important;
+  stroke-width: 0 !important;
+}
+
+/* Remove active borders and strokes from pie chart sectors */
+.recharts-pie .recharts-sector,
+.recharts-pie .recharts-pie-sector {
+  stroke: none !important;
+  stroke-width: 0 !important;
+  outline: none !important;
+  cursor: pointer !important;
+}
+
+.recharts-pie .recharts-sector:hover,
+.recharts-pie .recharts-pie-sector:hover,
+.recharts-pie .recharts-sector:active,
+.recharts-pie .recharts-pie-sector:active,
+.recharts-pie .recharts-sector:focus,
+.recharts-pie .recharts-pie-sector:focus {
+  stroke: none !important;
+  stroke-width: 0 !important;
+  outline: none !important;
+  cursor: pointer !important;
+}
+
+/* Remove focus outline from legend items */
+.legend-item:focus {
+  outline: none !important;
+}
+
+/* Make dialog close button clickable */
+[data-radix-dialog-close],
+button[aria-label="Close"] {
+  cursor: pointer !important;
+}
+
+/* Animation for pie chart segment */
+@keyframes slideOut {
+  from {
+    transform: translate(0, 0);
+  }
+  to {
+    transform: translate(var(--offset-x), var(--offset-y));
+  }
+}
+
+.pie-segment-selected {
+  animation: slideOut 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Prevent text selection in charts */
+.recharts-wrapper,
+.recharts-wrapper *,
+.recharts-surface,
+.recharts-cartesian-axis-tick,
+.recharts-cartesian-axis-tick-value,
+.recharts-text,
+.recharts-label {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+}
+
+/* Pie chart explode animation */
+.recharts-pie-sector {
+  transform-origin: center;
+  transform-box: fill-box;
+}
+
+.pie-explode-active {
+  animation: pieExplode 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes pieExplode {
+  from {
+    transform: translate(0, 0);
+  }
+  to {
+    transform: var(--explode-transform, translate(0, 0));
+  }
+}
  

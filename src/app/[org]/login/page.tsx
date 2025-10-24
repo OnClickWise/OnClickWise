@@ -10,6 +10,7 @@ import { Building2, Mail, Lock, User, Shield, ArrowLeft, Loader2 } from 'lucide-
 import ChangePasswordModal from '@/components/ChangePasswordModal';
 import InactivityNotification from '@/components/InactivityNotification';
 import { useInactivityNotification } from '@/hooks/useInactivityNotification';
+import { useAuth } from '@/hooks/useAuth';
 import { generateOrgLogo } from '@/utils/avatar';
 import { OrganizationAvatar } from '@/components/ui/avatar';
 
@@ -24,6 +25,7 @@ interface CompanyInfo {
 export default function CompanyLoginPage({ params }: { params: Promise<{ org: string }> }) {
   const resolvedParams = use(params);
   const router = useRouter();
+  const { getLastVisitedUrl } = useAuth();
   const [loading, setLoading] = useState(false);
   const [loadingCompany, setLoadingCompany] = useState(true);
   const [error, setError] = useState('');
@@ -120,8 +122,15 @@ export default function CompanyLoginPage({ params }: { params: Promise<{ org: st
         if (result.user?.is_temporary_password) {
           setShowPasswordModal(true);
         } else {
-          // Redirecionar para o dashboard
-          router.push(`/${result.organization.slug}/dashboard`);
+          // Tentar obter a última URL visitada
+          const lastUrl = getLastVisitedUrl(result.organization.slug);
+          
+          // Redirecionar para a última URL visitada ou dashboard
+          if (lastUrl) {
+            router.push(lastUrl);
+          } else {
+            router.push(`/${result.organization.slug}/dashboard`);
+          }
         }
       } else {
         setError(result.error || 'Login failed');
@@ -136,9 +145,15 @@ export default function CompanyLoginPage({ params }: { params: Promise<{ org: st
 
   const handlePasswordChangeSuccess = () => {
     setShowPasswordModal(false);
-    // Redirecionar para o dashboard após troca de senha
+    // Redirecionar para a última URL visitada ou dashboard após troca de senha
     const organization = JSON.parse(localStorage.getItem('organization') || '{}');
-    router.push(`/${organization.slug}/dashboard`);
+    const lastUrl = getLastVisitedUrl(organization.slug);
+    
+    if (lastUrl) {
+      router.push(lastUrl);
+    } else {
+      router.push(`/${organization.slug}/dashboard`);
+    }
   };
 
   const handleClosePasswordModal = () => {

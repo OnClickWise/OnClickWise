@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 
 interface AuthGuardProps {
@@ -10,14 +10,41 @@ interface AuthGuardProps {
 }
 
 export default function AuthGuard({ children, orgSlug }: AuthGuardProps) {
-  const { isAuthenticatedForOrg, isLoading, redirectToOrgLogin, isAuthenticated, lastActivity, updateActivity } = useAuth();
+  const { isAuthenticatedForOrg, isLoading, redirectToOrgLogin, isAuthenticated, lastActivity, updateActivity, saveLastVisitedUrl, checkAuth } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
 
+  // Verificar autenticação na montagem e quando não está autenticado
   useEffect(() => {
     if (!isLoading && !isAuthenticatedForOrg(orgSlug)) {
       redirectToOrgLogin(orgSlug);
     }
   }, [isLoading, isAuthenticatedForOrg, orgSlug, redirectToOrgLogin]);
+
+  // Verificar autenticação periodicamente (a cada 5 segundos)
+  // Isso garante que se o token for limpo/corrompido, o usuário será desconectado imediatamente
+  useEffect(() => {
+    const interval = setInterval(() => {
+      checkAuth();
+      
+      // Se após verificar não estiver mais autenticado, redirecionar imediatamente
+      if (!isLoading && !isAuthenticatedForOrg(orgSlug)) {
+        redirectToOrgLogin(orgSlug);
+      }
+    }, 5000); // Verificar a cada 5 segundos
+    
+    return () => clearInterval(interval);
+  }, [checkAuth, isLoading, isAuthenticatedForOrg, orgSlug, redirectToOrgLogin]);
+
+  // Salvar automaticamente a URL atual quando autenticado e navegando
+  useEffect(() => {
+    if (!isLoading && isAuthenticated && pathname) {
+      // Não salvar páginas de login
+      if (!pathname.includes('/login')) {
+        saveLastVisitedUrl(pathname);
+      }
+    }
+  }, [isLoading, isAuthenticated, pathname, saveLastVisitedUrl]);
 
   // Detectar atividade do usuário e verificar inatividade
   useEffect(() => {
