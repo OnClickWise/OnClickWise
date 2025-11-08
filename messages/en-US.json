@@ -798,7 +798,14 @@
       "activityRate": "Activity Rate",
       "funnelAnalysis": "Funnel Analysis",
       "recentActivity": "Recent Activity",
-      "lastInteraction": "Last Interaction"
+      "lastInteraction": "Last Interaction",
+      "overviewDescription": "Overview of your performance",
+      "notesTitle": "Notes",
+      "notesPlaceholder": "Type your notes here...",
+      "saving": "Saving...",
+      "saved": "✓ Saved",
+      "save": "Save",
+      "noLeadsInPipeline": "No leads found in pipeline"
     },
     
     "performance": {
@@ -1033,11 +1040,15 @@
       "confirmEditMessage": "This action will update {count} lead(s). Type 'edit' to confirm.",
       "saveChanges": "Save changes",
       "assignLeads": "Assign Leads",
+      "assignLeadsTitle": "Assign Leads to User",
       "assignDescription": "Assign {count} leads to a user",
+      "assignDescriptionSelected": "Assign {count} selected lead(s) to a user.",
       "assignToUser": "Assign Lead to User",
       "selectUserDescription": "Select a user to assign this lead.",
       "selectUser": "Select user",
+      "selectUserPlaceholder": "-- Select a user --",
       "confirmAssign": "Type \"assign\" to confirm",
+      "assignConfirmMessage": "This action will assign {count} lead(s) to the selected user. Type 'assign' to confirm.",
       "pipelineAction": "Pipeline Action",
       "addToPipeline": "Add to Pipeline",
       "removeFromPipeline": "Remove from Pipeline",

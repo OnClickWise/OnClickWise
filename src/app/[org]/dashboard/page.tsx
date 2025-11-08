@@ -58,16 +58,20 @@ import { apiService, Lead } from "@/lib/api"
 import { useApi } from "@/hooks/useApi"
 import { formatCurrency, getCurrencySymbol } from "@/lib/utils"
 
-// Cores minimalistas para os gráficos
+// Cores vibrantes para os gráficos (escala 600-700 para melhor contraste e visibilidade)
 const COLORS = [
-  '#3b82f6', // blue-500
-  '#6366f1', // indigo-500
-  '#8b5cf6', // violet-500
-  '#a855f7', // purple-500
-  '#d946ef', // fuchsia-500
-  '#ec4899', // pink-500
-  '#f43f5e', // rose-500
-  '#64748b', // slate-500
+  '#2563eb', // blue-600 - Azul vibrante
+  '#4f46e5', // indigo-600 - Índigo vibrante
+  '#7c3aed', // violet-600 - Violeta vibrante
+  '#9333ea', // purple-600 - Roxo vibrante
+  '#c026d3', // fuchsia-600 - Fúcsia vibrante
+  '#db2777', // pink-600 - Rosa vibrante
+  '#dc2626', // red-600 - Vermelho vibrante
+  '#16a34a', // green-600 - Verde vibrante
+  '#ea580c', // orange-600 - Laranja vibrante
+  '#ca8a04', // yellow-600 - Amarelo vibrante
+  '#0891b2', // cyan-600 - Ciano vibrante
+  '#64748b', // slate-600 - Cinza (mantido para contraste)
 ]
 
 interface DashboardStats {
@@ -248,6 +252,28 @@ const AdminDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardStat
   
   // Usar todas as stages do pipeline (agora são dinâmicas/personalizadas)
   const pipelineData = stats.leadsByStatus;
+  
+  // Criar mapeamento de status para cor de fundo das stages
+  const statusToColorMap = React.useMemo(() => {
+    const map = new Map<string, string>()
+    
+    pipelineData.forEach((entry) => {
+      // Tentar encontrar a stage pelo nome ou pelo slug
+      const matchingStage = pipelineStages.find((s: any) => {
+        return s.name === entry.status || s.slug === entry.status
+      })
+      
+      if (matchingStage && matchingStage.color) {
+        const hexColor = extractBgColor(matchingStage.color)
+        map.set(entry.status, hexColor)
+      } else {
+        // Se não encontrar, usar cor padrão da empresa (já normalizada)
+        map.set(entry.status, '#2563eb')
+      }
+    })
+    
+    return map
+  }, [pipelineData, pipelineStages])
   
   // Estado para controlar o segmento selecionado no donut chart
   const [selectedSource, setSelectedSource] = React.useState<string | null>(null);
@@ -1116,12 +1142,15 @@ const AdminDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardStat
                 barGap={8}
               >
                 <defs>
-                  {pipelineData.map((entry, index) => (
-                    <linearGradient key={`pipeline-gradient-${index}`} id={`pipeline-gradient-${index}`} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0.95} />
-                      <stop offset="100%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0.7} />
-                    </linearGradient>
-                  ))}
+                  {pipelineData.map((entry, index) => {
+                    const stageColor = statusToColorMap.get(entry.status) || COLORS[index % COLORS.length]
+                    return (
+                      <linearGradient key={`pipeline-gradient-${index}`} id={`pipeline-gradient-${index}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={stageColor} stopOpacity={0.95} />
+                        <stop offset="100%" stopColor={stageColor} stopOpacity={0.7} />
+                      </linearGradient>
+                    )
+                  })}
                 </defs>
                 <CartesianGrid 
                   strokeDasharray="3 3" 
@@ -1219,12 +1248,15 @@ const AdminDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardStat
                 barGap={8}
               >
                 <defs>
-                  {pipelineData.map((entry, index) => (
-                    <linearGradient key={`admin-value-gradient-${index}`} id={`admin-value-gradient-${index}`} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0.95} />
-                      <stop offset="100%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0.7} />
-                    </linearGradient>
-                  ))}
+                  {pipelineData.map((entry, index) => {
+                    const stageColor = statusToColorMap.get(entry.status) || COLORS[index % COLORS.length]
+                    return (
+                      <linearGradient key={`admin-value-gradient-${index}`} id={`admin-value-gradient-${index}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={stageColor} stopOpacity={0.95} />
+                        <stop offset="100%" stopColor={stageColor} stopOpacity={0.7} />
+                      </linearGradient>
+                    )
+                  })}
                 </defs>
                 <CartesianGrid 
                   strokeDasharray="3 3" 
@@ -1506,6 +1538,28 @@ const MasterDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardSta
   
   // Usar todas as stages do pipeline (agora são dinâmicas/personalizadas)
   const pipelineData = stats.leadsByStatus;
+  
+  // Criar mapeamento de status para cor de fundo das stages
+  const statusToColorMap = React.useMemo(() => {
+    const map = new Map<string, string>()
+    
+    pipelineData.forEach((entry) => {
+      // Tentar encontrar a stage pelo nome ou pelo slug
+      const matchingStage = pipelineStages.find((s: any) => {
+        return s.name === entry.status || s.slug === entry.status
+      })
+      
+      if (matchingStage && matchingStage.color) {
+        const hexColor = extractBgColor(matchingStage.color)
+        map.set(entry.status, hexColor)
+      } else {
+        // Se não encontrar, usar cor padrão da empresa (já normalizada)
+        map.set(entry.status, '#2563eb')
+      }
+    })
+    
+    return map
+  }, [pipelineData, pipelineStages])
   
   // Estado para controlar o segmento selecionado no donut chart
   const [selectedSource, setSelectedSource] = React.useState<string | null>(null);
@@ -2413,13 +2467,16 @@ const MasterDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardSta
                   cursor={{ fill: 'rgba(148, 163, 184, 0.1)' }}
                 />
                 <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={90}>
-                  {pipelineData.map((entry, index) => (
-                    <Cell 
-                      key={`cell-${index}`} 
-                      fill={COLORS[index % COLORS.length]} 
-                      className="hover:opacity-90 transition-opacity duration-200 cursor-pointer"
-                    />
-                  ))}
+                  {pipelineData.map((entry, index) => {
+                    const stageColor = statusToColorMap.get(entry.status) || COLORS[index % COLORS.length]
+                    return (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={stageColor} 
+                        className="hover:opacity-90 transition-opacity duration-200 cursor-pointer"
+                      />
+                    )
+                  })}
                 </Bar>
               </BarChart>
           </ResponsiveContainer>
@@ -2443,12 +2500,15 @@ const MasterDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardSta
                 barGap={8}
               >
                 <defs>
-                  {pipelineData.map((entry, index) => (
-                    <linearGradient key={`value-gradient-${index}`} id={`value-gradient-${index}`} x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0.95} />
-                      <stop offset="100%" stopColor={COLORS[index % COLORS.length]} stopOpacity={0.7} />
-                    </linearGradient>
-                  ))}
+                  {pipelineData.map((entry, index) => {
+                    const stageColor = statusToColorMap.get(entry.status) || COLORS[index % COLORS.length]
+                    return (
+                      <linearGradient key={`value-gradient-${index}`} id={`value-gradient-${index}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={stageColor} stopOpacity={0.95} />
+                        <stop offset="100%" stopColor={stageColor} stopOpacity={0.7} />
+                      </linearGradient>
+                    )
+                  })}
                 </defs>
                 <CartesianGrid 
                   strokeDasharray="3 3" 
@@ -2723,17 +2783,117 @@ const MasterDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardSta
   );
 }
 
-// Função helper para extrair cor de fundo de qualquer formato e converter para hex
+// Função para converter hex para RGB
+const hexToRgb = (hex: string): { r: number; g: number; b: number } | null => {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+  return result ? {
+    r: parseInt(result[1], 16),
+    g: parseInt(result[2], 16),
+    b: parseInt(result[3], 16)
+  } : null
+}
+
+// Função para converter RGB para HSL
+const rgbToHsl = (r: number, g: number, b: number): { h: number; s: number; l: number } => {
+  r /= 255
+  g /= 255
+  b /= 255
+
+  const max = Math.max(r, g, b)
+  const min = Math.min(r, g, b)
+  let h = 0
+  let s = 0
+  const l = (max + min) / 2
+
+  if (max !== min) {
+    const d = max - min
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
+    
+    switch (max) {
+      case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break
+      case g: h = ((b - r) / d + 2) / 6; break
+      case b: h = ((r - g) / d + 4) / 6; break
+    }
+  }
+
+  return { h: h * 360, s: s * 100, l: l * 100 }
+}
+
+// Função para converter HSL para RGB
+const hslToRgb = (h: number, s: number, l: number): { r: number; g: number; b: number } => {
+  h /= 360
+  s /= 100
+  l /= 100
+
+  let r, g, b
+
+  if (s === 0) {
+    r = g = b = l
+  } else {
+    const hue2rgb = (p: number, q: number, t: number) => {
+      if (t < 0) t += 1
+      if (t > 1) t -= 1
+      if (t < 1/6) return p + (q - p) * 6 * t
+      if (t < 1/2) return q
+      if (t < 2/3) return p + (q - p) * (2/3 - t) * 6
+      return p
+    }
+
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s
+    const p = 2 * l - q
+    r = hue2rgb(p, q, h + 1/3)
+    g = hue2rgb(p, q, h)
+    b = hue2rgb(p, q, h - 1/3)
+  }
+
+  return {
+    r: Math.round(r * 255),
+    g: Math.round(g * 255),
+    b: Math.round(b * 255)
+  }
+}
+
+// Função para converter RGB para hex
+const rgbToHex = (r: number, g: number, b: number): string => {
+  return '#' + [r, g, b].map(x => {
+    const hex = x.toString(16)
+    return hex.length === 1 ? '0' + hex : hex
+  }).join('')
+}
+
+// Função para normalizar cor para ter saturação e luminosidade consistentes (similar às cores pré-definidas)
+// Cores pré-definidas têm saturação ~75% e luminosidade ~45% (escala 600)
+const normalizeColor = (hex: string): string => {
+  const rgb = hexToRgb(hex)
+  if (!rgb) return hex
+
+  const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b)
+  
+  // Manter o matiz (hue) original, mas normalizar saturação e luminosidade
+  // Saturação: 75% (similar às cores 600 do Tailwind)
+  // Luminosidade: 45% (similar às cores 600 do Tailwind)
+  const normalizedHsl = {
+    h: hsl.h,
+    s: 75, // Saturação fixa para consistência
+    l: 45  // Luminosidade fixa para consistência
+  }
+
+  const normalizedRgb = hslToRgb(normalizedHsl.h, normalizedHsl.s, normalizedHsl.l)
+  return rgbToHex(normalizedRgb.r, normalizedRgb.g, normalizedRgb.b)
+}
+
+// Função helper para extrair cor de fundo de qualquer formato e converter para hex normalizado
 const extractBgColor = (colorInput: string): string => {
   if (!colorInput || typeof colorInput !== 'string') {
-    return '#3b82f6' // Cor padrão
+    return '#2563eb' // Cor padrão (blue-600)
   }
   
   const trimmed = colorInput.trim()
+  let extractedHex = ''
   
   // Se já é hex direto (#000000)
   if (trimmed.startsWith('#')) {
-    return trimmed
+    extractedHex = trimmed
   }
   
   // Se é JSON ({"bg":"#000000","text":"#FFFFFF"})
@@ -2741,16 +2901,18 @@ const extractBgColor = (colorInput: string): string => {
     try {
       const parsed = JSON.parse(trimmed)
       if (parsed?.bg && typeof parsed.bg === 'string') {
-        return parsed.bg.startsWith('#') ? parsed.bg : parsed.bg
+        extractedHex = parsed.bg.startsWith('#') ? parsed.bg : parsed.bg
       }
     } catch {
       // Ignorar erro de parse
     }
   }
   
-  // Mapeamento de classes Tailwind bg-* para cores hexadecimais
-  // Foco nas cores mais comuns usadas no CRM
-  const tailwindColors: Record<string, string> = {
+  // Se ainda não extraiu, tentar mapeamento de classes Tailwind
+  if (!extractedHex) {
+    // Mapeamento de classes Tailwind bg-* para cores hexadecimais
+    // Foco nas cores mais comuns usadas no CRM
+    const tailwindColors: Record<string, string> = {
     // Blue
     'bg-blue-50': '#eff6ff', 'bg-blue-100': '#dbeafe', 'bg-blue-200': '#bfdbfe', 'bg-blue-300': '#93c5fd',
     'bg-blue-400': '#60a5fa', 'bg-blue-500': '#3b82f6', 'bg-blue-600': '#2563eb', 'bg-blue-700': '#1d4ed8',
@@ -2795,18 +2957,25 @@ const extractBgColor = (colorInput: string): string => {
     'bg-white': '#ffffff',
   }
   
-  // Extrair a classe bg-* da string (pode conter múltiplas classes como "bg-blue-100 border-blue-200 text-blue-800")
-  const bgMatch = trimmed.match(/bg-[\w-]+/)
-  if (bgMatch) {
-    const bgClass = bgMatch[0]
-    const hexColor = tailwindColors[bgClass]
-    if (hexColor) {
-      return hexColor
+    // Extrair a classe bg-* da string (pode conter múltiplas classes como "bg-blue-100 border-blue-200 text-blue-800")
+    const bgMatch = trimmed.match(/bg-[\w-]+/)
+    if (bgMatch) {
+      const bgClass = bgMatch[0]
+      const hexColor = tailwindColors[bgClass]
+      if (hexColor) {
+        extractedHex = hexColor
+      }
     }
   }
   
-  // Se não conseguir converter, retornar cor padrão da empresa
-  return '#3b82f6'
+  // Se não conseguiu extrair, usar cor padrão
+  if (!extractedHex) {
+    extractedHex = '#2563eb' // Cor padrão (blue-600)
+  }
+  
+  // Normalizar a cor para ter saturação e luminosidade consistentes
+  // Isso garante que cores personalizadas tenham a mesma aparência que as pré-definidas
+  return normalizeColor(extractedHex)
 }
 
 // Componente para Dashboard de Employee
@@ -2841,8 +3010,8 @@ const EmployeeDashboard = ({ stats, pipelineStages }: { stats: DashboardStats; p
         const hexColor = extractBgColor(matchingStage.color)
         map.set(entry.status, hexColor)
       } else {
-        // Se não encontrar, usar cor padrão da empresa
-        map.set(entry.status, '#3b82f6')
+        // Se não encontrar, usar cor padrão da empresa (já normalizada)
+        map.set(entry.status, '#2563eb')
       }
     })
     
@@ -2990,8 +3159,8 @@ const EmployeeDashboard = ({ stats, pipelineStages }: { stats: DashboardStats; p
     <div className="space-y-6 p-1">
       {/* Header com título */}
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-black">Dashboard</h1>
-        <p className="text-muted-foreground mt-1">Visão geral do seu desempenho</p>
+        <h1 className="text-3xl font-bold text-black">{t('title')}</h1>
+        <p className="text-muted-foreground mt-1">{t('employeeStats.overviewDescription')}</p>
       </div>
 
       {/* Cards de Estatísticas */}
@@ -3086,7 +3255,7 @@ const EmployeeDashboard = ({ stats, pipelineStages }: { stats: DashboardStats; p
               <div className="flex items-center justify-center h-[300px] text-gray-500">
                 <div className="text-center">
                   <MessageSquare className="h-12 w-12 mx-auto mb-2 text-gray-300" />
-                  <p>Nenhum lead encontrado no pipeline</p>
+                  <p>{t('employeeStats.noLeadsInPipeline')}</p>
                 </div>
               </div>
             )}
@@ -3096,7 +3265,7 @@ const EmployeeDashboard = ({ stats, pipelineStages }: { stats: DashboardStats; p
         {/* Bloco de Notas */}
         <Card className="border-2 border-gray-100 shadow-lg">
           <CardHeader className="pb-4">
-            <CardTitle className="text-xl font-semibold text-black">Bloco de Notas</CardTitle>
+            <CardTitle className="text-xl font-semibold text-black">{t('employeeStats.notesTitle')}</CardTitle>
           </CardHeader>
           <CardContent>
             {notesLoading ? (
@@ -3109,7 +3278,7 @@ const EmployeeDashboard = ({ stats, pipelineStages }: { stats: DashboardStats; p
                   className="w-full h-[250px] p-4 border-2 border-gray-200 rounded-lg resize-none overflow-y-auto focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-[#3b82f6] transition-all text-gray-900 placeholder:text-gray-400"
                   value={notes || ''}
                   onChange={handleNotesChange}
-                  placeholder="Digite suas anotações aqui..."
+                  placeholder={t('employeeStats.notesPlaceholder')}
                 />
                 <div className="flex justify-end">
                   <Button 
@@ -3123,10 +3292,10 @@ const EmployeeDashboard = ({ stats, pipelineStages }: { stats: DashboardStats; p
                     size="sm"
                   >
                     {notesSaving || saveStatus === 'saving' 
-                      ? 'Salvando...' 
+                      ? t('employeeStats.saving') 
                       : saveStatus === 'saved' 
-                        ? '✓ Salvo' 
-                        : 'Salvar'}
+                        ? t('employeeStats.saved') 
+                        : t('employeeStats.save')}
                   </Button>
                 </div>
               </div>

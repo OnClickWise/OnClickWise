@@ -676,11 +676,13 @@
     "welcome": "Bem-vindo, {name}!",
     "loadingDashboard": "Carregando dashboard...",
     "errorLoadingData": "Erro ao carregar dados do dashboard",
+    
     "roles": {
       "admin": "Admin",
       "master": "Master",
       "employee": "Employee"
     },
+    
     "mainCards": {
       "totalLeads": "Total de Leads",
       "acrossCompany": "Em toda a empresa",
@@ -696,6 +698,7 @@
       "wonOf": "{won} ganhos de {total} fechados",
       "closed": "fechados"
     },
+    
     "charts": {
       "leadsRevenueEvolution": "Evolução de Leads & Receita",
       "selectTimePeriod": "Selecione o período para analisar tendências",
@@ -727,6 +730,7 @@
       "totalRevenue": "Receita Total",
       "avg": "Média",
       "clickToSelect": "Clique para selecionar",
+      
       "leadSources": "Fontes de Leads",
       "distributionAcrossChannels": "Distribuição por canais de aquisição",
       "ofTotal": "do total",
@@ -739,12 +743,15 @@
       "clickAgainToReset": "Clique novamente para resetar",
       "lead": "lead",
       "leadsPlural": "leads",
+      
       "leadsByStatus": "Leads por Status",
       "pipelineDistribution": "Distribuição do pipeline",
       "statusBreakdown": "Detalhamento por status",
+      
       "conversionFunnel": "Funil de Conversão",
       "journeyFromLeadToSale": "Jornada de lead a venda",
       "stageConversion": "conversão de etapa",
+      
       "salesPipeline": "Pipeline de Vendas",
       "leadDistributionByStage": "Distribuição de leads por etapa do funil",
       "valueByPipelineStage": "Valor por Etapa do Pipeline",
@@ -752,12 +759,14 @@
       "activeStages": "Etapas Ativas",
       "avgPerStage": "Média por Etapa",
       "quantity": "Quantidade",
+      
       "chatsByPlatform": "Conversas por Plataforma",
       "communicationDistribution": "Distribuição de comunicação por canais",
       "totalConversations": "Total de conversas",
       "activeConversations": "Conversas ativas",
       "activityRate": "Taxa de atividade"
     },
+    
     "statuses": {
       "new": "Novo",
       "inContact": "Em Contato",
@@ -768,6 +777,7 @@
       "lost": "Perdido",
       "inPipeline": "No Pipeline"
     },
+    
     "teamPerformance": {
       "title": "Desempenho da Equipe",
       "description": "Distribuição de leads e desempenho por representante de vendas",
@@ -776,6 +786,7 @@
       "leadsPerRep": "Leads por Vendedor",
       "valuePerRep": "Valor por Vendedor"
     },
+    
     "employeeStats": {
       "myPerformance": "Meu Desempenho",
       "myLeads": "Meus Leads",
@@ -787,8 +798,16 @@
       "activityRate": "Taxa de Atividade",
       "funnelAnalysis": "Análise do Funil",
       "recentActivity": "Atividade Recente",
-      "lastInteraction": "Última Interação"
+      "lastInteraction": "Última Interação",
+      "overviewDescription": "Visão geral do seu desempenho",
+      "notesTitle": "Bloco de Notas",
+      "notesPlaceholder": "Digite suas anotações aqui...",
+      "saving": "Salvando...",
+      "saved": "✓ Salvo",
+      "save": "Salvar",
+      "noLeadsInPipeline": "Nenhum lead encontrado no pipeline"
     },
+    
     "performance": {
       "overallPerformance": "Desempenho Geral",
       "conversionRate": "Taxa de Conversão",
@@ -802,6 +821,7 @@
       "winRate": "Taxa de Ganho",
       "inNegotiation": "Em Negociação"
     },
+    
     "filters": {
       "filterBy": "Filtrar por",
       "apply": "Aplicar",
@@ -810,6 +830,7 @@
       "noDataAvailable": "Nenhum dado disponível",
       "selectDateRange": "Selecione um intervalo de datas"
     },
+    
     "export": {
       "exportData": "Exportar Dados",
       "downloadCSV": "Baixar CSV",
@@ -822,20 +843,22 @@
     "title": "Leads",
     "breadcrumbHome": "Início",
     "breadcrumbLeads": "Leads",
+    
     "columns": {
-      "name": "Nome",
-      "email": "E-mail",
-      "phone": "Telefone",
+    "name": "Nome",
+    "email": "E-mail",
+    "phone": "Telefone",
       "ssn": "CPF",
       "ein": "CNPJ",
-      "source": "Origem",
-      "status": "Status",
-      "value": "Valor",
+    "source": "Origem",
+    "status": "Status",
+    "value": "Valor",
       "location": "Localização",
       "interest": "Interesse",
       "estimatedCloseDate": "Data Est. Fechamento",
       "actions": "Ações"
     },
+    
     "actions": {
       "addLead": "Adicionar Lead",
       "addManually": "Adicionar manualmente",
@@ -852,12 +875,13 @@
       "addToPipeline": "Adicionar ao Pipeline",
       "removeFromPipeline": "Remover do Pipeline",
       "deleteSelected": "Excluir Selecionados",
-      "edit": "Editar",
-      "delete": "Excluir",
-      "view": "Visualizar",
+    "edit": "Editar",
+    "delete": "Excluir",
+    "view": "Visualizar",
       "viewDetails": "Ver detalhes",
       "quickAssign": "Atribuição Rápida"
     },
+    
     "table": {
       "leadList": "Lista de Leads",
       "unselectAll": "Desmarcar Todos",
@@ -879,6 +903,7 @@
       "onPipeline": "No Pipeline",
       "assignedToUser": "Atribuído a usuário"
     },
+    
     "modal": {
       "addLead": "Adicionar Lead",
       "editLead": "Editar Lead",
@@ -892,6 +917,7 @@
       "saveChanges": "Salvar Alterações",
       "unsavedChanges": "Você tem alterações não salvas. Clique fora novamente para descartá-las."
     },
+    
     "form": {
       "name": "Nome",
       "namePlaceholder": "Nome completo",
@@ -932,18 +958,21 @@
       "pendingSaveToUpload": "(pendente, salve para enviar)",
       "loadingStages": "Carregando opções de status..."
     },
+    
     "statuses": {
-      "new": "Novo",
+    "new": "Novo",
       "contact": "Em Contato",
       "inContact": "Em Contato",
-      "qualified": "Qualificado",
+    "qualified": "Qualificado",
       "lost": "Perdido",
       "custom": "Personalizado…"
     },
+    
     "search": {
       "placeholder": "Buscar por nome, e-mail, telefone, CPF ou CNPJ...",
       "searching": "Buscando..."
     },
+    
     "filters": {
       "filters": "Filtros",
       "title": "Filtrar leads",
@@ -994,6 +1023,7 @@
       "hideFilters": "Ocultar filtros",
       "columns": "Colunas"
     },
+    
     "bulk": {
       "editLeads": "Editar Leads",
       "editDescription": "Edite múltiplos leads de uma vez. Deixe campos em branco para manter valores atuais.",
@@ -1010,11 +1040,15 @@
       "confirmEditMessage": "Esta ação atualizará {count} lead(s). Digite 'edit' para confirmar.",
       "saveChanges": "Salvar alterações",
       "assignLeads": "Atribuir Leads",
+      "assignLeadsTitle": "Atribuir Leads a Usuário",
       "assignDescription": "Atribuir {count} leads a um usuário",
+      "assignDescriptionSelected": "Atribuir {count} lead(s) selecionado(s) a um usuário.",
       "assignToUser": "Atribuir Lead a Usuário",
       "selectUserDescription": "Selecione um usuário para atribuir este lead.",
       "selectUser": "Selecione o usuário",
+      "selectUserPlaceholder": "-- Selecione um usuário --",
       "confirmAssign": "Digite \"assign\" para confirmar",
+      "assignConfirmMessage": "Esta ação atribuirá {count} lead(s) ao usuário selecionado. Digite 'assign' para confirmar.",
       "pipelineAction": "Ação do Pipeline",
       "addToPipeline": "Adicionar ao Pipeline",
       "removeFromPipeline": "Remover do Pipeline",
@@ -1023,12 +1057,9 @@
       "addToPipelineInfo": "Estes leads aparecerão na visualização do pipeline e poderão ser gerenciados através do quadro Kanban.",
       "removeFromPipelineInfo": "Estes leads serão removidos da visualização do pipeline mas permanecerão na lista de leads.",
       "cancel": "Cancelar",
-      "apply": "Aplicar",
-      "assignLeadsTitle": "Atribuir Leads a Usuário",
-      "assignDescriptionSelected": "Atribuir {count} lead(s) selecionado(s) a um usuário.",
-      "selectUserPlaceholder": "-- Selecione um usuário --",
-      "assignConfirmMessage": "Esta ação atribuirá {count} lead(s) ao usuário selecionado. Digite 'assign' para confirmar."
+      "apply": "Aplicar"
     },
+    
     "delete": {
       "confirmDeletion": "Confirmar exclusão",
       "irreversible": "Esta ação é irreversível.",
@@ -1045,6 +1076,7 @@
       "cancel": "Cancelar",
       "delete": "Excluir"
     },
+    
     "import": {
       "title": "Importar Leads",
       "description": "Envie um arquivo para importar leads. Formatos suportados: XLSX, XLS, CSV, ODS",
@@ -1081,6 +1113,7 @@
       "importing": "Importando...",
       "close": "Fechar"
     },
+    
     "notifications": {
       "leadAdded": "Lead adicionado com sucesso",
       "leadUpdated": "Lead atualizado com sucesso",
@@ -1125,6 +1158,7 @@
       "batchOf": "Lote {batch} de {total}",
       "cancel": "Cancelar"
     },
+    
     "preview": {
       "leadDetails": "Detalhes do Lead",
       "completeLeadInformation": "Informações completas e detalhadas do lead",
@@ -1666,3 +1700,4 @@
     "saving": "Salvando..."
   }
 }
+
