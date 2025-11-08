@@ -17,6 +17,7 @@ export interface Lead {
   id: string;
   organization_id: string;
   assigned_user_id?: string;
+  created_by?: string;
   name: string;
   email: string;
   phone?: string;
@@ -27,6 +28,8 @@ export interface Lead {
   value?: number;
   description?: string;
   estimated_close_date?: string;
+  location?: string;
+  interest?: string;
   show_on_pipeline: boolean;
   attachments?: Attachment[];
   created_at: string;
@@ -40,6 +43,8 @@ export interface CreateLeadRequest {
   ssn?: string;
   ein?: string;
   source?: string;
+  location?: string;
+  interest?: string;
   status?: string;
   value?: number;
   description?: string;
@@ -57,6 +62,8 @@ export interface UpdateLeadRequest {
   ssn?: string;
   ein?: string;
   source?: string;
+  location?: string;
+  interest?: string;
   status?: string;
   value?: number;
   description?: string;
@@ -74,6 +81,46 @@ export interface ApiResponse<T> {
 }
 
 class ApiService {
+  private isValidJWT(token: string): boolean {
+    if (!token) return false;
+    
+    // JWT deve ter exatamente 3 partes separadas por ponto
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      console.error('Invalid JWT format: token does not have 3 parts');
+      return false;
+    }
+    
+    // Verificar se as partes não estão vazias
+    if (parts.some(part => !part || part.trim() === '')) {
+      console.error('Invalid JWT format: token has empty parts');
+      return false;
+    }
+    
+    // Tentar decodificar o payload para verificar se é um JWT válido
+    try {
+      const payload = JSON.parse(atob(parts[1]));
+      
+      // Verificar se tem as propriedades básicas de um JWT
+      if (!payload.exp || !payload.userId || !payload.organizationId) {
+        console.error('Invalid JWT: missing required claims');
+        return false;
+      }
+      
+      // Verificar se o token não está expirado
+      const now = Math.floor(Date.now() / 1000);
+      if (payload.exp < now) {
+        console.error('JWT token has expired');
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Invalid JWT format: cannot decode payload', error);
+      return false;
+    }
+  }
+
   private getAuthToken(): string | null {
     // Verificar se estamos no cliente
     if (typeof window === 'undefined') {
@@ -84,6 +131,27 @@ class ApiService {
     const token = localStorage.getItem('token');
     if (!token) {
       console.log('No auth token found');
+      return null;
+    }
+    
+    // Validar formato do JWT antes de usar
+    if (!this.isValidJWT(token)) {
+      console.error('Invalid or malformed JWT token detected, clearing auth');
+      localStorage.removeItem('token');
+      localStorage.removeItem('organization');
+      localStorage.removeItem('lastActivity');
+      
+      // Redirecionar para login
+      if (typeof window !== 'undefined') {
+        const pathParts = window.location.pathname.split('/');
+        const orgSlug = pathParts[1];
+        if (orgSlug && orgSlug !== 'login' && orgSlug !== 'register') {
+          window.location.href = `/${orgSlug}/login`;
+        } else {
+          window.location.href = '/login';
+        }
+      }
+      
       return null;
     }
     
@@ -173,12 +241,45 @@ class ApiService {
         };
       }
 
-      const data = await response.json();
-      console.log('API response:', data);
-      return {
-        success: true,
-        data: data
-      };
+      // Check if response has content before trying to parse JSON
+      const contentLength = response.headers.get('content-length');
+      
+      // If no content-type or content-length is 0, or status is 204 (No Content), return success without data
+      // Note: contentType is already declared at line 193
+      if (response.status === 204 || contentLength === '0' || !contentType || !contentType.includes('application/json')) {
+        console.log('API response: No content (success)');
+        return {
+          success: true,
+          data: undefined
+        };
+      }
+      
+      // Check if the response body is empty
+      const text = await response.text();
+      if (!text || text.trim() === '') {
+        console.log('API response: Empty body (success)');
+        return {
+          success: true,
+          data: undefined
+        };
+      }
+      
+      // Try to parse JSON
+      try {
+        const data = JSON.parse(text);
+        console.log('API response:', data);
+        return {
+          success: true,
+          data: data
+        };
+      } catch (error) {
+        console.error('Failed to parse JSON response:', error);
+        console.error('Response text:', text);
+        return {
+          success: false,
+          error: `Failed to parse response: ${text}`
+        };
+      }
     } catch (error) {
       console.error('API request failed:', error);
       return {
@@ -186,6 +287,14 @@ class ApiService {
         error: `Network error: ${error instanceof Error ? error.message : 'Unknown error'}`
       };
     }
+  }
+
+  // Users/Employees API methods
+  async getOrganizationUsers(includeMaster: boolean = false) {
+    const url = includeMaster ? '/auth/employees?include_master=true' : '/auth/employees';
+    return this.request<{ success: boolean; employees: Array<{id: string, name: string, email: string, role: string}> }>(url, {
+      method: 'GET'
+    });
   }
 
   // Leads API methods
@@ -196,7 +305,7 @@ class ApiService {
     assigned_user_id?: string;
     page?: number;
     limit?: number;
-  }): Promise<ApiResponse<{ leads: Lead[] }>> {
+  }): Promise<ApiResponse<{ leads: Lead[]; total?: number }>> {
     // Verificar se estamos no cliente
     if (typeof window === 'undefined') {
       return {
@@ -214,7 +323,7 @@ class ApiService {
     if (params?.limit) queryParams.append('limit', params.limit.toString());
 
     const endpoint = `/leads${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-    return this.request<{ leads: Lead[] }>(endpoint);
+    return this.request<{ leads: Lead[]; total?: number }>(endpoint);
   }
 
   async getLeadById(id: string): Promise<ApiResponse<{ lead: Lead }>> {
@@ -287,6 +396,9 @@ class ApiService {
     ein?: string;
     status?: string;
     source?: string;
+    location?: string;
+    interest?: string;
+    assigned_user_id?: string;
     value_min?: number;
     value_max?: number;
     date_min?: string;
@@ -296,7 +408,7 @@ class ApiService {
     page?: number;
     limit?: number;
     show_on_pipeline?: boolean;
-  } = {}): Promise<ApiResponse<{ leads: Lead[] }>> {
+  } = {}): Promise<ApiResponse<{ leads: Lead[]; total?: number }>> {
     // Verificar se estamos no cliente
     if (typeof window === 'undefined') {
       return {
@@ -314,6 +426,9 @@ class ApiService {
     if (params.ein) queryParams.append('ein', params.ein);
     if (params.status) queryParams.append('status', params.status);
     if (params.source) queryParams.append('source', params.source);
+    if (params.location) queryParams.append('location', params.location);
+    if (params.interest) queryParams.append('interest', params.interest);
+    if (params.assigned_user_id !== undefined) queryParams.append('assigned_user_id', params.assigned_user_id);
     if (params.value_min !== undefined) queryParams.append('value_min', params.value_min.toString());
     if (params.value_max !== undefined) queryParams.append('value_max', params.value_max.toString());
     if (params.date_min) queryParams.append('date_min', params.date_min);
@@ -330,7 +445,7 @@ class ApiService {
         console.log('API: Final URL:', url);
         console.log('API: Query params:', Object.fromEntries(queryParams.entries()));
 
-        return this.request<{ leads: Lead[] }>(url);
+        return this.request<{ leads: Lead[]; total?: number }>(url);
   }
 
   // Métodos específicos para busca por campo

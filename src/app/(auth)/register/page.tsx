@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Building2, Eye, EyeOff, Loader2 } from 'lucide-react';
@@ -18,6 +19,9 @@ interface CompanyData {
 
 export default function RegisterPage() {
   const router = useRouter();
+  const t = useTranslations('Register');
+  const tTerms = useTranslations('Register.termsContent');
+  const tPrivacy = useTranslations('Register.privacyContent');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -65,28 +69,28 @@ export default function RegisterPage() {
 
   const validateForm = () => {
     if (!formData.name || !formData.email || !formData.company_id || !formData.password) {
-      setError('All required fields must be filled');
+      setError(t('errorAllFieldsRequired'));
       return false;
     }
 
     if (formData.password !== formData.password_confirm) {
-      setError('Passwords do not match');
+      setError(t('errorPasswordsDoNotMatch'));
       return false;
     }
 
     if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters');
+      setError(t('errorPasswordMinLength'));
       return false;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
-      setError('Please enter a valid email');
+      setError(t('errorInvalidEmail'));
       return false;
     }
 
     if (!termsAccepted) {
-      setError('You must accept the terms and conditions');
+      setError(t('errorAcceptTerms'));
       return false;
     }
 
@@ -136,7 +140,7 @@ export default function RegisterPage() {
       // Check if response is HTML (API not running)
       const contentType = response.headers.get('content-type');
       if (contentType && contentType.includes('text/html')) {
-        setError('API not available. Please try again later.');
+        setError(t('errorApiNotAvailable'));
         return;
       }
 
@@ -147,14 +151,17 @@ export default function RegisterPage() {
         localStorage.setItem('token', result.token);
         localStorage.setItem('organization', JSON.stringify(result.organization));
         
+        // Disparar evento para ClientLocaleProvider atualizar o locale do usuário
+        window.dispatchEvent(new Event('userLoggedIn'));
+        
         // Redirecionar para o dashboard
         router.push(`/${result.organization.slug}/dashboard`);
       } else {
-        setError(result.error || 'Error creating account');
+        setError(result.error || t('errorCreatingAccount'));
       }
     } catch (error) {
       console.error('Registration error:', error);
-      setError('Connection error. Please try again.');
+      setError(t('errorCreatingAccount'));
     } finally {
       setLoading(false);
     }
@@ -178,8 +185,8 @@ export default function RegisterPage() {
           <div className="max-w-2xl w-full">
             {/* Header */}
             <div className="text-center mb-6">
-              <h1 className="text-2xl font-bold text-foreground mb-1">Create Your Account</h1>
-              <p className="text-muted-foreground text-sm">Get started with OnClickWise in just a few steps</p>
+              <h1 className="text-2xl font-bold text-foreground mb-1">{t('pageTitle')}</h1>
+              <p className="text-muted-foreground text-sm">{t('pageDescription')}</p>
             </div>
 
             {/* Registration Form */}
@@ -187,12 +194,12 @@ export default function RegisterPage() {
               <form onSubmit={handleSubmit} className="space-y-3">
                 {/* Company Information */}
                 <div className="bg-muted/50 p-4 rounded-lg">
-                  <h2 className="text-base font-semibold text-card-foreground mb-2">Company Information</h2>
+                  <h2 className="text-base font-semibold text-card-foreground mb-2">{t('companyInformation')}</h2>
                   
                   <div className="grid grid-cols-1 gap-3">
                     <div>
                       <label htmlFor="name" className="block text-sm font-medium text-card-foreground mb-1">
-                        Company Name *
+                        {t('companyName')} {t('required')}
                       </label>
                       <Input
                         id="name"
@@ -202,13 +209,13 @@ export default function RegisterPage() {
                         onChange={handleNameChange}
                         required
                         className="w-full"
-                        placeholder="Enter your company name"
+                        placeholder={t('companyNamePlaceholder')}
                       />
                     </div>
 
                     <div>
                       <label htmlFor="slug" className="block text-sm font-medium text-card-foreground mb-1">
-                        Company URL
+                        {t('companyUrl')}
                       </label>
                       <Input
                         id="slug"
@@ -217,7 +224,7 @@ export default function RegisterPage() {
                         value={formData.slug}
                         onChange={handleInputChange}
                         className="w-full"
-                        placeholder="will-be-generated-automatically"
+                        placeholder={t('companyUrlPlaceholder')}
                       />
                       <p className="text-xs text-muted-foreground mt-1">
                         onclickwise.com/{formData.slug}
@@ -226,7 +233,7 @@ export default function RegisterPage() {
 
                     <div>
                       <label htmlFor="company_id" className="block text-sm font-medium text-card-foreground mb-1">
-                        Company ID (EIN) *
+                        {t('companyId')} {t('required')}
                       </label>
                       <Input
                         id="company_id"
@@ -236,13 +243,13 @@ export default function RegisterPage() {
                         onChange={handleInputChange}
                         required
                         className="w-full"
-                        placeholder="Enter your company EIN"
+                        placeholder={t('companyIdPlaceholder')}
                       />
                     </div>
 
                     <div>
                       <label htmlFor="email" className="block text-sm font-medium text-card-foreground mb-1">
-                        Company Email *
+                        {t('companyEmail')} {t('required')}
                       </label>
                       <Input
                         id="email"
@@ -252,13 +259,13 @@ export default function RegisterPage() {
                         onChange={handleInputChange}
                         required
                         className="w-full"
-                        placeholder="company@example.com"
+                        placeholder={t('companyEmailPlaceholder')}
                       />
                     </div>
 
                     <div>
                       <label htmlFor="phone" className="block text-sm font-medium text-card-foreground mb-1">
-                        Phone Number
+                        {t('phoneNumber')}
                       </label>
                       <Input
                         id="phone"
@@ -267,7 +274,7 @@ export default function RegisterPage() {
                         value={formData.phone}
                         onChange={handleInputChange}
                         className="w-full"
-                        placeholder="(555) 123-4567"
+                        placeholder={t('phoneNumberPlaceholder')}
                       />
                     </div>
                   </div>
@@ -275,12 +282,12 @@ export default function RegisterPage() {
 
                 {/* Security */}
                 <div className="bg-muted/50 p-4 rounded-lg">
-                  <h2 className="text-base font-semibold text-card-foreground mb-2">Security</h2>
+                  <h2 className="text-base font-semibold text-card-foreground mb-2">{t('security')}</h2>
                 
                   <div className="grid grid-cols-1 gap-3">
                     <div>
                       <label htmlFor="password" className="block text-sm font-medium text-card-foreground mb-1">
-                        Password *
+                        {t('password')} {t('required')}
                       </label>
                       <div className="relative">
                         <Input
@@ -291,7 +298,7 @@ export default function RegisterPage() {
                           onChange={handleInputChange}
                           required
                           className="w-full pr-10"
-                          placeholder="Minimum 6 characters"
+                          placeholder={t('passwordPlaceholder')}
                         />
                         <button
                           type="button"
@@ -305,7 +312,7 @@ export default function RegisterPage() {
 
                     <div>
                       <label htmlFor="password_confirm" className="block text-sm font-medium text-card-foreground mb-1">
-                        Confirm Password *
+                        {t('confirmPassword')} {t('required')}
                       </label>
                       <div className="relative">
                         <Input
@@ -316,7 +323,7 @@ export default function RegisterPage() {
                           onChange={handleInputChange}
                           required
                           className="w-full pr-10"
-                          placeholder="Confirm your password"
+                          placeholder={t('confirmPasswordPlaceholder')}
                         />
                         <button
                           type="button"
@@ -332,7 +339,7 @@ export default function RegisterPage() {
 
                 {/* Terms and Conditions */}
                 <div className="bg-muted/50 p-4 rounded-lg">
-                  <h2 className="text-base font-semibold text-card-foreground mb-2">Terms and Conditions</h2>
+                  <h2 className="text-base font-semibold text-card-foreground mb-2">{t('termsAndConditions')}</h2>
                 
                   <div className="flex items-start space-x-2">
                     <input
@@ -344,7 +351,7 @@ export default function RegisterPage() {
                     />
                     <div className="text-xs text-gray-700">
                       <span>
-                        I accept the{' '}
+                        {t('acceptTerms')}{' '}
                         <button
                           type="button"
                           onClick={() => {
@@ -353,9 +360,9 @@ export default function RegisterPage() {
                           }}
                           className="text-blue-600 hover:text-blue-700 underline cursor-pointer"
                         >
-                          Terms of Use
+                          {t('termsOfUse')}
                         </button>
-                        {' '}and{' '}
+                        {' '}{t('and')}{' '}
                         <button
                           type="button"
                           onClick={() => {
@@ -364,9 +371,9 @@ export default function RegisterPage() {
                           }}
                           className="text-blue-600 hover:text-blue-700 underline cursor-pointer"
                         >
-                          Privacy Policy
+                          {t('privacyPolicy')}
                         </button>
-                        {' '}of the platform.
+                        {' '}{t('ofThePlatform')}
                       </span>
                     </div>
                   </div>
@@ -387,10 +394,10 @@ export default function RegisterPage() {
                     {loading ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Creating Account...
+                        {t('creatingAccount')}
                       </>
                     ) : (
-                      'Create Account'
+                      t('createAccount')
                     )}
                   </Button>
                   
@@ -401,7 +408,7 @@ export default function RegisterPage() {
                     className="flex-1 cursor-pointer"
                     disabled={loading}
                   >
-                    I already have an account
+                    {t('alreadyHaveAccount')}
                   </Button>
                 </div>
               </form>
@@ -417,7 +424,7 @@ export default function RegisterPage() {
             <div className="p-6">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-xl font-semibold text-card-foreground">
-                  {modalContent === 'terms' ? 'Terms of Use' : 'Privacy Policy'}
+                  {modalContent === 'terms' ? t('termsModalTitle') : t('privacyModalTitle')}
                 </h3>
                 <button
                   onClick={() => setShowTermsModal(false)}
@@ -439,7 +446,7 @@ export default function RegisterPage() {
                       : 'border-transparent text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  Terms of Use
+                  {t('termsModalTitle')}
                 </button>
                 <button
                   onClick={() => setModalContent('privacy')}
@@ -449,175 +456,168 @@ export default function RegisterPage() {
                       : 'border-transparent text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  Privacy Policy
+                  {t('privacyModalTitle')}
                 </button>
               </div>
               
               <div className="space-y-6 text-sm text-gray-700 max-h-96 overflow-y-auto">
                 {modalContent === 'terms' ? (
                   <div>
-                    <h4 className="font-semibold text-gray-900 mb-4 text-lg">Terms of Use</h4>
+                    <h4 className="font-semibold text-gray-900 mb-4 text-lg">{t('termsModalTitle')}</h4>
                   
                     <div className="space-y-4">
                       <p className="text-xs text-gray-500">
-                        <strong>Last updated:</strong> October 10, 2025
+                        <strong>{tTerms('lastUpdated')}</strong> {tTerms('lastUpdatedDate')}
                       </p>
                       
-                      <p>
-                        Welcome to OnClickWise! These Terms of Use ("Terms") govern the use of the OnClickWise platform ("Platform", "service"), including registration, access and use by corporate users. By creating an account, using or accessing the Platform, you agree to these Terms. If you do not agree with any part, do not use the Platform.
-                      </p>
+                      <p>{tTerms('welcomeText')}</p>
 
                       <div>
-                        <h5 className="font-semibold text-gray-900 mb-2">1. Definitions</h5>
-                        <p className="mb-2">For the purposes of these Terms:</p>
+                        <h5 className="font-semibold text-gray-900 mb-2">{tTerms('section1Title')}</h5>
+                        <p className="mb-2">{tTerms('section1Intro')}</p>
                         <ul className="list-disc list-inside space-y-1 ml-4">
-                          <li><strong>User:</strong> any individual who represents a company and registers on the Platform.</li>
-                          <li><strong>Client Company or Company:</strong> legal entity registered on the Platform through the User.</li>
-                          <li><strong>Registration Data:</strong> data you provide at registration, including but not limited to: Company name, Slug, EIN, Company email, Phone, Full address (ZIP, city, state, country), Password / password confirmation, Responsible name, Responsible email, Responsible position, Responsible SSN.</li>
-                          <li><strong>Services:</strong> all functionalities offered by the OnClickWise Platform, including CRM, lead management, company information viewing, etc.</li>
+                          <li>{tTerms('section1User')}</li>
+                          <li>{tTerms('section1Company')}</li>
+                          <li>{tTerms('section1RegistrationData')}</li>
+                          <li>{tTerms('section1Services')}</li>
                         </ul>
                       </div>
 
                       <div>
-                        <h5 className="font-semibold text-gray-900 mb-2">2. Registration and provided data</h5>
+                        <h5 className="font-semibold text-gray-900 mb-2">{tTerms('section2Title')}</h5>
                         <ul className="list-disc list-inside space-y-1 ml-4">
-                          <li>To use the Platform services, you must provide complete and true Registration Data.</li>
-                          <li>You declare that the Registration Data, especially Legal Entity (company) and Individual (responsible) are correct, updated and that you have authorization to provide them.</li>
-                          <li>It is the User's obligation to keep this information updated. In case of relevant change (for example change of responsible, new SSN, address etc.), the User must update the data on the Platform.</li>
+                          <li>{tTerms('section2Item1')}</li>
+                          <li>{tTerms('section2Item2')}</li>
+                          <li>{tTerms('section2Item3')}</li>
                         </ul>
                       </div>
 
                       <div>
-                        <h5 className="font-semibold text-gray-900 mb-2">3. Password use, security and responsibility</h5>
+                        <h5 className="font-semibold text-gray-900 mb-2">{tTerms('section3Title')}</h5>
                         <ul className="list-disc list-inside space-y-1 ml-4">
-                          <li>Upon completing registration, you will choose a password. You are responsible for maintaining password confidentiality.</li>
-                          <li>You agree to immediately notify OnClickWise of any unauthorized use of your account or any other security breach.</li>
-                          <li>OnClickWise will not be responsible for losses or damages arising from misuse of your account, unless resulting from proven serious failure on OnClickWise's part.</li>
+                          <li>{tTerms('section3Item1')}</li>
+                          <li>{tTerms('section3Item2')}</li>
+                          <li>{tTerms('section3Item3')}</li>
                         </ul>
                       </div>
 
                       <div>
-                        <h5 className="font-semibold text-gray-900 mb-2">4. Collection, use and processing of personal data</h5>
-                        <p className="mb-2">Personal data (responsible name, email, SSN, etc.) collected is used for: company user identification, security, service provision and maintenance, support, account-related communication, compliance with legal and regulatory obligations.</p>
+                        <h5 className="font-semibold text-gray-900 mb-2">{tTerms('section4Title')}</h5>
+                        <p className="mb-2">{tTerms('section4Intro')}</p>
                         <ul className="list-disc list-inside space-y-1 ml-4">
-                          <li>OnClickWise is committed to respecting the General Data Protection Law – Law No. 13.709/2018 ("LGPD") in the processing of personal data.</li>
-                          <li>Data will be stored in a secure environment, with reasonable technical and administrative measures to protect against unauthorized access, disclosure, alteration or destruction.</li>
-                          <li>OnClickWise will not share your personal data with third parties, except when necessary to comply with legal obligation, court order, or with express consent, or for the execution of contracted services that depend on third parties, who are obliged to maintain confidentiality.</li>
+                          <li>{tTerms('section4Item1')}</li>
+                          <li>{tTerms('section4Item2')}</li>
+                          <li>{tTerms('section4Item3')}</li>
                         </ul>
                       </div>
                     </div>
                   </div>
                 ) : (
                   <div>
-                    <h4 className="font-semibold text-gray-900 mb-4 text-lg">Privacy Policy</h4>
+                    <h4 className="font-semibold text-gray-900 mb-4 text-lg">{t('privacyModalTitle')}</h4>
                     
                     <div className="space-y-4">
                       <p className="text-xs text-gray-500">
-                        <strong>Last updated:</strong> October 10, 2025
+                        <strong>{tPrivacy('lastUpdated')}</strong> {tPrivacy('lastUpdatedDate')}
                       </p>
                       
-                      <p>
-                        OnClickWise values your privacy and the protection of your personal data. This Privacy Policy clearly explains how we collect, use, store, share and protect information provided by users and companies that use our platform.
-                      </p>
-
-                      <p>
-                        By registering or using the Platform, you agree to the practices described below.
-                      </p>
+                      <p>{tPrivacy('introText')}</p>
+                      <p>{tPrivacy('agreementText')}</p>
 
                       <div>
-                        <h5 className="font-semibold text-gray-900 mb-2">1. Data collected</h5>
-                        <p className="mb-2">During registration and use of the Platform, we may collect the following data:</p>
+                        <h5 className="font-semibold text-gray-900 mb-2">{tPrivacy('section1Title')}</h5>
+                        <p className="mb-2">{tPrivacy('section1Intro')}</p>
                         
                         <div className="ml-4 space-y-2">
                           <div>
-                            <strong>Company Data:</strong>
+                            <strong>{tPrivacy('section1CompanyData')}</strong>
                             <ul className="list-disc list-inside space-y-1 ml-4 mt-1">
-                              <li>Company name</li>
-                              <li>Company slug</li>
-                              <li>EIN</li>
-                              <li>Company email</li>
-                              <li>Phone</li>
-                              <li>Address (ZIP, city, state, country)</li>
+                              <li>{tPrivacy('section1CompanyName')}</li>
+                              <li>{tPrivacy('section1CompanySlug')}</li>
+                              <li>{tPrivacy('section1CompanyEIN')}</li>
+                              <li>{tPrivacy('section1CompanyEmail')}</li>
+                              <li>{tPrivacy('section1CompanyPhone')}</li>
+                              <li>{tPrivacy('section1CompanyAddress')}</li>
                             </ul>
                           </div>
                           
                           <div>
-                            <strong>Account Responsible Data:</strong>
+                            <strong>{tPrivacy('section1ResponsibleData')}</strong>
                             <ul className="list-disc list-inside space-y-1 ml-4 mt-1">
-                              <li>Full name</li>
-                              <li>Position</li>
-                              <li>Responsible email (if different)</li>
-                              <li>SSN</li>
+                              <li>{tPrivacy('section1ResponsibleName')}</li>
+                              <li>{tPrivacy('section1ResponsiblePosition')}</li>
+                              <li>{tPrivacy('section1ResponsibleEmail')}</li>
+                              <li>{tPrivacy('section1ResponsibleSSN')}</li>
                             </ul>
                           </div>
                           
                           <div>
-                            <strong>Access data:</strong>
+                            <strong>{tPrivacy('section1AccessData')}</strong>
                             <ul className="list-disc list-inside space-y-1 ml-4 mt-1">
-                              <li>Password (stored encrypted)</li>
-                              <li>Access logs (date, time, IP)</li>
+                              <li>{tPrivacy('section1AccessPassword')}</li>
+                              <li>{tPrivacy('section1AccessLogs')}</li>
                             </ul>
                           </div>
                         </div>
                       </div>
 
                       <div>
-                        <h5 className="font-semibold text-gray-900 mb-2">2. Purpose of data use</h5>
-                        <p className="mb-2">OnClickWise uses collected data to:</p>
+                        <h5 className="font-semibold text-gray-900 mb-2">{tPrivacy('section2Title')}</h5>
+                        <p className="mb-2">{tPrivacy('section2Intro')}</p>
                         <ul className="list-disc list-inside space-y-1 ml-4">
-                          <li>Identify and authenticate companies and registration responsible.</li>
-                          <li>Allow access and use of the Platform (CRM, lead capture, information management).</li>
-                          <li>Comply with legal and regulatory obligations.</li>
-                          <li>Perform administrative and operational communication with users.</li>
-                          <li>Improve our services, fix failures, implement new features.</li>
-                          <li>Protect Platform security and prevent fraud.</li>
-                          <li>Send relevant communications (only with prior consent for marketing communications).</li>
+                          <li>{tPrivacy('section2Item1')}</li>
+                          <li>{tPrivacy('section2Item2')}</li>
+                          <li>{tPrivacy('section2Item3')}</li>
+                          <li>{tPrivacy('section2Item4')}</li>
+                          <li>{tPrivacy('section2Item5')}</li>
+                          <li>{tPrivacy('section2Item6')}</li>
+                          <li>{tPrivacy('section2Item7')}</li>
                         </ul>
                       </div>
 
                       <div>
-                        <h5 className="font-semibold text-gray-900 mb-2">3. Data sharing</h5>
-                        <p className="mb-2">Your data is not sold or shared with third parties for commercial purposes.</p>
-                        <p className="mb-2">We may share your data only in the following cases:</p>
+                        <h5 className="font-semibold text-gray-900 mb-2">{tPrivacy('section3Title')}</h5>
+                        <p className="mb-2">{tPrivacy('section3Intro1')}</p>
+                        <p className="mb-2">{tPrivacy('section3Intro2')}</p>
                         <ul className="list-disc list-inside space-y-1 ml-4">
-                          <li>With service providers and partners who act on behalf of OnClickWise (e.g., hosting providers, technical support), always under confidentiality obligation.</li>
-                          <li>To comply with legal, regulatory obligations or comply with court orders.</li>
-                          <li>To protect rights, security or property of OnClickWise, users or third parties.</li>
+                          <li>{tPrivacy('section3Item1')}</li>
+                          <li>{tPrivacy('section3Item2')}</li>
+                          <li>{tPrivacy('section3Item3')}</li>
                         </ul>
                       </div>
 
                       <div>
-                        <h5 className="font-semibold text-gray-900 mb-2">4. Storage and security</h5>
+                        <h5 className="font-semibold text-gray-900 mb-2">{tPrivacy('section4Title')}</h5>
                         <ul className="list-disc list-inside space-y-1 ml-4">
-                          <li>Data is stored on secure servers, located in Brazil or abroad, as per applicable legislation.</li>
-                          <li>Passwords are stored encrypted.</li>
-                          <li>We apply technical and administrative measures to protect against unauthorized access, losses, destruction or improper alteration.</li>
-                          <li>Despite our efforts, no system is 100% secure. In case of security incident that may affect your data, we will notify you as required by LGPD.</li>
+                          <li>{tPrivacy('section4Item1')}</li>
+                          <li>{tPrivacy('section4Item2')}</li>
+                          <li>{tPrivacy('section4Item3')}</li>
+                          <li>{tPrivacy('section4Item4')}</li>
                         </ul>
                       </div>
 
                       <div>
-                        <h5 className="font-semibold text-gray-900 mb-2">5. Data retention</h5>
+                        <h5 className="font-semibold text-gray-900 mb-2">{tPrivacy('section5Title')}</h5>
                         <ul className="list-disc list-inside space-y-1 ml-4">
-                          <li>We will keep data while your account is active or as necessary to provide our services.</li>
-                          <li>After account deletion request, data will be deleted or anonymized, except if there is need for retention due to legal or regulatory obligation.</li>
+                          <li>{tPrivacy('section5Item1')}</li>
+                          <li>{tPrivacy('section5Item2')}</li>
                         </ul>
                       </div>
 
                       <div>
-                        <h5 className="font-semibold text-gray-900 mb-2">6. Data subject rights</h5>
-                        <p className="mb-2">According to the General Data Protection Law (Law No. 13.709/2018 – LGPD), you have the right to:</p>
+                        <h5 className="font-semibold text-gray-900 mb-2">{tPrivacy('section6Title')}</h5>
+                        <p className="mb-2">{tPrivacy('section6Intro')}</p>
                         <ul className="list-disc list-inside space-y-1 ml-4">
-                          <li>Confirm if we process your personal data.</li>
-                          <li>Access personal data we have about you.</li>
-                          <li>Correct incomplete, inaccurate or outdated data.</li>
-                          <li>Request anonymization, blocking or elimination of unnecessary or excessive data.</li>
-                          <li>Request data portability to another provider.</li>
-                          <li>Request deletion of data processed based on consent.</li>
-                          <li>Revoke consent at any time.</li>
-                          <li>Obtain information about who we share your data with.</li>
+                          <li>{tPrivacy('section6Item1')}</li>
+                          <li>{tPrivacy('section6Item2')}</li>
+                          <li>{tPrivacy('section6Item3')}</li>
+                          <li>{tPrivacy('section6Item4')}</li>
+                          <li>{tPrivacy('section6Item5')}</li>
+                          <li>{tPrivacy('section6Item6')}</li>
+                          <li>{tPrivacy('section6Item7')}</li>
+                          <li>{tPrivacy('section6Item8')}</li>
                         </ul>
-                        <p className="mt-2">To exercise your rights, contact us at: [OnClickWise contact email].</p>
+                        <p className="mt-2">{tPrivacy('section6Contact')}</p>
                       </div>
                     </div>
                   </div>
@@ -629,7 +629,7 @@ export default function RegisterPage() {
                   onClick={() => setShowTermsModal(false)}
                   className="cursor-pointer"
                 >
-                  Close
+                  {t('closeModal')}
                 </Button>
               </div>
             </div>

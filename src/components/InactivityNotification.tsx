@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { X, Clock } from 'lucide-react';
 
 interface InactivityNotificationProps {
@@ -9,6 +10,7 @@ interface InactivityNotificationProps {
 }
 
 export default function InactivityNotification({ isVisible, onClose }: InactivityNotificationProps) {
+  const t = useTranslations('InactivityNotification');
   const [isClosing, setIsClosing] = useState(false);
 
   useEffect(() => {
@@ -37,17 +39,16 @@ export default function InactivityNotification({ isVisible, onClose }: Inactivit
           </div>
           <div className="flex-1">
             <h3 className="text-sm font-medium text-yellow-800 mb-1">
-              Session Expired
+              {t('sessionExpired')}
             </h3>
             <p className="text-sm text-yellow-700">
-              You have been disconnected due to inactivity for more than 30 minutes. 
-              Please log in again to continue.
+              {t('inactivityMessage')}
             </p>
           </div>
           <button
             onClick={handleClose}
             className="flex-shrink-0 text-yellow-600 hover:text-yellow-800 transition-colors"
-            aria-label="Close notification"
+            aria-label={t('closeNotification')}
           >
             <X className="h-4 w-4" />
           </button>

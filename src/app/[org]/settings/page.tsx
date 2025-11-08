@@ -3,6 +3,7 @@
 import { use } from 'react';
 import { AppSidebar } from "@/components/app-sidebar"
 import AuthGuard from "@/components/AuthGuard"
+import RoleGuard from "@/components/RoleGuard"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -26,6 +27,7 @@ export default function SettingsPage({
   const { org } = use(params);
   return (
     <AuthGuard orgSlug={org}>
+      <RoleGuard allowedRoles={['admin', 'master']} orgSlug={org}>
       <SidebarProvider>
         <AppSidebar org={org} />
         <SidebarInset>
@@ -85,6 +87,7 @@ export default function SettingsPage({
         </div>
       </SidebarInset>
     </SidebarProvider>
+    </RoleGuard>
     </AuthGuard>
   );
 }

@@ -116,8 +116,1246 @@
   * {
     @apply border-border outline-ring/50;
   }
-  body {
+  html, body {
     @apply bg-background text-foreground;
   }
+  html {
+    height: 100%;
+  }
+  body {
+    min-height: 100%;
+  }
+}
+
+/* Remove outlines from chart elements */
+.recharts-wrapper,
+.recharts-surface,
+.recharts-layer,
+.recharts-pie,
+.recharts-bar,
+.recharts-line,
+.recharts-area,
+.recharts-pie-sector,
+.recharts-sector {
+  outline: none !important;
+  stroke-width: 0 !important;
+}
+
+.recharts-wrapper:focus,
+.recharts-surface:focus,
+.recharts-layer:focus,
+.recharts-pie-sector:focus,
+.recharts-sector:focus,
+.recharts-pie:focus {
+  outline: none !important;
+  stroke: none !important;
+  stroke-width: 0 !important;
+}
+
+/* Remove active borders and strokes from pie chart sectors */
+.recharts-pie .recharts-sector,
+.recharts-pie .recharts-pie-sector {
+  stroke: none !important;
+  stroke-width: 0 !important;
+  outline: none !important;
+  cursor: pointer !important;
+}
+
+.recharts-pie .recharts-sector:hover,
+.recharts-pie .recharts-pie-sector:hover,
+.recharts-pie .recharts-sector:active,
+.recharts-pie .recharts-pie-sector:active,
+.recharts-pie .recharts-sector:focus,
+.recharts-pie .recharts-pie-sector:focus {
+  stroke: none !important;
+  stroke-width: 0 !important;
+  outline: none !important;
+  cursor: pointer !important;
+}
+
+/* Remove focus outline from legend items */
+.legend-item:focus {
+  outline: none !important;
+}
+
+/* Make dialog close button clickable */
+[data-radix-dialog-close],
+button[aria-label="Close"] {
+  cursor: pointer !important;
+}
+
+/* Animation for pie chart segment */
+@keyframes slideOut {
+  from {
+    transform: translate(0, 0);
+  }
+  to {
+    transform: translate(var(--offset-x), var(--offset-y));
+  }
+}
+
+.pie-segment-selected {
+  animation: slideOut 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Prevent text selection in charts */
+.recharts-wrapper,
+.recharts-wrapper *,
+.recharts-surface,
+.recharts-cartesian-axis-tick,
+.recharts-cartesian-axis-tick-value,
+.recharts-text,
+.recharts-label {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+}
+
+/* Pie chart explode animation */
+.recharts-pie-sector {
+  transform-origin: center;
+  transform-box: fill-box;
+}
+
+.pie-explode-active {
+  animation: pieExplode 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes pieExplode {
+  from {
+    transform: translate(0, 0);
+  }
+  to {
+    transform: var(--explode-transform, translate(0, 0));
+  }
+}
+
+/* Curved Sidebar Menu Effect */
+.sidebar-curved-menu {
+  position: relative;
+  overflow: visible !important;
+}
+
+/* ========================================
+   SCROLLBAR CUSTOMIZADA - ESQUERDA
+   ======================================== */
+/* Área com scroll (conteúdo da sidebar) */
+[data-sidebar-content] {
+  overflow-y: auto !important; /* Ativar scroll vertical */
+  overflow-x: visible !important; /* Manter overflow horizontal para as curvas */
+  scrollbar-width: thin; /* Firefox: scrollbar fina */
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent; /* Firefox: cor da scrollbar */
+  direction: rtl; /* Inverte a direção para scrollbar ficar à esquerda */
+  padding-right: 0 !important;
+  padding-left: 6px !important; /* Espaço para a scrollbar à esquerda */
+}
+
+/* Inverter a direção do conteúdo de volta ao normal */
+[data-sidebar-content] > * {
+  direction: ltr !important; /* Conteúdo volta ao normal (left to right) */
+}
+
+/* Webkit (Chrome, Safari, Edge) - Scrollbar customizada */
+[data-sidebar-content]::-webkit-scrollbar {
+  width: 6px; /* Largura da scrollbar */
+}
+
+/* Track (fundo da scrollbar) */
+[data-sidebar-content]::-webkit-scrollbar-track {
+  background: transparent; /* Fundo transparente */
+  margin: 8px 0; /* Margem top/bottom */
+}
+
+/* Thumb (a barra que você arrasta) */
+[data-sidebar-content]::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3); /* Branco semi-transparente */
+  border-radius: 10px; /* Bordas arredondadas */
+  transition: background 0.3s ease;
+}
+
+/* Thumb no hover */
+[data-sidebar-content]::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5); /* Mais visível no hover */
+}
+
+/* Thumb ao clicar */
+[data-sidebar-content]::-webkit-scrollbar-thumb:active {
+  background: rgba(255, 255, 255, 0.7); /* Ainda mais visível ao arrastar */
+}
+
+/* SidebarGroup com overflow visible para as curvas */
+[data-sidebar-group] {
+  overflow: visible !important;
+}
+
+/* SidebarMenu com overflow visible para as curvas */
+[data-sidebar-menu] {
+  overflow: visible !important;
+}
+
+/* MenuItem com overflow visible para as curvas */
+[data-sidebar-menu-item] {
+  overflow: visible !important;
+}
+
+/* Collapsible elements com overflow e animação */
+[data-radix-collapsible-content],
+[data-radix-collapsible-trigger] {
+  overflow: hidden !important; /* Hidden para animação funcionar */
+}
+
+/* Animação para ABRIR categoria - slide down suave */
+[data-state="open"] > [data-radix-collapsible-content] {
+  animation: slideDown 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  overflow: visible !important; /* Permite que subitems apareçam */
+}
+
+/* Animação para FECHAR categoria - slide up suave e rápido */
+[data-state="closed"] > [data-radix-collapsible-content] {
+  animation: slideUp 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  overflow: hidden !important; /* Esconde subitems ao fechar */
+}
+
+/* Keyframes para slide down (abrir) */
+@keyframes slideDown {
+  from {
+    height: 0;
+    opacity: 0;
+    transform: scaleY(0.95) translateY(-10px);
+    transform-origin: top;
+  }
+  to {
+    height: var(--radix-collapsible-content-height);
+    opacity: 1;
+    transform: scaleY(1) translateY(0);
+    transform-origin: top;
+  }
+}
+
+/* Keyframes para slide up (fechar) */
+@keyframes slideUp {
+  from {
+    height: var(--radix-collapsible-content-height);
+    opacity: 1;
+    transform: scaleY(1) translateY(0);
+    transform-origin: top;
+  }
+  to {
+    height: 0;
+    opacity: 0;
+    transform: scaleY(0.95) translateY(-10px);
+    transform-origin: top;
+  }
+}
+
+/* Garantir que list items não cortem */
+li[data-sidebar-menu-item] {
+  overflow: visible !important;
+}
+
+/* Active menu item with curved effect */
+.sidebar-menu-item {
+  position: relative;
+  color: #fff !important; /* White text for non-active items */
+  min-height: 48px !important; /* Altura fixa */
+  max-height: 48px !important; /* Prevenir mudanças de altura */
+  height: 48px !important; /* Altura fixa forçada */
+  padding: 0 !important; /* ZERO padding - container controla */
+  margin: 0 !important;
+  font-size: 15px !important;
+  overflow: visible !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important; /* SEMPRE flex-start */
+  gap: 0 !important; /* Gap controlado pelo elemento filho */
+}
+
+.sidebar-menu-item * {
+  color: #fff !important; /* White text for all children */
+}
+
+.sidebar-menu-item svg,
+[data-sidebar-menu-button] svg {
+  width: 20px !important;
+  height: 20px !important;
+  min-width: 20px !important;
+  min-height: 20px !important;
+  flex-shrink: 0 !important;
+  flex-grow: 0 !important;
+  margin: 0 !important; /* ZERO margin em todos os lados */
+  position: relative !important;
+  left: 0 !important;
+  right: auto !important;
+  transform: none !important; /* Sem transformações */
+}
+
+/* CATEGORIA ATIVA - Efeito de encostar na página com fundo BRANCO */
+.sidebar-menu-item.active {
+  background: #fff !important; /* White background */
+  color: #000 !important; /* Black text */
+  border-radius: 20px 0 0 20px !important; /* Bordas arredondadas à esquerda - maior */
+  position: relative;
+  z-index: 5 !important; /* Menor que a página mas suficiente para curvas */
+  padding: 0 40px 0 0 !important; /* Mesmo padding que as outras para alinhar seta */
+  margin: 0 !important;
+  font-weight: 600 !important;
+  width: calc(100% + 8px) !important; /* Garantir que se estenda */
+  min-height: 48px !important; /* Altura fixa */
+  max-height: 48px !important; /* Prevenir mudanças de altura */
+  height: 48px !important; /* Altura fixa forçada */
+  gap: 0 !important; /* Gap controlado no filho */
+}
+
+.sidebar-menu-item.active * {
+  color: #000 !important; /* Black text for all elements */
+}
+
+/* Top curve - BRANCA para encostar na página */
+.sidebar-menu-item.active::before {
+  content: '';
+  position: absolute;
+  right: 0px;
+  top: -32px;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border-bottom-right-radius: 32px;
+  box-shadow: 10px 10px 0 10px #fff;
+  z-index: 5 !important; /* Menor que a página mas suficiente para curvas */
+  pointer-events: none;
+}
+
+/* Bottom curve - BRANCA para encostar na página */
+.sidebar-menu-item.active::after {
+  content: '';
+  position: absolute;
+  right: 0px;
+  bottom: -32px;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border-top-right-radius: 32px;
+  box-shadow: 10px -10px 0 10px #fff;
+  z-index: 5 !important; /* Menor que a página mas suficiente para curvas */
+  pointer-events: none;
+}
+
+/* Hover effect for non-active items */
+.sidebar-menu-item:not(.active):hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #ffffff !important;
+  border-radius: 24px !important;
+  margin-left: 8px !important;
+  margin-right: 8px !important;
+  transition: all 0.3s ease;
+}
+
+/* Move ícone e texto para direita no hover (não-ativo) */
+.sidebar-menu-item:not(.active):hover svg:not(.menu-chevron),
+.sidebar-menu-item:not(.active):hover .menu-text {
+  transform: translateX(4px) !important;
+  transition: transform 0.3s ease !important;
+}
+
+/* Hover effect for ACTIVE category (branco) - move ícone e texto para direita */
+.sidebar-menu-item.active:hover {
+  background: rgba(255, 255, 255, 0.98) !important; /* Leve brilho */
+  transition: background 0.3s ease !important;
+}
+
+/* Move ícone e texto da categoria ativa para direita no hover */
+.sidebar-menu-item.active:hover svg:not(.menu-chevron) {
+  transform: translateX(4px) !important;
+  transition: transform 0.3s ease !important;
+}
+
+.sidebar-menu-item.active:hover .menu-text {
+  transform: translateX(4px) !important;
+  transition: transform 0.3s ease !important;
+}
+
+/* CORREÇÃO: Seta da categoria ativa - compensa os 8px extras do width (POSIÇÃO PADRÃO) */
+.sidebar-menu-item.active .menu-chevron {
+  right: 20px !important; /* 12px + 8px para compensar width: calc(100% + 8px) */
+  transition: right 0.3s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease !important;
+}
+
+/* Mantém a seta FIXA durante hover - não se move (categorias não-ativas) */
+.sidebar-menu-item:not(.active):hover .menu-chevron {
+  transform: translateY(-50%) rotate(0deg) !important; /* Mantém posição original */
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease !important;
+}
+
+/* Seta da categoria ATIVA se move junto com ícone e texto no hover */
+.sidebar-menu-item.active:hover .menu-chevron {
+  right: 16px !important; /* 20px - 4px = 16px (move 4px para direita) */
+  transform: translateY(-50%) rotate(0deg) !important;
+  transition: right 0.3s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease !important;
+}
+
+/* CORREÇÃO: Categoria ativa aberta SEM hover - mantém posição padrão */
+.sidebar-menu-item.active[data-state="open"] .menu-chevron {
+  right: 20px !important; /* 12px + 8px para compensar width: calc(100% + 8px) */
+  transform: translateY(-50%) rotate(90deg) !important;
+  transition: right 0.3s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease !important;
+}
+
+/* Seta aberta no hover (categorias não-ativas) */
+.sidebar-menu-item:not(.active)[data-state="open"]:hover .menu-chevron {
+  transform: translateY(-50%) rotate(90deg) !important; /* Mantém rotação de 90° */
+}
+
+/* Seta da categoria ATIVA e ABERTA COM hover - move para direita */
+.sidebar-menu-item.active[data-state="open"]:hover .menu-chevron {
+  right: 16px !important; /* 20px - 4px = 16px (move 4px para direita) */
+  transform: translateY(-50%) rotate(90deg) !important;
+  transition: right 0.3s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease !important;
+}
+
+/* Mantém as curvas brancas no hover - importante! */
+.sidebar-menu-item.active:hover::before,
+.sidebar-menu-item.active:hover::after {
+  right: 0px !important; /* Curvas ficam fixas */
+  transition: none !important; /* Sem movimento */
+}
+
+/* Dark icons when category active */
+.sidebar-menu-item.active svg {
+  color: #000 !important; /* Black icons */
+}
+
+/* ========================================
+   MENU DO USUÁRIO - EFEITO BRANCO ATIVO
+   ======================================== */
+
+/* Garantir que o footer sidebar seja visível e SEMPRE POR CIMA */
+[data-sidebar-footer] {
+  overflow: visible !important;
+  position: relative;
+  z-index: 1 !important; /* Menor que a página mas acima do conteúdo da sidebar */
+  background: transparent;
+}
+
+/* Item do menu do usuário quando ativo */
+.user-menu-active {
+  position: relative;
+  overflow: visible !important;
+  z-index: 5 !important; /* Mesmo z-index das categorias ativas */
+}
+
+/* Botão do menu do usuário quando ativo - EFEITO BRANCO */
+.nav-user-active,
+button.nav-user-active,
+[data-sidebar-menu-button].nav-user-active {
+  background: #fff !important; /* White background */
+  background-color: #fff !important; /* Garantir que o fundo seja branco */
+  color: #000 !important; /* Black text */
+  border-radius: 20px 0 0 20px !important; /* Bordas arredondadas à esquerda */
+  position: relative !important;
+  z-index: 5 !important; /* Mesmo z-index das categorias ativas */
+  font-weight: 600 !important;
+  width: calc(100% + 8px) !important; /* Garantir que se estenda */
+  min-height: 56px !important; /* Um pouco maior que as categorias por causa do tamanho lg */
+  transition: all 0.3s ease !important;
+}
+
+/* Garantir que o conteúdo (avatar e texto) fique acima das curvas */
+.nav-user-active > * {
+  position: relative;
+  z-index: 1;
+}
+
+.nav-user-active *,
+button.nav-user-active *,
+[data-sidebar-menu-button].nav-user-active * {
+  color: #000 !important; /* Black text for all elements */
+}
+
+/* Sobrescrever qualquer estado do Sidebar que possa interferir */
+.nav-user-active[data-state="open"],
+.nav-user-active[data-state="closed"] {
+  background: #fff !important;
+  background-color: #fff !important;
+  color: #000 !important;
+}
+
+/* Top curve - BRANCA para encostar na página */
+.nav-user-active::before {
+  content: '';
+  position: absolute;
+  right: 0px;
+  top: -32px;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border-bottom-right-radius: 32px;
+  box-shadow: 10px 10px 0 10px #fff;
+  z-index: 5 !important; /* Mesmo z-index das curvas das categorias */
+  pointer-events: none;
+  transition: all 0.3s ease;
+}
+
+/* Bottom curve - BRANCA para encostar na página */
+.nav-user-active::after {
+  content: '';
+  position: absolute;
+  right: 0px;
+  bottom: -32px;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border-top-right-radius: 32px;
+  box-shadow: 10px -10px 0 10px #fff;
+  z-index: 5 !important; /* Mesmo z-index das curvas das categorias */
+  pointer-events: none;
+  transition: all 0.3s ease;
+}
+
+/* Hover effect para menu do usuário ativo */
+.nav-user-active:hover,
+button.nav-user-active:hover,
+[data-sidebar-menu-button].nav-user-active:hover {
+  background: rgba(255, 255, 255, 0.98) !important; /* Leve brilho */
+  background-color: rgba(255, 255, 255, 0.98) !important;
+  transition: background 0.3s ease !important;
+}
+
+/* Remover estilos de hover padrão quando ativo */
+.nav-user-active:not([data-state]):hover {
+  background: rgba(255, 255, 255, 0.98) !important;
+  color: #000 !important;
+}
+
+/* HOVER do avatar - já está definido abaixo com o seletor correto */
+/* Estas regras antigas foram removidas para evitar conflito */
+
+/* Move texto do menu do usuário para direita no hover */
+.nav-user-active:hover .menu-text {
+  transform: translateX(4px) !important;
+  transition: transform 0.3s ease !important;
+}
+
+/* Mantém as curvas brancas no hover - importante! */
+.nav-user-active:hover::before,
+.nav-user-active:hover::after {
+  right: 0px !important; /* Curvas ficam fixas */
+  transition: none !important; /* Sem movimento */
+}
+
+/* Garantir que o dropdown menu fique por cima */
+[data-sidebar-footer] [data-radix-popper-content-wrapper] {
+  z-index: 9999 !important;
+}
+
+/* FORÇAR estilo branco em TODOS os estados possíveis */
+[data-sidebar-footer] .nav-user-active,
+[data-sidebar-footer] button.nav-user-active,
+[data-sidebar-footer] [data-sidebar-menu-button].nav-user-active {
+  background: #fff !important;
+  background-color: #fff !important;
+  color: #000 !important;
+}
+
+/* Garantir que o hover não remova o fundo branco */
+[data-sidebar-footer] .nav-user-active:hover {
+  background: rgba(255, 255, 255, 0.98) !important;
+  background-color: rgba(255, 255, 255, 0.98) !important;
+}
+
+/* Sobrescrever estilos do Shadcn para data-state */
+.user-menu-active [data-sidebar-menu-button],
+.user-menu-active button[data-sidebar-menu-button] {
+  background: #fff !important;
+  color: #000 !important;
+}
+
+/* Garantir que todos os filhos tenham texto preto quando ativo */
+.user-menu-active [data-sidebar-menu-button] *,
+.user-menu-active button[data-sidebar-menu-button] * {
+  color: #000 !important;
+}
+
+/* Header customizado */
+.sidebar-header-custom {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.95) 0%, rgba(37, 99, 235, 0.95) 100%) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0 !important;
+}
+
+.sidebar-header-custom .shadow-lg {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Collapsible submenu items */
+.sidebar-submenu-item {
+  color: #ffffff !important; /* White text for non-active */
+  min-height: 42px !important; /* Altura fixa */
+  height: 42px !important; /* Altura fixa forçada */
+  padding: 10px 16px !important; /* Padding padrão */
+  font-size: 14px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  opacity: 0;
+  animation: fadeInItem 0.3s ease forwards;
+}
+
+/* Animação escalonada dos subitems ao abrir */
+[data-state="open"] .sidebar-submenu-item:nth-child(1) {
+  animation-delay: 0.05s;
+}
+
+[data-state="open"] .sidebar-submenu-item:nth-child(2) {
+  animation-delay: 0.1s;
+}
+
+[data-state="open"] .sidebar-submenu-item:nth-child(3) {
+  animation-delay: 0.15s;
+}
+
+[data-state="open"] .sidebar-submenu-item:nth-child(4) {
+  animation-delay: 0.2s;
+}
+
+[data-state="open"] .sidebar-submenu-item:nth-child(5) {
+  animation-delay: 0.25s;
+}
+
+/* Keyframe para fade in dos subitems */
+@keyframes fadeInItem {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Ao fechar, remover delay e fade out rapidamente */
+[data-state="closed"] .sidebar-submenu-item {
+  animation: fadeOutItem 0.15s ease forwards;
+  animation-delay: 0s !important;
+}
+
+/* Keyframe para fade out dos subitems */
+@keyframes fadeOutItem {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+}
+
+.sidebar-submenu-item * {
+  color: #ffffff !important; /* White for all elements */
+}
+
+/* SUBITEM ATIVO - Formato pill arredondado em AMARELO */
+.sidebar-submenu-item.active {
+  background: #fbbf24 !important; /* Yellow background */
+  color: #1e293b !important; /* Dark text */
+  border-radius: 20px !important; /* Completamente arredondado */
+  margin-left: 8px !important; /* Move o pill inteiro para a direita */
+  margin-right: 12px !important; /* Mantém espaço da borda */
+  padding: 10px 16px 10px 8px !important; /* Padding-left reduzido para compensar margin-left */
+  font-weight: 500 !important;
+}
+
+.sidebar-submenu-item.active * {
+  color: #000 !important; /* Black text for all elements */
+}
+
+/* Hover effect for ACTIVE subitem (amarelo) */
+.sidebar-submenu-item.active:hover {
+  background: #f59e0b !important; /* Amarelo mais escuro */
+  margin-left: 8px !important; /* Mantém o pill na mesma posição */
+  margin-right: 12px !important; /* Mantém espaço da borda */
+  padding: 10px 16px 10px 8px !important; /* Mantém o mesmo padding */
+  transform: scale(1.02) !important; /* Apenas aumenta levemente, sem mover */
+  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.3) !important; /* Sombra amarela suave */
+  transition: all 0.3s ease !important;
+}
+
+.sidebar-submenu-item:not(.active):hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #ffffff !important;
+  border-radius: 20px !important;
+  margin-right: 12px !important;
+  transform: scale(1.02) !important; /* Apenas aumenta levemente, sem mover */
+  transition: all 0.3s ease !important;
+}
+
+/* Sidebar background customization - AZUL */
+[data-sidebar] {
+  background: #3b82f6 !important; /* Blue background - Nova cor */
+  overflow: visible !important; /* Permitir que as curvas apareçam */
+}
+
+.dark [data-sidebar] {
+  background: #2563eb !important; /* Darker blue for dark mode */
+  overflow: visible !important;
+}
+
+/* Garantir que o container da sidebar não corte */
+[data-sidebar] > * {
+  overflow: visible !important;
+}
+
+/* SidebarContent com overflow visible */
+[data-sidebar-content] {
+  overflow: visible !important;
+}
+
+/* Sobrescrever overflow-auto do componente base */
+div[data-sidebar="content"] {
+  overflow: visible !important;
+}
+
+/* Remover SidebarRail completamente */
+button[data-sidebar="rail"] {
+  display: none !important;
+  pointer-events: none !important;
+}
+
+/* ===== TRANSIÇÕES SUAVES ===== */
+
+
+/* Subitens - ícones também fixos */
+.sidebar-submenu-item svg {
+  width: 20px !important;
+  height: 20px !important;
+  min-width: 20px !important;
+  min-height: 20px !important;
+  flex-shrink: 0 !important;
+  flex-grow: 0 !important;
+}
+
+/* ===== CONTROLE DO MENU QUANDO COLAPSADO (usando seletores do shadcn/ui) ===== */
+
+/* Manter altura dos botões quando colapsado - FORÇA altura de 48px */
+.group[data-collapsible="icon"] [data-sidebar-menu-button],
+.group[data-collapsible="icon"] .sidebar-menu-item {
+  height: 48px !important;
+  min-height: 48px !important;
+  max-height: 48px !important;
+  padding: 0 !important; /* ZERO - container controla */
+  margin: 0 !important;
+  justify-content: flex-start !important; /* SEMPRE flex-start para ícones não se moverem */
+  align-items: center !important;
+  margin-bottom: 0 !important;
+}
+
+/* Garantir que ícones não mudem quando colapsado */
+.group[data-collapsible="icon"] [data-sidebar-menu-button] svg,
+.group[data-collapsible="icon"] .sidebar-menu-item svg,
+.group[data-collapsible="icon"] svg {
+  width: 20px !important;
+  height: 20px !important;
+  min-width: 20px !important;
+  min-height: 20px !important;
+  flex-shrink: 0 !important;
+  flex-grow: 0 !important;
+  margin: 0 !important; /* ZERO margin */
+  transform: none !important;
+  position: relative !important;
+  left: 20px !important;
+}
+
+/* Links internos sempre flex-start para manter ícones no lugar */
+[data-sidebar-menu-button],
+[data-sidebar-menu-button] a,
+.sidebar-menu-item,
+.sidebar-menu-item a,
+.sidebar-menu-item button {
+  justify-content: flex-start !important;
+  padding-left: 20 !important;
+  padding-right: 40px !important; /* Espaço para a seta absolutamente posicionada */
+  gap: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+/* ===== ÍCONES FIXOS - NÃO SE MOVEM ===== */
+
+/* ===== TODOS OS ÍCONES NA MESMA POSIÇÃO ===== */
+
+/* Padding EXTERNO dos containers - SEMPRE 12px */
+[data-sidebar-menu-item],
+li[data-sidebar-menu-item] {
+  padding-left: 12px !important; /* Container padding */
+  padding-right: 12px !important;
+  margin-left: 20 !important;
+  margin-right: 0 !important;
+}
+
+/* Padding ZERO nos elementos internos - TODOS os ícones na mesma posição */
+.sidebar-menu-item,
+.sidebar-menu-item a,
+.sidebar-menu-item button,
+[data-sidebar-menu-button],
+[data-sidebar-menu-button] a,
+[data-sidebar-menu-button] button {
+  padding: 0 !important; /* ZERO - ícones alinhados com container */
+  margin: 0 !important;
+  gap: 0 !important;
+}
+
+/* FORÇAR ícones a ficarem em X=0 relativo ao botão */
+.sidebar-menu-item svg:first-child,
+[data-sidebar-menu-button] svg:first-child {
+  margin-left: 20 !important;
+  margin-right: 0 !important;
+  position: relative !important;
+  left: 0 !important;
+}
+
+/* Quando colapsado, manter estrutura */
+.group[data-collapsible="icon"] [data-sidebar-menu-item] {
+  padding-left: 12px !important;
+  padding-right: 12px !important;
+}
+
+/* FORÇA: Seta SEMPRE na mesma posição, mesmo quando colapsando */
+.group[data-collapsible="icon"] .menu-chevron,
+.group[data-collapsible="icon"] .sidebar-menu-item .menu-chevron,
+.group[data-collapsible="icon"] [data-sidebar-menu-button] .menu-chevron,
+[data-state="collapsed"] .menu-chevron {
+  position: absolute !important;
+  right: 12px !important; /* FIXO - não muda */
+  left: auto !important;
+  top: 50% !important;
+  transform: translateY(-50%) rotate(0deg) !important; /* FIXO */
+  opacity: 0 !important; /* Invisível quando colapsado */
+  pointer-events: none !important;
+  transition: opacity 0.2s ease !important; /* APENAS opacity */
+}
+
+/* Seta em categoria aberta E colapsada mantém rotação */
+.group[data-collapsible="icon"] [data-state="open"] .menu-chevron,
+[data-state="collapsed"] [data-state="open"] .menu-chevron {
+  transform: translateY(-50%) rotate(90deg) !important; /* Mantém rotação de 90° */
+  opacity: 0 !important; /* Mas ainda invisível */
+}
+
+/* Quando ativo e colapsado - MESMO padding à esquerda */
+.group[data-collapsible="icon"] .sidebar-menu-item.active {
+  padding: 0 40px 0 0 !important; /* Mesmo padding para alinhar seta */
+  margin: 0 !important;
+}
+
+/* Container dos itens do menu - POSIÇÃO FIXA */
+.sidebar-menu-item,
+.sidebar-menu-button,
+.sidebar-menu-item a,
+[data-sidebar-menu-button] {
+  position: relative !important;
+  overflow: visible !important;
+}
+
+/* Garante que o container tenha altura e layout correto */
+.sidebar-menu-item a,
+.sidebar-menu-item button {
+  display: flex !important;
+  align-items: center !important;
+  min-height: 40px !important;
+  overflow: visible !important;
+  position: relative !important; /* Necessário para position: absolute dos filhos */
+}
+
+/* Header e footer também precisam de position relative */
+.sidebar-header-custom > div,
+[data-sidebar-footer] button {
+  position: relative !important;
+}
+
+/* Ícone - posição fixa */
+.sidebar-menu-item svg:first-child,
+.sidebar-menu-item a svg:first-child {
+  flex-shrink: 0 !important;
+  position: relative !important;
+  z-index: 2 !important;
+  transition: transform 0.3s ease !important; /* Permite animação de movimento */
+}
+
+/* Texto do menu lateral - POSIÇÃO ABSOLUTAMENTE FIXA (apenas para categorias) */
+.menu-text {
+  display: inline-block;
+  white-space: nowrap;
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity 0.2s ease !important;
+}
+
+/* Textos das CATEGORIAS - posição absolute fixa */
+.sidebar-menu-item .menu-text {
+  position: absolute !important;
+  left: 44px !important; /* Posição fixa: 12px padding + 20px icon + 12px gap */
+  transition: transform 0.3s ease, opacity 0.2s ease !important; /* Permite animação de movimento */
+}
+
+.menu-text.collapsed {
+  opacity: 0 !important;
+  pointer-events: none;
+}
+
+/* Texto da organização no header/footer - VOLTA AO NORMAL (como estava antes) */
+.menu-text.org-text {
+  position: relative !important; /* NÃO é absolute */
+  left: auto !important;
+  margin-left: 12px !important; /* Espaço após avatar */
+  max-width: 200px;
+  overflow: hidden;
+  transition: opacity 0.2s ease, max-width 0.2s ease !important;
+}
+
+.menu-text.org-text.collapsed {
+  max-width: 0 !important;
+  margin-left: 0 !important;
+}
+
+/* Container da organização no header */
+.sidebar-header-custom .grid {
+  overflow: visible !important;
+}
+
+/* Container do usuário no footer */
+[data-sidebar-footer] .grid {
+  overflow: visible !important;
+}
+
+/* Garante que o avatar do usuário não se mova */
+[data-sidebar-footer] [data-slot="avatar"],
+[data-sidebar-footer] img {
+  flex-shrink: 0 !important;
+}
+
+/* Spacer removido - seta usa position absolute agora */
+
+/* Chevron (seta de colapso) - POSIÇÃO ABSOLUTAMENTE FIXA na direita */
+.menu-chevron,
+svg.menu-chevron,
+.sidebar-menu-item .menu-chevron,
+[data-sidebar-menu-button] .menu-chevron,
+button .menu-chevron {
+  position: absolute !important;
+  right: 12px !important; /* Distância da borda direita */
+  left: auto !important; /* Remove qualquer left que possa estar setado */
+  top: 50% !important;
+  transform: translateY(-50%) rotate(0deg) !important; /* Seta para DIREITA (0deg) */
+  flex-shrink: 0 !important;
+  opacity: 1;
+  width: 1rem !important;
+  height: 1rem !important;
+  min-width: 1rem !important;
+  min-height: 1rem !important;
+  margin: 0 !important; /* ZERO margin */
+  margin-left: 0 !important; /* Força margin-left zero */
+  pointer-events: auto;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease !important; /* Animação suave */
+  z-index: 20 !important; /* Acima de tudo */
+}
+
+.menu-chevron.collapsed {
+  opacity: 0 !important;
+  pointer-events: none;
+  position: absolute !important; /* MANTÉM posição absolute */
+  right: 12px !important; /* MANTÉM posição fixa */
+  top: 50% !important; /* MANTÉM centralização */
+  transform: translateY(-50%) rotate(0deg) !important; /* MANTÉM transform */
+  transition: opacity 0.2s ease !important; /* APENAS opacity anima */
+}
+
+/* Quando o collapsible está ABERTO - gira 90° para BAIXO com animação suave */
+.group\/collapsible[data-state="open"] .menu-chevron,
+[data-state="open"] .menu-chevron,
+button[data-state="open"] .menu-chevron,
+.sidebar-menu-item[data-state="open"] .menu-chevron {
+  transform: translateY(-50%) rotate(90deg) !important; /* Gira para BAIXO (90deg) */
+}
+
+/* Quando o collapsible está FECHADO - volta para direita */
+.group\/collapsible[data-state="closed"] .menu-chevron,
+[data-state="closed"] .menu-chevron {
+  transform: translateY(-50%) rotate(0deg) !important; /* Volta para DIREITA (0deg) */
+}
+
+/* Forçar todos os botões a terem flex-start */
+[data-sidebar-menu-button],
+button[data-sidebar-menu-button],
+.sidebar-menu-item > *,
+[data-sidebar-menu-button] > * {
+  justify-content: flex-start !important;
+  text-align: left !important;
+}
+
+/* Header - Manter altura e centralização */
+.sidebar-header-custom {
+  min-height: 80px !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.sidebar-header-custom > div {
+  width: 100% !important;
+}
+
+/* Avatar da organização - Sempre redondo e tamanho fixo */
+.sidebar-header-custom img,
+.sidebar-header-custom [data-slot="avatar"],
+.sidebar-header-custom [data-radix-avatar-root] {
+  width: 48px !important;
+  height: 48px !important;
+  min-width: 48px !important;
+  min-height: 48px !important;
+  border-radius: 9999px !important;
+}
+
+/* Avatar do usuário - Sempre circular e tamanho fixo */
+[data-sidebar-footer] img,
+[data-sidebar-footer] [data-slot="avatar"],
+[data-sidebar-footer] [data-radix-avatar-root] {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  min-height: 32px !important;
+
+}
+
+/* ========================================
+   MOVER AVATAR DO USUÁRIO LATERALMENTE
+   ======================================== */
+/* SELETOR CORRETO: span[data-slot="avatar"] dentro do botão do menu */
+/* PARA MOVER: Altere o valor "12px" abaixo */
+
+/* Posição inicial do avatar - 12px à direita (SEMPRE FIXO) */
+button[data-sidebar="menu-button"][data-size="lg"] > span[data-slot="avatar"] {
+  margin-left: 6px !important;
+  transition: margin-left 0.3s ease !important;
+}
+
+/* Quando sidebar está COLAPSADA - manter posição fixa */
+[data-state="collapsed"] button[data-sidebar="menu-button"][data-size="lg"] > span[data-slot="avatar"],
+.group[data-collapsible="icon"] button[data-sidebar="menu-button"][data-size="lg"] > span[data-slot="avatar"] {
+  margin-left: 6px !important;
+}
+
+/* Hover NORMAL (sem efeito branco) - move 4px para direita */
+button[data-sidebar="menu-button"][data-size="lg"]:not(.nav-user-active):hover > span[data-slot="avatar"] {
+  margin-left: 16px !important;
+}
+
+/* Hover ATIVO (com efeito branco) - move APENAS 4px para direita */
+button[data-sidebar="menu-button"][data-size="lg"].nav-user-active:hover > span[data-slot="avatar"] {
+  margin-left: 16px !important; /* Mesmo movimento suave */
+}
+
+/* CÓDIGO ANTIGO REMOVIDO - Agora usa o seletor correto acima */
+
+/* ===== ESTADO COLAPSADO ===== */
+
+/* Esconder info da organização quando colapsado */
+[data-state="collapsed"] .sidebar-header-custom .grid {
+  display: none !important;
+}
+
+/* Item ativo quando colapsado - ajusta curvas para sidebar menor */
+.group[data-collapsible="icon"] .sidebar-menu-item.active,
+[data-state="collapsed"] .sidebar-menu-item.active {
+  border-radius: 20px 0 0 20px !important;
+  margin-right: 0px !important;
+  padding-right: 12px !important;
+  width: calc(100% + 8px) !important;
+}
+
+/* Curvas menores quando colapsado */
+.group[data-collapsible="icon"] .sidebar-menu-item.active::before,
+[data-state="collapsed"] .sidebar-menu-item.active::before {
+  width: 32px !important;
+  height: 32px !important;
+  top: -32px !important; /* <-- Corrigido */
+  border-bottom-right-radius: 32px;
+  box-shadow: 10px 10px 0 10px #fff;
+}
+
+.group[data-collapsible="icon"] .sidebar-menu-item.active::after,
+[data-state="collapsed"] .sidebar-menu-item.active::after {
+  width: 32px !important;
+  height: 32px !important;
+  bottom: -32px !important; /* <-- Corrigido */
+  border-top-right-radius: 32px;
+  box-shadow: 10px -10px 0 10px #fff;
+}
+
+/* Update sidebar colors and widths */
+:root {
+  --sidebar: #3b82f6; /* Blue background - Nova cor */
+  --sidebar-foreground: #fff; /* White text */
+  --sidebar-primary: #facc15; /* Yellow for active - Nova cor */
+  --sidebar-primary-foreground: #000; /* Black text */
+  --sidebar-accent: #fff; /* White accent */
+  --sidebar-accent-foreground: #facc15; /* Yellow text on white */
+  --sidebar-width: 16rem; /* 256px expandida */
+  --sidebar-width-icon: 5rem; /* 80px colapsada */
+}
+
+.dark {
+  --sidebar: #2563eb; /* Darker blue */
+  --sidebar-foreground: #fff;
+  --sidebar-primary: #facc15;
+  --sidebar-primary-foreground: #000;
+  --sidebar-accent: #fff;
+  --sidebar-accent-foreground: #facc15;
+  --sidebar-width: 16rem;
+  --sidebar-width-icon: 5rem;
+}
+
+/* Garantir texto branco em toda a sidebar */
+[data-sidebar] * {
+  color: #fff;
+}
+
+/* Sidebar header e footer com texto branco */
+[data-sidebar-header],
+[data-sidebar-footer],
+[data-sidebar-content] {
+  color: #ffffff !important;
+}
+
+/* Labels e textos da sidebar */
+[data-sidebar] [data-sidebar-group-label] {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+/* Chevron icons brancos */
+[data-sidebar] svg:not(.sidebar-menu-item.active svg):not(.sidebar-dashboard-btn.active svg):not(.sidebar-submenu-item.active svg) {
+  color: #fff !important;
+}
+
+/* Ajustar espaçamento entre itens de menu - FIXO */
+[data-sidebar-menu-item] {
+  margin-bottom: 6px !important;
+  margin-top: 0 !important;
+}
+
+/* Garantir espaçamento fixo quando colapsado */
+[data-state="collapsed"] [data-sidebar-menu-item],
+.group[data-collapsible="icon"] [data-sidebar-menu-item] {
+  margin-bottom: 6px !important;
+  margin-top: 0 !important;
+}
+
+/* Remover padding direito para categorias encostarem na borda */
+[data-sidebar] [data-sidebar-group],
+[data-sidebar] [data-sidebar-menu] {
+  padding-right: 0 !important;
+  overflow: visible !important;
+}
+
+/* Garantir que o container do menu não tenha padding direito */
+.sidebar-curved-menu {
+  padding-right: 0 !important;
+  margin-right: 0 !important;
+  overflow: visible !important;
+}
+
+/* Container dos itens sem padding direito */
+[data-sidebar-content] > div {
+  padding-right: 0 !important;
+  overflow: visible !important;
+}
+
+/* Remover padding do SidebarContent */
+[data-sidebar-content] {
+  padding-right: 0 !important;
+  overflow: visible !important;
+}
+
+/* Ajustar MenuItem */
+[data-sidebar-menu-item] {
+  margin-right: 0 !important;
+  overflow: visible !important;
+}
+
+/* Botões de menu principais encostam na borda */
+[data-sidebar-menu-button] {
+  margin-right: 0 !important;
+  overflow: visible !important;
+}
+
+/* Container da sidebar sem borda direita para não interferir */
+div[data-slot="sidebar-container"] {
+  border-right: none !important;
+  overflow: visible !important;
+}
+
+/* Inner da sidebar sem borda */
+div[data-slot="sidebar-inner"] {
+  overflow: visible !important;
+}
+
+/* Espaçamento do grupo de menu */
+[data-sidebar-group] {
+  padding-left: 8px !important;
+  padding-top: 8px !important;
+  padding-bottom: 8px !important;
+}
+
+/* Label do grupo */
+[data-sidebar-group-label] {
+  padding-left: 8px !important;
+  padding-bottom: 8px !important;
+  text-transform: uppercase;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.5px;
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+/* Espaçamento interno dos subitens */
+[data-sidebar-menu-sub] {
+  padding-left: 20px !important;
+  padding-top: 4px !important;
+  padding-bottom: 4px !important;
+  margin-top: 2px !important;
+}
+
+/* ========================================
+   PIPELINE HORIZONTAL SCROLL
+   ======================================== */
+/* Scrollbar customizada para o pipeline */
+.pipeline-scroll-container::-webkit-scrollbar {
+  height: 8px; /* Altura da scrollbar horizontal */
+}
+
+.pipeline-scroll-container::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05); /* Fundo suave */
+  border-radius: 10px;
+  margin: 0 8px; /* Margem nas laterais */
+}
+
+.pipeline-scroll-container::-webkit-scrollbar-thumb {
+  background: rgba(59, 130, 246, 0.4); /* Azul semi-transparente */
+  border-radius: 10px;
+  transition: background 0.3s ease;
+}
+
+.pipeline-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(59, 130, 246, 0.6); /* Mais visível no hover */
+}
+
+.pipeline-scroll-container::-webkit-scrollbar-thumb:active {
+  background: rgba(59, 130, 246, 0.8); /* Ainda mais visível ao arrastar */
+}
+
+/* Firefox */
+.pipeline-scroll-container {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(59, 130, 246, 0.4) rgba(0, 0, 0, 0.05);
 }
  

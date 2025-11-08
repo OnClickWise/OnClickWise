@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, use } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 import { AppSidebar } from "@/components/app-sidebar"
 import AuthGuard from "@/components/AuthGuard"
 import {
@@ -51,6 +52,8 @@ export default function UsersPage({
   params: Promise<{ org: string }>;
 }) {
   const { org } = use(params);
+  const t = useTranslations('UsersManagement');
+  const locale = useLocale();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -97,7 +100,7 @@ export default function UsersPage({
     try {
       const token = localStorage.getItem('token');
       if (!token) {
-        setError('Token not found. Please login again.');
+        setError(t('tokenNotFound'));
         return;
       }
 
@@ -109,7 +112,7 @@ export default function UsersPage({
       });
 
       if (!response.ok) {
-        throw new Error('Failed to fetch users');
+        throw new Error(t('failedToFetch'));
       }
 
       const data = await response.json();
@@ -118,11 +121,11 @@ export default function UsersPage({
         setUsers(data.employees);
       } else {
         console.error('Invalid response format:', data);
-        setError('Invalid response format from server');
+        setError(t('invalidResponse'));
       }
     } catch (error) {
       console.error('Error fetching users:', error);
-      setError('Failed to load users');
+      setError(t('failedToLoad'));
     } finally {
       setLoading(false);
     }
@@ -138,7 +141,7 @@ export default function UsersPage({
     try {
       const token = localStorage.getItem('token');
       if (!token) {
-        setError('Token not found. Please login again.');
+        setError(t('tokenNotFound'));
         return;
       }
 
@@ -158,7 +161,7 @@ export default function UsersPage({
       console.log('Response data:', result);
 
       if (result.success) {
-        setSuccess('User created successfully!');
+        setSuccess(t('userCreatedSuccess'));
         setFormData({ name: '', email: '', password: '', role: 'employee' });
         setCreateFormAnimating(false);
         setTimeout(() => {
@@ -166,11 +169,11 @@ export default function UsersPage({
         }, 150);
         fetchUsers();
       } else {
-        setError(result.error || 'Failed to create user');
+        setError(result.error || t('failedToCreate'));
       }
     } catch (error) {
       console.error('Error creating user:', error);
-      setError('Failed to create user');
+      setError(t('failedToCreate'));
     } finally {
       setCreating(false);
     }
@@ -229,7 +232,7 @@ export default function UsersPage({
     try {
       const token = localStorage.getItem('token');
       if (!token) {
-        setError('Token not found. Please login again.');
+        setError(t('tokenNotFound'));
         return;
       }
 
@@ -246,7 +249,7 @@ export default function UsersPage({
       const result = await response.json();
 
       if (result.success) {
-        setSuccess('User updated successfully!');
+        setSuccess(t('userUpdatedSuccess'));
         setEditData({ id: '', name: '', email: '', role: 'employee' });
         setEditFormAnimating(false);
         setTimeout(() => {
@@ -254,11 +257,11 @@ export default function UsersPage({
         }, 150);
         fetchUsers();
       } else {
-        setError(result.error || 'Failed to update user');
+        setError(result.error || t('failedToUpdate'));
       }
     } catch (error) {
       console.error('Error updating user:', error);
-      setError('Failed to update user');
+      setError(t('failedToUpdate'));
     } finally {
       setEditing(false);
     }
@@ -286,7 +289,7 @@ export default function UsersPage({
     try {
       const token = localStorage.getItem('token');
       if (!token) {
-        setError('Token not found. Please login again.');
+        setError(t('tokenNotFound'));
         return;
       }
 
@@ -303,7 +306,7 @@ export default function UsersPage({
       const result = await response.json();
 
       if (result.success) {
-        setSuccess('User deleted successfully!');
+        setSuccess(t('userDeletedSuccess'));
         
         // Animate out before closing
         setDeleteMenuAnimating(false);
@@ -313,11 +316,11 @@ export default function UsersPage({
           fetchUsers();
         }, 200);
       } else {
-        setError(result.error || 'Failed to delete user');
+        setError(result.error || t('failedToDelete'));
       }
     } catch (error) {
       console.error('Error deleting user:', error);
-      setError('Failed to delete user');
+      setError(t('failedToDelete'));
     } finally {
       setDeleting(false);
     }
@@ -352,7 +355,7 @@ export default function UsersPage({
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+    return new Date(dateString).toLocaleDateString(locale === 'pt-BR' ? 'pt-BR' : 'en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric'
@@ -375,18 +378,18 @@ export default function UsersPage({
             <BreadcrumbList>
               <BreadcrumbItem className="hidden md:block">
                 <BreadcrumbLink href={`/${org}/dashboard`}>
-                  Dashboard
+                  {t('dashboard')}
                 </BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator className="hidden md:block" />
               <BreadcrumbItem>
                 <BreadcrumbLink href={`/${org}/settings`}>
-                  Settings
+                  {t('settings')}
                 </BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator className="hidden md:block" />
               <BreadcrumbItem>
-                <BreadcrumbPage>Users</BreadcrumbPage>
+                <BreadcrumbPage>{t('users')}</BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
@@ -397,9 +400,9 @@ export default function UsersPage({
           {/* Header Section */}
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Users</h1>
+              <h1 className="text-3xl font-bold text-gray-900">{t('pageTitle')}</h1>
               <p className="text-gray-600 mt-1">
-                Manage your organization's users and their permissions
+                {t('pageDescription')}
               </p>
             </div>
             <Button
@@ -426,7 +429,7 @@ export default function UsersPage({
               className="bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
             >
               <Plus className="w-4 h-4 mr-2" />
-              Add User
+              {t('addUser')}
             </Button>
           </div>
 
@@ -435,14 +438,14 @@ export default function UsersPage({
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
-                placeholder="Search users..."
+                placeholder={t('searchPlaceholder')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
               />
             </div>
             <div className="text-sm text-gray-500">
-              {filteredUsers.length} user{filteredUsers.length !== 1 ? 's' : ''} found
+              {t(filteredUsers.length === 1 ? 'usersFound' : 'usersFound_other', { count: filteredUsers.length })}
             </div>
           </div>
 
@@ -452,9 +455,9 @@ export default function UsersPage({
               createFormAnimating ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
             }`}>
               <CardHeader>
-                <CardTitle>Create New User</CardTitle>
+                <CardTitle>{t('createNewUser')}</CardTitle>
                 <CardDescription>
-                  Add a new user to your organization
+                  {t('createNewUserDesc')}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -462,7 +465,7 @@ export default function UsersPage({
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-                        Full Name *
+                        {t('fullName')} *
                       </label>
                       <Input
                         id="name"
@@ -471,12 +474,12 @@ export default function UsersPage({
                         value={formData.name}
                         onChange={handleInputChange}
                         required
-                        placeholder="Enter full name"
+                        placeholder={t('fullNamePlaceholder')}
                       />
                     </div>
                     <div>
                       <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                        Email Address *
+                        {t('emailAddress')} *
                       </label>
                       <Input
                         id="email"
@@ -485,13 +488,13 @@ export default function UsersPage({
                         value={formData.email}
                         onChange={handleInputChange}
                         required
-                        placeholder="Enter email address"
+                        placeholder={t('emailPlaceholder')}
                       />
                     </div>
                   </div>
                   <div>
                     <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                      Password *
+                      {t('password')} *
                     </label>
                     <Input
                       id="password"
@@ -500,12 +503,12 @@ export default function UsersPage({
                       value={formData.password}
                       onChange={handleInputChange}
                       required
-                      placeholder="Enter password"
+                      placeholder={t('passwordPlaceholder')}
                     />
                   </div>
                   <div>
                     <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
-                      Role *
+                      {t('role')} *
                     </label>
                     <select
                       id="role"
@@ -515,8 +518,8 @@ export default function UsersPage({
                       required
                       className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
-                      <option value="employee">Employee</option>
-                      <option value="admin">Admin</option>
+                      <option value="employee">{t('employee')}</option>
+                      <option value="admin">{t('admin')}</option>
                     </select>
                   </div>
                   <div className="flex gap-2">
@@ -525,7 +528,7 @@ export default function UsersPage({
                       disabled={creating}
                       className="bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
                     >
-                      {creating ? 'Creating...' : 'Create User'}
+                      {creating ? t('creating') : t('createUser')}
                     </Button>
                     <Button
                       type="button"
@@ -538,7 +541,7 @@ export default function UsersPage({
                       }}
                       className="cursor-pointer"
                     >
-                      Cancel
+                      {t('cancel')}
                     </Button>
                   </div>
                 </form>
@@ -552,9 +555,9 @@ export default function UsersPage({
               editFormAnimating ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
             }`}>
               <CardHeader>
-                <CardTitle>Edit User</CardTitle>
+                <CardTitle>{t('editUser')}</CardTitle>
                 <CardDescription>
-                  Update user information and role
+                  {t('editUserDesc')}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -562,7 +565,7 @@ export default function UsersPage({
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label htmlFor="edit-name" className="block text-sm font-medium text-gray-700 mb-1">
-                        Full Name *
+                        {t('fullName')} *
                       </label>
                       <Input
                         id="edit-name"
@@ -571,12 +574,12 @@ export default function UsersPage({
                         value={editData.name}
                         onChange={handleEditInputChange}
                         required
-                        placeholder="Enter full name"
+                        placeholder={t('fullNamePlaceholder')}
                       />
                     </div>
                     <div>
                       <label htmlFor="edit-email" className="block text-sm font-medium text-gray-700 mb-1">
-                        Email Address *
+                        {t('emailAddress')} *
                       </label>
                       <Input
                         id="edit-email"
@@ -585,13 +588,13 @@ export default function UsersPage({
                         value={editData.email}
                         onChange={handleEditInputChange}
                         required
-                        placeholder="Enter email address"
+                        placeholder={t('emailPlaceholder')}
                       />
                     </div>
                   </div>
                   <div>
                     <label htmlFor="edit-role" className="block text-sm font-medium text-gray-700 mb-1">
-                      Role *
+                      {t('role')} *
                     </label>
                     <select
                       id="edit-role"
@@ -601,8 +604,8 @@ export default function UsersPage({
                       required
                       className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
-                      <option value="employee">Employee</option>
-                      <option value="admin">Admin</option>
+                      <option value="employee">{t('employee')}</option>
+                      <option value="admin">{t('admin')}</option>
                     </select>
                   </div>
                   <div className="flex gap-2">
@@ -611,7 +614,7 @@ export default function UsersPage({
                       disabled={editing}
                       className="bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
                     >
-                      {editing ? 'Updating...' : 'Update User'}
+                      {editing ? t('updating') : t('updateUser')}
                     </Button>
                     <Button
                       type="button"
@@ -624,7 +627,7 @@ export default function UsersPage({
                       }}
                       className="cursor-pointer"
                     >
-                      Cancel
+                      {t('cancel')}
                     </Button>
                   </div>
                 </form>
@@ -654,15 +657,15 @@ export default function UsersPage({
             {loading ? (
               <div className="text-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="text-gray-500 mt-2">Loading users...</p>
+                <p className="text-gray-500 mt-2">{t('loadingUsers')}</p>
               </div>
             ) : filteredUsers.length === 0 && !showCreateForm ? (
               <Card>
                 <CardContent className="text-center py-8">
                   <User className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No users found</h3>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">{t('noUsersFound')}</h3>
                   <p className="text-gray-500 mb-4">
-                    {searchTerm ? 'No users match your search criteria.' : 'Get started by adding your first user.'}
+                    {searchTerm ? t('noUsersMatch') : t('getStarted')}
                   </p>
                   {!searchTerm && (
                     <Button
@@ -678,14 +681,14 @@ export default function UsersPage({
                       className="bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
                     >
                       <Plus className="w-4 h-4 mr-2" />
-                      Add First User
+                      {t('addFirstUser')}
                     </Button>
                   )}
                 </CardContent>
               </Card>
             ) : filteredUsers.length === 0 && showCreateForm ? (
               <div className="text-center py-8">
-                <p className="text-gray-500 mb-4">Fill out the form above to create your first user</p>
+                <p className="text-gray-500 mb-4">{t('fillFormMessage')}</p>
               </div>
             ) : (
               filteredUsers.map((user) => (
@@ -704,14 +707,14 @@ export default function UsersPage({
                           </div>
                           <div className="flex items-center space-x-2 text-sm text-gray-500 mt-1">
                             <Calendar className="w-4 h-4" />
-                            <span>Joined {formatDate(user.created_at)}</span>
+                            <span>{t('joined', { date: formatDate(user.created_at) })}</span>
                           </div>
                         </div>
                       </div>
                       <div className="flex items-center space-x-3">
                         <Badge className={getRoleBadgeColor(user.role)}>
                           <Shield className="w-3 h-3 mr-1" />
-                          {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                          {t(user.role === 'admin' ? 'admin' : 'employee')}
                         </Badge>
                         <Button 
                           variant="outline" 
@@ -719,7 +722,7 @@ export default function UsersPage({
                           onClick={() => handleEditUser(user)}
                           className="cursor-pointer"
                         >
-                          Edit
+                          {t('edit')}
                         </Button>
                         <Button 
                           variant="outline" 
@@ -752,8 +755,8 @@ export default function UsersPage({
             deleteMenuAnimating ? 'translate-x-0' : 'translate-x-full'
           }`}>
               <div className="p-6 border-b border-gray-200">
-                <h2 className="text-xl font-semibold text-gray-900">Delete User</h2>
-                <p className="text-gray-600 mt-1">This action cannot be undone.</p>
+                <h2 className="text-xl font-semibold text-gray-900">{t('deleteUser')}</h2>
+                <p className="text-gray-600 mt-1">{t('deleteUserDesc')}</p>
               </div>
               
               <div className="p-6">
@@ -770,8 +773,7 @@ export default function UsersPage({
                 </div>
                 
                 <p className="text-gray-700 mb-6">
-                  Are you sure you want to delete this user? This will permanently remove 
-                  their account and all associated data.
+                  {t('deleteConfirmation')}
                 </p>
                 
                 <div className="flex gap-3">
@@ -780,14 +782,14 @@ export default function UsersPage({
                     disabled={deleting}
                     className="flex-1 bg-red-600 hover:bg-red-700 text-white cursor-pointer"
                   >
-                    {deleting ? 'Deleting...' : 'Delete User'}
+                    {deleting ? t('deleting') : t('deleteUser')}
                   </Button>
                   <Button
                     onClick={cancelDelete}
                     variant="outline"
                     className="flex-1 cursor-pointer"
                   >
-                    Cancel
+                    {t('cancel')}
                   </Button>
                 </div>
               </div>

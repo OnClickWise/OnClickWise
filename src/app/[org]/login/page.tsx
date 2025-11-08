@@ -2,6 +2,7 @@
 
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,6 +11,7 @@ import { Building2, Mail, Lock, User, Shield, ArrowLeft, Loader2 } from 'lucide-
 import ChangePasswordModal from '@/components/ChangePasswordModal';
 import InactivityNotification from '@/components/InactivityNotification';
 import { useInactivityNotification } from '@/hooks/useInactivityNotification';
+import { useAuth } from '@/hooks/useAuth';
 import { generateOrgLogo } from '@/utils/avatar';
 import { OrganizationAvatar } from '@/components/ui/avatar';
 
@@ -24,6 +26,8 @@ interface CompanyInfo {
 export default function CompanyLoginPage({ params }: { params: Promise<{ org: string }> }) {
   const resolvedParams = use(params);
   const router = useRouter();
+  const { getLastVisitedUrl } = useAuth();
+  const t = useTranslations('OrgLogin');
   const [loading, setLoading] = useState(false);
   const [loadingCompany, setLoadingCompany] = useState(true);
   const [error, setError] = useState('');
@@ -113,6 +117,9 @@ export default function CompanyLoginPage({ params }: { params: Promise<{ org: st
         localStorage.setItem('organization', JSON.stringify(result.organization));
         localStorage.setItem('lastActivity', now.toString());
         
+        // Disparar evento para ClientLocaleProvider atualizar o locale do usuário
+        window.dispatchEvent(new Event('userLoggedIn'));
+        
         // Esconder notificação de inatividade após login bem-sucedido
         hideNotification();
         
@@ -120,15 +127,22 @@ export default function CompanyLoginPage({ params }: { params: Promise<{ org: st
         if (result.user?.is_temporary_password) {
           setShowPasswordModal(true);
         } else {
-          // Redirecionar para o dashboard
-          router.push(`/${result.organization.slug}/dashboard`);
+          // Tentar obter a última URL visitada
+          const lastUrl = getLastVisitedUrl(result.organization.slug);
+          
+          // Redirecionar para a última URL visitada ou dashboard
+          if (lastUrl) {
+            router.push(lastUrl);
+          } else {
+            router.push(`/${result.organization.slug}/dashboard`);
+          }
         }
       } else {
-        setError(result.error || 'Login failed');
+        setError(result.error || t('loginFailed'));
       }
     } catch (error) {
       console.error('Login error:', error);
-      setError('Connection error. Please try again.');
+      setError(t('connectionError'));
     } finally {
       setLoading(false);
     }
@@ -136,9 +150,15 @@ export default function CompanyLoginPage({ params }: { params: Promise<{ org: st
 
   const handlePasswordChangeSuccess = () => {
     setShowPasswordModal(false);
-    // Redirecionar para o dashboard após troca de senha
+    // Redirecionar para a última URL visitada ou dashboard após troca de senha
     const organization = JSON.parse(localStorage.getItem('organization') || '{}');
-    router.push(`/${organization.slug}/dashboard`);
+    const lastUrl = getLastVisitedUrl(organization.slug);
+    
+    if (lastUrl) {
+      router.push(lastUrl);
+    } else {
+      router.push(`/${organization.slug}/dashboard`);
+    }
   };
 
   const handleClosePasswordModal = () => {
@@ -153,7 +173,7 @@ export default function CompanyLoginPage({ params }: { params: Promise<{ org: st
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading company information...</p>
+          <p className="text-muted-foreground">{t('loadingCompanyInfo')}</p>
         </div>
       </div>
     );
@@ -167,9 +187,9 @@ export default function CompanyLoginPage({ params }: { params: Promise<{ org: st
             <div className="w-16 h-16 bg-destructive/10 rounded-xl flex items-center justify-center mx-auto mb-4">
               <Building2 className="w-8 h-8 text-destructive" />
             </div>
-            <CardTitle className="text-xl text-destructive">Company Not Found</CardTitle>
+            <CardTitle className="text-xl text-destructive">{t('companyNotFound')}</CardTitle>
             <CardDescription className="text-muted-foreground">
-              The company you're looking for doesn't exist or has been removed.
+              {t('companyNotFoundMessage')}
             </CardDescription>
           </CardHeader>
           <CardContent className="text-center">
@@ -179,7 +199,7 @@ export default function CompanyLoginPage({ params }: { params: Promise<{ org: st
               className="w-full cursor-pointer"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Main Login
+              {t('backToMainLogin')}
             </Button>
           </CardContent>
         </Card>
@@ -212,7 +232,7 @@ export default function CompanyLoginPage({ params }: { params: Promise<{ org: st
                     <p className="text-sm text-muted-foreground">{companyInfo.email}</p>
                     <Badge variant="secondary" className="mt-1">
                       <Shield className="w-3 h-3 mr-1" />
-                      Company Portal
+                      {t('companyPortal')}
                     </Badge>
                   </div>
                 </div>
@@ -222,16 +242,16 @@ export default function CompanyLoginPage({ params }: { params: Promise<{ org: st
             {/* Login Form */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-2xl text-center">Sign In</CardTitle>
+                <CardTitle className="text-2xl text-center">{t('signIn')}</CardTitle>
                 <CardDescription className="text-center">
-                  Access your account at {companyInfo.name}
+                  {t('accessAccount', { companyName: companyInfo.name })}
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div>
                     <label htmlFor="email" className="block text-sm font-medium text-card-foreground mb-2">
-                      Email Address
+                      {t('emailAddress')}
                     </label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
@@ -243,14 +263,14 @@ export default function CompanyLoginPage({ params }: { params: Promise<{ org: st
                         onChange={handleInputChange}
                         required
                         className="pl-10"
-                        placeholder="your@email.com"
+                        placeholder={t('emailPlaceholder')}
                       />
                     </div>
                   </div>
 
                   <div>
                     <label htmlFor="password" className="block text-sm font-medium text-card-foreground mb-2">
-                      Password
+                      {t('password')}
                     </label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
@@ -262,7 +282,7 @@ export default function CompanyLoginPage({ params }: { params: Promise<{ org: st
                         onChange={handleInputChange}
                         required
                         className="pl-10"
-                        placeholder="Your password"
+                        placeholder={t('passwordPlaceholder')}
                       />
                     </div>
                   </div>
@@ -281,17 +301,17 @@ export default function CompanyLoginPage({ params }: { params: Promise<{ org: st
                     {loading ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Signing in...
+                        {t('signingIn')}
                       </>
                     ) : (
-                      'Sign In'
+                      t('signIn')
                     )}
                   </Button>
 
                   <div className="text-center">
                     <p className="text-sm text-muted-foreground">
-                      Don't have an account?{' '}
-                      Contact your administrator
+                      {t('noAccount')}{' '}
+                      {t('contactAdmin')}
                     </p>
                   </div>
                 </form>

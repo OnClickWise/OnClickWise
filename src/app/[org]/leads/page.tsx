@@ -6,9 +6,13 @@ import * as React from "react"
 
 import { useSearchParams } from "next/navigation"
 
+import { useTranslations, useLocale } from "next-intl"
+
 import { AppSidebar } from "@/components/app-sidebar"
 
 import AuthGuard from "@/components/AuthGuard"
+
+import RoleGuard from "@/components/RoleGuard"
 
 import {
 
@@ -36,7 +40,7 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/s
 
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 
-import { Search, Plus, Download, Upload, Trash2, Edit, X, ChevronDown, CheckCircle2, AlertTriangle, AlertCircle, Check, Filter, XCircle, ArrowUp, ArrowDown, Copy, File, FileText, Image, FileImage, FileVideo, FileAudio, Archive, Loader2, Eye, Trash } from "lucide-react"
+import { Search, Plus, Download, Upload, Trash2, Edit, X, ChevronDown, CheckCircle2, AlertTriangle, AlertCircle, Check, Filter, XCircle, ArrowUp, ArrowDown, Copy, File, FileText, Image, FileImage, FileVideo, FileAudio, Archive, Loader2, Eye, Trash, UserPlus, Mail, Phone, Calendar, DollarSign, User, Hash, Clock, Info, Tag, Briefcase, CreditCard, FileDigit, MapPin, Columns, EyeOff, GripVertical } from "lucide-react"
 
 import * as XLSX from "xlsx"
 
@@ -58,7 +62,55 @@ function createId() {
 
 // Removed SAMPLE_LEADS - now using API
 
+// Sortable Column Item Component using HTML5 Drag and Drop
+interface SortableColumnItemProps {
+  id: string
+  label: string
+  visible: boolean
+  onToggle: () => void
+  onDragStart: (e: React.DragEvent, id: string) => void
+  onDragOver: (e: React.DragEvent, id: string) => void
+  onDragLeave: () => void
+  onDrop: (e: React.DragEvent, targetId: string) => void
+  isDragging: boolean
+  isDraggedOver: boolean
+}
 
+function SortableColumnItem({ id, label, visible, onToggle, onDragStart, onDragOver, onDragLeave, onDrop, isDragging, isDraggedOver }: SortableColumnItemProps) {
+  return (
+    <div
+      className={`
+        relative flex items-center gap-2 px-2 py-2 rounded-sm cursor-default 
+        transition-all duration-200
+        ${isDragging ? 'opacity-30 scale-95' : 'opacity-100 scale-100'} 
+        ${isDraggedOver ? 'bg-primary/10' : 'hover:bg-accent'}
+        ${isDraggedOver ? 'border-t-2 border-primary' : ''}
+      `}
+      draggable
+      onDragStart={(e) => onDragStart(e, id)}
+      onDragOver={(e) => onDragOver(e, id)}
+      onDragLeave={onDragLeave}
+      onDrop={(e) => onDrop(e, id)}
+    >
+      {isDraggedOver && (
+        <div className="absolute -top-1 left-0 right-0 h-0.5 bg-primary rounded-full" />
+      )}
+      <div
+        className="cursor-grab active:cursor-grabbing touch-none"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <GripVertical className="h-4 w-4 text-muted-foreground" />
+      </div>
+      <button
+        onClick={onToggle}
+        className="flex-1 flex items-center justify-between cursor-pointer"
+      >
+        <span className="text-sm">{label}</span>
+        {visible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4 text-muted-foreground" />}
+      </button>
+    </div>
+  )
+}
 
 export default function LeadsPage({
 
@@ -72,13 +124,98 @@ export default function LeadsPage({
 
   const { org } = React.use(params)
 
-  const { isClient } = useApi()
+  const { isClient, apiCall } = useApi()
+
+  const t = useTranslations('Leads')
+  const locale = useLocale()
+  
+  // Pipeline stages for status options
+  const [pipelineStages, setPipelineStages] = React.useState<Array<{
+    id: string
+    name: string
+    slug: string
+    translation_key?: string
+    color: string
+  }>>([])
+  const [isLoadingStages, setIsLoadingStages] = React.useState(false)
+  
+  // Helper function to format currency based on locale
+  const formatCurrency = React.useCallback((value: number) => {
+    return new Intl.NumberFormat(locale === 'pt-BR' ? 'pt-BR' : 'en-US', {
+      style: 'currency',
+      currency: locale === 'pt-BR' ? 'BRL' : 'USD'
+    }).format(value)
+  }, [locale])
+
+  // Função para obter identificador único e persistente do usuário
+  const getUserIdentifier = React.useCallback(() => {
+    if (typeof window === 'undefined') return null
+    try {
+      const token = localStorage.getItem('token')
+      const organizationStr = localStorage.getItem('organization')
+      
+      if (!token || !organizationStr) return null
+      
+      const organization = JSON.parse(organizationStr)
+      
+      // Decodificar o payload do JWT para pegar o email do usuário
+      const parts = token.split('.')
+      if (parts.length !== 3) return null
+      
+      const payload = JSON.parse(atob(parts[1]))
+      const userEmail = payload.email || payload.sub || ''
+      
+      // Usar orgId + email do usuário como identificador único
+      // Cada usuário da mesma org terá seu próprio ID
+      const identifier = `${organization.id}_${userEmail}`.replace(/[^a-zA-Z0-9_-]/g, '_')
+      return identifier
+    } catch (error) {
+      console.error('Error getting user identifier:', error)
+      return null
+    }
+  }, [])
+
+  const [userId, setUserId] = React.useState<string | null>(null)
+
+  // Obter o userId quando o componente montar ou quando a organização mudar
+  React.useEffect(() => {
+    const updateUserId = () => {
+      const id = getUserIdentifier()
+      setUserId(id)
+    }
+    
+    updateUserId()
+    
+    // Listener para detectar mudanças no localStorage (quando trocar de conta em outra aba)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'organization' || e.key === 'token' || e.key === null) {
+        updateUserId()
+      }
+    }
+    
+    // Listener para quando a aba recebe foco (usuário volta à aba)
+    const handleFocus = () => {
+      updateUserId()
+    }
+    
+    window.addEventListener('storage', handleStorageChange)
+    window.addEventListener('focus', handleFocus)
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [getUserIdentifier])
 
   const storageKey = React.useMemo(() => `leads_${org}`, [org])
+  const columnsStorageKey = React.useMemo(() => userId ? `leadColumns_${org}_${userId}` : null, [org, userId])
+  const columnOrderStorageKey = React.useMemo(() => userId ? `leadColumnOrder_${org}_${userId}` : null, [org, userId])
 
   const searchParams = useSearchParams()
 
   const [leads, setLeads] = React.useState<Lead[]>([])
+
+  const [totalLeads, setTotalLeads] = React.useState<number>(0) // Total de leads no banco (sem filtros)
 
   const [filteredLeads, setFilteredLeads] = React.useState<Lead[]>([])
 
@@ -153,6 +290,17 @@ export default function LeadsPage({
   }>({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
   // Show top pagination when scrolling
   const [showTopPagination, setShowTopPagination] = React.useState(false)
+  const lastScrollTop = React.useRef(0)
+  const scrollDirection = React.useRef<'up' | 'down'>('down')
+  const scrollTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
+  
+  // Footer refs (footer is always fixed now)
+  const footerRef = React.useRef<HTMLDivElement>(null)
+  const footerPlaceholderRef = React.useRef<HTMLDivElement>(null)
+  const sidebarInsetRef = React.useRef<HTMLElement | null>(null)
+  const tableContainerRef = React.useRef<HTMLDivElement>(null)
+  const [footerLeft, setFooterLeft] = React.useState<number | null>(null)
+  const [footerWidth, setFooterWidth] = React.useState<string | null>(null)
   // Select all leads confirmation
   const [showSelectAllConfirm, setShowSelectAllConfirm] = React.useState(false)
   // Show select all leads button
@@ -172,6 +320,22 @@ export default function LeadsPage({
   const [isEditCancelled, setIsEditCancelled] = React.useState(false)
   // Ref for immediate access to edit cancellation state
   const isEditCancelledRef = React.useRef(false)
+  
+  // Track bulk assign modal and users
+  const [isBulkAssignOpen, setIsBulkAssignOpen] = React.useState(false)
+  const [selectedUserId, setSelectedUserId] = React.useState("")
+  const [bulkAssignConfirm, setBulkAssignConfirm] = React.useState("")
+  const [organizationUsers, setOrganizationUsers] = React.useState<Array<{id: string, name: string, email: string}>>([])
+  const [assignNotification, setAssignNotification] = React.useState({
+    show: false,
+    progress: { current: 0, total: 0, batch: 0, totalBatches: 0 },
+    cancelled: false
+  })
+  
+  // Track quick assign for individual lead
+  const [quickAssignLeadId, setQuickAssignLeadId] = React.useState<string | null>(null)
+  const [quickAssignUserId, setQuickAssignUserId] = React.useState("")
+  const [isLoadingUsers, setIsLoadingUsers] = React.useState(false)
   
   // Track deleted leads for potential rollback
   const [deletedLeads, setDeletedLeads] = React.useState<Lead[]>([])
@@ -204,6 +368,8 @@ export default function LeadsPage({
     ssn: string
     ein: string
     source: string
+    location: string
+    interest: string
     status: string
     value: string
     estimatedCloseDate: string
@@ -226,6 +392,8 @@ export default function LeadsPage({
       ssn !== originalFormValues.ssn ||
       ein !== originalFormValues.ein ||
       source !== originalFormValues.source ||
+      leadLocation !== originalFormValues.location ||
+      interest !== originalFormValues.interest ||
       status !== originalFormValues.status ||
       value !== originalFormValues.value ||
       estimatedCloseDate !== originalFormValues.estimatedCloseDate
@@ -241,7 +409,7 @@ export default function LeadsPage({
     if (hasAttachmentChanges || hasFieldChanges) {
       setUnsavedChangesToast({
         show: true,
-        message: 'You have unsaved changes. Click outside again to discard them.'
+        message: t('modal.unsavedChanges')
       })
       // Auto-hide after 3 seconds
       setTimeout(() => {
@@ -273,13 +441,401 @@ export default function LeadsPage({
   const [preview, setPreview] = React.useState<{ open: boolean, lead: Lead | null }>({ open: false, lead: null })
 
   const [copiedKey, setCopiedKey] = React.useState<string | null>(null)
+  
+  const [assignedUserName, setAssignedUserName] = React.useState<string>("")
+  const [createdByUserName, setCreatedByUserName] = React.useState<string>("")
+  
+  // Fetch assigned user and created by user names when preview opens
+  React.useEffect(() => {
+    const fetchUsers = async () => {
+      if (preview.open && (preview.lead?.assigned_user_id || preview.lead?.created_by)) {
+        try {
+          const response = await apiService.getOrganizationUsers(true) // Include master users
+          if (response.success && response.data) {
+            if (preview.lead?.assigned_user_id) {
+              const assignedUser = response.data.employees.find(u => u.id === preview.lead?.assigned_user_id)
+              setAssignedUserName(assignedUser?.name || "Unknown User")
+            }
+            if (preview.lead?.created_by) {
+              const createdByUser = response.data.employees.find(u => u.id === preview.lead?.created_by)
+              setCreatedByUserName(createdByUser?.name || "Unknown User")
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching users:', error)
+          if (preview.lead?.assigned_user_id) setAssignedUserName("Unknown User")
+          if (preview.lead?.created_by) setCreatedByUserName("Unknown User")
+        }
+      } else {
+        setAssignedUserName("")
+        setCreatedByUserName("")
+      }
+    }
+    
+    fetchUsers()
+  }, [preview.open, preview.lead?.assigned_user_id, preview.lead?.created_by])
 
 
   // Pagination state
   const [currentPage, setCurrentPage] = React.useState(1)
   const [itemsPerPage, setItemsPerPage] = React.useState(10)
 
+  // Column visibility state
+  const [visibleColumns, setVisibleColumns] = React.useState<Record<string, boolean>>({
+    name: true,
+    email: true,
+    phone: true,
+    ssn: false,
+    ein: false,
+    source: true,
+    status: true,
+    value: false,
+    estimatedCloseDate: false,
+    location: true,
+    interest: true,
+  })
 
+  // Column order state
+  const [columnOrder, setColumnOrder] = React.useState<string[]>([
+    'name', 'email', 'phone', 'ssn', 'ein', 'source', 'status', 'value', 'estimatedCloseDate', 'location', 'interest'
+  ])
+  
+  // Cleanup old shared keys from localStorage (run once)
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' && isClient) {
+      // Remove old shared keys that shouldn't be used anymore
+      const oldKeys = [
+        `leadColumns_${org}`,
+        `leadColumnOrder_${org}`
+      ]
+      oldKeys.forEach(key => {
+        if (localStorage.getItem(key)) {
+          localStorage.removeItem(key)
+        }
+      })
+    }
+  }, [isClient, org])
+
+  // Load column preferences from localStorage after org and userId are available
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' && org && userId && columnsStorageKey && columnOrderStorageKey) {
+      const savedColumns = localStorage.getItem(columnsStorageKey)
+      if (savedColumns) {
+        setVisibleColumns(JSON.parse(savedColumns))
+      }
+      
+      const savedOrder = localStorage.getItem(columnOrderStorageKey)
+      if (savedOrder) {
+        setColumnOrder(JSON.parse(savedOrder))
+      }
+    }
+  }, [org, userId, columnsStorageKey, columnOrderStorageKey])
+
+  // Save column preferences to localStorage (only if keys are not null)
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' && org && userId && columnsStorageKey !== null) {
+      localStorage.setItem(columnsStorageKey, JSON.stringify(visibleColumns))
+    }
+  }, [visibleColumns, org, userId, columnsStorageKey])
+
+  // Save column order to localStorage (only if keys are not null)
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' && org && userId && columnOrderStorageKey !== null) {
+      localStorage.setItem(columnOrderStorageKey, JSON.stringify(columnOrder))
+    }
+  }, [columnOrder, org, userId, columnOrderStorageKey])
+
+  // Clean up invalid columns from state and localStorage
+  React.useEffect(() => {
+    const validColumnIds = Object.keys(columnLabels)
+    const filteredOrder = columnOrder.filter(id => validColumnIds.includes(id))
+    const filteredVisibility = Object.fromEntries(
+      Object.entries(visibleColumns).filter(([key]) => validColumnIds.includes(key))
+    )
+    
+    if (filteredOrder.length !== columnOrder.length) {
+      setColumnOrder(filteredOrder)
+    }
+    
+    if (Object.keys(filteredVisibility).length !== Object.keys(visibleColumns).length) {
+      setVisibleColumns(filteredVisibility as Record<string, boolean>)
+    }
+  }, []) // Run only once on mount
+
+  const toggleColumn = (column: string) => {
+    setVisibleColumns(prev => ({
+      ...prev,
+      [column]: !prev[column]
+    }))
+  }
+
+  // HTML5 Drag and Drop for columns
+  const [draggedColumn, setDraggedColumn] = React.useState<string | null>(null)
+  const [dragOverColumn, setDragOverColumn] = React.useState<string | null>(null)
+
+  const handleColumnDragStart = (e: React.DragEvent, columnId: string) => {
+    setDraggedColumn(columnId)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  const handleColumnDragOver = (e: React.DragEvent, columnId: string) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    
+    if (draggedColumn && draggedColumn !== columnId) {
+      setDragOverColumn(columnId)
+    }
+  }
+
+  const handleColumnDragLeave = () => {
+    setDragOverColumn(null)
+  }
+
+  const handleColumnDrop = (e: React.DragEvent, targetColumnId: string) => {
+    e.preventDefault()
+    
+    if (!draggedColumn || draggedColumn === targetColumnId) {
+      setDraggedColumn(null)
+      setDragOverColumn(null)
+      return
+    }
+
+    const draggedIndex = columnOrder.indexOf(draggedColumn)
+    const targetIndex = columnOrder.indexOf(targetColumnId)
+
+    if (draggedIndex === -1 || targetIndex === -1) {
+      setDraggedColumn(null)
+      setDragOverColumn(null)
+      return
+    }
+
+    const newColumnOrder = [...columnOrder]
+    newColumnOrder.splice(draggedIndex, 1)
+    newColumnOrder.splice(targetIndex, 0, draggedColumn)
+    
+    setColumnOrder(newColumnOrder)
+    setDraggedColumn(null)
+    setDragOverColumn(null)
+  }
+
+  // Column labels mapping
+  const columnLabels: Record<string, string> = {
+    name: t('columns.name'),
+    email: t('columns.email'),
+    phone: t('columns.phone'),
+    ssn: t('columns.ssn'),
+    ein: t('columns.ein'),
+    source: t('columns.source'),
+    status: t('columns.status'),
+    value: t('columns.value'),
+    location: t('columns.location'),
+    interest: t('columns.interest'),
+    estimatedCloseDate: t('columns.estimatedCloseDate')
+  }
+
+  // Render table header for a column
+  const renderColumnHeader = (columnId: string) => {
+    if (!visibleColumns[columnId]) return null
+
+    const sortableColumns = ['name', 'email', 'phone', 'ssn', 'ein', 'source', 'status', 'value', 'estimatedCloseDate', 'location', 'interest']
+    const sortFieldMap: Record<string, string> = {
+      name: 'name',
+      email: 'email',
+      phone: 'phone',
+      ssn: 'ssn',
+      ein: 'ein',
+      source: 'source',
+      status: 'status',
+      value: 'value',
+      estimatedCloseDate: 'estimated_close_date',
+      location: 'location',
+      interest: 'interest'
+    }
+
+    const widthMap: Record<string, string> = {
+      name: 'min-w-[150px] w-[180px]',
+      email: 'min-w-[160px] w-[200px]',
+      phone: 'min-w-[120px] w-[130px]',
+      ssn: 'min-w-[110px] w-[120px]',
+      ein: 'min-w-[110px] w-[120px]',
+      source: 'min-w-[100px] w-[110px]',
+      status: 'min-w-[100px] w-[110px]',
+      value: 'min-w-[90px] w-[100px]',
+      estimatedCloseDate: 'min-w-[100px] w-[110px]',
+      location: 'min-w-[120px] w-[140px]',
+      interest: 'min-w-[100px] w-[110px]'
+    }
+
+    const isSortable = sortableColumns.includes(columnId)
+    const field = sortFieldMap[columnId]
+
+    return (
+      <th
+        key={columnId}
+        className={`py-2.5 px-2 border-r border-border/40 font-semibold text-xs ${widthMap[columnId] || 'w-auto'}`}
+      >
+        {isSortable ? (
+          <div 
+            className="flex items-center gap-1 cursor-pointer hover:text-primary select-none w-fit transition-colors"
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              
+              // Save current scroll position
+              const container = tableContainerRef.current
+              const scrollLeft = container?.scrollLeft || 0
+              
+              // Perform sort
+              handleSort(field as keyof Lead)
+              
+              // Restore scroll position to prevent unwanted horizontal scrolling
+              if (container) {
+                // Use double requestAnimationFrame to ensure DOM has updated
+                requestAnimationFrame(() => {
+                  requestAnimationFrame(() => {
+                    if (container) {
+                      container.scrollLeft = scrollLeft
+                    }
+                  })
+                })
+              }
+            }}
+          >
+            {columnLabels[columnId]}
+            {sortField === field && (
+              sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+            )}
+          </div>
+        ) : (
+          <span className="font-semibold">{columnLabels[columnId]}</span>
+        )}
+      </th>
+    )
+  }
+
+  // Render table cell for a column
+  const renderColumnCell = (columnId: string, lead: Lead) => {
+    if (!visibleColumns[columnId]) return null
+
+    switch (columnId) {
+      case 'name':
+        return (
+          <td key={columnId} className="py-2.5 px-2 border-r border-border/30">
+            <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1 min-w-0 flex-1">
+                <div
+                  className="truncate hover:underline decoration-dotted cursor-pointer font-medium text-sm"
+                  title={lead.name}
+                  onClick={() => setPreview({ open: true, lead })}
+                >
+                  {lead.name}
+                </div>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  {lead.show_on_pipeline && (
+                    <span 
+                      className="inline-flex items-center justify-center rounded-full bg-green-100 p-1" 
+                      title={t('table.onPipeline')}
+                    >
+                      <CheckCircle2 className="h-3 w-3 text-green-700" />
+                    </span>
+                  )}
+                  {lead.assigned_user_id && (
+                    <span 
+                      className="inline-flex items-center justify-center rounded-full bg-blue-100 p-1" 
+                      title={t('table.assignedToUser')}
+                    >
+                      <UserPlus className="h-3 w-3 text-blue-700" />
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </td>
+        )
+      case 'email':
+        return (
+          <td key={columnId} className="py-2.5 px-2 border-r border-border/30">
+            <div className="truncate text-xs" title={lead.email}>
+              {lead.email || '-'}
+            </div>
+          </td>
+        )
+      case 'phone':
+        return (
+          <td key={columnId} className="py-2.5 px-2 border-r border-border/30">
+            <div className="truncate text-xs" title={lead.phone}>
+              {lead.phone || '-'}
+            </div>
+          </td>
+        )
+      case 'ssn':
+        return (
+          <td key={columnId} className="py-2.5 px-2 border-r border-border/30">
+            <div className="truncate text-xs font-mono" title={lead.ssn}>
+              {lead.ssn || '-'}
+            </div>
+          </td>
+        )
+      case 'ein':
+        return (
+          <td key={columnId} className="py-2.5 px-2 border-r border-border/30">
+            <div className="truncate text-xs font-mono" title={lead.ein}>
+              {lead.ein || '-'}
+            </div>
+          </td>
+        )
+      case 'source':
+        return (
+          <td key={columnId} className="py-2.5 px-2 border-r border-border/30">
+            <div className="truncate text-xs" title={lead.source}>
+              {lead.source || '-'}
+            </div>
+          </td>
+        )
+      case 'status':
+        return (
+          <td key={columnId} className="py-2.5 px-2 border-r border-border/30">
+            <span className="inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-medium whitespace-nowrap">
+              {lead.status}
+            </span>
+          </td>
+        )
+      case 'value':
+        return (
+          <td key={columnId} className="py-2.5 px-2 border-r border-border/30">
+            <div className="text-xs font-semibold text-green-600 whitespace-nowrap">
+              {lead.value ? `$${lead.value.toLocaleString()}` : '-'}
+            </div>
+          </td>
+        )
+      case 'estimatedCloseDate':
+        return (
+          <td key={columnId} className="py-2.5 px-2 border-r border-border/30">
+            <div className="text-xs text-muted-foreground whitespace-nowrap">
+              {lead.estimated_close_date ? new Date(lead.estimated_close_date).toLocaleDateString('pt-BR') : '-'}
+            </div>
+          </td>
+        )
+      case 'location':
+        return (
+          <td key={columnId} className="py-2.5 px-2 border-r border-border/30">
+            <div className="truncate text-xs" title={lead.location}>
+              {lead.location || '-'}
+            </div>
+          </td>
+        )
+      case 'interest':
+        return (
+          <td key={columnId} className="py-2.5 px-2 border-r border-border/30">
+            <div className="truncate text-xs" title={lead.interest}>
+              {lead.interest || '-'}
+            </div>
+          </td>
+        )
+      default:
+        return null
+    }
+  }
   // Filter modal and state
 
   const [isFilterOpen, setIsFilterOpen] = React.useState(false)
@@ -298,9 +854,15 @@ export default function LeadsPage({
 
     source: "",
 
+    location: "",
+
+    interest: "",
+
     status: "",
 
-    pipeline: ""
+    pipeline: "",
+
+    assignedUserId: ""
 
   })
 
@@ -319,6 +881,24 @@ export default function LeadsPage({
     max: ""
 
   })
+
+  // Load users when filter modal opens
+  React.useEffect(() => {
+    const loadUsers = async () => {
+      if (isFilterOpen && organizationUsers.length === 0) {
+        try {
+          const response = await apiService.getOrganizationUsers(true)
+          if (response.success && response.data) {
+            setOrganizationUsers(response.data.employees)
+          }
+        } catch (error) {
+          console.error('Error loading users for filter:', error)
+        }
+      }
+    }
+    
+    loadUsers()
+  }, [isFilterOpen, organizationUsers.length])
 
   // Função para validar data
 
@@ -374,6 +954,10 @@ export default function LeadsPage({
 
   const [source, setSource] = React.useState("")
 
+  const [leadLocation, setLeadLocation] = React.useState("")
+
+  const [interest, setInterest] = React.useState("")
+
   const [status, setStatus] = React.useState<Lead["status"]>("New")
 
   const [customStatus, setCustomStatus] = React.useState("")
@@ -383,6 +967,50 @@ export default function LeadsPage({
   const [estimatedCloseDate, setEstimatedCloseDate] = React.useState("")
 
   const [description, setDescription] = React.useState("")
+
+  // Memoized status calculations for performance
+  const statusSelectValue = React.useMemo(() => {
+    const normalizedStatus = String(status).toLowerCase().replace(/\s+/g, '-')
+    const matchingStage = pipelineStages.find(stage => stage.slug === normalizedStatus)
+    if (matchingStage) return matchingStage.slug
+    
+    const legacyStatuses = ["New","In Contact","Qualified","Lost"]
+    if (legacyStatuses.includes(String(status))) {
+      return String(status)
+    }
+    
+    return "custom"
+  }, [status, pipelineStages])
+
+  const showCustomStatusField = React.useMemo(() => {
+    const normalizedStatus = String(status).toLowerCase().replace(/\s+/g, '-')
+    const matchingStage = pipelineStages.find(stage => stage.slug === normalizedStatus)
+    const isLegacyStatus = ["New","In Contact","Qualified","Lost"].includes(String(status))
+    return !matchingStage && !isLegacyStatus
+  }, [status, pipelineStages])
+
+  const bulkEditStageOptions = React.useMemo(() => {
+    const statusMap: Record<string, string> = {
+      'new': 'New',
+      'contact': 'In Contact',
+      'qualified': 'Qualified',
+      'lost': 'Lost'
+    }
+    
+    return pipelineStages.map((stage) => {
+      const stageValue = stage.translation_key 
+        ? (statusMap[stage.slug] || stage.slug)
+        : stage.slug
+      
+      return (
+        <option key={stage.id} value={stageValue}>
+          {stage.translation_key 
+            ? t(`statuses.${stage.slug}` as any) 
+            : stage.name}
+        </option>
+      )
+    })
+  }, [pipelineStages, t])
 
 
 
@@ -418,19 +1046,23 @@ export default function LeadsPage({
   React.useEffect(() => {
 
     const loadAllLeads = async () => {
-      console.log('Loading all leads...', { isClient })
       try {
 
         // Use only the basic call that works
         const response = await apiService.getLeads()
 
-        console.log('API response:', response)
 
         
         if (response.success && response.data) {
 
-          console.log('Setting all leads:', response.data.leads.length, 'leads')
           setLeads(response.data.leads)
+          // Atualizar o total se foi retornado pela API
+          if (response.data.total !== undefined) {
+            setTotalLeads(response.data.total)
+          } else {
+            // Fallback: usar o tamanho do array se total não estiver disponível
+            setTotalLeads(response.data.leads.length)
+          }
 
         } else {
 
@@ -457,21 +1089,156 @@ export default function LeadsPage({
     loadAllLeads()
   }, [])
 
+  // Calculate footer position based on SidebarInset
+  React.useEffect(() => {
+    if (!isClient) return
+
+    const handleUpdate = () => {
+      // Try to find SidebarInset by ref first
+      if (sidebarInsetRef.current) {
+        const rect = sidebarInsetRef.current.getBoundingClientRect()
+        if (rect.width > 0 && rect.left >= 0) {
+          setFooterLeft(rect.left)
+          setFooterWidth(`${rect.width}px`)
+          return
+        }
+      }
+      
+      // Fallback: find by data attribute
+      const sidebarInset = document.querySelector('[data-slot="sidebar-inset"]') as HTMLElement
+      if (sidebarInset) {
+        const rect = sidebarInset.getBoundingClientRect()
+        if (rect.width > 0 && rect.left >= 0) {
+          setFooterLeft(rect.left)
+          setFooterWidth(`${rect.width}px`)
+        }
+      }
+    }
+
+    // Try immediately
+    handleUpdate()
+    
+    // Also try with a small delay to ensure DOM is ready
+    const timeoutId = setTimeout(handleUpdate, 100)
+    
+    // Update on resize and scroll
+    window.addEventListener('resize', handleUpdate, { passive: true })
+    window.addEventListener('scroll', handleUpdate, { passive: true })
+    
+    // Use ResizeObserver to watch for sidebar changes
+    let resizeObserver: ResizeObserver | null = null
+    
+    // Observe SidebarInset if available
+    if (sidebarInsetRef.current) {
+      resizeObserver = new ResizeObserver(handleUpdate)
+      resizeObserver.observe(sidebarInsetRef.current)
+    } else {
+      // Try to find and observe by selector
+      const sidebarInset = document.querySelector('[data-slot="sidebar-inset"]')
+      if (sidebarInset) {
+        resizeObserver = new ResizeObserver(handleUpdate)
+        resizeObserver.observe(sidebarInset)
+      }
+    }
+    
+    // Also observe the sidebar element if possible
+    const sidebarElement = document.querySelector('[data-sidebar]')
+    if (sidebarElement && resizeObserver) {
+      resizeObserver.observe(sidebarElement)
+    }
+    
+    // Use MutationObserver to watch for DOM changes
+    const mutationObserver = new MutationObserver(() => {
+      handleUpdate()
+    })
+    
+    mutationObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['class', 'style']
+    })
+    
+    return () => {
+      clearTimeout(timeoutId)
+      window.removeEventListener('resize', handleUpdate)
+      window.removeEventListener('scroll', handleUpdate)
+      if (resizeObserver) {
+        resizeObserver.disconnect()
+      }
+      mutationObserver.disconnect()
+    }
+  }, [isClient])
+
   // Detect scroll to show top pagination
   React.useEffect(() => {
+    if (!isClient) return
+
     const handleScroll = () => {
       const scrollTop = window.pageYOffset || document.documentElement.scrollTop
       const windowHeight = window.innerHeight
       const documentHeight = document.documentElement.scrollHeight
       
-      // Show top pagination if scrolled down and there's more content below
-      const shouldShow = scrollTop > 200 && (documentHeight - scrollTop - windowHeight) > 200
-      setShowTopPagination(shouldShow)
+      // Detect scroll direction
+      if (scrollTop > lastScrollTop.current) {
+        scrollDirection.current = 'down'
+      } else if (scrollTop < lastScrollTop.current) {
+        scrollDirection.current = 'up'
+      }
+      lastScrollTop.current = scrollTop
+      
+      // Clear any existing timeout
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current)
+      }
+      
+      // Only show top pagination when:
+      // 1. Scrolled down significantly (more than 300px)
+      // 2. There's more content below
+      // 3. NOT scrolling up rapidly (when scrolling up, hide immediately)
+      const isScrolledDown = scrollTop > 300
+      const hasMoreContentBelow = (documentHeight - scrollTop - windowHeight) > 200
+      const isScrollingUp = scrollDirection.current === 'up'
+      
+      if (isScrollingUp) {
+        // Hide immediately when scrolling up
+        setShowTopPagination(false)
+      } else if (isScrolledDown && hasMoreContentBelow) {
+        // When scrolling down, add a small delay to avoid flickering during fast scroll
+        scrollTimeoutRef.current = setTimeout(() => {
+          setShowTopPagination(true)
+        }, 150) // 150ms delay
+      } else {
+        setShowTopPagination(false)
+      }
     }
 
-    window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
+    // Use requestAnimationFrame for better performance
+    let ticking = false
+    const onScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          handleScroll()
+          ticking = false
+        })
+        ticking = true
+      }
+    }
+
+    window.addEventListener('scroll', onScroll, { passive: true })
+    handleScroll() // Check initial state
+    
+    // Also check on resize
+    window.addEventListener('resize', handleScroll, { passive: true })
+    
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', handleScroll)
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current)
+      }
+    }
+  }, [isClient])
 
 
 
@@ -503,19 +1270,21 @@ export default function LeadsPage({
 
     try {
 
-      console.log('Calling searchLeads with:', searchParams)
 
       const response = await apiService.searchLeads(searchParams)
 
-      console.log('Search response:', response)
 
       if (response.success && response.data) {
 
-        console.log('Setting leads from search:', response.data.leads.length, 'leads')
 
         setLeads(response.data.leads)
 
         setFilteredLeads(response.data.leads)
+        
+        // Atualizar o total se foi retornado pela API
+        if (response.data.total !== undefined) {
+          setTotalLeads(response.data.total)
+        }
 
         return response.data.leads
 
@@ -644,6 +1413,13 @@ export default function LeadsPage({
         const newLeads = response.data.leads || []
         setLeads(newLeads)
         setFilteredLeads(newLeads)
+        // Atualizar o total se foi retornado pela API
+        if (response.data.total !== undefined) {
+          setTotalLeads(response.data.total)
+        } else {
+          // Fallback: usar o tamanho do array se total não estiver disponível
+          setTotalLeads(newLeads.length)
+        }
       }
     } catch (error) {
       console.error('Error reloading leads:', error)
@@ -694,9 +1470,15 @@ export default function LeadsPage({
 
       source: '',
 
+      location: '',
+
+      interest: '',
+
       status: '',
 
-      pipeline: ''
+      pipeline: '',
+
+      assignedUserId: ''
 
     })
 
@@ -778,7 +1560,6 @@ export default function LeadsPage({
 
       
 
-      console.log('Searching with search term:', searchParams)
 
       debouncedSearch(searchParams)
 
@@ -795,6 +1576,13 @@ export default function LeadsPage({
           if (response.success && response.data) {
 
             setLeads(response.data.leads)
+            // Atualizar o total se foi retornado pela API
+            if (response.data.total !== undefined) {
+              setTotalLeads(response.data.total)
+            } else {
+              // Fallback: usar o tamanho do array se total não estiver disponível
+              setTotalLeads(response.data.leads.length)
+            }
 
             setFilteredLeads(response.data.leads)
 
@@ -814,8 +1602,57 @@ export default function LeadsPage({
 
   }, [searchTerm, debouncedSearch, isClient])
 
-
-
+  // Load pipeline stages for status dropdown
+  React.useEffect(() => {
+    const loadStages = async () => {
+      if (!isClient) return
+      
+      setIsLoadingStages(true)
+      try {
+        const response = await apiCall('/pipeline-stages')
+        
+        // Handle different response formats
+        let stagesData = null
+        
+        if (Array.isArray(response)) {
+          // Direct array response
+          stagesData = response
+        } else if (response && response.success && Array.isArray(response.data)) {
+          // Success response with data array
+          stagesData = response.data
+        } else if (response && Array.isArray(response.data)) {
+          // Response with data array (no success field)
+          stagesData = response.data
+        }
+        
+        if (stagesData && stagesData.length > 0) {
+          setPipelineStages(stagesData)
+        } else {
+          // Fallback to default stages if API fails
+          console.warn('No pipeline stages loaded, using defaults')
+          setPipelineStages([
+            { id: '1', name: 'New', slug: 'new', translation_key: 'Pipeline.stages.new', color: 'bg-blue-100 border-blue-200 text-blue-800' },
+            { id: '2', name: 'In Contact', slug: 'contact', translation_key: 'Pipeline.stages.contact', color: 'bg-yellow-100 border-yellow-200 text-yellow-800' },
+            { id: '3', name: 'Qualified', slug: 'qualified', translation_key: 'Pipeline.stages.qualified', color: 'bg-green-100 border-green-200 text-green-800' },
+            { id: '4', name: 'Lost', slug: 'lost', translation_key: 'Pipeline.stages.lost', color: 'bg-red-100 border-red-200 text-red-800' }
+          ])
+        }
+      } catch (error) {
+        console.error('Error loading pipeline stages:', error)
+        // Use default stages on error
+        setPipelineStages([
+          { id: '1', name: 'New', slug: 'new', translation_key: 'Pipeline.stages.new', color: 'bg-blue-100 border-blue-200 text-blue-800' },
+          { id: '2', name: 'In Contact', slug: 'contact', translation_key: 'Pipeline.stages.contact', color: 'bg-yellow-100 border-yellow-200 text-yellow-800' },
+          { id: '3', name: 'Qualified', slug: 'qualified', translation_key: 'Pipeline.stages.qualified', color: 'bg-green-100 border-green-200 text-green-800' },
+          { id: '4', name: 'Lost', slug: 'lost', translation_key: 'Pipeline.stages.lost', color: 'bg-red-100 border-red-200 text-red-800' }
+        ])
+      } finally {
+        setIsLoadingStages(false)
+      }
+    }
+    
+    loadStages()
+  }, [isClient])
   // Apply modal filters when Apply Filter is clicked
 
   const applyModalFilters = React.useCallback(async () => {
@@ -824,7 +1661,7 @@ export default function LeadsPage({
 
     
 
-    const hasFilters = filters.name || filters.email || filters.phone || filters.ssn || filters.ein || filters.source || filters.status || filters.pipeline || sortField || valueRange.min || valueRange.max || dateRange.min || dateRange.max
+    const hasFilters = filters.name || filters.email || filters.phone || filters.ssn || filters.ein || filters.source || filters.location || filters.interest || filters.status || filters.pipeline || filters.assignedUserId || sortField || valueRange.min || valueRange.max || dateRange.min || dateRange.max
 
     
 
@@ -836,108 +1673,20 @@ export default function LeadsPage({
 
         
 
-        // Buscar por cada campo específico usando rotas separadas
-
-        if (filters.name) {
-
-          const response = await apiService.searchLeadsByName(filters.name)
-
-          if (response.success && response.data) {
-
-            allLeads = [...allLeads, ...response.data.leads]
-
+        // Se temos filtro de pipeline ou assigned user, usar APENAS busca unificada com todos os filtros
+        if (filters.pipeline || filters.assignedUserId) {
+          const searchParams: any = {}
+          
+          if (filters.pipeline) {
+            searchParams.show_on_pipeline = filters.pipeline === 'true'
           }
-
-        }
-
-        
-
-        if (filters.email) {
-
-          const response = await apiService.searchLeadsByEmail(filters.email)
-
-          if (response.success && response.data) {
-
-            allLeads = [...allLeads, ...response.data.leads]
-
-          }
-
-        }
-
-        
-
-        if (filters.phone) {
-
-          const response = await apiService.searchLeadsByPhone(filters.phone)
-
-          if (response.success && response.data) {
-
-            allLeads = [...allLeads, ...response.data.leads]
-
-          }
-
-        }
-
-        
-
-        if (filters.ssn) {
-
-          const response = await apiService.searchLeadsBySSN(filters.ssn)
-
-          if (response.success && response.data) {
-
-            allLeads = [...allLeads, ...response.data.leads]
-
-          }
-
-        }
-
-        
-
-        if (filters.ein) {
-
-          const response = await apiService.searchLeadsByEIN(filters.ein)
-
-          if (response.success && response.data) {
-
-            allLeads = [...allLeads, ...response.data.leads]
-
-          }
-
-        }
-
-        
-
-        if (filters.source) {
-
-          const response = await apiService.searchLeadsBySource(filters.source)
-
-          if (response.success && response.data) {
-
-            allLeads = [...allLeads, ...response.data.leads]
-
-          }
-
-        }
-
-        
-
-        if (filters.status) {
-
-          const response = await apiService.searchLeadsByStatus(filters.status)
-
-          if (response.success && response.data) {
-
-            allLeads = [...allLeads, ...response.data.leads]
-
-          }
-
-        }
-
-        // Se temos filtro de pipeline, usar busca unificada com todos os filtros
-        if (filters.pipeline) {
-          const searchParams: any = {
-            show_on_pipeline: filters.pipeline === 'true'
+          
+          if (filters.assignedUserId) {
+            if (filters.assignedUserId === 'unassigned') {
+              searchParams.assigned_user_id = 'null'
+            } else {
+              searchParams.assigned_user_id = filters.assignedUserId
+            }
           }
           
           // Adicionar outros filtros se existirem
@@ -947,6 +1696,8 @@ export default function LeadsPage({
           if (filters.ssn) searchParams.ssn = filters.ssn
           if (filters.ein) searchParams.ein = filters.ein
           if (filters.source) searchParams.source = filters.source
+          if (filters.location) searchParams.location = filters.location
+          if (filters.interest) searchParams.interest = filters.interest
           if (filters.status) searchParams.status = filters.status
           if (valueRange.min && !isNaN(parseFloat(valueRange.min))) searchParams.value_min = parseFloat(valueRange.min)
           if (valueRange.max && !isNaN(parseFloat(valueRange.max))) searchParams.value_max = parseFloat(valueRange.max)
@@ -957,62 +1708,160 @@ export default function LeadsPage({
           if (response.success && response.data) {
             allLeads = response.data.leads
           }
-        }
+        } else {
+          // Caso contrário, buscar por cada campo específico usando rotas separadas
 
-        
+          if (filters.name) {
 
-        if (valueRange.min && !isNaN(parseFloat(valueRange.min))) {
+            const response = await apiService.searchLeadsByName(filters.name)
 
-          const response = await apiService.searchLeadsByValueMin(parseFloat(valueRange.min))
+            if (response.success && response.data) {
 
-          if (response.success && response.data) {
+              allLeads = [...allLeads, ...response.data.leads]
 
-            allLeads = [...allLeads, ...response.data.leads]
-
-          }
-
-        }
-
-        
-
-        if (valueRange.max && !isNaN(parseFloat(valueRange.max))) {
-
-          const response = await apiService.searchLeadsByValueMax(parseFloat(valueRange.max))
-
-          if (response.success && response.data) {
-
-            allLeads = [...allLeads, ...response.data.leads]
+            }
 
           }
 
-        }
+          
 
-        
+          if (filters.email) {
 
-        if (dateRange.min) {
+            const response = await apiService.searchLeadsByEmail(filters.email)
 
-          const response = await apiService.searchLeadsByDateMin(dateRange.min)
+            if (response.success && response.data) {
 
-          if (response.success && response.data) {
+              allLeads = [...allLeads, ...response.data.leads]
 
-            allLeads = [...allLeads, ...response.data.leads]
-
-          }
-
-        }
-
-        
-
-        if (dateRange.max) {
-
-          const response = await apiService.searchLeadsByDateMax(dateRange.max)
-
-          if (response.success && response.data) {
-
-            allLeads = [...allLeads, ...response.data.leads]
+            }
 
           }
 
+          
+
+          if (filters.phone) {
+
+            const response = await apiService.searchLeadsByPhone(filters.phone)
+
+            if (response.success && response.data) {
+
+              allLeads = [...allLeads, ...response.data.leads]
+
+            }
+
+          }
+
+          
+
+          if (filters.ssn) {
+
+            const response = await apiService.searchLeadsBySSN(filters.ssn)
+
+            if (response.success && response.data) {
+
+              allLeads = [...allLeads, ...response.data.leads]
+
+            }
+
+          }
+
+          
+
+          if (filters.ein) {
+
+            const response = await apiService.searchLeadsByEIN(filters.ein)
+
+            if (response.success && response.data) {
+
+              allLeads = [...allLeads, ...response.data.leads]
+
+            }
+
+          }
+
+          
+
+          if (filters.source) {
+
+            const response = await apiService.searchLeadsBySource(filters.source)
+
+            if (response.success && response.data) {
+
+              allLeads = [...allLeads, ...response.data.leads]
+
+            }
+
+          }
+
+          
+
+          if (filters.status) {
+
+            const response = await apiService.searchLeadsByStatus(filters.status)
+
+            if (response.success && response.data) {
+
+              allLeads = [...allLeads, ...response.data.leads]
+
+            }
+
+          }
+          
+          // Buscas de valueRange e dateRange só se NÃO usamos busca unificada
+          // (se usamos, esses filtros já foram incluídos nos parâmetros)
+          if (valueRange.min && !isNaN(parseFloat(valueRange.min))) {
+
+            const response = await apiService.searchLeadsByValueMin(parseFloat(valueRange.min))
+
+            if (response.success && response.data) {
+
+              allLeads = [...allLeads, ...response.data.leads]
+
+            }
+
+          }
+
+          
+
+          if (valueRange.max && !isNaN(parseFloat(valueRange.max))) {
+
+            const response = await apiService.searchLeadsByValueMax(parseFloat(valueRange.max))
+
+            if (response.success && response.data) {
+
+              allLeads = [...allLeads, ...response.data.leads]
+
+            }
+
+          }
+
+          
+
+          if (dateRange.min) {
+
+            const response = await apiService.searchLeadsByDateMin(dateRange.min)
+
+            if (response.success && response.data) {
+
+              allLeads = [...allLeads, ...response.data.leads]
+
+            }
+
+          }
+
+          
+
+          if (dateRange.max) {
+
+            const response = await apiService.searchLeadsByDateMax(dateRange.max)
+
+            if (response.success && response.data) {
+
+              allLeads = [...allLeads, ...response.data.leads]
+
+            }
+
+          }
         }
 
         
@@ -1115,9 +1964,6 @@ export default function LeadsPage({
 
         
 
-        console.log('Leads: Applying specific field filters')
-
-        console.log('Leads: Found leads:', filteredLeads.length)
 
         setLeads(filteredLeads)
 
@@ -1146,6 +1992,13 @@ export default function LeadsPage({
           if (response.success && response.data) {
 
             setLeads(response.data.leads)
+            // Atualizar o total se foi retornado pela API
+            if (response.data.total !== undefined) {
+              setTotalLeads(response.data.total)
+            } else {
+              // Fallback: usar o tamanho do array se total não estiver disponível
+              setTotalLeads(response.data.leads.length)
+            }
 
             setFilteredLeads(response.data.leads)
 
@@ -1175,7 +2028,7 @@ export default function LeadsPage({
 
     
 
-    const hasFilters = searchTerm || filters.email || filters.phone || filters.ssn || filters.ein || filters.source || filters.status || filters.pipeline || sortField
+    const hasFilters = searchTerm || filters.name || filters.email || filters.phone || filters.ssn || filters.ein || filters.source || filters.location || filters.interest || filters.status || filters.pipeline || filters.assignedUserId || sortField
 
     
 
@@ -1185,11 +2038,16 @@ export default function LeadsPage({
 
     }
 
-  }, [leads, searchTerm, filters.email, filters.phone, filters.ssn, filters.source, filters.status, filters.pipeline, sortField, isClient])
+  }, [leads, searchTerm, filters.name, filters.email, filters.phone, filters.ssn, filters.ein, filters.source, filters.location, filters.interest, filters.status, filters.pipeline, filters.assignedUserId, sortField, isClient])
 
+  // Check if any filters are active
+  const hasActiveFilters = React.useMemo(() => {
+    return !!(searchTerm || filters.name || filters.email || filters.phone || filters.ssn || filters.ein || filters.source || filters.location || filters.interest || filters.status || filters.pipeline || filters.assignedUserId || sortField || valueRange.min || valueRange.max || dateRange.min || dateRange.max)
+  }, [searchTerm, filters.name, filters.email, filters.phone, filters.ssn, filters.ein, filters.source, filters.location, filters.interest, filters.status, filters.pipeline, filters.assignedUserId, sortField, valueRange.min, valueRange.max, dateRange.min, dateRange.max])
 
   // Pagination calculations
-  const totalItems = filteredLeads.length
+  // Use totalLeads from API when no filters are applied, otherwise use filteredLeads.length
+  const totalItems = hasActiveFilters ? filteredLeads.length : (totalLeads || filteredLeads.length)
   const totalPages = Math.ceil(totalItems / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
@@ -1216,6 +2074,10 @@ export default function LeadsPage({
     setEin("")
 
     setSource("")
+
+    setLeadLocation("")
+
+    setInterest("")
 
     setStatus("New")
 
@@ -1261,6 +2123,10 @@ export default function LeadsPage({
     setEin("")
 
     setSource("")
+
+    setLeadLocation("")
+
+    setInterest("")
 
     setStatus("New")
 
@@ -1320,9 +2186,24 @@ export default function LeadsPage({
 
     const safeSource = truncateTo(source, FIELD_MAX.source)
 
+    const safeLocation = truncateTo(leadLocation, FIELD_MAX.source)
+
+    const safeInterest = truncateTo(interest, FIELD_MAX.source)
+
     const safeStatus = truncateTo(String(status), FIELD_MAX.status)
 
     const safeValue = value ? parseFloat(value) : undefined
+
+    // Validar valor máximo (9.999.999.999.999,99 com decimal(15,2))
+    if (safeValue !== undefined && safeValue > 9999999999999.99) {
+      pushToast('Valor muito grande. O valor máximo permitido é R$ 9.999.999.999.999,99', 'error')
+      return
+    }
+
+    if (safeValue !== undefined && safeValue < 0) {
+      pushToast('Valor não pode ser negativo', 'error')
+      return
+    }
 
     const safeEstimatedCloseDate = estimatedCloseDate ? estimatedCloseDate.slice(0, FIELD_MAX.date) : undefined
 
@@ -1351,6 +2232,10 @@ export default function LeadsPage({
           ein: safeEin || undefined,
 
           source: safeSource || undefined,
+
+          location: safeLocation || undefined,
+
+          interest: safeInterest || undefined,
 
           status: safeStatus,
 
@@ -1406,6 +2291,10 @@ export default function LeadsPage({
           ein: safeEin || undefined,
 
           source: safeSource || undefined,
+
+          location: safeLocation || undefined,
+
+          interest: safeInterest || undefined,
 
           status: safeStatus,
 
@@ -1467,22 +2356,30 @@ export default function LeadsPage({
 
     setSource(lead.source || "")
 
+    setLeadLocation(lead.location || "")
+
+    setInterest(lead.interest || "")
+
     setStatus(lead.status)
 
     setValue(lead.value ? lead.value.toString() : "")
 
-    setEstimatedCloseDate(lead.estimated_close_date || "")
+    // Convert ISO date to yyyy-MM-dd format for date input
+    const closeDate = lead.estimated_close_date 
+      ? lead.estimated_close_date.split('T')[0] 
+      : ""
+    setEstimatedCloseDate(closeDate)
 
     setDescription(lead.description || "")
 
-    if (lead.status !== "New" && lead.status !== "In Contact" && lead.status !== "Qualified" && lead.status !== "Lost") {
+    // Check if status is in pipeline stages or is a custom status
+    const isStageStatus = pipelineStages.some(stage => stage.slug === lead.status.toLowerCase().replace(/\s+/g, '-'))
+    const isLegacyStatus = ["New", "In Contact", "Qualified", "Lost"].includes(lead.status)
 
+    if (!isStageStatus && !isLegacyStatus) {
       setCustomStatus(lead.status)
-
     } else {
-
       setCustomStatus("")
-
     }
 
     // Save original values for change detection
@@ -1493,9 +2390,11 @@ export default function LeadsPage({
       ssn: lead.ssn || "",
       ein: lead.ein || "",
       source: lead.source || "",
+      location: lead.location || "",
+      interest: lead.interest || "",
       status: lead.status,
       value: lead.value ? lead.value.toString() : "",
-      estimatedCloseDate: lead.estimated_close_date || ""
+      estimatedCloseDate: closeDate
     })
 
     setIsModalOpen(true)
@@ -1514,6 +2413,91 @@ export default function LeadsPage({
 
     setIsConfirmOpen(true)
 
+  }
+
+  async function handleQuickAssign(leadId: string) {
+    setIsLoadingUsers(true)
+    setQuickAssignLeadId(leadId)
+    setQuickAssignUserId("")
+    
+    try {
+      const response = await apiService.getOrganizationUsers(true) // Include master users
+      if (response.success && response.data) {
+        setOrganizationUsers(response.data.employees)
+      } else {
+        pushToast('Error loading users', 'error')
+        setQuickAssignLeadId(null)
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error)
+      pushToast('Error loading users', 'error')
+      setQuickAssignLeadId(null)
+    } finally {
+      setIsLoadingUsers(false)
+    }
+  }
+
+  async function handleTogglePipeline(leadId: string, currentStatus: boolean) {
+    try {
+      const response = await apiService.bulkUpdatePipeline([leadId], !currentStatus)
+      
+      if (response.success) {
+        // Atualizar o lead localmente
+        setLeads(prevLeads => 
+          prevLeads.map(lead => 
+            lead.id === leadId 
+              ? { ...lead, show_on_pipeline: !currentStatus }
+              : lead
+          )
+        )
+        setFilteredLeads(prevLeads => 
+          prevLeads.map(lead => 
+            lead.id === leadId 
+              ? { ...lead, show_on_pipeline: !currentStatus }
+              : lead
+          )
+        )
+      } else {
+        pushToast('Error updating pipeline', 'error')
+      }
+    } catch (error) {
+      console.error('Error toggling pipeline:', error)
+      pushToast('Error updating pipeline', 'error')
+    }
+  }
+  async function applyQuickAssign() {
+    if (!quickAssignLeadId || !quickAssignUserId) return
+
+    try {
+      const lead = leads.find(l => l.id === quickAssignLeadId)
+      if (!lead) return
+
+      const updateData: any = { 
+        id: lead.id,
+        assigned_user_id: quickAssignUserId 
+      }
+
+      const response = await apiService.updateLead(updateData)
+      
+      if (response.success) {
+        const updatedLead = {
+          ...lead,
+          assigned_user_id: quickAssignUserId,
+        }
+        
+        setLeads(prevLeads => prevLeads.map(l => l.id === lead.id ? updatedLead : l))
+        setFilteredLeads(prevLeads => prevLeads.map(l => l.id === lead.id ? updatedLead : l))
+        
+        pushToast('Lead assigned successfully', 'success')
+        setQuickAssignLeadId(null)
+        setQuickAssignUserId("")
+      } else {
+        pushToast(response.error || 'Error assigning lead', 'error')
+      }
+    } catch (error) {
+      console.error('Error assigning lead:', error)
+      pushToast('Error assigning lead', 'error')
+    }
   }
 
 
@@ -1653,6 +2637,26 @@ export default function LeadsPage({
     setIsBulkEditOpen(true)
 
   }
+  
+  async function openBulkAssign() {
+    try {
+      const response = await apiService.getOrganizationUsers(true) // Include master users
+      if (response.success && response.data) {
+        setOrganizationUsers(response.data.employees)
+      } else {
+        pushToast('Error loading users', 'error')
+        return
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error)
+      pushToast('Error loading users', 'error')
+      return
+    }
+    
+    setSelectedUserId("")
+    setBulkAssignConfirm("")
+    setIsBulkAssignOpen(true)
+  }
 
   function openPipelineModal(action: 'add' | 'remove') {
     setPipelineAction(action)
@@ -1696,20 +2700,48 @@ export default function LeadsPage({
 
 
 
-  async function applyBulkEdit() {
+  // Helper function to update a lead with retry logic
+  async function updateLeadWithRetry(lead: Lead, updateData: any, maxRetries: number = 5): Promise<{ success: boolean, lead: Lead, error?: string }> {
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const result = await apiService.updateLead(updateData)
+        
+        if (result.success) {
+          return { success: true, lead }
+        } else if (attempt < maxRetries - 1) {
+          // Retry on failure with exponential backoff
+          const backoffDelay = 50 * Math.pow(2, attempt) // 50ms, 100ms, 200ms, 400ms, 800ms
+          await new Promise(resolve => setTimeout(resolve, backoffDelay))
+          continue
+        } else {
+          console.error(`Failed to update lead after ${maxRetries} attempts:`, lead.id, result.error)
+          return { success: false, lead, error: result.error }
+        }
+      } catch (error) {
+        if (attempt < maxRetries - 1) {
+          // Retry on network errors with exponential backoff
+          const backoffDelay = 50 * Math.pow(2, attempt)
+          await new Promise(resolve => setTimeout(resolve, backoffDelay))
+          continue
+        } else {
+          console.error(`Network error after ${maxRetries} attempts:`, lead.id, error)
+          return { success: false, lead, error: String(error) }
+        }
+      }
+    }
+    
+    return { success: false, lead, error: 'Max retries exceeded' }
+  }
 
+  async function applyBulkEdit() {
     if (selectedLeads.size === 0) return
 
     const shouldUpdateStatus = bulkStatus.trim() !== ""
-
     const shouldUpdateSource = bulkSource.trim() !== ""
 
     if (!shouldUpdateStatus && !shouldUpdateSource) {
-
       setIsBulkEditOpen(false)
-
       return
-
     }
 
     // Check confirmation input
@@ -1722,13 +2754,14 @@ export default function LeadsPage({
     const leadsToUpdate = leads.filter(l => idsToUpdate.includes(l.id))
     
     // Store original leads before editing for potential rollback
-    setOriginalLeads([...leadsToUpdate])
+    const originalLeads = [...leadsToUpdate]
+    setOriginalLeads(originalLeads)
     setCurrentEditLeads([])
     
-     // Always use batch size of 500 for maximum efficiency
      const totalLeads = leadsToUpdate.length
-     const batchSize = 500
+    const batchSize = 1000
     const totalBatches = Math.ceil(totalLeads / batchSize)
+    const parallelLimit = 30
     
     // Close the bulk edit modal immediately when starting
     setIsBulkEditOpen(false)
@@ -1744,109 +2777,121 @@ export default function LeadsPage({
 
     try {
       let successCount = 0
-      let errorCount = 0
-      const updatedLeads: Lead[] = []
+      const successfullyUpdatedIds: string[] = []
+      const updatedLeadsMap = new Map<string, Lead>()
+      const failedUpdates: Array<{ lead: Lead, error: string }> = []
       
-      // Process leads in batches
-      for (let i = 0; i < totalLeads; i += batchSize) {
-        // Check if cancelled
+      // Process batches
+      for (let i = 0; i < totalBatches; i++) {
+        // Check if cancelled at start of batch
         if (isEditCancelledRef.current) {
-          // Rollback: restore original leads in backend
-          try {
-            const leadsToRestore = currentEditLeads
-            let successfullyRestored = 0
-            let errors = 0
-            
-            for (const editedLead of leadsToRestore) {
-              try {
-                // Find the original lead to get the original values
-                const originalLead = originalLeads.find(orig => orig.id === editedLead.id)
+          // Rollback: restore original leads
+          if (successfullyUpdatedIds.length > 0) {
+            for (const id of successfullyUpdatedIds) {
+              const originalLead = originalLeads.find(l => l.id === id)
                 if (originalLead) {
+                try {
                   const updateData: any = { 
-                    id: editedLead.id,
+                    id: originalLead.id,
                     status: originalLead.status,
                     source: originalLead.source
                   }
-                  const result = await apiService.updateLead(updateData)
-                  if (result.success) {
-                    successfullyRestored++
-                  } else {
-                    errors++
-                    console.log(`Lead ${editedLead.id} could not be restored:`, result.error)
-                  }
-                }
+                  await apiService.updateLead(updateData)
               } catch (error) {
-                errors++
-                console.log(`Error restoring lead ${editedLead.id}:`, error)
+                  console.error('Error restoring lead:', error)
+                }
               }
             }
-            
-            if (successfullyRestored > 0) {
-              pushToast(`Bulk edit cancelled - ${successfullyRestored} leads restored`, 'success')
-            }
-            if (errors > 0) {
-              pushToast(`Bulk edit cancelled - ${errors} leads could not be restored`, 'warning')
-            }
-          } catch (error) {
-            console.error('Error during rollback:', error)
-            pushToast('Bulk edit cancelled - leads restored locally only', 'warning')
           }
           
           // Restore frontend state
-          setLeads(prev => 
-            prev.map(l => {
-              if (!idsToUpdate.includes(l.id)) return l
-              
+          setLeads(prev => prev.map(l => {
               const originalLead = originalLeads.find(orig => orig.id === l.id)
-              if (originalLead) {
-                return originalLead
-              }
-              return l
-            })
-          )
+            return originalLead || l
+          }))
+          setFilteredLeads(prev => prev.map(l => {
+            const originalLead = originalLeads.find(orig => orig.id === l.id)
+            return originalLead || l
+          }))
           
-          setFilteredLeads(prev => 
-            prev.map(l => {
-              if (!idsToUpdate.includes(l.id)) return l
-              
-              const originalLead = originalLeads.find(orig => orig.id === l.id)
-              if (originalLead) {
-                return originalLead
-              }
-              return l
-            })
-          )
-          
-          setEditNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: true })
-          setOriginalLeads([])
-          setCurrentEditLeads([])
-          
-          // Force refresh leads to ensure sync with backend after rollback
-          setTimeout(async () => {
-            await forceRefreshLeads()
-          }, 100)
+          setEditNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
+          pushToast('Bulk edit cancelled and leads restored', 'success')
           return
         }
         
-        const batch = leadsToUpdate.slice(i, i + batchSize)
-        const batchNumber = Math.floor(i / batchSize) + 1
+        const startIndex = i * batchSize
+        const endIndex = Math.min(startIndex + batchSize, totalLeads)
+        const batch = leadsToUpdate.slice(startIndex, endIndex)
         
-        // Update progress notification
+        // Update progress
         setEditNotification({ 
           show: true, 
           progress: { 
-            current: i + batch.length, 
+            current: startIndex, 
             total: totalLeads, 
-            batch: batchNumber, 
+            batch: i + 1, 
             totalBatches 
           }, 
           cancelled: false 
         })
         
-        console.log(`Processing edit batch ${batchNumber}/${totalBatches} (${batch.length} leads)`)
+        // Process batch in controlled parallel chunks
+        const batchSuccessIds: string[] = []
+        for (let j = 0; j < batch.length; j += parallelLimit) {
+          // Check cancellation during chunk processing
+          if (isEditCancelledRef.current) {
+            // Rollback all successfully updated leads so far
+            const allUpdatedIds = [...successfullyUpdatedIds, ...batchSuccessIds]
+            if (allUpdatedIds.length > 0) {
+              for (const id of allUpdatedIds) {
+                const originalLead = originalLeads.find(l => l.id === id)
+              if (originalLead) {
+                  try {
+                    const updateData: any = { 
+                      id: originalLead.id,
+                      status: originalLead.status,
+                      source: originalLead.source
+                    }
+                    await apiService.updateLead(updateData)
+                  } catch (error) {
+                    console.error('Error restoring lead:', error)
+                  }
+                }
+              }
+            }
+            
+            // Restore frontend state
+            setLeads(prev => prev.map(l => {
+              const originalLead = originalLeads.find(orig => orig.id === l.id)
+              return originalLead || l
+            }))
+            setFilteredLeads(prev => prev.map(l => {
+              const originalLead = originalLeads.find(orig => orig.id === l.id)
+              return originalLead || l
+            }))
+            
+            setEditNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
+            pushToast('Bulk edit cancelled and leads restored', 'success')
+          return
+        }
         
-        // Process batch in parallel
-        const batchPromises = batch.map(async (lead) => {
+          const chunk = batch.slice(j, j + parallelLimit)
+          const leadIndex = startIndex + j
+        
+          // Update progress
+        setEditNotification({ 
+          show: true, 
+          progress: { 
+              current: leadIndex, 
+            total: totalLeads, 
+              batch: i + 1, 
+            totalBatches 
+          }, 
+          cancelled: false 
+        })
+        
+          // Prepare updates for this chunk
+          const chunkPromises = chunk.map(async (lead) => {
           const updateData: any = { id: lead.id }
           
           if (shouldUpdateStatus) {
@@ -1857,81 +2902,171 @@ export default function LeadsPage({
             updateData.source = bulkSource
           }
 
-          try {
-            const result = await apiService.updateLead(updateData)
-            return { success: result.success, lead, result }
-          } catch (error) {
-            console.error(`Failed to update lead ${lead.id}:`, error)
-            return { success: false, lead, error }
-          }
-        })
-        
-        const batchResults = await Promise.all(batchPromises)
-        
-        // Count successes and errors
-        const batchSuccesses = batchResults.filter(r => r.success)
-        const batchErrors = batchResults.filter(r => !r.success)
-        
-        successCount += batchSuccesses.length
-        errorCount += batchErrors.length
-        
-        // Store successfully updated leads
-        batchSuccesses.forEach(({ lead }) => {
-          const updatedLead = {
-            ...lead,
-            status: shouldUpdateStatus ? (bulkStatus as Lead["status"]) : lead.status,
-            source: shouldUpdateSource ? bulkSource : lead.source,
-          }
-          updatedLeads.push(updatedLead)
+            return updateLeadWithRetry(lead, updateData, 5)
+          })
           
-          // Track leads as they are edited for immediate rollback capability
-          setCurrentEditLeads(prev => [...prev, updatedLead])
-        })
-        
-        // Update local state for this batch
-        setLeads(prev => 
-          prev.map(l => {
-            if (!idsToUpdate.includes(l.id)) return l
-            
-            const updatedLead = batchSuccesses.find(r => r.lead.id === l.id)
-            if (updatedLead) {
-              return {
-                ...l,
-                status: shouldUpdateStatus ? (bulkStatus as Lead["status"]) : l.status,
-                source: shouldUpdateSource ? bulkSource : l.source,
+          const chunkResults = await Promise.all(chunkPromises)
+          
+          // Collect results
+          chunkResults.forEach(result => {
+            if (result.success) {
+              successCount++
+              batchSuccessIds.push(result.lead.id)
+              const updatedLead = {
+                ...result.lead,
+                status: shouldUpdateStatus ? (bulkStatus as Lead["status"]) : result.lead.status,
+                source: shouldUpdateSource ? bulkSource : result.lead.source,
               }
+              updatedLeadsMap.set(result.lead.id, updatedLead)
+            } else {
+              failedUpdates.push({ lead: result.lead, error: result.error || 'Unknown error' })
             }
-            return l
           })
-        )
+
+          // Small delay to prevent server overload
+          if (j + parallelLimit < batch.length) {
+            await new Promise(resolve => setTimeout(resolve, 20))
+          }
+        }
         
-        setFilteredLeads(prev => 
-          prev.map(l => {
-            if (!idsToUpdate.includes(l.id)) return l
-            
-            const updatedLead = batchSuccesses.find(r => r.lead.id === l.id)
-            if (updatedLead) {
-              return {
-                ...l,
-                status: shouldUpdateStatus ? (bulkStatus as Lead["status"]) : l.status,
-                source: shouldUpdateSource ? bulkSource : l.source,
-              }
-            }
-            return l
-          })
-        )
+        // Update UI progressively after each batch
+        successfullyUpdatedIds.push(...batchSuccessIds)
+        if (batchSuccessIds.length > 0) {
+          setLeads(prev => prev.map(l => updatedLeadsMap.get(l.id) || l))
+          setFilteredLeads(prev => prev.map(l => updatedLeadsMap.get(l.id) || l))
+        }
       }
       
-      // Clear selections and show success
-      setSelectedLeads(new Set())
+      // Check for cancellation before retry phase
+      if (isEditCancelledRef.current) {
+        // Rollback all successfully updated leads
+        if (successfullyUpdatedIds.length > 0) {
+          for (const id of successfullyUpdatedIds) {
+            const originalLead = originalLeads.find(l => l.id === id)
+            if (originalLead) {
+              try {
+                const updateData: any = { 
+                  id: originalLead.id,
+                  status: originalLead.status,
+                  source: originalLead.source
+                }
+                await apiService.updateLead(updateData)
+              } catch (error) {
+                console.error('Error restoring lead:', error)
+              }
+            }
+          }
+        }
+        
+        // Restore frontend state
+        setLeads(prev => prev.map(l => {
+          const originalLead = originalLeads.find(orig => orig.id === l.id)
+          return originalLead || l
+        }))
+        setFilteredLeads(prev => prev.map(l => {
+          const originalLead = originalLeads.find(orig => orig.id === l.id)
+          return originalLead || l
+        }))
+        
+        setEditNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
+        pushToast('Bulk edit cancelled and leads restored', 'success')
+        return
+      }
       
-      if (errorCount > 0) {
-        pushToast(`Updated ${successCount} leads, ${errorCount} failed`, 'warning')
+      // Retry failed updates if any
+      if (failedUpdates.length > 0 && !isEditCancelledRef.current) {
+        pushToast(`Retrying ${failedUpdates.length} failed updates...`, "warning")
+        
+        const retriedSuccessIds: string[] = []
+        
+        for (let k = 0; k < failedUpdates.length; k += parallelLimit) {
+          if (isEditCancelledRef.current) {
+            // Rollback all successfully updated leads including retries
+            const allUpdatedIds = [...successfullyUpdatedIds, ...retriedSuccessIds]
+            if (allUpdatedIds.length > 0) {
+              for (const id of allUpdatedIds) {
+                const originalLead = originalLeads.find(l => l.id === id)
+                if (originalLead) {
+                  try {
+                    const updateData: any = { 
+                      id: originalLead.id,
+                      status: originalLead.status,
+                      source: originalLead.source
+                    }
+                    await apiService.updateLead(updateData)
+                  } catch (error) {
+                    console.error('Error restoring lead:', error)
+                  }
+                }
+              }
+            }
+            
+            // Restore frontend state
+            setLeads(prev => prev.map(l => {
+              const originalLead = originalLeads.find(orig => orig.id === l.id)
+              return originalLead || l
+            }))
+            setFilteredLeads(prev => prev.map(l => {
+              const originalLead = originalLeads.find(orig => orig.id === l.id)
+              return originalLead || l
+            }))
+            
+            setEditNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
+            pushToast('Bulk edit cancelled and leads restored', 'success')
+            return
+          }
+          
+          const retryChunk = failedUpdates.slice(k, k + parallelLimit)
+          const retryPromises = retryChunk.map(({ lead }) => {
+            const updateData: any = { id: lead.id }
+            if (shouldUpdateStatus) updateData.status = bulkStatus as Lead["status"]
+            if (shouldUpdateSource) updateData.source = bulkSource
+            return updateLeadWithRetry(lead, updateData, 5)
+          })
+          
+          const retryResults = await Promise.all(retryPromises)
+          
+          retryResults.forEach(result => {
+            if (result.success) {
+              successCount++
+              retriedSuccessIds.push(result.lead.id)
+              const updatedLead = {
+                ...result.lead,
+                status: shouldUpdateStatus ? (bulkStatus as Lead["status"]) : result.lead.status,
+                source: shouldUpdateSource ? bulkSource : result.lead.source,
+              }
+              updatedLeadsMap.set(result.lead.id, updatedLead)
+            }
+          })
+          
+          // No delay between retry chunks for maximum speed
+        }
+        
+        // Update UI for successful retries
+        if (retriedSuccessIds.length > 0) {
+          setLeads(prev => prev.map(l => updatedLeadsMap.get(l.id) || l))
+          setFilteredLeads(prev => prev.map(l => updatedLeadsMap.get(l.id) || l))
+        }
+        
+        const finalErrors = failedUpdates.length - retriedSuccessIds.length
+        if (finalErrors > 0) {
+          pushToast(`Updated ${successCount} leads, ${finalErrors} failed even after retry`, 'warning')
       } else {
         pushToast(`Successfully updated ${successCount} leads`, 'success')
+        }
+      } else {
+        // Show success message
+        if (failedUpdates.length > 0) {
+          pushToast(`Updated ${successCount} leads, ${failedUpdates.length} failed`, 'warning')
+        } else {
+          pushToast(`Successfully updated ${successCount} leads`, 'success')
+        }
       }
       
-      // Sync after operation to ensure complete sync with backend
+      // Clear selections
+      setSelectedLeads(new Set())
+      
+      // Sync after operation
       await syncAfterOperation()
 
     } catch (error) {
@@ -1939,52 +3074,193 @@ export default function LeadsPage({
       pushToast('Error updating leads', 'error')
     } finally {
       setEditNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
-      
-      
       setOriginalLeads([])
       setCurrentEditLeads([])
+      setIsEditCancelled(false)
+      isEditCancelledRef.current = false
+    }
+  }
+  
+  async function applyBulkAssign() {
+    if (selectedLeads.size === 0) return
+
+    if (!selectedUserId) {
+      pushToast(t('toasts.selectUser'), "error")
+      return
     }
 
-  }
+    // Check confirmation input
+    if (bulkAssignConfirm.trim().toLowerCase() !== "assign") {
+      pushToast(t('toasts.confirmAssign'), "error")
+      return
+    }
 
-
-
-  function exportToXLSX() {
-
-    const data = filteredLeads.map(lead => ({
-
-      Name: lead.name,
-
-      Email: lead.email,
-
-      Phone: lead.phone,
-
-      SSN: lead.ssn,
-
-      Source: lead.source,
-
-      Status: lead.status
-
-    }))
-
-
-
-    const ws = XLSX.utils.json_to_sheet(data)
-
-    const wb = XLSX.utils.book_new()
-
-    XLSX.utils.book_append_sheet(wb, ws, "Leads")
-
+    const idsToUpdate = Array.from(selectedLeads)
+    const leadsToUpdate = leads.filter(l => idsToUpdate.includes(l.id))
     
+    const totalLeads = leadsToUpdate.length
+    const batchSize = 1000
+    const totalBatches = Math.ceil(totalLeads / batchSize)
+    const parallelLimit = 30
+    
+    // Close the bulk assign modal immediately when starting
+    setIsBulkAssignOpen(false)
+    
+    // Show progress notification
+    setAssignNotification({
+      show: true,
+      progress: { current: 0, total: totalLeads, batch: 0, totalBatches },
+      cancelled: false
+    })
 
-    const fileName = `leads_${org}_${new Date().toISOString().split('T')[0]}.xlsx`
+    try {
+      let successCount = 0
+      const successfullyUpdatedIds: string[] = []
+      const updatedLeadsMap = new Map<string, Lead>()
+      const failedUpdates: Array<{ lead: Lead, error: string }> = []
+      
+      // Process batches
+      for (let i = 0; i < totalBatches; i++) {
+        const startIndex = i * batchSize
+        const endIndex = Math.min(startIndex + batchSize, totalLeads)
+        const batch = leadsToUpdate.slice(startIndex, endIndex)
+        
+        // Update progress
+        setAssignNotification({ 
+          show: true, 
+          progress: { 
+            current: startIndex, 
+            total: totalLeads, 
+            batch: i + 1, 
+            totalBatches 
+          }, 
+          cancelled: false 
+        })
+        
+        // Process batch in controlled parallel chunks
+        const batchSuccessIds: string[] = []
+        for (let j = 0; j < batch.length; j += parallelLimit) {
+          const chunk = batch.slice(j, j + parallelLimit)
+          const leadIndex = startIndex + j
+          
+          // Update progress
+          setAssignNotification({ 
+            show: true, 
+            progress: { 
+              current: leadIndex, 
+              total: totalLeads, 
+              batch: i + 1, 
+              totalBatches 
+            }, 
+            cancelled: false 
+          })
+          
+          // Prepare updates for this chunk
+          const chunkPromises = chunk.map(async (lead) => {
+            const updateData: any = { 
+              id: lead.id,
+              assigned_user_id: selectedUserId 
+            }
+            return updateLeadWithRetry(lead, updateData, 5)
+          })
+          
+          const chunkResults = await Promise.all(chunkPromises)
+          
+          // Collect results
+          chunkResults.forEach(result => {
+            if (result.success) {
+              successCount++
+              batchSuccessIds.push(result.lead.id)
+              const updatedLead = {
+                ...result.lead,
+                assigned_user_id: selectedUserId,
+              }
+              updatedLeadsMap.set(result.lead.id, updatedLead)
+            } else {
+              failedUpdates.push({ lead: result.lead, error: result.error || 'Unknown error' })
+            }
+          })
 
-    XLSX.writeFile(wb, fileName)
+          // Small delay to prevent server overload
+          if (j + parallelLimit < batch.length) {
+            await new Promise(resolve => setTimeout(resolve, 20))
+          }
+        }
+        
+        // Update UI progressively after each batch
+        successfullyUpdatedIds.push(...batchSuccessIds)
+        if (batchSuccessIds.length > 0) {
+          setLeads(prev => prev.map(l => updatedLeadsMap.get(l.id) || l))
+          setFilteredLeads(prev => prev.map(l => updatedLeadsMap.get(l.id) || l))
+        }
+      }
+      
+      // Retry failed updates if any
+      if (failedUpdates.length > 0) {
+        pushToast(`Retrying ${failedUpdates.length} failed assignments...`, "warning")
+        
+        const retriedSuccessIds: string[] = []
+        
+        for (let k = 0; k < failedUpdates.length; k += parallelLimit) {
+          const retryChunk = failedUpdates.slice(k, k + parallelLimit)
+          const retryPromises = retryChunk.map(({ lead }) => {
+            const updateData: any = { id: lead.id, assigned_user_id: selectedUserId }
+            return updateLeadWithRetry(lead, updateData, 5)
+          })
+          
+          const retryResults = await Promise.all(retryPromises)
+          
+          retryResults.forEach(result => {
+            if (result.success) {
+              successCount++
+              retriedSuccessIds.push(result.lead.id)
+              const updatedLead = {
+                ...result.lead,
+                assigned_user_id: selectedUserId,
+              }
+              updatedLeadsMap.set(result.lead.id, updatedLead)
+            }
+          })
+          
+          // No delay between retry chunks for maximum speed
+        }
+        
+        // Update UI for successful retries
+        if (retriedSuccessIds.length > 0) {
+          setLeads(prev => prev.map(l => updatedLeadsMap.get(l.id) || l))
+          setFilteredLeads(prev => prev.map(l => updatedLeadsMap.get(l.id) || l))
+        }
+        
+        const finalErrors = failedUpdates.length - retriedSuccessIds.length
+        if (finalErrors > 0) {
+          pushToast(`Assigned ${successCount} lead(s) to user. ${finalErrors} failed even after retry`, 'warning')
+        } else {
+          pushToast(`Successfully assigned ${successCount} lead(s) to user`, 'success')
+        }
+      } else {
+        // Show success message
+        if (failedUpdates.length > 0) {
+          pushToast(`Assigned ${successCount} lead(s). ${failedUpdates.length} failed`, 'warning')
+        } else {
+          pushToast(`Successfully assigned ${successCount} lead(s) to user`, 'success')
+        }
+      }
+      
+      // Clear selections
+      setSelectedLeads(new Set())
+      
+      // Sync after operation
+      await syncAfterOperation()
 
+    } catch (error) {
+      console.error('Error assigning leads:', error)
+      pushToast('Error assigning leads to user', 'error')
+    } finally {
+      setAssignNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
+      setSelectedUserId("")
+      setBulkAssignConfirm("")
+    }
   }
-
-
-
   function normalizeHeader(raw: string): string {
 
     const s = raw
@@ -2007,74 +3283,233 @@ export default function LeadsPage({
 
 
 
-  function headerToCanonical(normalized: string): "name" | "email" | "phone" | "ssn" | "ein" | "source" | "status" | "value" | "estimated_close_date" | "description" | null {
+  function headerToCanonical(normalized: string): "name" | "email" | "phone" | "ssn" | "ein" | "source" | "status" | "value" | "estimated_close_date" | "location" | "interest" | "description" | null {
 
     // Map of supported header synonyms (normalized via normalizeHeader)
 
-    const headerAliases: Record<"name" | "email" | "phone" | "ssn" | "ein" | "source" | "status" | "value" | "estimated_close_date" | "description", string[]> = {
+    const headerAliases: Record<"name" | "email" | "phone" | "ssn" | "ein" | "source" | "status" | "value" | "estimated_close_date" | "location" | "interest" | "description", string[]> = {
 
       name: [
-
-        "name", "full name", "fullname", "nome", "nome completo"
-
+        // English
+        "name", "full name", "fullname", "lead name", "contact name", "customer name", "client name",
+        "person name", "person", "contact", "lead",
+        // Portuguese
+        "nome", "nome completo", "nome do lead", "nome do contato", "nome do cliente",
+        "contato", "cliente", "pessoa"
       ],
 
       email: [
-
-        "email", "e mail", "mail", "email address", "endereco de email", "correio", "correo", "email / phone", "email phone", "email/phone"
+        // English
+        "email", "e mail", "e-mail", "mail", "email address", "e mail address", "e-mail address",
+        "contact email", "email contact", "electronic mail", "email / phone", "email phone", "email/phone",
+        // Portuguese
+        "endereco de email", "endereço de email", "endereco eletronico", "endereço eletrônico",
+        "correio", "correio eletronico", "correio eletrônico", "e-mail", "e mail"
       ],
 
       phone: [
-
-        "phone", "phone number", "cell", "cellphone", "mobile", "mobile phone", "telefone", "celular", "telemovel", "whatsapp"
-
+        // English
+        "phone", "phone number", "phone no", "phone no.", "phone #", "tel", "tel.", "telephone",
+        "cell", "cellphone", "cell phone", "mobile", "mobile phone", "mobile number",
+        "contact number", "contact phone", "whatsapp", "whatsapp number", "whatsapp no",
+        // Portuguese
+        "telefone", "telefone celular", "tel", "tel.", "fone", "celular", "cel", "cel.",
+        "telemovel", "telemóvel", "numero de telefone", "número de telefone",
+        "contato", "numero de contato", "número de contato", "whatsapp", "zap"
       ],
 
       ssn: [
-
-        "ssn", "social security number", "social security", "social security no", "social security n", "social security #", "social sec number", "social sec no",
-
-        "cpf", "c p f", "cadastro de pessoa fisica", "cadastro de pessoa física", "numero do cpf", "n cpf", "número do cpf", "ssn ein", "ssn/ein", "ssn / ein", "ssn/ein"
+        // English
+        "ssn", "social security number", "social security", "social security no", "social security no.",
+        "social security n", "social security #", "social sec number", "social sec no",
+        "social sec", "ss number", "ss no", "ss #", "tax id", "personal tax id",
+        // Portuguese
+        "cpf", "c p f", "cadastro de pessoa fisica", "cadastro de pessoa física",
+        "numero do cpf", "número do cpf", "n cpf", "no cpf", "no. cpf",
+        "cpf numero", "cpf número", "documento cpf", "doc cpf",
+        // Combined (legacy)
+        "ssn ein", "ssn/ein", "ssn / ein"
       ],
 
       ein: [
-
-        "ein", "employer identification number", "cnpj", "cadastro nacional da pessoa juridica", "numero do cnpj", "n cnpj", "número do cnpj", "ssn ein", "ssn/ein", "ssn / ein", "ssn/ein"
+        // English
+        "ein", "employer identification number", "employer id", "employer id number",
+        "business tax id", "company tax id", "federal tax id", "tax identification number",
+        "tin", "business id", "company id", "corporate id",
+        // Portuguese
+        "cnpj", "cadastro nacional da pessoa juridica", "cadastro nacional da pessoa jurídica",
+        "cadastro nacional pessoa juridica", "numero do cnpj", "número do cnpj",
+        "n cnpj", "no cnpj", "no. cnpj", "cnpj numero", "cnpj número",
+        "documento cnpj", "doc cnpj", "cnpj empresa",
+        // Combined (legacy)
+        "ssn ein", "ssn/ein", "ssn / ein"
       ],
 
       source: [
-
-        "source", "lead source", "leadsource", "origem", "fonte", "canal", "canal de origem", "origem do lead", "fonte do lead"
-
+        // English
+        "source", "lead source", "leadsource", "lead origin", "origin", "channel",
+        "marketing channel", "acquisition channel", "traffic source", "referral source",
+        "campaign", "medium", "source/medium", "utm source", "how did you find us",
+        // Portuguese
+        "origem", "origem do lead", "fonte", "fonte do lead", "canal", "canal de origem",
+        "canal de marketing", "canal de aquisicao", "canal de aquisição",
+        "campanha", "meio", "referencia", "referência", "indicacao", "indicação",
+        "como nos conheceu", "como conheceu", "de onde veio"
       ],
 
       status: [
-
-        "status", "lead status", "leadstatus", "situacao", "estado", "etapa", "situacao do lead", "situacao do contato"
-
+        // English
+        "status", "lead status", "leadstatus", "current status", "stage", "pipeline stage",
+        "deal stage", "sales stage", "phase", "state", "condition",
+        // Portuguese
+        "situacao", "situação", "situacao do lead", "situação do lead",
+        "estado", "estado do lead", "etapa", "etapa do lead", "fase", "fase do lead",
+        "estagio", "estágio", "pipeline", "funil", "status do contato"
       ],
 
       value: [
-
-        "value", "deal value", "valor", "valor da venda", "preco", "preço", "amount", "montante", "price", "sale value", "value", "deal value", "deal amount", "total value", "contract value"
+        // English
+        "value", "deal value", "dealvalue", "opportunity value", "sale value", "sales value",
+        "amount", "deal amount", "total", "total value", "total amount",
+        "price", "cost", "revenue", "contract value", "order value", "purchase value",
+        // Portuguese
+        "valor", "valor do negocio", "valor do negócio", "valor da venda", "valor do deal",
+        "valor total", "total", "montante", "quantia", "soma",
+        "preco", "preço", "custo", "receita", "valor do contrato", "valor do pedido"
       ],
 
       estimated_close_date: [
 
-        "estimated close date", "close date", "data de fechamento", "data estimada", "data prevista", "expected close date", "estimated close date", "close date", "estimated close date", "close date", "close date", "expected close", "close", "date", "close date", "closing date", "deal close date", "expected close date", "target close date", "close date", "closing date", "deal close date", "expected close date", "target close date", "data", "data de fechamento", "data estimada", "data prevista", "data de venda", "data de conclusao", "data de conclusão", "data final", "data limite", "deadline", "due date", "end date", "final date", "completion date", "finish date"
+        // English variations
+        "estimated close date", "est close date", "est. close date",
+        "close date", "closing date", "closed date",
+        "expected close date", "exp close date", "exp. close date",
+        "target close date", "target closing date",
+        "deal close date", "deal closing date", "deal close",
+        "expected close", "expected closing",
+        "estimated closing date", "est closing date", "est. closing date",
+        "projected close date", "proj close date", "proj. close date",
+        "anticipated close date", "forecast close date",
+        "expected date", "target date", "due date", "deadline",
+        "completion date", "finish date", "end date", "final date",
+        "sale close date", "contract close date",
+        "close", "closing", "date",
+        
+        // Portuguese variations
+        "data de fechamento", "data fechamento", "dt fechamento", "dt. fechamento",
+        "data estimada", "data estimada de fechamento", "dt estimada",
+        "data prevista", "data prevista de fechamento", "dt prevista",
+        "data esperada", "data esperada de fechamento",
+        "data alvo", "data objetivo", "data meta",
+        "data de conclusao", "data de conclusão", "dt conclusao", "dt conclusão",
+        "data de venda", "data da venda", "dt venda",
+        "data final", "data limite", "prazo", "prazo final",
+        "previsao de fechamento", "previsão de fechamento",
+        "estimativa de fechamento", "est. fechamento",
+        "data do contrato", "data do negocio", "data do negócio",
+        "data", "data estimada fechamento"
+      ],
+
+      location: [
+        // English - Primary
+        "location", "locations", "loc", "loc.", "locate",
+        // English - Address variations
+        "address", "full address", "street address", "mailing address", "physical address",
+        "addr", "addr.", "street", "st", "st.",
+        // English - Geographic
+        "city", "town", "municipality", "village", "borough",
+        "state", "province", "region", "territory", "county",
+        "country", "nation", "area", "zone", "district",
+        "place", "places", "where", "geographic location", "geography", "geo",
+        "city/state", "city state", "city-state",
+        "state/country", "state country", "state-country",
+        "city, state", "city,state",
+        // English - Postal
+        "zip", "zipcode", "zip code", "zip-code", "postal", "postal code", "postcode", "post code",
+        // Portuguese - Primary
+        "localizacao", "localização", "localizacoes", "localizações",
+        "local", "locais", "lugar", "lugares", "onde",
+        // Portuguese - Address
+        "endereco", "endereço", "enderecos", "endereços",
+        "endereco completo", "endereço completo",
+        "end", "end.", "rua", "logradouro",
+        // Portuguese - Geographic
+        "cidade", "cidades", "municipio", "município", "municipios", "municípios",
+        "estado", "estados", "uf", "regiao", "região", "regioes", "regiões",
+        "pais", "país", "paises", "países", "nacao", "nação", "nacoes", "nações",
+        "area", "área", "areas", "áreas", "zona", "distrito",
+        "cidade/estado", "cidade estado", "cidade-estado",
+        "estado/pais", "estado pais", "estado-pais",
+        "cidade, estado", "cidade,estado",
+        // Portuguese - Postal
+        "cep", "codigo postal", "código postal", "cod postal", "cód postal"
+      ],
+
+      interest: [
+        // English - Primary
+        "interest", "interests", "interested", "interest in", "interested in",
+        "area of interest", "areas of interest", "interest area", "interest areas",
+        // English - Product/Service
+        "product", "products", "product interest", "product of interest",
+        "service", "services", "service interest", "service of interest",
+        "solution", "solutions", "offering", "offerings", "offer",
+        "item", "items", "item of interest",
+        // English - Needs/Wants
+        "need", "needs", "needed", "needing",
+        "want", "wants", "wanted", "wanting",
+        "requirement", "requirements", "required", "requires",
+        "looking for", "searching for", "seeking", "search",
+        "preference", "preferences", "preferred", "prefers",
+        "choice", "choices", "choose", "chosen",
+        "desire", "desires", "desired", "desiring",
+        // English - Questions
+        "what interested", "what interests", "what are you interested in",
+        "what do you need", "what product", "which product", "which service",
+        "interested in what", "interest what",
+        // Portuguese - Primary
+        "interesse", "interesses", "interessado", "interessada",
+        "interesse em", "interessado em", "interessada em",
+        "area de interesse", "área de interesse", "areas de interesse", "áreas de interesse",
+        // Portuguese - Product/Service
+        "produto", "produtos", "interesse no produto", "produto de interesse",
+        "servico", "serviço", "servicos", "serviços",
+        "interesse no servico", "interesse no serviço",
+        "solucao", "solução", "solucoes", "soluções",
+        "oferta", "ofertas", "item", "itens",
+        // Portuguese - Needs/Wants
+        "necessidade", "necessidades", "necessita", "necessitando",
+        "quer", "querer", "deseja", "desejar", "desejando",
+        "requisito", "requisitos", "requer", "requerido",
+        "procurando", "procurando por", "procura", "procura por",
+        "buscando", "buscando por", "busca", "busca por",
+        "preferencia", "preferência", "preferencias", "preferências",
+        "escolha", "escolhas", "escolher", "escolhido",
+        // Portuguese - Questions
+        "o que interessa", "o que te interessa", "qual interesse",
+        "qual produto", "que produto", "que servico", "que serviço",
+        "em que esta interessado", "em que está interessado"
       ],
 
       description: [
-
-        "description", "notes", "observations", "descricao", "descrição", "notas", "observacoes", "observações", "comentarios", "comentários", "description", "notes"
-
+        // English
+        "description", "desc", "desc.", "notes", "note", "observations", "observation",
+        "comments", "comment", "remarks", "remark", "details", "additional info",
+        "additional information", "extra info", "info", "information",
+        "about", "summary", "overview", "background", "context",
+        // Portuguese
+        "descricao", "descrição", "desc", "desc.", "notas", "nota",
+        "observacoes", "observações", "observacao", "observação",
+        "comentarios", "comentários", "comentario", "comentário",
+        "detalhes", "informacoes adicionais", "informações adicionais",
+        "info adicional", "informacao", "informação", "info", "infos",
+        "sobre", "resumo", "visao geral", "visão geral", "contexto", "historico", "histórico"
       ],
 
     }
 
 
 
-    for (const [key, aliases] of Object.entries(headerAliases) as ["name" | "email" | "phone" | "ssn" | "ein" | "source" | "status" | "value" | "estimated_close_date" | "description", string[]][]) {
+    for (const [key, aliases] of Object.entries(headerAliases) as ["name" | "email" | "phone" | "ssn" | "ein" | "source" | "status" | "value" | "estimated_close_date" | "location" | "interest" | "description", string[]][]) {
 
       if (aliases.includes(normalized)) return key
 
@@ -2239,7 +3674,6 @@ export default function LeadsPage({
 
       const response = await apiService.uploadLeadAttachment(leadId, file)
       
-      console.log('Upload response:', response)
       
       if (response.success && response.data) {
         
@@ -2255,7 +3689,6 @@ export default function LeadsPage({
           newAttachment = response.data as any
         }
         
-        console.log('New attachment object:', newAttachment)
         
         if (newAttachment && newAttachment.id && newAttachment.mimeType && newAttachment.originalName) {
           // Update local state with new attachment
@@ -2492,12 +3925,9 @@ export default function LeadsPage({
     
     // 🔹 Trata valores numéricos (Excel serial date)
     if (typeof dateString === "number") {
-      console.log(`Converting Excel serial date: ${dateString}`)
       const excelEpoch = new Date(1899, 11, 30) // Excel epoch is 1900-01-01, but JavaScript Date is 1899-12-30
       const date = new Date(excelEpoch.getTime() + dateString * 86400000)
-      const result = date.toISOString().split("T")[0]
-      console.log(`Excel serial ${dateString} -> ${result}`)
-      return result
+      return date.toISOString().split("T")[0]
     }
     
     const cleanDate = dateString.toString().trim()
@@ -2573,7 +4003,7 @@ export default function LeadsPage({
             }
           }
         } catch (error) {
-          console.log(`Error parsing date with pattern: ${error}`)
+          // Try next pattern
         }
       }
     }
@@ -2589,7 +4019,7 @@ export default function LeadsPage({
         }
       }
     } catch (error) {
-      console.log(`Native date parsing failed: ${error}`)
+      // Date parsing failed
     }
     
     return null
@@ -2626,8 +4056,6 @@ export default function LeadsPage({
     
     return { ssn, ein }
   }
-
-
   function mapRowsToLeads(rows: Record<string, unknown>[]): Lead[] {
 
     if (rows.length === 0) return []
@@ -2637,10 +4065,7 @@ export default function LeadsPage({
     const headerKeys = Object.keys(sampleRow)
 
     
-    console.log("=== FILE MAPPING DEBUG ===")
-    console.log("Available columns:", headerKeys)
-    console.log("Sample row data:", sampleRow)
-    const mapping: Partial<Record<string, "name" | "email" | "phone" | "ssn" | "ein" | "source" | "status" | "value" | "estimated_close_date" | "description">> = {}
+    const mapping: Partial<Record<string, "name" | "email" | "phone" | "ssn" | "ein" | "source" | "status" | "value" | "estimated_close_date" | "location" | "interest" | "description">> = {}
 
     
 
@@ -2713,7 +4138,6 @@ export default function LeadsPage({
 
         const text = String(value ?? "").trim()
 
-        console.log(`Processing field: ${header} -> ${key} = "${text}"`)
 
         
 
@@ -2729,9 +4153,7 @@ export default function LeadsPage({
 
           // Check if this field contains both email and phone (concatenated)
           if (text.includes('@') && /\d/.test(text)) {
-            console.log(`Detected concatenated email/phone: "${text}"`)
             const separated = separateEmailAndPhone(text)
-            console.log(`Separated: email="${separated.email}", phone="${separated.phone}"`)
             draft.email = truncateTo(separated.email, FIELD_MAX.email)
             if (separated.phone && !draft.phone) {
               draft.phone = truncateTo(separated.phone, FIELD_MAX.phone)
@@ -2752,9 +4174,7 @@ export default function LeadsPage({
 
           // Check if this field contains SSN (with or without EIN)
           if (text.includes('SSN')) {
-            console.log(`Detected SSN field: "${text}"`)
             const separated = separateSSNAndEIN(text)
-            console.log(`Separated: ssn="${separated.ssn}", ein="${separated.ein}"`)
             draft.ssn = truncateTo(separated.ssn, FIELD_MAX.ssn)
             if (separated.ein && !draft.ein) {
               draft.ein = truncateTo(separated.ein, FIELD_MAX.ein)
@@ -2762,14 +4182,12 @@ export default function LeadsPage({
           } else {
           draft.ssn = truncateTo(text, FIELD_MAX.ssn)
 
-          console.log(`Set SSN: ${draft.ssn}`)
 
           }
         } else if (key === "ein") {
 
           draft.ein = truncateTo(text, FIELD_MAX.ein)
 
-          console.log(`Set EIN: ${draft.ein}`)
 
         } else if (key === "value") {
 
@@ -2792,12 +4210,9 @@ export default function LeadsPage({
               const parsedDate = parseAnyDateFormat(text.trim())
               if (parsedDate) {
                 draft.estimated_close_date = parsedDate.slice(0, FIELD_MAX.date)
-                console.log(`Set Close Date: ${draft.estimated_close_date} (from "${text}")`)
-              } else {
-                console.log(`Could not parse date: ${text}`)
               }
             } catch (error) {
-              console.log(`Error parsing date: ${text}`, error)
+              // Date parsing failed, skip
             }
           }
 
@@ -2805,7 +4220,15 @@ export default function LeadsPage({
 
           draft.description = truncateTo(text, FIELD_MAX.description)
 
-          console.log(`Set Description: ${draft.description}`)
+        } else if (key === "location") {
+
+          draft.location = truncateTo(text, FIELD_MAX.source)
+          console.log(`✅ Set Location: "${draft.location}" (from "${text}")`)
+
+        } else if (key === "interest") {
+
+          draft.interest = truncateTo(text, FIELD_MAX.source)
+          console.log(`✅ Set Interest: "${draft.interest}" (from "${text}")`)
 
         }
 
@@ -2813,7 +4236,6 @@ export default function LeadsPage({
 
       // Validate required fields
       if (!draft.name || !draft.email) {
-        console.log(`Skipping lead - missing required fields: name="${draft.name}", email="${draft.email}"`)
         continue
       }
       
@@ -2824,7 +4246,6 @@ export default function LeadsPage({
           // Validate the date format and ensure it's reasonable
           const testDate = new Date(safeEstimatedCloseDate)
           if (isNaN(testDate.getTime())) {
-            console.log(`Invalid date format, removing: ${safeEstimatedCloseDate}`)
             safeEstimatedCloseDate = undefined
           } else {
             // Ensure it's in YYYY-MM-DD format
@@ -2834,7 +4255,6 @@ export default function LeadsPage({
             safeEstimatedCloseDate = `${year}-${month}-${day}`
           }
         } catch (error) {
-          console.log(`Error validating date, removing: ${safeEstimatedCloseDate}`, error)
           safeEstimatedCloseDate = undefined
         }
       }
@@ -2860,6 +4280,8 @@ export default function LeadsPage({
         value: draft.value,
 
         estimated_close_date: safeEstimatedCloseDate,
+        location: draft.location || "",
+        interest: draft.interest || "",
         description: draft.description,
         show_on_pipeline: false,
 
@@ -2869,7 +4291,12 @@ export default function LeadsPage({
 
       }
 
-      console.log('Final lead created:', finalLead)
+      console.log(`📦 Final Lead for "${finalLead.name}":`, {
+        location: finalLead.location,
+        interest: finalLead.interest,
+        hasLocation: !!finalLead.location,
+        hasInterest: !!finalLead.interest
+      })
 
       imported.push(finalLead)
 
@@ -2880,13 +4307,69 @@ export default function LeadsPage({
   }
 
 
-  // Function to process leads in batches with minimal delay for speed
-  async function processBatch(leads: Lead[], batchSize: number = 50, initialDelayMs: number = 100, isCancelled: () => boolean = () => importCancelled, onBatchSaved?: (leads: Lead[]) => void): Promise<{ saved: Lead[], errors: number, duplicates: number, cancelled: boolean }> {
+  // Helper function to retry a lead creation with exponential backoff
+  async function createLeadWithRetry(lead: Lead, maxRetries: number = 5): Promise<{ success: boolean, lead: Lead | null, type: string, error?: string }> {
+    const createData: CreateLeadRequest = {
+      name: lead.name,
+      email: lead.email,
+      phone: lead.phone || undefined,
+      ssn: lead.ssn || undefined,
+      ein: lead.ein || undefined,
+      source: lead.source || undefined,
+      location: lead.location || undefined,
+      interest: lead.interest || undefined,
+      status: lead.status,
+      value: lead.value,
+      description: lead.description,
+      estimated_close_date: lead.estimated_close_date,
+    }
+    
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const response = await apiService.createLead(createData)
+        
+        if (response.success && response.data) {
+          return { success: true, lead: response.data.lead, type: 'saved' }
+        } else {
+          // Check if it's a duplicate error
+          const errorMsg = response.error?.toLowerCase() || ''
+          if (errorMsg.includes('duplicado') || errorMsg.includes('duplicate')) {
+            // Don't retry duplicates
+            return { success: true, lead: null, type: 'duplicate' }
+          } else if (attempt < maxRetries - 1) {
+            // Retry on other errors with exponential backoff
+            const backoffDelay = 50 * Math.pow(2, attempt) // 50ms, 100ms, 200ms, 400ms, 800ms
+            await new Promise(resolve => setTimeout(resolve, backoffDelay))
+            continue
+          } else {
+            console.error(`Failed to save lead after ${maxRetries} attempts:`, lead.name, response.error)
+            return { success: false, lead: null, type: 'error', error: response.error }
+          }
+        }
+      } catch (error) {
+        if (attempt < maxRetries - 1) {
+          // Retry on network errors with exponential backoff
+          const backoffDelay = 50 * Math.pow(2, attempt)
+          await new Promise(resolve => setTimeout(resolve, backoffDelay))
+          continue
+        } else {
+          console.error(`Network error after ${maxRetries} attempts:`, lead.name, error)
+          return { success: false, lead: null, type: 'error', error: String(error) }
+        }
+      }
+    }
+    
+    return { success: false, lead: null, type: 'error', error: 'Max retries exceeded' }
+  }
+
+  // Function to process leads in batches with controlled parallel processing and retry logic
+  async function processBatch(leads: Lead[], batchSize: number = 1000, initialDelayMs: number = 0, isCancelled: () => boolean = () => importCancelled, onBatchSaved?: (leads: Lead[]) => void): Promise<{ saved: Lead[], errors: number, duplicates: number, cancelled: boolean, failedLeads: Array<{lead: Lead, error: string}> }> {
     const totalBatches = Math.ceil(leads.length / batchSize)
     const savedLeads: Lead[] = []
+    const failedLeads: Array<{lead: Lead, error: string}> = []
     let errorCount = 0
     let duplicateCount = 0
-    let currentDelay = initialDelayMs
+    const parallelLimit = 30 // Process 30 leads in parallel to avoid server overload
 
     for (let i = 0; i < leads.length; i += batchSize) {
       // Check if import was cancelled
@@ -2906,11 +4389,9 @@ export default function LeadsPage({
                   successfullyDeleted++
                 } else {
                   errors++
-                  console.log(`Lead ${lead.id} not found or already deleted:`, response.error)
                 }
               } catch (error) {
                 errors++
-                console.log(`Error deleting lead ${lead.id}:`, error)
               }
             }
             
@@ -2935,14 +4416,14 @@ export default function LeadsPage({
         setImportNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: true })
         setIsImportCancelled(false)
         isImportCancelledRef.current = false
-        return { saved: savedLeads, errors: errorCount, duplicates: duplicateCount, cancelled: true }
+        return { saved: savedLeads, errors: errorCount, duplicates: duplicateCount, cancelled: true, failedLeads }
       }
 
       const batch = leads.slice(i, i + batchSize)
       const batchNumber = Math.floor(i / batchSize) + 1
       
       setImportProgress({
-        current: i + batch.length,
+        current: i,
         total: leads.length,
         batch: batchNumber,
         totalBatches
@@ -2950,101 +4431,158 @@ export default function LeadsPage({
       setImportNotification({ 
         show: true, 
         progress: { 
-          current: i + batch.length, 
+          current: i, 
           total: leads.length, 
           batch: batchNumber, 
           totalBatches 
         }, 
         cancelled: false 
       })
-
-      console.log(`Processing batch ${batchNumber}/${totalBatches} (${batch.length} leads) with ${currentDelay}ms delay`)
       
       // Check if import was cancelled before processing batch
-      if (isCancelled()) {
-        console.log('Import cancelled before processing batch')
-        setImportNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: true })
-        return { saved: savedLeads, errors: errorCount, duplicates: duplicateCount, cancelled: true }
-      }
-
-      // Process batch in parallel
-      const batchPromises = batch.map(async (lead) => {
-        // Check cancellation before each lead
-        if (isCancelled()) {
-          return { success: false, lead: null, type: 'cancelled' }
-        }
-        
-        try {
-          const createData: CreateLeadRequest = {
-            name: lead.name,
-            email: lead.email,
-            phone: lead.phone || undefined,
-            ssn: lead.ssn || undefined,
-            ein: lead.ein || undefined,
-            source: lead.source || undefined,
-            status: lead.status,
-            value: lead.value,
-            description: lead.description,
-            estimated_close_date: lead.estimated_close_date,
+      if (isCancelled() || isImportCancelledRef.current) {
+        // Rollback: remove imported leads from backend and frontend
+        if (savedLeads.length > 0) {
+          let successfullyDeleted = 0
+          let errors = 0
+          
+          try {
+            for (const lead of savedLeads) {
+              try {
+                const response = await apiService.deleteLead(lead.id)
+                if (response.success) {
+                  successfullyDeleted++
+                } else {
+                  errors++
+                }
+              } catch (error) {
+                errors++
+              }
+            }
+            
+            if (successfullyDeleted > 0) {
+              pushToast(`Import cancelled - ${successfullyDeleted} leads removed from backend`, 'success')
+            }
+          } catch (error) {
+            console.error('Error during rollback:', error)
           }
           
-          const response = await apiService.createLead(createData)
-          if (response.success && response.data) {
-            return { success: true, lead: response.data.lead, type: 'saved' }
+          // Remove from frontend state
+          const importedIds = savedLeads.map(lead => lead.id)
+          setLeads(prev => prev.filter(lead => !importedIds.includes(lead.id)))
+          setFilteredLeads(prev => prev.filter(lead => !importedIds.includes(lead.id)))
+          setImportedLeads(prev => prev.filter(lead => !importedIds.includes(lead.id)))
+          setCurrentImportLeads([])
+        }
+        setImportNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: true })
+        setIsImportCancelled(false)
+        isImportCancelledRef.current = false
+        return { saved: savedLeads, errors: errorCount, duplicates: duplicateCount, cancelled: true, failedLeads }
+      }
+
+      // Process batch in controlled parallel chunks (parallelLimit at a time)
+      const batchSavedLeads: Lead[] = []
+      for (let j = 0; j < batch.length; j += parallelLimit) {
+        // Check cancellation
+        if (isCancelled() || isImportCancelledRef.current) {
+          // Rollback: remove imported leads from backend and frontend
+          if (savedLeads.length > 0) {
+            let successfullyDeleted = 0
+            let errors = 0
+            
+            try {
+              for (const lead of savedLeads) {
+                try {
+                  const response = await apiService.deleteLead(lead.id)
+                  if (response.success) {
+                    successfullyDeleted++
           } else {
-            // Check if it's a duplicate error
-            const errorMsg = response.error?.toLowerCase() || ''
-            if (errorMsg.includes('duplicado') || errorMsg.includes('duplicate')) {
-              // Don't log as error - it's expected behavior
-              console.log(`Lead duplicate skipped: ${lead.name} (${lead.email})`)
-              return { success: true, lead: null, type: 'duplicate' }
-            } else {
-              console.error('Failed to save lead:', response.error)
-              return { success: false, lead: null, type: 'error' }
-            }
+                    errors++
+                  }
+                } catch (error) {
+                  errors++
+                }
+              }
+              
+              if (successfullyDeleted > 0) {
+                pushToast(`Import cancelled - ${successfullyDeleted} leads removed from backend`, 'success')
           }
         } catch (error) {
-          console.error('Error saving lead:', error)
-          return { success: false, lead: null, type: 'error' }
+              console.error('Error during rollback:', error)
+            }
+            
+            // Remove from frontend state
+            const importedIds = savedLeads.map(lead => lead.id)
+            setLeads(prev => prev.filter(lead => !importedIds.includes(lead.id)))
+            setFilteredLeads(prev => prev.filter(lead => !importedIds.includes(lead.id)))
+            setImportedLeads(prev => prev.filter(lead => !importedIds.includes(lead.id)))
+            setCurrentImportLeads([])
+          }
+          setImportNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: true })
+          setIsImportCancelled(false)
+          isImportCancelledRef.current = false
+          return { saved: savedLeads, errors: errorCount, duplicates: duplicateCount, cancelled: true, failedLeads }
         }
-      })
 
-      const batchResults = await Promise.all(batchPromises)
-      
-      // Collect results and adapt delay
-      let batchSuccesses = 0
-      batchResults.forEach(result => {
+        const chunk = batch.slice(j, j + parallelLimit)
+        const leadIndex = i + j
+        
+        // Update progress
+        setImportProgress({
+          current: leadIndex,
+          total: leads.length,
+          batch: batchNumber,
+          totalBatches
+        })
+        setImportNotification({ 
+          show: true, 
+          progress: { 
+            current: leadIndex, 
+            total: leads.length, 
+            batch: batchNumber, 
+            totalBatches 
+          }, 
+          cancelled: false 
+        })
+        
+        // Process chunk in parallel
+        const chunkPromises = chunk.map(lead => createLeadWithRetry(lead, 5))
+        const chunkResults = await Promise.all(chunkPromises)
+        
+        // Collect results
+        chunkResults.forEach(result => {
         if (result.success) {
           if (result.type === 'saved' && result.lead) {
             savedLeads.push(result.lead)
-            batchSuccesses++
+              batchSavedLeads.push(result.lead)
           } else if (result.type === 'duplicate') {
             duplicateCount++
-            batchSuccesses++ // Duplicates are considered successful
           }
         } else {
           errorCount++
+            // Extract lead from error - need to match back
+            const leadData = chunk[chunkResults.indexOf(result)]
+            if (leadData) {
+              failedLeads.push({ lead: leadData, error: result.error || 'Unknown error' })
+            }
         }
       })
 
-      // Call callback with newly saved leads from this batch
-      if (onBatchSaved && savedLeads.length > 0) {
-        const newLeads = savedLeads.slice(-batchSuccesses) // Get only the leads from this batch
-        onBatchSaved(newLeads)
+        // Small delay to prevent server overload
+        if (j + parallelLimit < batch.length) {
+          await new Promise(resolve => setTimeout(resolve, 20))
+        }
       }
 
-      // No adaptive delay - keep it fast
+      // Call callback with newly saved leads from this batch
+      if (onBatchSaved && batchSavedLeads.length > 0) {
+        onBatchSaved(batchSavedLeads)
+      }
 
       // No delay between batches for maximum speed
-      // Only check for cancellation if there are more batches
-      if (i + batchSize < leads.length && isCancelled()) {
-        console.log('Import cancelled between batches')
-        setImportNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: true })
-        return { saved: savedLeads, errors: errorCount, duplicates: duplicateCount, cancelled: true }
-      }
     }
 
-    return { saved: savedLeads, errors: errorCount, duplicates: duplicateCount, cancelled: false }
+    return { saved: savedLeads, errors: errorCount, duplicates: duplicateCount, cancelled: false, failedLeads }
   }
 
   async function processFileForPreview(file: File) {
@@ -3203,14 +4741,11 @@ export default function LeadsPage({
 
         if (uniqueToAdd.length > 0) {
 
-           // Always use batch size of 500 for maximum efficiency
-           const batchSize = 500
-          const delayMs = 0 // No delay for maximum speed
+          // Use optimized batch size to avoid server overload
+          const batchSize = 1000
+          const delayMs = 0
           
-          console.log(`Processing ${uniqueToAdd.length} leads in batches of ${batchSize} with ${delayMs}ms delay`)
-          
-          const { saved: savedLeads, errors: errorCount, duplicates: duplicateCount, cancelled } = await processBatch(uniqueToAdd, batchSize, delayMs, () => {
-            console.log('Checking cancellation:', importCancelled)
+          const { saved: savedLeads, errors: errorCount, duplicates: duplicateCount, cancelled, failedLeads } = await processBatch(uniqueToAdd, batchSize, delayMs, () => {
             return importCancelled
           }, (newLeads) => {
             // Track leads as they are imported for immediate rollback capability
@@ -3224,9 +4759,40 @@ export default function LeadsPage({
             setImportedLeads(prev => [...prev, ...newLeads])
           })
           
-
-          // Leads are now updated in real-time during batch processing
-          
+          // Retry failed leads one more time if any failed
+          if (failedLeads.length > 0 && !cancelled) {
+            console.log(`Retrying ${failedLeads.length} failed leads...`)
+            pushToast(`Retrying ${failedLeads.length} failed leads...`, "warning")
+            
+            const retryLeads = failedLeads.map(f => f.lead)
+            const { saved: retrySaved, errors: retryErrors, duplicates: retryDuplicates, failedLeads: stillFailed } = await processBatch(retryLeads, 500, 0, () => importCancelled, (newLeads) => {
+              setCurrentImportLeads(prev => [...prev, ...newLeads])
+              setLeads(prev => [...newLeads, ...prev])
+              setFilteredLeads(prev => [...newLeads, ...prev])
+              setImportedLeads(prev => [...prev, ...newLeads])
+            })
+            
+            // Update final counts
+            savedLeads.push(...retrySaved)
+            const finalErrors = retryErrors
+            const finalDuplicates = duplicateCount + retryDuplicates
+            
+            // Log remaining failures
+            if (stillFailed.length > 0) {
+              console.error(`Still failed after retry (${stillFailed.length} leads):`)
+              stillFailed.forEach(f => console.error(`- ${f.lead.name} (${f.lead.email}): ${f.error}`))
+            }
+            
+            // Show comprehensive results
+            let message = `${savedLeads.length} lead(s) imported successfully.`
+            if (finalDuplicates > 0) {
+              message += ` ${finalDuplicates} duplicate(s) skipped.`
+            }
+            if (finalErrors > 0) {
+              message += ` ${finalErrors} lead(s) failed even after retry.`
+            }
+            pushToast(message, finalErrors > 0 ? "warning" : "success")
+          } else {
           // Show comprehensive results
           if (cancelled) {
             pushToast(`Import cancelled. ${savedLeads.length} lead(s) saved, ${duplicateCount} duplicate(s) skipped.`, "warning")
@@ -3236,7 +4802,6 @@ export default function LeadsPage({
               message += ` ${duplicateCount} duplicate(s) were skipped.`
             }
           if (errorCount > 0) {
-
               message += ` ${errorCount} lead(s) failed to save.`
             }
             pushToast(message, errorCount > 0 ? "warning" : "success")
@@ -3244,6 +4809,7 @@ export default function LeadsPage({
           
           if (cancelled && savedLeads.length === 0 && duplicateCount === 0) {
             pushToast(`Import cancelled. No leads were processed.`, "warning")
+            }
           }
 
         } else {
@@ -3284,115 +4850,89 @@ export default function LeadsPage({
     }
 
   }
-
-
   function exportData(format: "xlsx" | "csv" | "ods" | "json") {
-
+    try {
     const selectedIds = selectedLeads
 
-    const baseList = selectedIds.size > 0
+      // Se não há seleção, exporta template vazio
+      const isTemplate = selectedIds.size === 0
 
+      // Apenas pega leads se houver seleção
+      const baseList = selectedIds.size > 0
       ? leads.filter(l => selectedIds.has(l.id))
+        : []
 
-      : filteredLeads
+      // Template vazio com todas as colunas aceitas na importação
+      const templateData = [{
+        Name: '',
+        Email: '',
+        Phone: '',
+        SSN: '',
+        EIN: '',
+        Source: '',
+        Status: '',
+        Value: '',
+        'Estimated Close Date': '',
+        Location: '',
+        Interest: '',
+        Description: '',
+      }]
 
-    // Se não há leads, criar template vazio com colunas
-    const data = baseList.length > 0 ? baseList.map(lead => ({
-
+      // Dados dos leads selecionados
+      const leadsData = baseList.map(lead => ({
       Name: lead.name,
-
       Email: lead.email,
-
       Phone: lead.phone || '',
-
       SSN: lead.ssn || '',
-
       EIN: lead.ein || '',
-
       Source: lead.source || '',
-
       Status: lead.status,
-
       Value: lead.value || '',
-
       'Estimated Close Date': lead.estimated_close_date || '',
-
+      Location: lead.location || '',
+      Interest: lead.interest || '',
       Description: lead.description || '',
+      }))
 
-      'Created At': lead.created_at,
-
-      'Updated At': lead.updated_at,
-
-    })) : [{
-
-      Name: '',
-
-      Email: '',
-
-      Phone: '',
-
-      SSN: '',
-
-      EIN: '',
-
-      Source: '',
-
-      Status: '',
-
-      Value: '',
-
-      'Estimated Close Date': '',
-
-      Description: '',
-
-      'Created At': '',
-
-      'Updated At': '',
-
-    }]
+      // Usa template se não há seleção, caso contrário usa os dados dos leads
+      const data = isTemplate ? templateData : leadsData
 
     const date = new Date().toISOString().split('T')[0]
-
-    const base = baseList.length > 0 
-      ? `leads_${org}_${date}`
-      : `leads_template_${org}_${date}`
+      const base = isTemplate 
+        ? `leads_template_${org}_${date}`
+        : `leads_${org}_${date}`
 
     if (format === "json") {
-
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json;charset=utf-8" })
-
       const a = document.createElement("a")
-
       a.href = URL.createObjectURL(blob)
-
       a.download = `${base}.json`
-
       a.click()
-
       URL.revokeObjectURL(a.href)
 
-      pushToast(`${data.length} lead(s) exported as JSON.`, "success")
-
+        if (isTemplate) {
+          pushToast(`Template exported successfully as JSON`, "success")
+        } else {
+          pushToast(`${data.length} lead(s) exported as JSON`, "success")
+        }
       return
-
     }
 
     const ws = XLSX.utils.json_to_sheet(data)
-
     const wb = XLSX.utils.book_new()
-
     XLSX.utils.book_append_sheet(wb, ws, "Leads")
-
     const bookType = format
-
     XLSX.writeFile(wb, `${base}.${format}`, { bookType: bookType as XLSX.BookType })
 
-    const message = baseList.length > 0 
-      ? `${data.length} lead(s) exported as ${format.toUpperCase()}.`
-      : `Template exported as ${format.toUpperCase()}. Use this file to import leads.`
-
-    pushToast(message, "success")
-
+      if (isTemplate) {
+        pushToast(`Template exported successfully as ${format.toUpperCase()}`, "success")
+      } else {
+        pushToast(`${data.length} lead(s) exported as ${format.toUpperCase()}`, "success")
+      }
+    } catch (error) {
+      console.error('Export error:', error)
+      pushToast('Error exporting data', 'error')
+    }
   }
 
 
@@ -3415,17 +4955,47 @@ export default function LeadsPage({
 
 
 
-  async function performDeletion() {
+  // Helper function to delete a lead with retry logic
+  async function deleteLeadWithRetry(leadId: string, maxRetries: number = 5): Promise<{ success: boolean, id: string, error?: string }> {
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const response = await apiService.deleteLead(leadId)
+        
+        if (response.success) {
+          return { success: true, id: leadId }
+        } else if (attempt < maxRetries - 1) {
+          // Retry on failure with exponential backoff
+          const backoffDelay = 50 * Math.pow(2, attempt) // 50ms, 100ms, 200ms, 400ms, 800ms
+          await new Promise(resolve => setTimeout(resolve, backoffDelay))
+          continue
+        } else {
+          return { success: false, id: leadId, error: response.error }
+        }
+      } catch (error) {
+        if (attempt < maxRetries - 1) {
+          // Retry on network errors with exponential backoff
+          const backoffDelay = 50 * Math.pow(2, attempt)
+          await new Promise(resolve => setTimeout(resolve, backoffDelay))
+          continue
+        } else {
+          return { success: false, id: leadId, error: String(error) }
+        }
+      }
+    }
+    
+    return { success: false, id: leadId, error: 'Max retries exceeded' }
+  }
 
+  async function performDeletion() {
     if (!canConfirmDeletion) return
 
     // Close confirmation modal immediately when starting deletion
     setIsConfirmOpen(false)
     
     const totalLeads = pendingDeletionIds.length
-     // Always use batch size of 500 for maximum efficiency
-     const batchSize = 500
+    const batchSize = 1000
     const totalBatches = Math.ceil(totalLeads / batchSize)
+    const parallelLimit = 30
     
     // Show progress notification
     setDeleteNotification({
@@ -3438,117 +5008,257 @@ export default function LeadsPage({
     
     try {
       let deletedCount = 0
-      const leadsToDelete: Lead[] = []
+      const successfullyDeletedIds: string[] = []
+      const failedDeletions: Array<{ id: string, error: string }> = []
       
       // Store leads before deletion for potential rollback
       const leadsBeforeDeletion = [...leads]
+      const idsToDelete = [...pendingDeletionIds]
       
+      // Process batches
       for (let i = 0; i < totalBatches; i++) {
-        // Check if cancelled
+        // Check if cancelled at start of batch
         if (isDeletionCancelledRef.current) {
-          // Rollback: restore deleted leads in backend
-          try {
-            // Restore leads that were already deleted in this batch
-            const leadsToRestore = leadsToDelete.slice(0, deletedCount)
+          // Rollback: restore deleted leads
+          if (successfullyDeletedIds.length > 0) {
+            const leadsToRestore = leadsBeforeDeletion.filter(lead => successfullyDeletedIds.includes(lead.id))
             for (const lead of leadsToRestore) {
+              try {
               await apiService.createLead(lead)
-            }
-            pushToast(`Deletion cancelled - ${leadsToRestore.length} leads restored`, 'success')
           } catch (error) {
-            console.error('Error restoring leads:', error)
+                console.error('Error restoring lead:', error)
+              }
+            }
           }
           
           // Restore frontend state
           setLeads(leadsBeforeDeletion)
           setFilteredLeads(leadsBeforeDeletion)
-          setDeletedLeads([])
           setDeleteNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
-          setIsDeletionCancelled(false)
-          isDeletionCancelledRef.current = false
+          pushToast('Deletion cancelled and leads restored', 'success')
           return
-
         }
-
         
         const startIndex = i * batchSize
         const endIndex = Math.min(startIndex + batchSize, totalLeads)
-        const batchIds = pendingDeletionIds.slice(startIndex, endIndex)
-        
-        // Store leads being deleted in this batch
-        const batchLeads = leadsBeforeDeletion.filter(lead => batchIds.includes(lead.id))
-        leadsToDelete.push(...batchLeads)
+        const batchIds = idsToDelete.slice(startIndex, endIndex)
         
         // Update progress
         setDeleteNotification(prev => ({
           ...prev,
           progress: { 
-            current: deletedCount, 
+            current: startIndex, 
             total: totalLeads, 
             batch: i + 1, 
             totalBatches 
           }
         }))
         
-        try {
-          // Check cancellation before processing batch
+        // Delete leads in controlled parallel chunks
+        const batchSuccessIds: string[] = []
+        for (let j = 0; j < batchIds.length; j += parallelLimit) {
+          // Check cancellation during chunk processing
           if (isDeletionCancelledRef.current) {
-            // Rollback: restore deleted leads in backend
-            try {
-              const leadsToRestore = leadsToDelete.slice(0, deletedCount)
+            // Rollback all successfully deleted leads so far
+            const allDeletedIds = [...successfullyDeletedIds, ...batchSuccessIds]
+            if (allDeletedIds.length > 0) {
+              const leadsToRestore = leadsBeforeDeletion.filter(lead => allDeletedIds.includes(lead.id))
               for (const lead of leadsToRestore) {
+                try {
                 await apiService.createLead(lead)
-              }
-              pushToast(`Deletion cancelled - ${leadsToRestore.length} leads restored`, 'success')
             } catch (error) {
-              console.error('Error restoring leads:', error)
+                  console.error('Error restoring lead:', error)
+                }
+              }
             }
             
             // Restore frontend state
             setLeads(leadsBeforeDeletion)
             setFilteredLeads(leadsBeforeDeletion)
-            setDeletedLeads([])
             setDeleteNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
-            setIsDeletionCancelled(false)
-            isDeletionCancelledRef.current = false
+            pushToast('Deletion cancelled and leads restored', 'success')
             return
           }
           
-          // Delete leads in parallel for maximum speed
-          const deletePromises = batchIds.map(async (id) => {
-            try {
-              const response = await apiService.deleteLead(id)
-              return { success: response.success, id }
-    } catch (error) {
+          const chunk = batchIds.slice(j, j + parallelLimit)
+          const leadIndex = startIndex + j
+          
+          // Update progress
+          setDeleteNotification(prev => ({
+            ...prev,
+            progress: { 
+              current: leadIndex, 
+              total: totalLeads, 
+              batch: i + 1, 
+              totalBatches 
+            }
+          }))
+          
+          // Process chunk in parallel
+          const chunkPromises = chunk.map(id => deleteLeadWithRetry(id, 5))
+          const chunkResults = await Promise.all(chunkPromises)
+          
+          // Collect results
+          chunkResults.forEach(result => {
+            if (result.success) {
+              deletedCount++
+              batchSuccessIds.push(result.id)
+            } else {
+              failedDeletions.push({ id: result.id, error: result.error || 'Unknown error' })
+            }
+          })
 
-              console.error(`Failed to delete lead ${id}:`, error)
-              return { success: false, id }
+          // No delay between parallel chunks for maximum speed
+        }
+        
+        // Update UI progressively after each batch
+        successfullyDeletedIds.push(...batchSuccessIds)
+        if (batchSuccessIds.length > 0) {
+          setLeads(prev => prev.filter(lead => !batchSuccessIds.includes(lead.id)))
+          setFilteredLeads(prev => prev.filter(lead => !batchSuccessIds.includes(lead.id)))
+        }
+      }
+      
+      // Check for cancellation before retry phase
+      if (isDeletionCancelledRef.current) {
+        // Rollback all successfully deleted leads
+        if (successfullyDeletedIds.length > 0) {
+          const leadsToRestore = leadsBeforeDeletion.filter(lead => successfullyDeletedIds.includes(lead.id))
+          for (const lead of leadsToRestore) {
+            try {
+              await apiService.createLead(lead)
+            } catch (error) {
+              console.error('Error restoring lead:', error)
+            }
+          }
+            }
+            
+            // Restore frontend state
+            setLeads(leadsBeforeDeletion)
+            setFilteredLeads(leadsBeforeDeletion)
+            setDeleteNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
+        pushToast('Deletion cancelled and leads restored', 'success')
+            return
+          }
+          
+      // Retry failed deletions one more time if any failed
+      if (failedDeletions.length > 0 && !isDeletionCancelledRef.current) {
+        pushToast(`Retrying ${failedDeletions.length} failed deletions...`, "warning")
+        
+        const retryIds = failedDeletions.map(f => f.id)
+        const retriedSuccessIds: string[] = []
+        
+        // Process retries in parallel chunks
+        for (let k = 0; k < retryIds.length; k += parallelLimit) {
+          if (isDeletionCancelledRef.current) {
+            // Rollback all successfully deleted leads
+            const allDeletedIds = [...successfullyDeletedIds, ...retriedSuccessIds]
+            if (allDeletedIds.length > 0) {
+              const leadsToRestore = leadsBeforeDeletion.filter(lead => allDeletedIds.includes(lead.id))
+              for (const lead of leadsToRestore) {
+                try {
+                  await apiService.createLead(lead)
+    } catch (error) {
+                  console.error('Error restoring lead:', error)
+                }
+              }
+            }
+            
+            // Restore frontend state
+            setLeads(leadsBeforeDeletion)
+            setFilteredLeads(leadsBeforeDeletion)
+            setDeleteNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
+            pushToast('Deletion cancelled and leads restored', 'success')
+            return
+          }
+          
+          const retryChunk = retryIds.slice(k, k + parallelLimit)
+          const retryPromises = retryChunk.map(id => deleteLeadWithRetry(id, 5))
+          const retryResults = await Promise.all(retryPromises)
+          
+          // Collect successful retries and remaining failures
+          const stillFailedIds: string[] = []
+          retryResults.forEach(result => {
+            if (result.success) {
+              deletedCount++
+              retriedSuccessIds.push(result.id)
+            } else {
+              stillFailedIds.push(result.id)
             }
           })
           
-          const deleteResults = await Promise.all(deletePromises)
-          const successfulDeletions = deleteResults.filter(result => result.success)
-          deletedCount += successfulDeletions.length
-          
-          // Update local state for this batch
-          setLeads(prev => prev.filter(lead => !batchIds.includes(lead.id)))
-          setFilteredLeads(prev => prev.filter(lead => !batchIds.includes(lead.id)))
-          
-        } catch (error) {
-          console.error('Error deleting batch:', error)
+          // No delay between retry chunks for maximum speed
         }
         
-        // No delay between batches for maximum speed
+        // Update UI for successful retries
+        if (retriedSuccessIds.length > 0) {
+          setLeads(prev => prev.filter(lead => !retriedSuccessIds.includes(lead.id)))
+          setFilteredLeads(prev => prev.filter(lead => !retriedSuccessIds.includes(lead.id)))
+        }
+        
+        // Third retry phase for remaining failures (with more aggressive retries)
+        const stillFailed = failedDeletions.filter(f => !retriedSuccessIds.includes(f.id))
+        if (stillFailed.length > 0 && !isDeletionCancelledRef.current) {
+          pushToast(`Final retry for ${stillFailed.length} remaining deletions...`, "warning")
+          
+          const finalRetryIds = stillFailed.map(f => f.id)
+          const finalSuccessIds: string[] = []
+          
+          // Process with smaller chunks for better reliability
+          const smallerChunkSize = 20
+          for (let m = 0; m < finalRetryIds.length; m += smallerChunkSize) {
+            if (isDeletionCancelledRef.current) break
+            
+            const finalChunk = finalRetryIds.slice(m, m + smallerChunkSize)
+            const finalPromises = finalChunk.map(id => deleteLeadWithRetry(id, 6))
+            const finalResults = await Promise.all(finalPromises)
+            
+            finalResults.forEach(result => {
+              if (result.success) {
+                deletedCount++
+                finalSuccessIds.push(result.id)
+              }
+            })
+            
+            // Small delay between final retry chunks for stability
+            if (m + smallerChunkSize < finalRetryIds.length) {
+              await new Promise(resolve => setTimeout(resolve, 50))
+            }
+          }
+          
+          // Update UI for final successful retries
+          if (finalSuccessIds.length > 0) {
+            setLeads(prev => prev.filter(lead => !finalSuccessIds.includes(lead.id)))
+            setFilteredLeads(prev => prev.filter(lead => !finalSuccessIds.includes(lead.id)))
+          }
+          
+          const absoluteFinalErrors = stillFailed.length - finalSuccessIds.length
+          if (absoluteFinalErrors > 0) {
+            pushToast(`${deletedCount} lead(s) deleted. ${absoluteFinalErrors} lead(s) failed after all retries.`, 'warning')
+          } else {
+      pushToast(`Successfully deleted ${deletedCount} lead(s)`, 'success')
+          }
+        } else {
+          const finalErrors = failedDeletions.length - retriedSuccessIds.length
+          if (finalErrors > 0) {
+            pushToast(`${deletedCount} lead(s) deleted. ${finalErrors} lead(s) failed even after retry.`, 'warning')
+          } else {
+            pushToast(`Successfully deleted ${deletedCount} lead(s)`, 'success')
+          }
+        }
+      } else {
+        // Show success message
+        if (failedDeletions.length > 0) {
+          pushToast(`Deleted ${deletedCount} lead(s). ${failedDeletions.length} lead(s) failed.`, 'warning')
+        } else {
+          pushToast(`Successfully deleted ${deletedCount} lead(s)`, 'success')
+        }
       }
       
-      // Store deleted leads for potential rollback
-      setDeletedLeads(leadsToDelete)
-      
-      // Clear selections and show success
+      // Clear selections
       setSelectedLeads(new Set())
-      pushToast(`Successfully deleted ${deletedCount} lead(s)`, 'success')
       
-      
-      // Sync after operation to ensure complete sync with backend
+      // Sync after operation
       await syncAfterOperation()
       
     } catch (error) {
@@ -3558,20 +5268,21 @@ export default function LeadsPage({
       setDeleteNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
       setPendingDeletionIds([])
       setConfirmInput("")
+      setIsDeletionCancelled(false)
+      isDeletionCancelledRef.current = false
     }
   }
-
-
-
   return (
 
     <AuthGuard orgSlug={org}>
+
+      <RoleGuard allowedRoles={["admin", "master"]} orgSlug={org}>
 
       <SidebarProvider>
 
         <AppSidebar org={org} />
 
-        <SidebarInset className={`flex flex-col h-screen ${totalPages > 1 ? "pb-20" : ""}`}>
+        <SidebarInset ref={sidebarInsetRef}>
 
         {/* HEADER */}
 
@@ -3595,7 +5306,7 @@ export default function LeadsPage({
 
                 <BreadcrumbLink href={`/${org}/dashboard`}>
 
-                  Dashboard
+                    {t('breadcrumbHome')}
 
                 </BreadcrumbLink>
 
@@ -3605,7 +5316,7 @@ export default function LeadsPage({
 
               <BreadcrumbItem>
 
-                <BreadcrumbPage>Leads</BreadcrumbPage>
+                  <BreadcrumbPage>{t('breadcrumbLeads')}</BreadcrumbPage>
 
               </BreadcrumbItem>
 
@@ -3689,7 +5400,7 @@ export default function LeadsPage({
             <div className="flex items-center gap-2">
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600"></div>
               <span className="font-medium">
-                {isImportCancelled ? 'Cancelling Import...' : 'Importing Leads'}
+                  {isImportCancelled ? t('notifications.cancellingImport') : t('notifications.importingLeads')}
               </span>
             </div>
               <Button
@@ -3756,13 +5467,13 @@ export default function LeadsPage({
                 }}
                 className="cursor-pointer text-muted-foreground hover:text-foreground"
               >
-                Cancel
+                  {t('notifications.cancel')}
               </Button>
             </div>
             
             <div className="space-y-2">
               <div className="flex justify-between text-sm text-muted-foreground">
-                <span>Batch {importNotification.progress.batch} of {importNotification.progress.totalBatches}</span>
+                  <span>{t('notifications.batchOf', { batch: importNotification.progress.batch, total: importNotification.progress.totalBatches })}</span>
                 <span>{importNotification.progress.current} / {importNotification.progress.total}</span>
               </div>
               
@@ -3785,7 +5496,7 @@ export default function LeadsPage({
               <div className="flex items-center gap-2">
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
                 <span className="font-medium">
-                  {isEditCancelled ? 'Cancelling Edit...' : 'Updating Leads'}
+                    {isEditCancelled ? t('notifications.cancellingEdit') : t('notifications.updatingLeads')}
                 </span>
               </div>
               <Button
@@ -3873,13 +5584,13 @@ export default function LeadsPage({
                 }}
                 className="cursor-pointer text-muted-foreground hover:text-foreground"
               >
-                Cancel
+                  {t('notifications.cancel')}
               </Button>
             </div>
             
             <div className="space-y-2">
               <div className="flex justify-between text-sm text-muted-foreground">
-                <span>Batch {editNotification.progress.batch} of {editNotification.progress.totalBatches}</span>
+                  <span>{t('notifications.batchOf', { batch: editNotification.progress.batch, total: editNotification.progress.totalBatches })}</span>
                 <span>{editNotification.progress.current} / {editNotification.progress.total}</span>
               </div>
               
@@ -3894,6 +5605,34 @@ export default function LeadsPage({
             </div>
           </div>
         )}
+        
+        {/* BULK ASSIGN PROGRESS NOTIFICATION */}
+        {assignNotification.show && (
+          <div className="fixed top-4 right-4 z-[100] bg-background border rounded-lg shadow-lg p-4 w-80">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                  <span className="font-medium">{t('notifications.assigningLeads')}</span>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>{t('notifications.batchOf', { batch: assignNotification.progress.batch, total: assignNotification.progress.totalBatches })}</span>
+                <span>{assignNotification.progress.current} / {assignNotification.progress.total}</span>
+              </div>
+              
+              <div className="w-full bg-muted rounded-full h-2">
+                <div 
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  style={{ 
+                    width: `${(assignNotification.progress.current / assignNotification.progress.total) * 100}%` 
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* DELETE PROGRESS NOTIFICATION */}
         {deleteNotification.show && (
@@ -3902,7 +5641,7 @@ export default function LeadsPage({
               <div className="flex items-center gap-2">
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
                 <span className="font-medium">
-                  {isDeletionCancelled ? 'Cancelling Deletion...' : 'Deleting Leads'}
+                    {isDeletionCancelled ? t('notifications.cancellingDeletion') : t('notifications.deletingLeads')}
                 </span>
               </div>
               <Button
@@ -3928,6 +5667,8 @@ export default function LeadsPage({
                             ssn: lead.ssn || undefined,
                             ein: lead.ein || undefined,
                             source: lead.source || undefined,
+                            location: lead.location || undefined,
+                            interest: lead.interest || undefined,
                             status: lead.status,
                             value: lead.value,
                             description: lead.description,
@@ -3969,13 +5710,13 @@ export default function LeadsPage({
                 }}
                 className="cursor-pointer text-muted-foreground hover:text-foreground"
               >
-                Cancel
+                  {t('notifications.cancel')}
               </Button>
             </div>
             
             <div className="space-y-2">
               <div className="flex justify-between text-sm text-muted-foreground">
-                <span>Batch {deleteNotification.progress.batch} of {deleteNotification.progress.totalBatches}</span>
+                  <span>{t('notifications.batchOf', { batch: deleteNotification.progress.batch, total: deleteNotification.progress.totalBatches })}</span>
                 <span>{deleteNotification.progress.current} / {deleteNotification.progress.total}</span>
               </div>
               
@@ -3993,8 +5734,7 @@ export default function LeadsPage({
 
 
         {/* MAIN */}
-
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+        <div data-main-container className="flex flex-1 flex-col gap-4 p-4 pt-0">
 
           {/* CONTROLS */}
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -4003,7 +5743,7 @@ export default function LeadsPage({
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder="Search leads..."
+                  placeholder={t('search.placeholder')}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 w-64"
@@ -4017,7 +5757,7 @@ export default function LeadsPage({
                 className="cursor-pointer"
               >
                 <Filter className="h-4 w-4 mr-2" />
-                Filters
+                {t('filters.filters')}
                 {(searchTerm || Object.values(filters).some(f => f !== "") || valueRange.min || valueRange.max || dateRange.min || dateRange.max) && (
                   <span className="ml-1 bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 text-xs">
                     {[searchTerm, ...Object.values(filters), valueRange.min, valueRange.max, dateRange.min, dateRange.max].filter(f => f && f !== "").length}
@@ -4035,6 +5775,34 @@ export default function LeadsPage({
                   <XCircle className="h-4 w-4" />
                 </Button>
               )}
+              
+              {/* Column Visibility Selector */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="cursor-pointer">
+                    <Columns className="h-4 w-4 mr-2" />
+                    {t('filters.columns')}
+                    <ChevronDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 p-1">
+                  {columnOrder.filter(columnId => columnLabels[columnId]).map((columnId) => (
+                    <SortableColumnItem
+                      key={columnId}
+                      id={columnId}
+                      label={columnLabels[columnId]}
+                      visible={visibleColumns[columnId]}
+                      onToggle={() => toggleColumn(columnId)}
+                      onDragStart={handleColumnDragStart}
+                      onDragOver={handleColumnDragOver}
+                      onDragLeave={handleColumnDragLeave}
+                      onDrop={handleColumnDrop}
+                      isDragging={draggedColumn === columnId}
+                      isDraggedOver={dragOverColumn === columnId}
+                    />
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
             {/* Actions */}
@@ -4048,7 +5816,7 @@ export default function LeadsPage({
 
                     <Plus className="h-4 w-4 mr-2" />
 
-                    Add Lead
+                    {t('actions.addLead')}
 
                     <ChevronDown className="ml-2 h-4 w-4" />
 
@@ -4062,7 +5830,7 @@ export default function LeadsPage({
 
                     <Plus className="h-4 w-4" />
 
-                    Add manually
+                    {t('actions.addManually')}
 
                   </DropdownMenuItem>
 
@@ -4076,7 +5844,7 @@ export default function LeadsPage({
 
                     <Download className="h-4 w-4" />
 
-                    Import
+                    {t('actions.import')}
 
                   </DropdownMenuItem>
 
@@ -4094,7 +5862,7 @@ export default function LeadsPage({
 
                     <Upload className="h-4 w-4 mr-2" />
 
-                    {selectedLeads.size > 0 ? "Export selected" : "Export"}
+                    {selectedLeads.size > 0 ? t('actions.exportSelected') : t('actions.export')}
 
                     <ChevronDown className="ml-2 h-4 w-4" />
 
@@ -4108,7 +5876,7 @@ export default function LeadsPage({
 
                     <Upload className="h-4 w-4" />
 
-                    Export as XLSX
+                    {t('actions.exportAsXLSX')}
 
                   </DropdownMenuItem>
 
@@ -4116,7 +5884,7 @@ export default function LeadsPage({
 
                     <Upload className="h-4 w-4" />
 
-                    Export as CSV
+                    {t('actions.exportAsCSV')}
 
                   </DropdownMenuItem>
 
@@ -4124,7 +5892,7 @@ export default function LeadsPage({
 
                     <Upload className="h-4 w-4" />
 
-                    Export as ODS
+                    {t('actions.exportAsODS')}
 
                   </DropdownMenuItem>
 
@@ -4132,7 +5900,7 @@ export default function LeadsPage({
 
                     <Upload className="h-4 w-4" />
 
-                    Export as JSON
+                    {t('actions.exportAsJSON')}
 
                   </DropdownMenuItem>
 
@@ -4145,29 +5913,33 @@ export default function LeadsPage({
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" className="cursor-pointer">
                       <Edit className="h-4 w-4 mr-2" />
-                      Actions ({selectedLeads.size})
+                      {t('actions.actionsWithCount', { count: selectedLeads.size })}
                       <ChevronDown className="ml-2 h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56">
                     <DropdownMenuItem onClick={openBulkEdit} className="cursor-pointer">
                       <Edit className="h-4 w-4 mr-2" />
-                      Edit Selected
+                      {t('actions.editSelected')}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={openBulkAssign} className="cursor-pointer">
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      {t('actions.assignToUser')}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => openPipelineModal('add')} className="cursor-pointer">
                       <CheckCircle2 className="h-4 w-4 mr-2" />
-                      Add to Pipeline
+                      {t('actions.addToPipeline')}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => openPipelineModal('remove')} className="cursor-pointer">
                       <X className="h-4 w-4 mr-2" />
-                      Remove from Pipeline
+                      {t('actions.removeFromPipeline')}
                     </DropdownMenuItem>
                     <DropdownMenuItem 
                       onClick={handleDeleteSelected} 
                       className="cursor-pointer text-red-600 focus:text-red-600"
                     >
                       <Trash2 className="h-4 w-4 mr-2" />
-                      Delete Selected
+                      {t('actions.deleteSelected')}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -4184,7 +5956,7 @@ export default function LeadsPage({
             <div className="flex items-center justify-between mb-3">
 
               <div className="flex items-center gap-4">
-              <h2 className="text-lg font-semibold">Lead List</h2>
+              <h2 className="text-lg font-semibold">{t('table.leadList')}</h2>
 
                 {selectedLeads.size > 0 && (
                   <Button
@@ -4194,7 +5966,7 @@ export default function LeadsPage({
                     className="cursor-pointer text-red-600 hover:text-red-700"
                   >
                   <X className="h-4 w-4" />
-                  Unselect All
+                  {t('table.unselectAll')}
                   </Button>
                 )}
                 {/* TOP PAGINATION - Show when scrolling */}
@@ -4207,7 +5979,7 @@ export default function LeadsPage({
                       disabled={currentPage === 1}
                       className="cursor-pointer"
                     >
-                      First
+                      {t('table.first')}
                     </Button>
                     <Button
                       variant="outline"
@@ -4216,12 +5988,12 @@ export default function LeadsPage({
                       disabled={currentPage === 1}
                       className="cursor-pointer"
                     >
-                      Previous
+                      {t('table.previous')}
                     </Button>
                     
                     <div className="flex items-center gap-2 px-2">
                       <span className="text-sm text-muted-foreground">
-                        Page {currentPage} of {totalPages}
+                        {t('table.pageOf', { current: currentPage, total: totalPages })}
                       </span>
                     </div>
                     
@@ -4232,7 +6004,7 @@ export default function LeadsPage({
                       disabled={currentPage === totalPages}
                       className="cursor-pointer"
                     >
-                      Next
+                      {t('table.next')}
                     </Button>
                     <Button
                       variant="outline"
@@ -4241,7 +6013,7 @@ export default function LeadsPage({
                       disabled={currentPage === totalPages}
                       className="cursor-pointer"
                     >
-                      Last
+                      {t('table.last')}
                     </Button>
                   </div>
                 )}
@@ -4252,7 +6024,7 @@ export default function LeadsPage({
 
                   <div className="flex items-center gap-2">
                     <span className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-800">
-                      {selectedLeads.size} selected
+                      {selectedLeads.size} {t('table.selected')}
                     </span>
                     <Button 
                       variant="ghost" 
@@ -4260,7 +6032,7 @@ export default function LeadsPage({
                       onClick={() => setSelectedLeads(new Set())}
                       className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
                     >
-                      Clear
+                      {t('table.clear')}
                     </Button>
                   </div>
 
@@ -4268,28 +6040,28 @@ export default function LeadsPage({
 
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
 
-                  {startIndex + 1}-{Math.min(endIndex, totalItems)} of {totalItems} items
+                  {t('table.itemsRange', { start: startIndex + 1, end: Math.min(endIndex, totalItems), total: totalItems })}
                 </div>
 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm" className="cursor-pointer">
-                      {itemsPerPage} per page
+                      {t('table.perPage', { count: itemsPerPage })}
                       <ChevronDown className="ml-1 h-3 w-3" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-32">
                     <DropdownMenuItem onClick={() => setItemsPerPage(10)} className="cursor-pointer">
-                      10 per page
+                      {t('table.perPage', { count: 10 })}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => setItemsPerPage(20)} className="cursor-pointer">
-                      20 per page
+                      {t('table.perPage', { count: 20 })}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => setItemsPerPage(50)} className="cursor-pointer">
-                      50 per page
+                      {t('table.perPage', { count: 50 })}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => setItemsPerPage(100)} className="cursor-pointer">
-                      100 per page
+                      {t('table.perPage', { count: 100 })}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -4297,15 +6069,15 @@ export default function LeadsPage({
 
             </div>
 
-              <div className="overflow-x-auto flex-1">
+            <div ref={tableContainerRef} className="overflow-x-auto border rounded-lg" style={{ scrollBehavior: 'auto' }}>
 
-              <table className="w-full text-sm">
+              <table className="w-full text-sm border-collapse">
 
                 <thead>
 
-                  <tr className="text-left border-b">
+                  <tr className="text-left border-b-2 border-border bg-muted/60">
 
-                    <th className="py-2 pr-3 w-12">
+                    <th className="py-2.5 px-2 w-10 border-r border-border/40">
                       {leads.length > 0 && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -4315,14 +6087,14 @@ export default function LeadsPage({
                           </DropdownMenuTrigger>
                             <DropdownMenuContent align="start" className="w-48">
                               <DropdownMenuItem onClick={handleToggleSelectAll} className="cursor-pointer">
-                                {selectedLeads.size === leads.length && leads.length > 0 ? `Unselect All (${leads.length})` : `Select All (${leads.length})`}
+                                {selectedLeads.size === leads.length && leads.length > 0 ? t('table.unselectAllCount', { count: leads.length }) : t('table.selectAll', { count: leads.length })}
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={handleToggleSelectPage} className="cursor-pointer">
                                 {(() => {
                                   const currentPageLeadIds = new Set(currentLeads.map(lead => lead.id))
                                   const allCurrentPageSelected = currentPageLeadIds.size > 0 && 
                                     Array.from(currentPageLeadIds).every(id => selectedLeads.has(id))
-                                  return allCurrentPageSelected ? `Unselect Page` : `Select Page`
+                                  return allCurrentPageSelected ? t('table.unselectPage') : t('table.selectPage')
                                 })()}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
@@ -4330,121 +6102,9 @@ export default function LeadsPage({
                       )}
                     </th>
 
-                    <th 
+                    {columnOrder.filter(columnId => columnLabels[columnId]).map(columnId => renderColumnHeader(columnId))}
 
-                      className="py-2 pr-3 w-[200px] cursor-pointer hover:bg-muted/50 select-none"
-
-                      onClick={() => handleSort('name')}
-
-                    >
-
-                      <div className="flex items-center gap-1">
-
-                        Name
-
-                        {sortField === 'name' && (
-
-                          sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
-
-                        )}
-
-                      </div>
-
-                    </th>
-
-                    <th className="py-2 pr-3 w-[240px]">Email / Phone</th>
-
-                    <th className="py-2 pr-3 w-[160px]">SSN/EIN</th>
-
-                    <th 
-
-                      className="py-2 pr-3 w-[160px] cursor-pointer hover:bg-muted/50 select-none"
-
-                      onClick={() => handleSort('source')}
-
-                    >
-
-                      <div className="flex items-center gap-1">
-
-                        Source
-
-                        {sortField === 'source' && (
-
-                          sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
-
-                        )}
-
-                      </div>
-
-                    </th>
-
-                    <th 
-
-                      className="py-2 pr-3 w-[120px] cursor-pointer hover:bg-muted/50 select-none"
-
-                      onClick={() => handleSort('status')}
-
-                    >
-
-                      <div className="flex items-center gap-1">
-
-                        Status
-
-                        {sortField === 'status' && (
-
-                          sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
-
-                        )}
-
-                      </div>
-
-                    </th>
-
-                    <th 
-
-                      className="py-2 pr-3 w-[140px] cursor-pointer hover:bg-muted/50 select-none"
-
-                      onClick={() => handleSort('value')}
-
-                    >
-
-                      <div className="flex items-center gap-1">
-
-                        Value
-
-                        {sortField === 'value' && (
-
-                          sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
-
-                        )}
-
-                      </div>
-
-                    </th>
-
-                    <th 
-
-                      className="py-2 pr-3 w-[140px] cursor-pointer hover:bg-muted/50 select-none"
-
-                      onClick={() => handleSort('estimated_close_date')}
-
-                    >
-
-                      <div className="flex items-center gap-1">
-
-                        Close Date
-
-                        {sortField === 'estimated_close_date' && (
-
-                          sortDirection === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
-
-                        )}
-
-                      </div>
-
-                    </th>
-
-                    <th className="py-2 pr-0 text-right w-[100px]">Actions</th>
+                    <th className="py-2.5 px-2 text-center min-w-[110px] w-[120px] font-semibold text-xs">{t('columns.actions')}</th>
 
                   </tr>
 
@@ -4452,9 +6112,17 @@ export default function LeadsPage({
 
                 <tbody>
 
-                  {currentLeads.map((lead, index) => (
-                    <tr key={lead.id} className={`border-b last:border-b-0 hover:bg-muted/30 ${index % 2 === 0 ? 'bg-background' : 'bg-muted/40'}`}>
-                      <td className="py-2 pr-3">
+                  {currentLeads.map((lead, index) => {
+                    const hasSpecialStatus = lead.show_on_pipeline || lead.assigned_user_id
+                    const borderColorClass = lead.show_on_pipeline 
+                      ? 'border-l-2 border-l-green-500' 
+                      : lead.assigned_user_id 
+                      ? 'border-l-2 border-l-blue-500' 
+                      : ''
+                    
+                    return (
+                    <tr key={lead.id} className={`border-b last:border-b-0 transition-colors ${index % 2 === 0 ? 'bg-background hover:bg-muted/30' : 'bg-muted/20 hover:bg-muted/40'} ${borderColorClass}`}>
+                      <td className="py-2.5 px-2 border-r border-border/30">
 
                         <input
 
@@ -4466,149 +6134,53 @@ export default function LeadsPage({
 
                           readOnly
 
-                          className="rounded border-input"
+                          className="rounded border-input cursor-pointer"
 
                         />
 
                       </td>
 
-                      <td className="py-2 pr-3">
+                      {columnOrder.filter(columnId => columnLabels[columnId]).map(columnId => renderColumnCell(columnId, lead))}
 
-                        <div className="flex items-center gap-2">
-                          <div
+                      <td className="py-2.5 px-2">
 
-                            className="max-w-[200px] truncate hover:underline decoration-dotted cursor-pointer font-medium"
+                        <div className="flex justify-end gap-1">
 
-                            title={lead.name}
+                          <Button size="sm" variant="outline" onClick={() => handleEdit(lead)} className="cursor-pointer h-7 w-7 p-0" title="Edit lead">
 
-                            onClick={() => setPreview({ open: true, lead })}
-
-                          >
-
-                            {lead.name}
-
-                          </div>
-                          {lead.show_on_pipeline && (
-                            <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
-                              <CheckCircle2 className="h-3 w-3 mr-1" />
-                              Pipeline
-                            </span>
-                          )}
-                        </div>
-
-                      </td>
-
-                      <td className="py-2 pr-3">
-
-                        <div className="max-w-[220px] space-y-1">
-
-                          <div className="truncate text-sm" title={lead.email}>
-
-                            {lead.email}
-
-                          </div>
-
-                          {lead.phone && (
-
-                            <div className="truncate text-xs text-muted-foreground" title={lead.phone}>
-
-                              {lead.phone}
-
-                            </div>
-
-                          )}
-
-                        </div>
-
-                      </td>
-
-                      <td className="py-2 pr-3">
-
-                        <div className="max-w-[160px] space-y-1">
-
-                          {lead.ssn && (
-
-                            <div className="text-xs" title={`SSN: ${lead.ssn}`}>
-
-                              SSN: {lead.ssn}
-
-                            </div>
-
-                          )}
-
-                          {lead.ein && (
-
-                            <div className="text-xs" title={`EIN: ${lead.ein}`}>
-
-                              EIN: {lead.ein}
-
-                            </div>
-
-                          )}
-
-                          {!lead.ssn && !lead.ein && (
-
-                            <div className="text-xs text-muted-foreground">-</div>
-
-                          )}
-
-                        </div>
-
-                      </td>
-
-                      <td className="py-2 pr-3">
-
-                        <div className="max-w-[160px] truncate text-xs" title={lead.source}>
-
-                          {lead.source || '-'}
-
-                        </div>
-
-                      </td>
-
-                      <td className="py-2 pr-3">
-
-                        <span className="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium">
-
-                          {lead.status}
-
-                        </span>
-
-                      </td>
-
-                      <td className="py-2 pr-3">
-
-                        <div className="text-sm font-medium text-green-600">
-
-                          {lead.value ? `$${lead.value.toLocaleString()}` : '-'}
-
-                        </div>
-
-                      </td>
-
-                      <td className="py-2 pr-3">
-
-                        <div className="text-xs text-muted-foreground">
-
-                          {lead.estimated_close_date ? new Date(lead.estimated_close_date).toLocaleDateString('pt-BR') : '-'}
-
-                        </div>
-
-                      </td>
-
-                      <td className="py-2 pr-0">
-
-                        <div className="flex justify-end gap-1.5">
-
-                          <Button size="sm" variant="outline" onClick={() => handleEdit(lead)} className="cursor-pointer">
-
-                            <Edit className="h-3 w-3 mr-1" />
-
-                            Edit
+                            <Edit className="h-3 w-3" />
 
                           </Button>
 
-                          <Button size="sm" variant="destructive" onClick={() => handleDelete(lead.id)} className="cursor-pointer">
+                          <Button size="sm" variant="outline" onClick={() => handleQuickAssign(lead.id)} className="cursor-pointer h-7 w-7 p-0" title="Assign to user">
+
+                            <UserPlus className="h-3 w-3" />
+
+                          </Button>
+
+                          {lead.show_on_pipeline ? (
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              onClick={() => handleTogglePipeline(lead.id, lead.show_on_pipeline)} 
+                              className="cursor-pointer h-7 w-7 p-0 border-orange-300 hover:bg-orange-50" 
+                              title="Remove from pipeline"
+                            >
+                              <X className="h-3 w-3 text-orange-600" />
+                            </Button>
+                          ) : (
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              onClick={() => handleTogglePipeline(lead.id, lead.show_on_pipeline)} 
+                              className="cursor-pointer h-7 w-7 p-0 border-green-300 hover:bg-green-50" 
+                              title="Add to pipeline"
+                            >
+                              <CheckCircle2 className="h-3 w-3 text-green-600" />
+                            </Button>
+                          )}
+
+                          <Button size="sm" variant="destructive" onClick={() => handleDelete(lead.id)} className="cursor-pointer h-7 w-7 p-0" title="Delete lead">
 
                             <Trash2 className="h-3 w-3" />
 
@@ -4619,20 +6191,15 @@ export default function LeadsPage({
                       </td>
 
                     </tr>
-
-                  ))}
+                    );
+                  })}
 
                   {currentLeads.length === 0 && (
                     <tr>
-
-                      <td colSpan={7} className="py-6 text-center text-muted-foreground">
-
+                      <td colSpan={Object.values(visibleColumns).filter(Boolean).length + 2} className="py-6 text-center text-muted-foreground">
                         {searchTerm ? "No leads found for this search." : "No leads yet. Add the first one above."}
-
                       </td>
-
                     </tr>
-
                   )}
 
                 </tbody>
@@ -4642,6 +6209,94 @@ export default function LeadsPage({
             </div>
 
             
+            {/* Pagination Controls - Always Fixed Footer */}
+            {totalPages > 1 && footerLeft !== null && footerWidth !== null && (
+              <>
+                {/* Placeholder to maintain space in document flow when footer is fixed */}
+                <div 
+                  ref={footerPlaceholderRef}
+                  className="pointer-events-none invisible"
+                  style={{ 
+                    height: '80px',
+                    marginTop: '1rem',
+                    paddingTop: '1rem',
+                    paddingBottom: '1rem'
+                  }}
+                  aria-hidden="true"
+                />
+                <div 
+                  ref={footerRef}
+                  data-pagination-footer
+                  className="fixed bottom-0 z-[50] flex items-center justify-center pt-4 pb-4 border-t"
+                  style={{
+                    left: `${footerLeft}px`,
+                    width: footerWidth,
+                    right: 'auto',
+                    maxWidth: footerWidth,
+                    paddingLeft: '1rem',
+                    paddingRight: '1rem',
+
+                    // Vidro
+                    background: 'rgba(255, 255, 255, 0)', // aumentamos a opacidade
+                    backdropFilter: 'blur(6px) contrast(1.1) saturate(1.3)',
+                    WebkitBackdropFilter: 'blur(14px) contrast(1.1) saturate(1.3)',
+
+                    // Borda e sombra
+                    borderColor: 'rgba(255, 255, 255, 0.3)',
+                    boxShadow: '0 -6px 30px rgba(0, 0, 0, 0.18)',
+
+                    // Suaviza o efeito
+                    transition: 'background 0.2s ease, backdrop-filter 0.2s ease'
+                  }}
+                >
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(1)}
+                    disabled={currentPage === 1}
+                    className="cursor-pointer"
+                  >
+                    {t('table.first')}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="cursor-pointer"
+                  >
+                    {t('table.previous')}
+                  </Button>
+                  
+                  <div className="flex items-center gap-2 px-4">
+                    <span className="text-sm text-muted-foreground">
+                      {t('table.pageOf', { current: currentPage, total: totalPages })}
+                    </span>
+                  </div>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="cursor-pointer"
+                  >
+                    {t('table.next')}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(totalPages)}
+                    disabled={currentPage === totalPages}
+                    className="cursor-pointer"
+                  >
+                    {t('table.last')}
+                  </Button>
+                </div>
+              </div>
+              </>
+            )}
           </div>
         </div>
         {/* ADD/EDIT MODAL */}
@@ -4659,7 +6314,7 @@ export default function LeadsPage({
         }}>
 
           <SheetContent 
-            className="w-full sm:max-w-md border-l border-border p-6 md:p-8 flex flex-col max-h-screen"
+            className="w-full sm:max-w-2xl border-l border-border p-6 md:p-8 flex flex-col max-h-screen"
             onDragOver={handleAttachmentDragOver}
             onDragLeave={handleAttachmentDragLeave}
             onDrop={(e) => editingId && handleAttachmentDrop(e, editingId)}
@@ -4670,13 +6325,13 @@ export default function LeadsPage({
 
               <SheetTitle>
 
-                {editingId ? "Edit Lead" : "Add Lead"}
+                {editingId ? t('modal.editLead') : t('modal.addLead')}
 
               </SheetTitle>
 
               <SheetDescription>
 
-                {editingId ? "Update the lead information." : "Fill in the new lead details."}
+                {editingId ? t('modal.editDescription') : t('modal.addDescription')}
 
               </SheetDescription>
 
@@ -4685,18 +6340,18 @@ export default function LeadsPage({
             <Separator className="my-4" />
             </div>
 
-            <div className="flex-1 overflow-y-auto pr-2">
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="flex-1 overflow-y-auto pr-3 pb-6">
+            <form onSubmit={handleSubmit} className="space-y-8">
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-          <div>
+          <div className="space-y-2">
 
-                  <label className="mb-1 block text-sm font-medium">Name</label>
+                  <label className="mb-2 block text-sm font-medium leading-tight">{t('form.name')}</label>
 
                   <Input
 
-                    placeholder="Full name"
+                    placeholder={t('form.namePlaceholder')}
 
                     value={name}
 
@@ -4710,15 +6365,15 @@ export default function LeadsPage({
 
           </div>
 
-          <div>
+          <div className="space-y-2">
 
-                  <label className="mb-1 block text-sm font-medium">Email</label>
+                  <label className="mb-2 block text-sm font-medium leading-tight">{t('form.email')}</label>
 
                   <Input
 
                 type="email"
 
-                    placeholder="email@example.com"
+                    placeholder={t('form.emailPlaceholder')}
 
                     value={email}
 
@@ -4732,13 +6387,13 @@ export default function LeadsPage({
 
             </div>
 
-                <div>
+                <div className="space-y-2">
 
-                  <label className="mb-1 block text-sm font-medium">Phone</label>
+                  <label className="mb-2 block text-sm font-medium leading-tight">{t('form.phone')}</label>
 
                   <Input
 
-                    placeholder="Phone"
+                    placeholder={t('form.phonePlaceholder')}
 
                     value={phone}
 
@@ -4750,13 +6405,13 @@ export default function LeadsPage({
 
                 </div>
 
-                <div>
+                <div className="space-y-2">
 
-                  <label className="mb-1 block text-sm font-medium">SSN</label>
+                  <label className="mb-2 block text-sm font-medium leading-tight">{t('form.ssn')}</label>
 
                   <Input
 
-                    placeholder="SSN"
+                    placeholder={t('form.ssnPlaceholder')}
 
                     value={ssn}
 
@@ -4768,13 +6423,13 @@ export default function LeadsPage({
 
                 </div>
 
-                <div>
+                <div className="space-y-2">
 
-                  <label className="mb-1 block text-sm font-medium">EIN</label>
+                  <label className="mb-2 block text-sm font-medium leading-tight">{t('form.ein')}</label>
 
                   <Input
 
-                    placeholder="EIN"
+                    placeholder={t('form.einPlaceholder')}
 
                     value={ein}
 
@@ -4786,13 +6441,13 @@ export default function LeadsPage({
 
                 </div>
 
-          <div>
+          <div className="space-y-2">
 
-                  <label className="mb-1 block text-sm font-medium">Source</label>
+                  <label className="mb-2 block text-sm font-medium leading-tight">{t('form.source')}</label>
 
                   <Input
 
-                    placeholder="e.g., Instagram, Landing Page"
+                    placeholder={t('form.sourcePlaceholder')}
 
                     value={source}
 
@@ -4804,61 +6459,101 @@ export default function LeadsPage({
 
             </div>
 
-                <div className="md:col-span-2 space-y-2">
+                <div className="space-y-2">
+                  <label className="mb-2 block text-sm font-medium leading-tight">{t('form.location')}</label>
+                  <Input
+                    placeholder={t('form.locationPlaceholder')}
+                    value={leadLocation}
+                    onChange={(e) => setLeadLocation(e.target.value.slice(0, FIELD_MAX.source))}
+                    maxLength={FIELD_MAX.source}
+                  />
+                </div>
 
-                  <div>
+                <div className="space-y-2">
+                  <label className="mb-2 block text-sm font-medium leading-tight">{t('form.interest')}</label>
+                  <Input
+                    placeholder={t('form.interestPlaceholder')}
+                    value={interest}
+                    onChange={(e) => setInterest(e.target.value.slice(0, FIELD_MAX.source))}
+                    maxLength={FIELD_MAX.source}
+                  />
+            </div>
 
-                    <label className="mb-1 block text-sm font-medium">Status</label>
+                <div className="lg:col-span-2 space-y-2">
+
+                  <div className="space-y-2">
+
+                    <label className="mb-2 block text-sm font-medium leading-tight">{t('form.status')}</label>
 
                     <select
 
                       className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input h-9 w-full min-w-0 rounded-md border bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
 
-                      value={["New","In Contact","Qualified","Lost"].includes(String(status)) ? String(status) : "custom"}
+                      value={statusSelectValue}
 
                       onChange={(e) => {
-
                         const val = e.target.value
 
                         if (val === "custom") {
-
                           setStatus(customStatus || "")
-
-                        } else {
-
-                          setStatus(val as Lead["status"])
-
-                          setCustomStatus("")
-
+                          return
                         }
 
+                        // Clear custom status first
+                          setCustomStatus("")
+
+                        // Find the stage
+                        const stage = pipelineStages.find(s => s.slug === val)
+                        
+                        if (stage && stage.translation_key) {
+                          // System stages: use legacy format
+                          const statusMap: Record<string, string> = {
+                            'new': 'New',
+                            'contact': 'In Contact',
+                            'qualified': 'Qualified',
+                            'lost': 'Lost'
+                          }
+                          setStatus((statusMap[stage.slug] || stage.slug) as Lead["status"])
+                        } else if (stage) {
+                          // Custom stages: use slug
+                          setStatus(stage.slug as Lead["status"])
+                        } else {
+                          // Fallback
+                          setStatus(val as Lead["status"])
+                        }
                       }}
+
+                      disabled={isLoadingStages}
 
                     >
 
-                      <option value="New">New</option>
-
-                      <option value="In Contact">In Contact</option>
-
-                      <option value="Qualified">Qualified</option>
-
-                      <option value="Lost">Lost</option>
-
-                      <option value="custom">Custom…</option>
+                      {isLoadingStages ? (
+                        <option value="">{t('form.loadingStages')}</option>
+                      ) : (
+                        <>
+                          {pipelineStages.map((stage) => (
+                            <option key={stage.id} value={stage.slug}>
+                              {stage.translation_key 
+                                ? t(`statuses.${stage.slug}` as any) 
+                                : stage.name}
+                            </option>
+                          ))}
+                          <option value="custom">{t('statuses.custom')}</option>
+                        </>
+                      )}
 
                     </select>
 
                   </div>
 
-                  {(!["New","In Contact","Qualified","Lost"].includes(String(status))) && (
+                  {showCustomStatusField && (
+                    <div className="space-y-2">
 
-                    <div>
-
-                      <label className="mb-1 block text-sm font-medium">Custom status</label>
+                      <label className="mb-2 block text-sm font-medium leading-tight">{t('form.customStatus')}</label>
 
                       <Input
 
-                        placeholder="e.g., Follow-up postponed"
+                        placeholder={t('form.customStatusPlaceholder')}
 
                         value={customStatus}
 
@@ -4877,7 +6572,6 @@ export default function LeadsPage({
                       />
 
                     </div>
-
                   )}
 
                 </div>
@@ -4890,19 +6584,19 @@ export default function LeadsPage({
 
               <div className="space-y-4">
 
-                <h3 className="text-sm font-semibold text-muted-foreground">Commercial Information</h3>
+                <h3 className="text-sm font-semibold text-muted-foreground">{t('form.commercialInformation')}</h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-                  <div>
+                  <div className="space-y-2">
 
-                    <label className="mb-1 block text-sm font-medium">Deal Value ($)</label>
+                    <label className="mb-2 block text-sm font-medium leading-tight">{t('form.dealValue')}</label>
 
                     <Input
 
                       type="number"
 
-                      placeholder="0.00"
+                      placeholder={t('form.dealValuePlaceholder')}
 
                       value={value}
 
@@ -4922,9 +6616,9 @@ export default function LeadsPage({
 
                   </div>
 
-                  <div>
+                  <div className="space-y-2">
 
-                    <label className="mb-1 block text-sm font-medium">Estimated Close Date</label>
+                    <label className="mb-2 block text-sm font-medium leading-tight">{t('form.estimatedCloseDateLabel')}</label>
 
                     <Input
 
@@ -4948,15 +6642,15 @@ export default function LeadsPage({
 
                 </div>
 
-                <div>
+                <div className="space-y-2">
 
-                  <label className="mb-1 block text-sm font-medium">📝 Notes / Description</label>
+                  <label className="mb-2 block text-sm font-medium leading-tight">{t('form.notesDescription')}</label>
 
                   <textarea
 
                     className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input h-20 w-full min-w-0 rounded-md border bg-transparent px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
 
-                    placeholder="Notes about the lead..."
+                    placeholder={t('form.notesPlaceholder')}
 
                     value={description}
 
@@ -4968,7 +6662,7 @@ export default function LeadsPage({
 
                   <div className="text-xs text-muted-foreground mt-1">
 
-                    {description.length}/{FIELD_MAX.description} characters
+                    {t('form.charactersCount', { current: description.length, max: FIELD_MAX.description })}
 
                   </div>
 
@@ -4982,7 +6676,7 @@ export default function LeadsPage({
                   <Separator />
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-semibold text-muted-foreground">Attachments</h3>
+                      <h3 className="text-sm font-semibold text-muted-foreground">{t('form.attachments')}</h3>
                       {(() => {
                         const lead = leads.find(l => l.id === editingId)
                         const attachments = lead?.attachments || []
@@ -5002,7 +6696,7 @@ export default function LeadsPage({
                               onClick={() => attachmentFileInputRef.current?.click()}
                             >
                               <Upload className="h-4 w-4 mr-2" />
-                              Add Files
+                              {t('form.addFiles')}
                             </Button>
                           )
                         }
@@ -5045,17 +6739,17 @@ export default function LeadsPage({
                               {uploadingAttachments[editingId] ? (
                                 <>
                                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                                  <p className="text-sm text-muted-foreground">Uploading...</p>
+                                  <p className="text-sm text-muted-foreground">{t('form.uploading')}</p>
                                 </>
                               ) : (
                                 <>
                                   <Upload className="h-8 w-8 text-muted-foreground" />
                                   <div className="text-center">
                                     <p className="text-sm font-medium">
-                                      Drag and drop files here
+                                      {t('form.dragDropFiles')}
                                     </p>
                                     <p className="text-xs text-muted-foreground mt-1">
-                                      or click to browse (max 50MB)
+                                      {t('form.clickToBrowseFiles')}
                                     </p>
                                   </div>
                                 </>
@@ -5135,7 +6829,7 @@ export default function LeadsPage({
                                   {file.name}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
-                                  {formatFileSize(file.size)} (pending, save to upload)
+                                  {formatFileSize(file.size)} {t('form.pendingSaveToUpload')}
                                 </p>
                               </div>
                               <Button
@@ -5173,7 +6867,7 @@ export default function LeadsPage({
 
                 <Button type="submit" className="flex-1 cursor-pointer">
 
-                  {editingId ? "Save" : "Add"}
+                  {editingId ? t('modal.save') : t('actions.addLead')}
 
                 </Button>
 
@@ -5188,7 +6882,7 @@ export default function LeadsPage({
                   className="cursor-pointer"
                 >
                   <X className="h-4 w-4 mr-1" />
-                  Cancel
+                  {t('modal.cancel')}
                 </Button>
 
               </div>
@@ -5203,16 +6897,15 @@ export default function LeadsPage({
 
 
     {/* PREVIEW MODAL - Lead details */}
-
     <Sheet open={preview.open} onOpenChange={(open) => setPreview((p) => ({ ...p, open }))}>
 
       <SheetContent className="w-full sm:max-w-lg border-l border-border p-6 md:p-8 flex flex-col max-h-screen">
         <div className="flex-shrink-0">
         <SheetHeader>
 
-          <SheetTitle>Lead Details</SheetTitle>
+          <SheetTitle>{t('modal.leadDetails')}</SheetTitle>
 
-          <SheetDescription>Complete lead information</SheetDescription>
+          <SheetDescription>{t('modal.completeInformation')}</SheetDescription>
 
         </SheetHeader>
 
@@ -5235,7 +6928,7 @@ export default function LeadsPage({
 
                 <div className="space-y-3">
 
-                  <h3 className="text-sm font-semibold text-muted-foreground">Basic Information</h3>
+                  <h3 className="text-sm font-semibold text-muted-foreground">{t('preview.basicInformation')}</h3>
 
                   <div className="grid grid-cols-2 gap-3">
 
@@ -5466,18 +7159,6 @@ export default function LeadsPage({
                         </div>
 
                         <div className="text-sm">{l.ein}</div>
-
-                      </div>
-
-                    )}
-
-                    {!l.ssn && !l.ein && (
-
-                      <div className="space-y-1">
-
-                        <div className="text-xs text-muted-foreground">SSN/EIN</div>
-
-                        <div className="text-sm text-muted-foreground">-</div>
 
                       </div>
 
@@ -5778,16 +7459,15 @@ export default function LeadsPage({
 
 
     {/* FILTER MODAL */}
-
     <Sheet open={isFilterOpen} onOpenChange={setIsFilterOpen}>
 
       <SheetContent className="w-full sm:max-w-lg border-l border-border p-6 md:p-8 flex flex-col">
 
         <SheetHeader className="flex-shrink-0">
 
-          <SheetTitle>Filter leads</SheetTitle>
+          <SheetTitle>{t('filters.title')}</SheetTitle>
 
-          <SheetDescription>Filter leads by any field to find specific records.</SheetDescription>
+          <SheetDescription>{t('filters.description')}</SheetDescription>
 
         </SheetHeader>
 
@@ -5797,31 +7477,31 @@ export default function LeadsPage({
 
           {/* Basic Information */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-foreground">Basic Information</h3>
+            <h3 className="text-sm font-semibold text-foreground">{t('filters.basicInformation')}</h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="mb-1 block text-sm font-medium">Name</label>
+                <label className="mb-2 block text-sm font-medium leading-tight">{t('filters.name')}</label>
                 <Input
-                  placeholder="Filter by name..."
+                  placeholder={t('filters.filterByName')}
                   value={filters.name}
                   onChange={(e) => setFilters(prev => ({ ...prev, name: e.target.value }))}
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="mb-1 block text-sm font-medium">Email</label>
+                <label className="mb-2 block text-sm font-medium leading-tight">{t('filters.email')}</label>
                 <Input
-                  placeholder="Filter by email..."
+                  placeholder={t('filters.filterByEmail')}
                   value={filters.email}
                   onChange={(e) => setFilters(prev => ({ ...prev, email: e.target.value }))}
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="mb-1 block text-sm font-medium">Phone</label>
+                <label className="mb-2 block text-sm font-medium leading-tight">{t('filters.phone')}</label>
                 <Input
-                  placeholder="Filter by phone..."
+                  placeholder={t('filters.filterByPhone')}
                   value={filters.phone}
                   onChange={(e) => setFilters(prev => ({ ...prev, phone: e.target.value }))}
                 />
@@ -5831,22 +7511,22 @@ export default function LeadsPage({
 
           {/* Documents */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-foreground">Documents</h3>
+            <h3 className="text-sm font-semibold text-foreground">{t('filters.documents')}</h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="mb-1 block text-sm font-medium">SSN</label>
+                <label className="mb-2 block text-sm font-medium leading-tight">{t('filters.ssn')}</label>
                 <Input
-                  placeholder="Filter by SSN..."
+                  placeholder={t('filters.filterBySSN')}
                   value={filters.ssn}
                   onChange={(e) => setFilters(prev => ({ ...prev, ssn: e.target.value }))}
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="mb-1 block text-sm font-medium">EIN</label>
+                <label className="mb-2 block text-sm font-medium leading-tight">{t('filters.ein')}</label>
                 <Input
-                  placeholder="Filter by EIN..."
+                  placeholder={t('filters.filterByEIN')}
                   value={filters.ein}
                   onChange={(e) => setFilters(prev => ({ ...prev, ein: e.target.value }))}
                 />
@@ -5856,26 +7536,44 @@ export default function LeadsPage({
 
           {/* Status and Pipeline */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-foreground">Status & Pipeline</h3>
+            <h3 className="text-sm font-semibold text-foreground">{t('filters.statusAndPipeline')}</h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="mb-1 block text-sm font-medium">Source</label>
+                <label className="mb-2 block text-sm font-medium leading-tight">{t('filters.source')}</label>
                 <Input
-                  placeholder="Filter by source..."
+                  placeholder={t('filters.filterBySource')}
                   value={filters.source}
                   onChange={(e) => setFilters(prev => ({ ...prev, source: e.target.value }))}
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="mb-1 block text-sm font-medium">Status</label>
+                <label className="mb-2 block text-sm font-medium leading-tight">{t('filters.location')}</label>
+                <Input
+                  placeholder={t('filters.filterByLocation')}
+                  value={filters.location}
+                  onChange={(e) => setFilters(prev => ({ ...prev, location: e.target.value }))}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="mb-2 block text-sm font-medium leading-tight">{t('filters.interest')}</label>
+                <Input
+                  placeholder={t('filters.filterByInterest')}
+                  value={filters.interest}
+                  onChange={(e) => setFilters(prev => ({ ...prev, interest: e.target.value }))}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="mb-2 block text-sm font-medium leading-tight">{t('filters.status')}</label>
                 <select
                   className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input h-9 w-full min-w-0 rounded-md border bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
                   value={filters.status}
                   onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
                 >
-                  <option value="">All statuses</option>
+                  <option value="">{t('filters.allStatuses')}</option>
                   <option value="New">New</option>
                   <option value="In Contact">In Contact</option>
                   <option value="Qualified">Qualified</option>
@@ -5884,15 +7582,32 @@ export default function LeadsPage({
               </div>
 
               <div className="space-y-2">
-                <label className="mb-1 block text-sm font-medium">Pipeline</label>
+                <label className="mb-2 block text-sm font-medium leading-tight">{t('filters.pipeline')}</label>
                 <select
                   className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input h-9 w-full min-w-0 rounded-md border bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
                   value={filters.pipeline || ""}
                   onChange={(e) => setFilters(prev => ({ ...prev, pipeline: e.target.value }))}
                 >
-                  <option value="">All leads</option>
-                  <option value="true">In Pipeline</option>
-                  <option value="false">Not in Pipeline</option>
+                  <option value="">{t('filters.allLeads')}</option>
+                  <option value="true">{t('filters.inPipeline')}</option>
+                  <option value="false">{t('filters.notInPipeline')}</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="mb-2 block text-sm font-medium leading-tight">{t('filters.assignedUser')}</label>
+                <select
+                  className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input h-9 w-full min-w-0 rounded-md border bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] cursor-pointer"
+                  value={filters.assignedUserId || ""}
+                  onChange={(e) => setFilters(prev => ({ ...prev, assignedUserId: e.target.value }))}
+                >
+                  <option value="">{t('filters.allUsers')}</option>
+                  <option value="unassigned">{t('filters.unassigned')}</option>
+                  {organizationUsers.map((user) => (
+                    <option key={user.id} value={user.id}>
+                      {user.name}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -5900,22 +7615,22 @@ export default function LeadsPage({
 
           {/* Ranges */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-foreground">Ranges</h3>
+            <h3 className="text-sm font-semibold text-foreground">{t('filters.ranges')}</h3>
             
             <div className="space-y-4">
               <div className="space-y-2">
-                <label className="mb-1 block text-sm font-medium">Value Range</label>
+                <label className="mb-2 block text-sm font-medium leading-tight">{t('filters.valueRange')}</label>
                 <div className="flex gap-2">
                   <Input
                     type="number"
-                    placeholder="Min value"
+                    placeholder={t('filters.minValuePlaceholder')}
                     value={valueRange.min}
                     onChange={(e) => setValueRange(prev => ({ ...prev, min: e.target.value }))}
                     className="flex-1"
                   />
                   <Input
                     type="number"
-                    placeholder="Max value"
+                    placeholder={t('filters.maxValuePlaceholder')}
                     value={valueRange.max}
                     onChange={(e) => setValueRange(prev => ({ ...prev, max: e.target.value }))}
                     className="flex-1"
@@ -5924,11 +7639,11 @@ export default function LeadsPage({
               </div>
 
               <div className="space-y-2">
-                <label className="mb-1 block text-sm font-medium">Close Date Range</label>
+                <label className="mb-2 block text-sm font-medium leading-tight">{t('filters.dateRange')}</label>
                 <div className="flex gap-2">
                   <Input
                     type="date"
-                    placeholder="From date"
+                    placeholder={t('filters.startDate')}
                     value={dateRange.min}
                     onChange={(e) => {
                       const value = e.target.value;
@@ -5944,7 +7659,7 @@ export default function LeadsPage({
 
                   <Input
                     type="date"
-                    placeholder="To date"
+                    placeholder={t('filters.endDate')}
                     value={dateRange.max}
                     onChange={(e) => {
                       const value = e.target.value;
@@ -5974,7 +7689,7 @@ export default function LeadsPage({
               }}
               className="flex-1 cursor-pointer"
             >
-              Apply Filter
+              {t('filters.applyFilter')}
             </Button>
 
             <Button
@@ -5986,7 +7701,7 @@ export default function LeadsPage({
               className="flex-1 cursor-pointer"
             >
               <X className="h-4 w-4 mr-1" />
-              Clear All
+              {t('filters.clearAll')}
 
             </Button>
 
@@ -6012,9 +7727,9 @@ export default function LeadsPage({
 
               <div className="space-y-2">
 
-                <h3 className="text-lg font-semibold leading-none tracking-tight">Import leads</h3>
+                <h3 className="text-lg font-semibold leading-none tracking-tight">{t('import.title')}</h3>
 
-                <p className="text-sm text-muted-foreground">Accepted formats: .xlsx, .xls, .csv, .ods, .json. <br></br>Columns: name, email, phone, ssn, ein, source, status, value, close date, notes</p>
+                <p className="text-sm text-muted-foreground">{t('import.acceptedFormats')} <br></br>{t('import.columns')}</p>
 
               </div>
 
@@ -6123,16 +7838,16 @@ export default function LeadsPage({
 
                   {isProcessingFile ? (
                     <>
-                      <div className="text-sm text-muted-foreground">Processing file...</div>
-                      <div className="mt-2 text-xs">Please wait while we analyze your file</div>
+                      <div className="text-sm text-muted-foreground">{t('import.processing')}</div>
+                      <div className="mt-2 text-xs">{t('import.processingDescription')}</div>
                       <div className="mt-4 flex justify-center">
                         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
                       </div>
                     </>
                   ) : (
                     <>
-                      <div className="text-sm text-muted-foreground">Drag and drop your file here</div>
-                      <div className="mt-2 text-xs">or click to browse</div>
+                      <div className="text-sm text-muted-foreground">{t('import.dragDrop')}</div>
+                      <div className="mt-2 text-xs">{t('import.clickToBrowse')}</div>
                       <div className="mt-4 text-xs text-muted-foreground">.xlsx, .xls, .csv, .ods, .json</div>
                     </>
                   )}
@@ -6176,7 +7891,7 @@ export default function LeadsPage({
 
               <Separator className="my-4" />
 
-              <div className="text-xs text-muted-foreground">We detect headers automatically, including variants.</div>
+              <div className="text-xs text-muted-foreground">{t('import.autoDetect')}</div>
 
               <div className="mt-4 flex justify-end gap-2">
 
@@ -6192,7 +7907,7 @@ export default function LeadsPage({
 
                 >
 
-                  {isImporting ? "Importing..." : "Close"}
+                  {isImporting ? t('import.importing') : t('import.close')}
 
                 </Button>
 
@@ -6212,16 +7927,16 @@ export default function LeadsPage({
             <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={() => setShowPreview(false)} />
             <div className="relative z-10 w-full max-w-4xl max-h-[80vh] rounded-xl border border-border bg-background p-6 shadow-xl overflow-hidden">
               <div className="space-y-2">
-                <h3 className="text-lg font-semibold leading-none tracking-tight">File Preview</h3>
+                <h3 className="text-lg font-semibold leading-none tracking-tight">{t('import.filePreview')}</h3>
                 <p className="text-sm text-muted-foreground">
-                  Found {filePreview.totalLeads} leads with {filePreview.fields.length} columns
+                  {t('import.foundLeads', { total: filePreview.totalLeads, fields: filePreview.fields.length })}
                 </p>
               </div>
               <Separator className="my-4" />
               
               <div className="space-y-4 max-h-[50vh] overflow-y-auto">
                 <div>
-                  <h4 className="text-sm font-medium mb-2">Detected Fields:</h4>
+                  <h4 className="text-sm font-medium mb-2">{t('import.detectedFields')}</h4>
                   <div className="flex flex-wrap gap-2">
                     {filePreview.fields.map((field: string, index: number) => (
                       <span key={index} className="px-2 py-1 bg-muted rounded text-xs">
@@ -6232,19 +7947,19 @@ export default function LeadsPage({
                 </div>
                 
                 <div>
-                  <h4 className="text-sm font-medium mb-2">Sample Leads (first 5):</h4>
+                  <h4 className="text-sm font-medium mb-2">{t('import.sampleLeads')}</h4>
                   <div className="space-y-2">
                     {filePreview.leads.slice(0, 5).map((lead: Lead, index: number) => (
                       <div key={index} className="p-3 border rounded-lg text-sm">
                         <div className="grid grid-cols-2 gap-2">
-                          <div><strong>Name:</strong> {lead.name || 'N/A'}</div>
-                          <div><strong>Email:</strong> {lead.email || 'N/A'}</div>
-                          <div><strong>Phone:</strong> {lead.phone || 'N/A'}</div>
-                          <div><strong>Source:</strong> {lead.source || 'N/A'}</div>
-                          <div><strong>Status:</strong> {lead.status || 'N/A'}</div>
-                          <div><strong>Value:</strong> {lead.value ? `$${lead.value}` : 'N/A'}</div>
-                          <div><strong>Close Date:</strong> {lead.estimated_close_date || 'N/A'}</div>
-                          <div><strong>SSN:</strong> {lead.ssn || 'N/A'}</div>
+                          <div><strong>{t('import.name')}</strong> {lead.name || 'N/A'}</div>
+                          <div><strong>{t('import.email')}</strong> {lead.email || 'N/A'}</div>
+                          <div><strong>{t('import.phone')}</strong> {lead.phone || 'N/A'}</div>
+                          <div><strong>{t('import.source')}</strong> {lead.source || 'N/A'}</div>
+                          <div><strong>{t('import.status')}</strong> {lead.status || 'N/A'}</div>
+                          <div><strong>{t('import.value')}</strong> {lead.value ? `$${lead.value}` : 'N/A'}</div>
+                          <div><strong>{t('import.closeDate')}</strong> {lead.estimated_close_date || 'N/A'}</div>
+                          <div><strong>{t('import.ssn')}</strong> {lead.ssn || 'N/A'}</div>
                         </div>
                       </div>
                     ))}
@@ -6259,13 +7974,13 @@ export default function LeadsPage({
                   onClick={() => setShowPreview(false)}
                   className="cursor-pointer"
                 >
-                  Cancel
+                  {t('import.cancel')}
                 </Button>
                 <Button 
                   onClick={confirmImport}
                   className="cursor-pointer"
                 >
-                  Import {filePreview.totalLeads} Leads
+                  {t('import.importLeads', { count: filePreview.totalLeads })}
                 </Button>
               </div>
             </div>
@@ -6280,11 +7995,11 @@ export default function LeadsPage({
 
         <SheetHeader>
 
-          <SheetTitle>Edit selected leads</SheetTitle>
+          <SheetTitle>{t('bulk.editSelectedLeads')}</SheetTitle>
 
           <SheetDescription>
 
-            Update Status and/or Source for {selectedLeads.size} selected lead(s).
+            {t('bulk.updateStatusSource', { count: selectedLeads.size })}
 
           </SheetDescription>
 
@@ -6296,7 +8011,7 @@ export default function LeadsPage({
 
           <div className="space-y-2">
 
-            <label className="mb-1 block text-sm font-medium">Status</label>
+                <label className="mb-2 block text-sm font-medium">{t('bulk.status')}</label>
 
             <select
 
@@ -6306,29 +8021,49 @@ export default function LeadsPage({
 
               onChange={(e) => setBulkStatus(e.target.value)}
 
+              disabled={isLoadingStages}
+
             >
 
-              <option value="">Keep unchanged</option>
+              <option value="">{t('bulk.keepUnchanged')}</option>
 
-              <option value="New">New</option>
-
-              <option value="In Contact">In Contact</option>
-
-              <option value="Qualified">Qualified</option>
-
-              <option value="Lost">Lost</option>
+              {isLoadingStages ? (
+                <option value="">{t('form.loadingStages')}</option>
+              ) : (
+                <>
+                  {bulkEditStageOptions}
+                  <option value="custom">{t('statuses.custom')}</option>
+                </>
+              )}
 
             </select>
 
           </div>
 
+          {/* Custom Status Input for Bulk Edit */}
+          {bulkStatus === "custom" && (
+          <div className="space-y-2">
+              <label className="mb-2 block text-sm font-medium">{t('form.customStatus')}</label>
+              <Input
+                placeholder={t('form.customStatusPlaceholder')}
+                value={customStatus}
+                onChange={(e) => {
+                  const v = e.target.value.slice(0, FIELD_MAX.status)
+                  setCustomStatus(v)
+                  setBulkStatus(v)
+                }}
+                maxLength={FIELD_MAX.status}
+              />
+            </div>
+          )}
+
           <div className="space-y-2">
 
-            <label className="mb-1 block text-sm font-medium">Source</label>
+                <label className="mb-2 block text-sm font-medium">{t('bulk.source')}</label>
 
             <Input
 
-              placeholder="Leave empty to keep unchanged"
+              placeholder={t('bulk.leaveEmptyUnchanged')}
 
               value={bulkSource}
 
@@ -6341,14 +8076,14 @@ export default function LeadsPage({
           <Separator />
 
           <div className="space-y-2">
-            <label className="mb-1 block text-sm font-medium">Confirmation</label>
+            <label className="mb-1 block text-sm font-medium">{t('bulk.confirmation')}</label>
             <Input
-              placeholder="Type 'edit' to confirm bulk edit"
+              placeholder={t('bulk.confirmPlaceholder')}
               value={bulkEditConfirm}
               onChange={(e) => setBulkEditConfirm(e.target.value)}
             />
             <div className="text-xs text-muted-foreground">
-              This action will update {selectedLeads.size} lead(s). Type 'edit' to confirm.
+              {t('bulk.confirmEditMessage', { count: selectedLeads.size })}
             </div>
           </div>
 
@@ -6361,10 +8096,10 @@ export default function LeadsPage({
               className="flex-1 cursor-pointer"
               disabled={bulkEditConfirm.trim().toLowerCase() !== "edit"}
             >
-              Save changes
+              {t('bulk.saveChanges')}
             </Button>
 
-            <Button variant="outline" onClick={() => setIsBulkEditOpen(false)} className="cursor-pointer">Cancel</Button>
+            <Button variant="outline" onClick={() => setIsBulkEditOpen(false)} className="cursor-pointer">{t('bulk.cancel')}</Button>
 
           </div>
 
@@ -6376,15 +8111,15 @@ export default function LeadsPage({
 
     {/* PIPELINE MODAL */}
     <Sheet open={isPipelineModalOpen} onOpenChange={setIsPipelineModalOpen}>
-      <SheetContent className="w-full sm:max-w-md border-l border-border p-6 md:p-8">
+      <SheetContent className="w-full sm:max-w-md border-l border-border p-6 md:p-8 [&>button]:cursor-pointer">
         <SheetHeader>
           <SheetTitle>
-            {pipelineAction === 'add' ? 'Add to Pipeline' : 'Remove from Pipeline'}
+            {pipelineAction === 'add' ? t('bulk.addToPipeline') : t('bulk.removeFromPipeline')}
           </SheetTitle>
           <SheetDescription>
             {pipelineAction === 'add' 
-              ? `Add ${selectedLeads.size} selected lead(s) to the pipeline.`
-              : `Remove ${selectedLeads.size} selected lead(s) from the pipeline.`
+              ? t('bulk.addToPipelineDesc', { count: selectedLeads.size })
+              : t('bulk.removeFromPipelineDesc', { count: selectedLeads.size })
             }
           </SheetDescription>
         </SheetHeader>
@@ -6392,8 +8127,8 @@ export default function LeadsPage({
         <div className="space-y-6">
           <div className="text-sm text-muted-foreground">
             {pipelineAction === 'add' 
-              ? 'These leads will appear in the pipeline view and can be managed through the Kanban board.'
-              : 'These leads will be removed from the pipeline view but will remain in the leads list.'
+              ? t('bulk.addToPipelineInfo')
+              : t('bulk.removeFromPipelineInfo')
             }
           </div>
           <Separator />
@@ -6402,17 +8137,131 @@ export default function LeadsPage({
               onClick={handlePipelineBulkAction} 
               className="flex-1 cursor-pointer"
             >
-              {pipelineAction === 'add' ? 'Add to Pipeline' : 'Remove from Pipeline'}
+              {pipelineAction === 'add' ? t('bulk.addToPipeline') : t('bulk.removeFromPipeline')}
             </Button>
             <Button 
               variant="outline" 
               onClick={() => setIsPipelineModalOpen(false)} 
               className="cursor-pointer"
             >
-              Cancel
+              {t('bulk.cancel')}
             </Button>
           </div>
         </div>
+      </SheetContent>
+    </Sheet>
+    
+    {/* BULK ASSIGN MODAL */}
+    <Sheet open={isBulkAssignOpen} onOpenChange={setIsBulkAssignOpen}>
+      <SheetContent className="w-full sm:max-w-md border-l border-border p-6 md:p-8">
+        <SheetHeader>
+          <SheetTitle>{t('bulk.assignLeadsTitle')}</SheetTitle>
+          <SheetDescription>
+            {t('bulk.assignDescriptionSelected', { count: selectedLeads.size })}
+          </SheetDescription>
+        </SheetHeader>
+        
+        <Separator className="my-4" />
+        
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <label className="mb-1 block text-sm font-medium">{t('bulk.selectUser')}</label>
+            <select
+              value={selectedUserId}
+              onChange={(e) => setSelectedUserId(e.target.value)}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              <option value="">{t('bulk.selectUserPlaceholder')}</option>
+              {organizationUsers.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.name} ({user.email})
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <Separator />
+          
+          <div className="space-y-2">
+            <label className="mb-1 block text-sm font-medium">{t('bulk.confirmation')}</label>
+            <Input
+              placeholder={t('bulk.confirmAssign')}
+              value={bulkAssignConfirm}
+              onChange={(e) => setBulkAssignConfirm(e.target.value)}
+            />
+            <div className="text-xs text-muted-foreground">
+              {t('bulk.assignConfirmMessage', { count: selectedLeads.size })}
+            </div>
+          </div>
+          
+          <Separator />
+          
+          <div className="flex gap-2">
+            <Button 
+              onClick={applyBulkAssign} 
+              className="flex-1 cursor-pointer"
+              disabled={bulkAssignConfirm.trim().toLowerCase() !== "assign" || !selectedUserId}
+            >
+              {t('bulk.assignLeads')}
+            </Button>
+            <Button variant="outline" onClick={() => setIsBulkAssignOpen(false)} className="cursor-pointer">
+              {t('bulk.cancel')}
+            </Button>
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
+    {/* QUICK ASSIGN MODAL */}
+    <Sheet open={quickAssignLeadId !== null} onOpenChange={(open) => !open && setQuickAssignLeadId(null)}>
+      <SheetContent className="w-full sm:max-w-md border-l border-border p-6 md:p-8">
+        <SheetHeader>
+          <SheetTitle>{t('bulk.assignToUser')}</SheetTitle>
+          <SheetDescription>
+            {t('bulk.selectUserDescription')}
+          </SheetDescription>
+        </SheetHeader>
+        
+        <Separator className="my-4" />
+        
+        {isLoadingUsers ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <span className="ml-2 text-sm text-muted-foreground">Loading users...</span>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <label className="mb-1 block text-sm font-medium">Select User</label>
+              <select
+                value={quickAssignUserId}
+                onChange={(e) => setQuickAssignUserId(e.target.value)}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 cursor-pointer"
+              >
+                <option value="">-- Select a user --</option>
+                {organizationUsers.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.name} ({user.email})
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <Separator />
+            
+            <div className="flex gap-2">
+              <Button 
+                onClick={applyQuickAssign} 
+                className="flex-1 cursor-pointer"
+                disabled={!quickAssignUserId}
+              >
+                Assign Lead
+              </Button>
+              <Button variant="outline" onClick={() => setQuickAssignLeadId(null)} className="cursor-pointer">
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
       </SheetContent>
     </Sheet>
 
@@ -6424,15 +8273,15 @@ export default function LeadsPage({
 
             <SheetHeader>
 
-              <SheetTitle>Confirm deletion</SheetTitle>
+              <SheetTitle>{t('delete.confirmDeletion')}</SheetTitle>
 
               <SheetDescription>
 
-                This action is irreversible. {pendingDeletionIds.length > 1 && (
+                {t('delete.irreversible')} {pendingDeletionIds.length > 1 && (
 
                   <>
 
-                    <br></br>Type "Delete" to proceed.
+                    <br></br>{t('delete.typeToProceed')}
 
                   </>
 
@@ -6450,9 +8299,9 @@ export default function LeadsPage({
 
                 {pendingDeletionIds.length === 1
 
-                  ? "You are about to remove 1 lead."
+                  ? t('delete.aboutToRemoveOne')
 
-                  : `You are about to remove ${pendingDeletionIds.length} leads.`}
+                  : t('delete.aboutToRemoveMany', { count: pendingDeletionIds.length })}
 
               </div>
 
@@ -6460,11 +8309,11 @@ export default function LeadsPage({
 
                 <div className="space-y-2">
 
-                  <label className="mb-1 block text-sm font-medium">Confirmation</label>
+                  <label className="mb-1 block text-sm font-medium">{t('delete.confirmation')}</label>
 
                   <Input
 
-                    placeholder="Type 'Delete' to continue"
+                    placeholder={t('delete.typeToContinue')}
 
                     value={confirmInput}
 
@@ -6492,7 +8341,7 @@ export default function LeadsPage({
 
                 >
 
-                  Delete permanently
+                  {t('delete.deletePermanently')}
 
                 </Button>
 
@@ -6506,7 +8355,7 @@ export default function LeadsPage({
 
                 >
 
-                  Cancel
+                  {t('delete.cancel')}
 
                 </Button>
 
@@ -6588,8 +8437,489 @@ export default function LeadsPage({
       </SidebarInset>
 
     </SidebarProvider>
+    
+    {/* LEAD DETAILS MODAL - MODERN DESIGN */}
+    <Sheet open={preview.open} onOpenChange={(open) => setPreview({ open, lead: open ? preview.lead : null })}>
+      <SheetContent className="w-full sm:max-w-3xl border-l border-border p-0 overflow-y-auto [&>button]:cursor-pointer">
+        {preview.lead && (
+          <>
+            <SheetTitle className="sr-only">{t('preview.leadDetails')}: {preview.lead.name}</SheetTitle>
+            <SheetDescription className="sr-only">{t('preview.completeLeadInformation')}</SheetDescription>
+            {/* Header */}
+            <div className="sticky top-0 z-10 bg-background border-b p-6">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <User className="h-6 w-6" />
+                    <h2 className="text-2xl font-bold">{preview.lead.name}</h2>
+                  </div>
+                  <p className="text-muted-foreground text-sm">{t('preview.completeLeadInformation')}</p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 cursor-pointer"
+                  onClick={() => setPreview({ open: false, lead: null })}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              
+              {/* Status Badge */}
+              <div className="mt-4 flex items-center gap-2">
+                <div className="inline-flex items-center gap-2 bg-muted px-3 py-1.5 rounded-full">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span className="text-sm font-medium capitalize">{preview.lead.status}</span>
+                </div>
+                {preview.lead.value && (
+                  <div className="inline-flex items-center gap-2 bg-muted px-3 py-1.5 rounded-full">
+                    <span className="text-sm font-medium">
+                      {formatCurrency(preview.lead.value)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
 
+            <div className="p-6 space-y-6">
+              {/* Contact Information Card */}
+              <div className="bg-muted/50 rounded-xl p-5 border">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <Mail className="h-5 w-5" />
+                  {t('preview.contactInformation')}
+                </h3>
+                <div className="grid gap-3">
+                  {preview.lead.email && (
+                    <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
+                      <div className="flex items-center gap-3 flex-1">
+                        <Mail className="h-4 w-4 text-muted-foreground" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-muted-foreground">{t('preview.email')}</p>
+                          <p className="text-sm font-medium truncate">{preview.lead.email}</p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 shrink-0"
+                        onClick={() => {
+                          navigator.clipboard.writeText(preview.lead?.email || '')
+                          setCopiedKey('email')
+                          setTimeout(() => setCopiedKey(null), 2000)
+                        }}
+                      >
+                        {copiedKey === 'email' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  )}
+                  
+                  {preview.lead.phone && (
+                    <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
+                      <div className="flex items-center gap-3 flex-1">
+                        <Phone className="h-4 w-4 text-muted-foreground" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-muted-foreground">{t('preview.phone')}</p>
+                          <p className="text-sm font-medium truncate">{preview.lead.phone}</p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 shrink-0"
+                        onClick={() => {
+                          navigator.clipboard.writeText(preview.lead?.phone || '')
+                          setCopiedKey('phone')
+                          setTimeout(() => setCopiedKey(null), 2000)
+                        }}
+                      >
+                        {copiedKey === 'phone' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Business Information Card */}
+              {(preview.lead.ssn || preview.lead.ein || preview.lead.source) && (
+                <div className="bg-muted/50 rounded-xl p-5 border">
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <Briefcase className="h-5 w-5" />
+                  {t('preview.businessInformation')}
+                  </h3>
+                  <div className="grid gap-3">
+                    {preview.lead.ssn && (
+                      <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
+                        <div className="flex items-center gap-3 flex-1">
+                          <CreditCard className="h-4 w-4 text-muted-foreground" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-muted-foreground">{t('preview.ssn')}</p>
+                            <p className="text-sm font-medium font-mono">{preview.lead.ssn}</p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 shrink-0"
+                          onClick={() => {
+                            navigator.clipboard.writeText(preview.lead?.ssn || '')
+                            setCopiedKey('ssn')
+                            setTimeout(() => setCopiedKey(null), 2000)
+                          }}
+                        >
+                          {copiedKey === 'ssn' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    )}
+                    
+                    {preview.lead.ein && (
+                      <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
+                        <div className="flex items-center gap-3 flex-1">
+                          <FileDigit className="h-4 w-4 text-muted-foreground" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-muted-foreground">{t('preview.ein')}</p>
+                            <p className="text-sm font-medium font-mono">{preview.lead.ein}</p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 shrink-0"
+                          onClick={() => {
+                            navigator.clipboard.writeText(preview.lead?.ein || '')
+                            setCopiedKey('ein')
+                            setTimeout(() => setCopiedKey(null), 2000)
+                          }}
+                        >
+                          {copiedKey === 'ein' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    )}
+                    
+                    {preview.lead.source && (
+                      <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
+                        <div className="flex items-center gap-3 flex-1">
+                          <MapPin className="h-4 w-4 text-muted-foreground" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-muted-foreground">{t('preview.source')}</p>
+                            <p className="text-sm font-medium">{preview.lead.source}</p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 shrink-0"
+                          onClick={() => {
+                            navigator.clipboard.writeText(preview.lead?.source || '')
+                            setCopiedKey('source')
+                            setTimeout(() => setCopiedKey(null), 2000)
+                          }}
+                        >
+                          {copiedKey === 'source' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Deal Information Card */}
+              {preview.lead.estimated_close_date && (
+                <div className="bg-muted/50 rounded-xl p-5 border">
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <Calendar className="h-5 w-5" />
+                    {t('preview.dealTimeline')}
+                  </h3>
+                  <div className="grid gap-3">
+                    <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
+                      <div className="flex items-center gap-3 flex-1">
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-muted-foreground">{t('preview.estimatedCloseDate')}</p>
+                          <p className="text-sm font-medium">{new Date(preview.lead.estimated_close_date).toLocaleDateString()}</p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 shrink-0"
+                        onClick={() => {
+                          navigator.clipboard.writeText(new Date(preview.lead?.estimated_close_date || '').toLocaleDateString())
+                          setCopiedKey('close_date')
+                          setTimeout(() => setCopiedKey(null), 2000)
+                        }}
+                      >
+                        {copiedKey === 'close_date' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Assignment Card */}
+              <div className="bg-muted/50 rounded-xl p-5 border">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <UserPlus className="h-5 w-5" />
+                  {t('preview.assignment')}
+                </h3>
+                <div className="grid gap-3">
+                  <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
+                    <div className="flex items-center gap-3 flex-1">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-muted-foreground">{t('preview.assignedTo')}</p>
+                        <p className="text-sm font-medium">
+                          {preview.lead.assigned_user_id ? (assignedUserName || t('preview.loading')) : t('preview.notAssigned')}
+                        </p>
+                      </div>
+                    </div>
+                    {preview.lead.assigned_user_id && assignedUserName && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 shrink-0"
+                        onClick={() => {
+                          navigator.clipboard.writeText(assignedUserName)
+                          setCopiedKey('assigned_user')
+                          setTimeout(() => setCopiedKey(null), 2000)
+                        }}
+                      >
+                        {copiedKey === 'assigned_user' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                      </Button>
+                    )}
+                  </div>
+                  
+                  {preview.lead.assigned_user_id && (
+                    <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
+                      <div className="flex items-center gap-3 flex-1">
+                        <Clock className="h-4 w-4 text-muted-foreground" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-muted-foreground">{t('preview.assignedSince')}</p>
+                          <p className="text-sm font-medium">{new Date(preview.lead.updated_at).toLocaleString()}</p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 shrink-0"
+                        onClick={() => {
+                          navigator.clipboard.writeText(new Date(preview.lead?.updated_at || '').toLocaleString())
+                          setCopiedKey('assigned_date')
+                          setTimeout(() => setCopiedKey(null), 2000)
+                        }}
+                      >
+                        {copiedKey === 'assigned_date' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Location & Interest Card */}
+              {(preview.lead.location || preview.lead.interest) && (
+                <div className="bg-muted/50 rounded-xl p-5 border">
+                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <MapPin className="h-5 w-5" />
+                    {t('preview.additionalInformation')}
+                  </h3>
+                  <div className="grid gap-3">
+                    {preview.lead.location && (
+                      <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
+                        <div className="flex items-center gap-3 flex-1">
+                          <MapPin className="h-4 w-4 text-muted-foreground" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-muted-foreground">{t('preview.location')}</p>
+                            <p className="text-sm font-medium">{preview.lead.location}</p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 shrink-0"
+                          onClick={() => {
+                            navigator.clipboard.writeText(preview.lead?.location || '')
+                            setCopiedKey('location')
+                            setTimeout(() => setCopiedKey(null), 2000)
+                          }}
+                        >
+                          {copiedKey === 'location' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    )}
+                    
+                    {preview.lead.interest && (
+                      <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
+                        <div className="flex items-center gap-3 flex-1">
+                          <Tag className="h-4 w-4 text-muted-foreground" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-muted-foreground">{t('preview.interest')}</p>
+                            <p className="text-sm font-medium">{preview.lead.interest}</p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 shrink-0"
+                          onClick={() => {
+                            navigator.clipboard.writeText(preview.lead?.interest || '')
+                            setCopiedKey('interest')
+                            setTimeout(() => setCopiedKey(null), 2000)
+                          }}
+                        >
+                          {copiedKey === 'interest' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Description Card */}
+              {preview.lead.description && (
+                <div className="bg-muted/50 rounded-xl p-5 border">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                      <Info className="h-5 w-5" />
+                      {t('preview.description')}
+                    </h3>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      onClick={() => {
+                        navigator.clipboard.writeText(preview.lead?.description || '')
+                        setCopiedKey('description')
+                        setTimeout(() => setCopiedKey(null), 2000)
+                      }}
+                    >
+                      {copiedKey === 'description' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                  <div className="bg-background rounded-lg p-4 border">
+                    <p className="text-sm whitespace-pre-wrap leading-relaxed">{preview.lead.description}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Metadata Card */}
+              <div className="bg-muted/50 rounded-xl p-5 border">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <Clock className="h-5 w-5" />
+                  {t('preview.metadata')}
+                </h3>
+                <div className="grid gap-3">
+                  <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
+                    <div className="flex items-center gap-3 flex-1">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-muted-foreground">{t('preview.created')}</p>
+                        <p className="text-sm font-medium">{new Date(preview.lead.created_at).toLocaleString()}</p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 shrink-0"
+                      onClick={() => {
+                        navigator.clipboard.writeText(new Date(preview.lead?.created_at || '').toLocaleString())
+                        setCopiedKey('created_at')
+                        setTimeout(() => setCopiedKey(null), 2000)
+                      }}
+                    >
+                      {copiedKey === 'created_at' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                  
+                  {preview.lead.created_by && (
+                    <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
+                      <div className="flex items-center gap-3 flex-1">
+                        <User className="h-4 w-4 text-muted-foreground" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-muted-foreground">{t('preview.createdBy')}</p>
+                          <p className="text-sm font-medium">{createdByUserName || t('preview.loading')}</p>
+                        </div>
+                      </div>
+                      {createdByUserName && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 shrink-0"
+                          onClick={() => {
+                            navigator.clipboard.writeText(createdByUserName)
+                            setCopiedKey('created_by')
+                            setTimeout(() => setCopiedKey(null), 2000)
+                          }}
+                        >
+                          {copiedKey === 'created_by' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                  
+                  <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
+                    <div className="flex items-center gap-3 flex-1">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-muted-foreground">{t('preview.lastUpdated')}</p>
+                        <p className="text-sm font-medium">{new Date(preview.lead.updated_at).toLocaleString()}</p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 shrink-0"
+                      onClick={() => {
+                        navigator.clipboard.writeText(new Date(preview.lead?.updated_at || '').toLocaleString())
+                        setCopiedKey('updated_at')
+                        setTimeout(() => setCopiedKey(null), 2000)
+                      }}
+                    >
+                      {copiedKey === 'updated_at' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                  
+                  <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
+                    <div className="flex items-center gap-3 flex-1">
+                      <Hash className="h-4 w-4 text-muted-foreground" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-muted-foreground">{t('preview.leadId')}</p>
+                        <p className="text-sm font-medium font-mono text-xs truncate">{preview.lead.id}</p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0 shrink-0"
+                      onClick={() => {
+                        navigator.clipboard.writeText(preview.lead?.id || '')
+                        setCopiedKey('id')
+                        setTimeout(() => setCopiedKey(null), 2000)
+                      }}
+                    >
+                      {copiedKey === 'id' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Close Button */}
+              <div className="pt-4">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setPreview({ open: false, lead: null })} 
+                  className="w-full cursor-pointer"
+                  size="lg"
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  {t('modal.close')}
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
+      </SheetContent>
+    </Sheet>
+
+      </RoleGuard>
     </AuthGuard>
   )
 }
-
