@@ -1,6 +1,8 @@
 "use client"
 
-import { useRouter } from "next/navigation"
+import * as React from "react"
+import { useRouter, usePathname } from "next/navigation"
+import { useTranslations } from 'next-intl'
 import {
   BadgeCheck,
   Bell,
@@ -39,8 +41,14 @@ export function NavUser({
   orgSlug: string
   isLoading?: boolean
 }) {
-  const { isMobile } = useSidebar()
+  const { isMobile, state } = useSidebar()
+  const isCollapsed = state === "collapsed"
   const router = useRouter()
+  const pathname = usePathname()
+  const t = useTranslations('UserMenu')
+  
+  // Verificar se está em alguma página de settings, billing, ou notificações
+  const isInUserSection = pathname?.includes('/settings') || pathname?.includes('/billing') || pathname?.includes('/notifications')
 
   const handleLogout = () => {
     // Obter o slug da organização do localStorage antes de limpar
@@ -72,24 +80,30 @@ export function NavUser({
 
   return (
     <SidebarMenu>
-      <SidebarMenuItem>
+      <SidebarMenuItem className={isInUserSection ? "user-menu-active" : ""}>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
               size="lg"
-              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground cursor-pointer"
+              className={`cursor-pointer ${isInUserSection ? "nav-user-active !bg-white !text-black" : "data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"}`}
+              style={isInUserSection ? { 
+                backgroundColor: '#fff',
+                color: '#000',
+                borderRadius: '20px 0 0 20px',
+                width: 'calc(100% + 8px)'
+              } : undefined}
             >
               <UserAvatar 
                 src={user.avatar} 
                 name={user.name} 
-                className="rounded-lg" 
+                className="rounded-full flex-shrink-0" 
                 size="md"
               />
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">
-                  {isLoading ? "Loading..." : user.name}
+                <span className={`menu-text org-text ${isCollapsed ? "collapsed" : "expanded"} truncate font-medium`}>
+                  {isLoading ? t('loading') : user.name}
                 </span>
-                <span className="truncate text-xs">
+                <span className={`menu-text org-text ${isCollapsed ? "collapsed" : "expanded"} truncate text-xs`}>
                   {isLoading ? "loading@example.com" : user.email}
                 </span>
               </div>
@@ -111,7 +125,7 @@ export function NavUser({
                 />
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">
-                    {isLoading ? "Loading..." : user.name}
+                    {isLoading ? t('loading') : user.name}
                   </span>
                   <span className="truncate text-xs">
                     {isLoading ? "loading@example.com" : user.email}
@@ -123,7 +137,7 @@ export function NavUser({
             <DropdownMenuGroup>
               <DropdownMenuItem className="cursor-pointer">
                 <Sparkles />
-                Upgrade to Pro
+                {t('upgradeToPro')}
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
@@ -133,21 +147,21 @@ export function NavUser({
                 onClick={() => router.push(`/${orgSlug}/settings/account`)}
               >
                 <BadgeCheck />
-                Account
+                {t('account')}
               </DropdownMenuItem>
               <DropdownMenuItem className="cursor-pointer">
                 <CreditCard />
-                Billing
+                {t('billing')}
               </DropdownMenuItem>
               <DropdownMenuItem className="cursor-pointer">
                 <Bell />
-                Notifications
+                {t('notifications')}
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
               <LogOut />
-              Log out
+              {t('logOut')}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

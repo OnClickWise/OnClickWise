@@ -3,6 +3,8 @@
 import * as React from "react"
 import { AppSidebar } from "@/components/app-sidebar"
 import AuthGuard from "@/components/AuthGuard"
+import RoleGuard from "@/components/RoleGuard";
+import { useTranslations, useLocale } from 'next-intl'
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -59,6 +61,8 @@ export default function TelegramSettingsPage({
 }) {
   const { org } = React.use(params)
   const { apiCall, isClient } = useApi()
+  const t = useTranslations('TelegramSettings')
+  const locale = useLocale()
   
   const [bot, setBot] = React.useState<TelegramBot | null>(null)
   const [account, setAccount] = React.useState<TelegramAccount | null>(null)
@@ -464,8 +468,8 @@ export default function TelegramSettingsPage({
 
   const handleDelete = async () => {
     const confirmMessage = apiType === 'bot' 
-      ? 'Tem certeza que deseja deletar o bot? Esta ação não pode ser desfeita.'
-      : 'Tem certeza que deseja deletar a conta? Esta ação não pode ser desfeita.'
+      ? t('botConfig.deleteConfirm')
+      : t('accountConfig.deleteConfirm')
     
     if (!confirm(confirmMessage)) {
       return
@@ -496,7 +500,7 @@ export default function TelegramSettingsPage({
   }
 
   return (
-    <AuthGuard orgSlug={org}>
+    <RoleGuard allowedRoles={["admin", "master"]} orgSlug={org}>
       <SidebarProvider>
         <AppSidebar org={org} />
         <SidebarInset>
@@ -511,18 +515,18 @@ export default function TelegramSettingsPage({
               <BreadcrumbList>
                 <BreadcrumbItem className="hidden md:block">
                   <BreadcrumbLink href={`/${org}/dashboard`}>
-                    Dashboard
+                    {t('breadcrumb.dashboard')}
                   </BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator className="hidden md:block" />
                 <BreadcrumbItem>
                   <BreadcrumbLink href={`/${org}/settings`}>
-                    Configurações
+                    {t('breadcrumb.settings')}
                   </BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator className="hidden md:block" />
                 <BreadcrumbItem>
-                  <BreadcrumbPage>Telegram</BreadcrumbPage>
+                  <BreadcrumbPage>{t('breadcrumb.telegram')}</BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
@@ -532,9 +536,9 @@ export default function TelegramSettingsPage({
           <div className="flex-1 space-y-4 p-4 pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-3xl font-bold tracking-tight">Telegram Configuration</h2>
+                <h2 className="text-3xl font-bold tracking-tight">{t('pageTitle')}</h2>
                 <p className="text-muted-foreground">
-                  Configure your Telegram integration using Bot API or Account API
+                  {t('pageDescription')}
                 </p>
               </div>
             </div>
@@ -542,9 +546,9 @@ export default function TelegramSettingsPage({
             {/* API Type Selector */}
             <Card>
               <CardHeader>
-                <CardTitle>Choose Integration Type</CardTitle>
+                <CardTitle>{t('integrationTypeTitle')}</CardTitle>
                 <CardDescription>
-                  Select how you want to integrate with Telegram
+                  {t('integrationTypeDescription')}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -560,9 +564,9 @@ export default function TelegramSettingsPage({
                     <div className="flex items-center space-x-3">
                       <Bot className="w-6 h-6 text-blue-600" />
                       <div>
-                        <h3 className="font-semibold">Bot API</h3>
+                        <h3 className="font-semibold">{t('botApi.title')}</h3>
                         <p className="text-sm text-gray-600">
-                          Create a bot that can receive and send messages
+                          {t('botApi.description')}
                         </p>
                       </div>
                     </div>
@@ -579,9 +583,9 @@ export default function TelegramSettingsPage({
                     <div className="flex items-center space-x-3">
                       <User className="w-6 h-6 text-blue-600" />
                       <div>
-                        <h3 className="font-semibold">Account API</h3>
+                        <h3 className="font-semibold">{t('accountApi.title')}</h3>
                         <p className="text-sm text-gray-600">
-                          Use your personal Telegram account to send messages
+                          {t('accountApi.description')}
                         </p>
                       </div>
                     </div>
@@ -597,10 +601,10 @@ export default function TelegramSettingsPage({
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Bot className="w-5 h-5" />
-                      Bot Status
+                      {t('botStatus.title')}
                     </CardTitle>
                     <CardDescription>
-                      Information about your Telegram bot
+                      {t('botStatus.description')}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -611,13 +615,13 @@ export default function TelegramSettingsPage({
                         <AlertCircle className="w-5 h-5 text-red-500" />
                       )}
                       <span className={`font-medium ${bot.is_active ? 'text-green-700' : 'text-red-700'}`}>
-                        {bot.is_active ? 'Bot Active' : 'Bot Inactive'}
+                        {bot.is_active ? t('botStatus.active') : t('botStatus.inactive')}
                       </span>
                     </div>
                     <div className="space-y-2 text-sm">
-                      <div><strong>Name:</strong> {bot.bot_name}</div>
-                      <div><strong>Username:</strong> @{bot.bot_username}</div>
-                      <div><strong>Created:</strong> {new Date(bot.created_at).toLocaleDateString('en-US')}</div>
+                      <div><strong>{t('botStatus.name')}:</strong> {bot.bot_name}</div>
+                      <div><strong>{t('botStatus.username')}:</strong> @{bot.bot_username}</div>
+                      <div><strong>{t('botStatus.created')}:</strong> {new Date(bot.created_at).toLocaleDateString(locale === 'pt-BR' ? 'pt-BR' : 'en-US')}</div>
                     </div>
                   </CardContent>
                 </Card>
@@ -628,10 +632,10 @@ export default function TelegramSettingsPage({
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <User className="w-5 h-5" />
-                      Account Status
+                      {t('accountStatus.title')}
                     </CardTitle>
                     <CardDescription>
-                      Information about your Telegram account
+                      {t('accountStatus.description')}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -642,7 +646,7 @@ export default function TelegramSettingsPage({
                             <>
                               <AlertCircle className="w-5 h-5 text-orange-500" />
                               <span className="font-medium text-orange-700">
-                                {setupStatus === 'awaiting_sms' ? 'Awaiting SMS code' : '2FA required'}
+                                {setupStatus === 'awaiting_sms' ? t('accountStatus.awaitingSms') : t('accountStatus.twoFaRequired')}
                               </span>
                             </>
                           )
@@ -651,7 +655,7 @@ export default function TelegramSettingsPage({
                           return (
                             <>
                               <AlertCircle className="w-5 h-5 text-red-500" />
-                              <span className="font-medium text-red-700">API not running, authenticate</span>
+                              <span className="font-medium text-red-700">{t('accountStatus.apiNotRunning')}</span>
                             </>
                           )
                         }
@@ -663,16 +667,16 @@ export default function TelegramSettingsPage({
                               <AlertCircle className="w-5 h-5 text-red-500" />
                             )}
                             <span className={`font-medium ${account.is_active ? 'text-green-700' : 'text-red-700'}`}>
-                              {account.is_active ? 'Account Active' : 'Account Inactive'}
+                              {account.is_active ? t('accountStatus.active') : t('accountStatus.inactive')}
                             </span>
                           </>
                         )
                       })()}
                     </div>
                     <div className="space-y-2 text-sm">
-                      <div><strong>Phone:</strong> {account.phone_number}</div>
-                      <div><strong>API ID:</strong> {account.api_id}</div>
-                      <div><strong>Created:</strong> {new Date(account.created_at).toLocaleDateString('en-US')}</div>
+                      <div><strong>{t('accountStatus.phone')}:</strong> {account.phone_number}</div>
+                      <div><strong>{t('accountStatus.apiId')}:</strong> {account.api_id}</div>
+                      <div><strong>{t('accountStatus.created')}:</strong> {new Date(account.created_at).toLocaleDateString(locale === 'pt-BR' ? 'pt-BR' : 'en-US')}</div>
                     </div>
                   </CardContent>
                 </Card>
@@ -684,19 +688,19 @@ export default function TelegramSettingsPage({
                   <CardTitle className="flex items-center gap-2">
                     <Settings className="w-5 h-5" />
                     {apiType === 'bot' 
-                      ? (bot ? 'Edit Bot' : 'Configure Bot')
-                      : (account ? 'Edit Account' : 'Configure Account')
+                      ? (bot ? t('botConfig.editTitle') : t('botConfig.configureTitle'))
+                      : (account ? t('accountConfig.editTitle') : t('accountConfig.configureTitle'))
                     }
                   </CardTitle>
                   <CardDescription>
                     {apiType === 'bot' 
                       ? (bot 
-                          ? 'Update your Telegram bot settings'
-                          : 'Configure a new Telegram bot to start receiving messages'
+                          ? t('botConfig.editDescription')
+                          : t('botConfig.configureDescription')
                         )
                       : (account 
-                          ? 'Update your Telegram account settings'
-                          : 'Configure your Telegram account to send messages'
+                          ? t('accountConfig.editDescription')
+                          : t('accountConfig.configureDescription')
                         )
                     }
                   </CardDescription>
@@ -706,12 +710,12 @@ export default function TelegramSettingsPage({
                     // Bot API Configuration
                     <>
                       <div className="space-y-2">
-                        <Label htmlFor="botToken">Bot Token</Label>
+                        <Label htmlFor="botToken">{t('botConfig.tokenLabel')}</Label>
                         <div className="relative">
                           <Input
                             id="botToken"
                             type={showToken ? "text" : "password"}
-                            placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
+                            placeholder={t('botConfig.tokenPlaceholder')}
                             value={botToken}
                             onChange={(e) => setBotToken(e.target.value)}
                             disabled={botToken === '***CONFIGURED***'}
@@ -735,7 +739,7 @@ export default function TelegramSettingsPage({
                           <div className="space-y-2">
                             <div className="flex items-center gap-2 text-sm text-green-600">
                               <CheckCircle className="h-4 w-4" />
-                              Bot token is configured and webhook is active
+                              {t('botConfig.tokenConfigured')}
                             </div>
                             <Button
                               type="button"
@@ -747,12 +751,12 @@ export default function TelegramSettingsPage({
                               }}
                               className="text-xs"
                             >
-                              Change Token
+                              {t('botConfig.changeToken')}
                             </Button>
                           </div>
                         ) : (
                           <p className="text-sm text-muted-foreground">
-                            Get your bot token from <a href="https://t.me/botfather" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">@BotFather</a>
+                            {t('botConfig.getTokenFrom')} <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">@BotFather</a>
                           </p>
                         )}
                         
@@ -760,21 +764,21 @@ export default function TelegramSettingsPage({
                         {validatingToken && (
                           <div className="flex items-center gap-2 text-sm text-blue-600">
                             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                            Validating token...
+                            {t('botConfig.validatingToken')}
                           </div>
                         )}
                         
                         {tokenValidated && (
                           <div className="flex items-center gap-2 text-sm text-green-600">
                             <CheckCircle className="h-4 w-4" />
-                            Token valid! Bot data loaded automatically.
+                            {t('botConfig.tokenValid')}
                           </div>
                         )}
                         
                         {botToken && botToken.length > 10 && !validatingToken && !tokenValidated && botToken !== '***CONFIGURED***' && (
                           <div className="flex items-center gap-2 text-sm text-red-600">
                             <AlertCircle className="h-4 w-4" />
-                            Invalid token. Please check if the token is correct.
+                            {t('botConfig.invalidToken')}
                           </div>
                         )}
                       </div>
@@ -783,28 +787,28 @@ export default function TelegramSettingsPage({
                       {tokenValidated && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="space-y-2">
-                            <Label htmlFor="botName">Bot Name</Label>
+                            <Label htmlFor="botName">{t('botConfig.nameLabel')}</Label>
                             <Input
                               id="botName"
-                              placeholder="Ex: Support Bot"
+                              placeholder={t('botConfig.namePlaceholder')}
                               value={botName}
                               onChange={(e) => setBotName(e.target.value)}
                             />
                             <p className="text-sm text-muted-foreground">
-                              Name filled automatically by Telegram
+                              {t('botConfig.nameAutoFilled')}
                             </p>
                           </div>
                           
                           <div className="space-y-2">
-                            <Label htmlFor="botUsername">Bot Username</Label>
+                            <Label htmlFor="botUsername">{t('botConfig.usernameLabel')}</Label>
                             <Input
                               id="botUsername"
-                              placeholder="Ex: my_support_bot"
+                              placeholder={t('botConfig.usernamePlaceholder')}
                               value={botUsername}
                               onChange={(e) => setBotUsername(e.target.value)}
                             />
                             <p className="text-sm text-muted-foreground">
-                              Username filled automatically by Telegram
+                              {t('botConfig.usernameAutoFilled')}
                             </p>
                           </div>
                         </div>
@@ -815,41 +819,41 @@ export default function TelegramSettingsPage({
                     <>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="apiId">API ID</Label>
+                          <Label htmlFor="apiId">{t('accountConfig.apiIdLabel')}</Label>
                           <Input
                             id="apiId"
-                            placeholder="api id"
+                            placeholder={t('accountConfig.apiIdPlaceholder')}
                             value={apiId}
                             onChange={(e) => setApiId(e.target.value)}
                             disabled={!!(apiId && account)}
                           />
                           <p className="text-sm text-muted-foreground">
-                            Get your API ID from <a href="https://my.telegram.org/apps" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">my.telegram.org</a>
+                            {t('accountConfig.apiIdInfo')} <a href="https://my.telegram.org/apps" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">my.telegram.org</a>
                           </p>
                         </div>
                         
                         <div className="space-y-2">
-                          <Label htmlFor="phoneNumber">Phone Number</Label>
+                          <Label htmlFor="phoneNumber">{t('accountConfig.phoneLabel')}</Label>
                           <Input
                             id="phoneNumber"
-                            placeholder="+1234567890"
+                            placeholder={t('accountConfig.phonePlaceholder')}
                             value={phoneNumber}
                             onChange={(e) => setPhoneNumber(e.target.value)}
                             disabled={!!(phoneNumber && account)}
                           />
                           <p className="text-sm text-muted-foreground">
-                            Your Telegram phone number with country code
+                            {t('accountConfig.phoneInfo')}
                           </p>
                         </div>
                       </div>
                       
                       <div className="space-y-2 md:w-1/2">
-                        <Label htmlFor="apiHash">API Hash</Label>
+                        <Label htmlFor="apiHash">{t('accountConfig.apiHashLabel')}</Label>
                         <div className="relative">
                           <Input
                             id="apiHash"
                             type={showApiHash ? "text" : "password"}
-                            placeholder="api hash"
+                            placeholder={t('accountConfig.apiHashPlaceholder')}
                             value={apiHash}
                             onChange={(e) => setApiHash(e.target.value)}
                             disabled={apiHash === '***CONFIGURED***'}
@@ -873,7 +877,7 @@ export default function TelegramSettingsPage({
                           <div className="space-y-2">
                             <div className="flex items-center gap-2 text-sm text-green-600">
                               <CheckCircle className="h-4 w-4" />
-                              API Hash is configured and account is active
+                              {t('accountConfig.apiHashConfigured')}
                             </div>
                             <Button
                               type="button"
@@ -885,12 +889,12 @@ export default function TelegramSettingsPage({
                               }}
                               className="text-xs"
                             >
-                              Change API Hash
+                              {t('accountConfig.changeApiHash')}
                             </Button>
                           </div>
                         ) : (
                           <p className="text-sm text-muted-foreground">
-                            Get your API Hash from <a href="https://my.telegram.org/apps" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">my.telegram.org</a>
+                            {t('accountConfig.apiHashInfo')} <a href="https://my.telegram.org/apps" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">my.telegram.org</a>
                           </p>
                         )}
                         
@@ -898,21 +902,21 @@ export default function TelegramSettingsPage({
                         {validatingAccount && (
                           <div className="flex items-center gap-2 text-sm text-blue-600">
                             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                            Validating credentials...
+                            {t('botConfig.validatingToken')}
                           </div>
                         )}
                         
                         {accountValidated && (
                           <div className="flex items-center gap-2 text-sm text-green-600">
                             <CheckCircle className="h-4 w-4" />
-                            Credentials valid! Account ready to use.
+                            {t('botConfig.tokenValid')}
                           </div>
                         )}
                         
                         {apiId && apiHash && apiHash !== '***CONFIGURED***' && !validatingAccount && !accountValidated && apiId.length > 0 && apiHash.length > 0 && (
                           <div className="flex items-center gap-2 text-sm text-red-600">
                             <AlertCircle className="h-4 w-4" />
-                            Invalid credentials. Please check your API ID and Hash.
+                            {t('accountConfig.invalidCredentials')}
                           </div>
                         )}
                       </div>
@@ -932,10 +936,10 @@ export default function TelegramSettingsPage({
                       className="flex items-center gap-2 cursor-pointer"
                     >
                       <Save className="w-4 h-4" />
-                      {saving ? 'Saving...' : (
+                      {saving ? t('saving') : (
                         apiType === 'bot' 
-                          ? (bot ? 'Update Bot' : 'Create Bot')
-                          : (account ? 'Update Account' : 'Create Account')
+                          ? (bot ? t('botConfig.updateButton') : t('botConfig.createButton'))
+                          : (account ? t('accountConfig.updateButton') : t('accountConfig.createButton'))
                       )}
                     </Button>
                     
@@ -946,7 +950,7 @@ export default function TelegramSettingsPage({
                         disabled={saving}
                         className="cursor-pointer"
                       >
-                        Delete {apiType === 'bot' ? 'Bot' : 'Account'}
+                        {apiType === 'bot' ? t('botConfig.deleteButton') : t('accountConfig.deleteButton')}
                       </Button>
                     )}
                     
@@ -958,7 +962,7 @@ export default function TelegramSettingsPage({
                         disabled={authenticating}
                         className="cursor-pointer"
                       >
-                        {authenticating ? 'Authenticating...' : 'Re-Authenticate Account'}
+                        {authenticating ? t('accountConfig.authenticating') : t('accountConfig.reAuthenticateButton')}
                       </Button>
                     )}
                   </div>
@@ -969,12 +973,12 @@ export default function TelegramSettingsPage({
               <Dialog open={showSmsDialog} onOpenChange={setShowSmsDialog}>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>SMS Authentication</DialogTitle>
-                    <DialogDescription>Enter the SMS code sent to telegram account</DialogDescription>
+                    <DialogTitle>{t('smsModal.title')}</DialogTitle>
+                    <DialogDescription>{t('smsModal.description')}</DialogDescription>
                   </DialogHeader>
                   <div className="space-y-3">
                     <Input
-                      placeholder="Enter SMS code"
+                      placeholder={t('smsModal.codePlaceholder')}
                       value={smsCode}
                       onChange={(e) => setSmsCode(e.target.value)}
                       disabled={authenticating}
@@ -988,9 +992,9 @@ export default function TelegramSettingsPage({
                   </div>
                   <DialogFooter>
                     <Button onClick={verifySmsCode} disabled={!smsCode || authenticating} className="cursor-pointer">
-                      {authenticating ? 'Verifying...' : 'Verify Code'}
+                      {authenticating ? t('smsModal.verifying') : t('smsModal.verifyButton')}
                     </Button>
-                    <Button variant="outline" onClick={() => setShowSmsDialog(false)} disabled={authenticating}>Cancel</Button>
+                    <Button variant="outline" onClick={() => setShowSmsDialog(false)} disabled={authenticating}>{t('smsModal.cancelButton')}</Button>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
@@ -999,13 +1003,13 @@ export default function TelegramSettingsPage({
               <Dialog open={showTwoFactorDialog} onOpenChange={(open)=>{setShowTwoFactorDialog(open); if(!open){setTwoFactorPassword(''); setTwoFactorAttempts(0); setAuthFeedback('')}}}>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>Two Factor Authentication</DialogTitle>
-                    <DialogDescription>Your Telegram account has 2FA enabled. Enter your 2FA password to continue.</DialogDescription>
+                    <DialogTitle>{t('twoFaModal.title')}</DialogTitle>
+                    <DialogDescription>{t('twoFaModal.description')}</DialogDescription>
                   </DialogHeader>
                   <div className="space-y-3">
                     <Input
                       type="password"
-                      placeholder="Enter your 2FA password"
+                      placeholder={t('twoFaModal.passwordPlaceholder')}
                       value={twoFactorPassword}
                       onChange={(e) => setTwoFactorPassword(e.target.value)}
                       disabled={authenticating}
@@ -1019,7 +1023,7 @@ export default function TelegramSettingsPage({
                         disabled={authenticating}
                         className="rounded"
                       />
-                      <Label htmlFor="rememberTwoFactor" className="text-sm">Remember 2FA password for future authentications</Label>
+                      <Label htmlFor="rememberTwoFactor" className="text-sm">{t('twoFaModal.rememberLabel')}</Label>
                     </div>
                     {authFeedback && (
                       <div className="flex items-center gap-2 text-sm">
@@ -1030,9 +1034,9 @@ export default function TelegramSettingsPage({
                   </div>
                   <DialogFooter>
                     <Button onClick={verifySmsCode} disabled={!twoFactorPassword || authenticating} className="cursor-pointer">
-                      {authenticating ? 'Verifying...' : 'Verify 2FA'}
+                      {authenticating ? t('twoFaModal.verifying') : t('twoFaModal.verifyButton')}
                     </Button>
-                    <Button variant="outline" onClick={() => setShowTwoFactorDialog(false)} disabled={authenticating}>Cancel</Button>
+                    <Button variant="outline" onClick={() => setShowTwoFactorDialog(false)} disabled={authenticating}>{t('twoFaModal.cancelButton')}</Button>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
@@ -1042,14 +1046,14 @@ export default function TelegramSettingsPage({
                 <CardHeader>
                   <CardTitle>
                     {apiType === 'bot' 
-                      ? 'How to configure your bot'
-                      : 'How to configure your account'
+                      ? t('instructions.bot.title')
+                      : t('instructions.account.title')
                     }
                   </CardTitle>
                   <CardDescription>
                     {apiType === 'bot' 
-                      ? 'Follow these steps to configure your Telegram bot'
-                      : 'Follow these steps to configure your Telegram account'
+                      ? t('instructions.bot.description')
+                      : t('instructions.account.description')
                     }
                   </CardDescription>
                 </CardHeader>
@@ -1059,37 +1063,37 @@ export default function TelegramSettingsPage({
                       <li className="flex gap-3">
                         <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">1</span>
                         <div>
-                          <strong>Access @BotFather</strong> on Telegram
+                          <strong>{t('instructions.bot.step1')} <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">@BotFather</a></strong> {t('instructions.bot.step1Detail')}
                         </div>
                       </li>
                       <li className="flex gap-3">
                         <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">2</span>
                         <div>
-                          <strong>Type /newbot</strong> to create a new bot
+                          <strong>{t('instructions.bot.step2')}</strong> {t('instructions.bot.step2Detail')}
                         </div>
                       </li>
                       <li className="flex gap-3">
                         <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">3</span>
                         <div>
-                          <strong>Choose a name</strong> for your bot (ex: "Support Bot")
+                          <strong>{t('instructions.bot.step3')}</strong> {t('instructions.bot.step3Detail')}
                         </div>
                       </li>
                       <li className="flex gap-3">
                         <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">4</span>
                         <div>
-                          <strong>Choose a username</strong> for your bot (ex: "my_support_bot")
+                          <strong>{t('instructions.bot.step4')}</strong> {t('instructions.bot.step4Detail')}
                         </div>
                       </li>
                       <li className="flex gap-3">
                         <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">5</span>
                         <div>
-                          <strong>Copy the token</strong> provided by BotFather and paste it in the field above
+                          <strong>{t('instructions.bot.step5')}</strong> {t('instructions.bot.step5Detail')}
                         </div>
                       </li>
                       <li className="flex gap-3">
                         <span className="flex-shrink-0 w-6 h-6 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-xs font-medium">✓</span>
                         <div>
-                          <strong>Bot data</strong> will be filled automatically after token validation
+                          <strong>{t('instructions.bot.step6')}</strong> {t('instructions.bot.step6Detail')}
                         </div>
                       </li>
                     </ol>
@@ -1098,37 +1102,37 @@ export default function TelegramSettingsPage({
                       <li className="flex gap-3">
                         <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">1</span>
                         <div>
-                          <strong>Visit</strong> <a href="https://my.telegram.org/apps" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">my.telegram.org/apps</a>
+                          <strong>{t('instructions.account.step1')}</strong> <a href="https://my.telegram.org/apps" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">my.telegram.org/apps</a>
                         </div>
                       </li>
                       <li className="flex gap-3">
                         <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">2</span>
                         <div>
-                          <strong>Log in</strong> with your Telegram account
+                          <strong>{t('instructions.account.step2')}</strong> {t('instructions.account.step2Detail')}
                         </div>
                       </li>
                       <li className="flex gap-3">
                         <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">3</span>
                         <div>
-                          <strong>Create a new application</strong> and fill in the required fields
+                          <strong>{t('instructions.account.step3')}</strong> {t('instructions.account.step3Detail')}
                         </div>
                       </li>
                       <li className="flex gap-3">
                         <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">4</span>
                         <div>
-                          <strong>Copy your API ID and API Hash</strong> from the application details
+                          <strong>{t('instructions.account.step4')}</strong> {t('instructions.account.step4Detail')}
                         </div>
                       </li>
                       <li className="flex gap-3">
                         <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">5</span>
                         <div>
-                          <strong>Enter your phone number</strong> with country code (e.g., +1234567890)
+                          <strong>{t('instructions.account.step5')}</strong> {t('instructions.account.step5Detail')}
                         </div>
                       </li>
                       <li className="flex gap-3">
                         <span className="flex-shrink-0 w-6 h-6 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-xs font-medium">✓</span>
                         <div>
-                          <strong>Account will be configured</strong> and ready to send messages
+                          <strong>{t('instructions.account.step6')}</strong> {t('instructions.account.step6Detail')}
                         </div>
                       </li>
                     </ol>
@@ -1139,6 +1143,6 @@ export default function TelegramSettingsPage({
           </div>
         </SidebarInset>
       </SidebarProvider>
-    </AuthGuard>
+    </RoleGuard>
   )
 }

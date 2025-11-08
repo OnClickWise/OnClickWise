@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import AuthGuard from '@/components/AuthGuard';
+import RoleGuard from '@/components/RoleGuard';
 
 interface Employee {
   id: string;
@@ -150,6 +151,7 @@ export default function EmployeesPage({ params }: { params: { org: string } }) {
 
   return (
     <AuthGuard orgSlug={params.org}>
+      <RoleGuard allowedRoles={['admin', 'master']} orgSlug={params.org}>
       <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-6xl mx-auto">
         <div className="bg-white rounded-lg shadow-sm p-6">
@@ -344,6 +346,7 @@ export default function EmployeesPage({ params }: { params: { org: string } }) {
         </div>
       </div>
     </div>
+    </RoleGuard>
     </AuthGuard>
   );
 }

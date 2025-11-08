@@ -6,9 +6,13 @@ import * as React from "react"
 
 import { useSearchParams } from "next/navigation"
 
+import { useTranslations, useLocale } from "next-intl"
+
 import { AppSidebar } from "@/components/app-sidebar"
 
 import AuthGuard from "@/components/AuthGuard"
+
+import RoleGuard from "@/components/RoleGuard"
 
 import {
 
@@ -120,7 +124,28 @@ export default function LeadsPage({
 
   const { org } = React.use(params)
 
-  const { isClient } = useApi()
+  const { isClient, apiCall } = useApi()
+
+  const t = useTranslations('Leads')
+  const locale = useLocale()
+  
+  // Pipeline stages for status options
+  const [pipelineStages, setPipelineStages] = React.useState<Array<{
+    id: string
+    name: string
+    slug: string
+    translation_key?: string
+    color: string
+  }>>([])
+  const [isLoadingStages, setIsLoadingStages] = React.useState(false)
+  
+  // Helper function to format currency based on locale
+  const formatCurrency = React.useCallback((value: number) => {
+    return new Intl.NumberFormat(locale === 'pt-BR' ? 'pt-BR' : 'en-US', {
+      style: 'currency',
+      currency: locale === 'pt-BR' ? 'BRL' : 'USD'
+    }).format(value)
+  }, [locale])
 
   // Função para obter identificador único e persistente do usuário
   const getUserIdentifier = React.useCallback(() => {
@@ -189,6 +214,8 @@ export default function LeadsPage({
   const searchParams = useSearchParams()
 
   const [leads, setLeads] = React.useState<Lead[]>([])
+
+  const [totalLeads, setTotalLeads] = React.useState<number>(0) // Total de leads no banco (sem filtros)
 
   const [filteredLeads, setFilteredLeads] = React.useState<Lead[]>([])
 
@@ -263,6 +290,17 @@ export default function LeadsPage({
   }>({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
   // Show top pagination when scrolling
   const [showTopPagination, setShowTopPagination] = React.useState(false)
+  const lastScrollTop = React.useRef(0)
+  const scrollDirection = React.useRef<'up' | 'down'>('down')
+  const scrollTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
+  
+  // Footer refs (footer is always fixed now)
+  const footerRef = React.useRef<HTMLDivElement>(null)
+  const footerPlaceholderRef = React.useRef<HTMLDivElement>(null)
+  const sidebarInsetRef = React.useRef<HTMLElement | null>(null)
+  const tableContainerRef = React.useRef<HTMLDivElement>(null)
+  const [footerLeft, setFooterLeft] = React.useState<number | null>(null)
+  const [footerWidth, setFooterWidth] = React.useState<string | null>(null)
   // Select all leads confirmation
   const [showSelectAllConfirm, setShowSelectAllConfirm] = React.useState(false)
   // Show select all leads button
@@ -371,7 +409,7 @@ export default function LeadsPage({
     if (hasAttachmentChanges || hasFieldChanges) {
       setUnsavedChangesToast({
         show: true,
-        message: 'You have unsaved changes. Click outside again to discard them.'
+        message: t('modal.unsavedChanges')
       })
       // Auto-hide after 3 seconds
       setTimeout(() => {
@@ -582,26 +620,30 @@ export default function LeadsPage({
 
   // Column labels mapping
   const columnLabels: Record<string, string> = {
-    name: 'Name',
-    email: 'Email',
-    phone: 'Phone',
-    ssn: 'SSN',
-    ein: 'EIN',
-    source: 'Source',
-    status: 'Status',
-    value: 'Value',
-    location: 'Location',
-    interest: 'Interest',
-    estimatedCloseDate: 'Est. Close Date'
+    name: t('columns.name'),
+    email: t('columns.email'),
+    phone: t('columns.phone'),
+    ssn: t('columns.ssn'),
+    ein: t('columns.ein'),
+    source: t('columns.source'),
+    status: t('columns.status'),
+    value: t('columns.value'),
+    location: t('columns.location'),
+    interest: t('columns.interest'),
+    estimatedCloseDate: t('columns.estimatedCloseDate')
   }
 
   // Render table header for a column
   const renderColumnHeader = (columnId: string) => {
     if (!visibleColumns[columnId]) return null
 
-    const sortableColumns = ['name', 'source', 'status', 'value', 'estimatedCloseDate', 'location', 'interest']
+    const sortableColumns = ['name', 'email', 'phone', 'ssn', 'ein', 'source', 'status', 'value', 'estimatedCloseDate', 'location', 'interest']
     const sortFieldMap: Record<string, string> = {
       name: 'name',
+      email: 'email',
+      phone: 'phone',
+      ssn: 'ssn',
+      ein: 'ein',
       source: 'source',
       status: 'status',
       value: 'value',
@@ -635,7 +677,29 @@ export default function LeadsPage({
         {isSortable ? (
           <div 
             className="flex items-center gap-1 cursor-pointer hover:text-primary select-none w-fit transition-colors"
-            onClick={() => handleSort(field as keyof Lead)}
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              
+              // Save current scroll position
+              const container = tableContainerRef.current
+              const scrollLeft = container?.scrollLeft || 0
+              
+              // Perform sort
+              handleSort(field as keyof Lead)
+              
+              // Restore scroll position to prevent unwanted horizontal scrolling
+              if (container) {
+                // Use double requestAnimationFrame to ensure DOM has updated
+                requestAnimationFrame(() => {
+                  requestAnimationFrame(() => {
+                    if (container) {
+                      container.scrollLeft = scrollLeft
+                    }
+                  })
+                })
+              }
+            }}
           >
             {columnLabels[columnId]}
             {sortField === field && (
@@ -670,7 +734,7 @@ export default function LeadsPage({
                   {lead.show_on_pipeline && (
                     <span 
                       className="inline-flex items-center justify-center rounded-full bg-green-100 p-1" 
-                      title="On Pipeline"
+                      title={t('table.onPipeline')}
                     >
                       <CheckCircle2 className="h-3 w-3 text-green-700" />
                     </span>
@@ -678,7 +742,7 @@ export default function LeadsPage({
                   {lead.assigned_user_id && (
                     <span 
                       className="inline-flex items-center justify-center rounded-full bg-blue-100 p-1" 
-                      title="Assigned to user"
+                      title={t('table.assignedToUser')}
                     >
                       <UserPlus className="h-3 w-3 text-blue-700" />
                     </span>
@@ -772,7 +836,6 @@ export default function LeadsPage({
         return null
     }
   }
-
   // Filter modal and state
 
   const [isFilterOpen, setIsFilterOpen] = React.useState(false)
@@ -905,6 +968,50 @@ export default function LeadsPage({
 
   const [description, setDescription] = React.useState("")
 
+  // Memoized status calculations for performance
+  const statusSelectValue = React.useMemo(() => {
+    const normalizedStatus = String(status).toLowerCase().replace(/\s+/g, '-')
+    const matchingStage = pipelineStages.find(stage => stage.slug === normalizedStatus)
+    if (matchingStage) return matchingStage.slug
+    
+    const legacyStatuses = ["New","In Contact","Qualified","Lost"]
+    if (legacyStatuses.includes(String(status))) {
+      return String(status)
+    }
+    
+    return "custom"
+  }, [status, pipelineStages])
+
+  const showCustomStatusField = React.useMemo(() => {
+    const normalizedStatus = String(status).toLowerCase().replace(/\s+/g, '-')
+    const matchingStage = pipelineStages.find(stage => stage.slug === normalizedStatus)
+    const isLegacyStatus = ["New","In Contact","Qualified","Lost"].includes(String(status))
+    return !matchingStage && !isLegacyStatus
+  }, [status, pipelineStages])
+
+  const bulkEditStageOptions = React.useMemo(() => {
+    const statusMap: Record<string, string> = {
+      'new': 'New',
+      'contact': 'In Contact',
+      'qualified': 'Qualified',
+      'lost': 'Lost'
+    }
+    
+    return pipelineStages.map((stage) => {
+      const stageValue = stage.translation_key 
+        ? (statusMap[stage.slug] || stage.slug)
+        : stage.slug
+      
+      return (
+        <option key={stage.id} value={stageValue}>
+          {stage.translation_key 
+            ? t(`statuses.${stage.slug}` as any) 
+            : stage.name}
+        </option>
+      )
+    })
+  }, [pipelineStages, t])
+
 
 
   // Field limits
@@ -949,6 +1056,13 @@ export default function LeadsPage({
         if (response.success && response.data) {
 
           setLeads(response.data.leads)
+          // Atualizar o total se foi retornado pela API
+          if (response.data.total !== undefined) {
+            setTotalLeads(response.data.total)
+          } else {
+            // Fallback: usar o tamanho do array se total não estiver disponível
+            setTotalLeads(response.data.leads.length)
+          }
 
         } else {
 
@@ -975,21 +1089,156 @@ export default function LeadsPage({
     loadAllLeads()
   }, [])
 
+  // Calculate footer position based on SidebarInset
+  React.useEffect(() => {
+    if (!isClient) return
+
+    const handleUpdate = () => {
+      // Try to find SidebarInset by ref first
+      if (sidebarInsetRef.current) {
+        const rect = sidebarInsetRef.current.getBoundingClientRect()
+        if (rect.width > 0 && rect.left >= 0) {
+          setFooterLeft(rect.left)
+          setFooterWidth(`${rect.width}px`)
+          return
+        }
+      }
+      
+      // Fallback: find by data attribute
+      const sidebarInset = document.querySelector('[data-slot="sidebar-inset"]') as HTMLElement
+      if (sidebarInset) {
+        const rect = sidebarInset.getBoundingClientRect()
+        if (rect.width > 0 && rect.left >= 0) {
+          setFooterLeft(rect.left)
+          setFooterWidth(`${rect.width}px`)
+        }
+      }
+    }
+
+    // Try immediately
+    handleUpdate()
+    
+    // Also try with a small delay to ensure DOM is ready
+    const timeoutId = setTimeout(handleUpdate, 100)
+    
+    // Update on resize and scroll
+    window.addEventListener('resize', handleUpdate, { passive: true })
+    window.addEventListener('scroll', handleUpdate, { passive: true })
+    
+    // Use ResizeObserver to watch for sidebar changes
+    let resizeObserver: ResizeObserver | null = null
+    
+    // Observe SidebarInset if available
+    if (sidebarInsetRef.current) {
+      resizeObserver = new ResizeObserver(handleUpdate)
+      resizeObserver.observe(sidebarInsetRef.current)
+    } else {
+      // Try to find and observe by selector
+      const sidebarInset = document.querySelector('[data-slot="sidebar-inset"]')
+      if (sidebarInset) {
+        resizeObserver = new ResizeObserver(handleUpdate)
+        resizeObserver.observe(sidebarInset)
+      }
+    }
+    
+    // Also observe the sidebar element if possible
+    const sidebarElement = document.querySelector('[data-sidebar]')
+    if (sidebarElement && resizeObserver) {
+      resizeObserver.observe(sidebarElement)
+    }
+    
+    // Use MutationObserver to watch for DOM changes
+    const mutationObserver = new MutationObserver(() => {
+      handleUpdate()
+    })
+    
+    mutationObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['class', 'style']
+    })
+    
+    return () => {
+      clearTimeout(timeoutId)
+      window.removeEventListener('resize', handleUpdate)
+      window.removeEventListener('scroll', handleUpdate)
+      if (resizeObserver) {
+        resizeObserver.disconnect()
+      }
+      mutationObserver.disconnect()
+    }
+  }, [isClient])
+
   // Detect scroll to show top pagination
   React.useEffect(() => {
+    if (!isClient) return
+
     const handleScroll = () => {
       const scrollTop = window.pageYOffset || document.documentElement.scrollTop
       const windowHeight = window.innerHeight
       const documentHeight = document.documentElement.scrollHeight
       
-      // Show top pagination if scrolled down and there's more content below
-      const shouldShow = scrollTop > 200 && (documentHeight - scrollTop - windowHeight) > 200
-      setShowTopPagination(shouldShow)
+      // Detect scroll direction
+      if (scrollTop > lastScrollTop.current) {
+        scrollDirection.current = 'down'
+      } else if (scrollTop < lastScrollTop.current) {
+        scrollDirection.current = 'up'
+      }
+      lastScrollTop.current = scrollTop
+      
+      // Clear any existing timeout
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current)
+      }
+      
+      // Only show top pagination when:
+      // 1. Scrolled down significantly (more than 300px)
+      // 2. There's more content below
+      // 3. NOT scrolling up rapidly (when scrolling up, hide immediately)
+      const isScrolledDown = scrollTop > 300
+      const hasMoreContentBelow = (documentHeight - scrollTop - windowHeight) > 200
+      const isScrollingUp = scrollDirection.current === 'up'
+      
+      if (isScrollingUp) {
+        // Hide immediately when scrolling up
+        setShowTopPagination(false)
+      } else if (isScrolledDown && hasMoreContentBelow) {
+        // When scrolling down, add a small delay to avoid flickering during fast scroll
+        scrollTimeoutRef.current = setTimeout(() => {
+          setShowTopPagination(true)
+        }, 150) // 150ms delay
+      } else {
+        setShowTopPagination(false)
+      }
     }
 
-    window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
+    // Use requestAnimationFrame for better performance
+    let ticking = false
+    const onScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          handleScroll()
+          ticking = false
+        })
+        ticking = true
+      }
+    }
+
+    window.addEventListener('scroll', onScroll, { passive: true })
+    handleScroll() // Check initial state
+    
+    // Also check on resize
+    window.addEventListener('resize', handleScroll, { passive: true })
+    
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', handleScroll)
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current)
+      }
+    }
+  }, [isClient])
 
 
 
@@ -1031,6 +1280,11 @@ export default function LeadsPage({
         setLeads(response.data.leads)
 
         setFilteredLeads(response.data.leads)
+        
+        // Atualizar o total se foi retornado pela API
+        if (response.data.total !== undefined) {
+          setTotalLeads(response.data.total)
+        }
 
         return response.data.leads
 
@@ -1159,6 +1413,13 @@ export default function LeadsPage({
         const newLeads = response.data.leads || []
         setLeads(newLeads)
         setFilteredLeads(newLeads)
+        // Atualizar o total se foi retornado pela API
+        if (response.data.total !== undefined) {
+          setTotalLeads(response.data.total)
+        } else {
+          // Fallback: usar o tamanho do array se total não estiver disponível
+          setTotalLeads(newLeads.length)
+        }
       }
     } catch (error) {
       console.error('Error reloading leads:', error)
@@ -1315,6 +1576,13 @@ export default function LeadsPage({
           if (response.success && response.data) {
 
             setLeads(response.data.leads)
+            // Atualizar o total se foi retornado pela API
+            if (response.data.total !== undefined) {
+              setTotalLeads(response.data.total)
+            } else {
+              // Fallback: usar o tamanho do array se total não estiver disponível
+              setTotalLeads(response.data.leads.length)
+            }
 
             setFilteredLeads(response.data.leads)
 
@@ -1334,8 +1602,57 @@ export default function LeadsPage({
 
   }, [searchTerm, debouncedSearch, isClient])
 
-
-
+  // Load pipeline stages for status dropdown
+  React.useEffect(() => {
+    const loadStages = async () => {
+      if (!isClient) return
+      
+      setIsLoadingStages(true)
+      try {
+        const response = await apiCall('/pipeline-stages')
+        
+        // Handle different response formats
+        let stagesData = null
+        
+        if (Array.isArray(response)) {
+          // Direct array response
+          stagesData = response
+        } else if (response && response.success && Array.isArray(response.data)) {
+          // Success response with data array
+          stagesData = response.data
+        } else if (response && Array.isArray(response.data)) {
+          // Response with data array (no success field)
+          stagesData = response.data
+        }
+        
+        if (stagesData && stagesData.length > 0) {
+          setPipelineStages(stagesData)
+        } else {
+          // Fallback to default stages if API fails
+          console.warn('No pipeline stages loaded, using defaults')
+          setPipelineStages([
+            { id: '1', name: 'New', slug: 'new', translation_key: 'Pipeline.stages.new', color: 'bg-blue-100 border-blue-200 text-blue-800' },
+            { id: '2', name: 'In Contact', slug: 'contact', translation_key: 'Pipeline.stages.contact', color: 'bg-yellow-100 border-yellow-200 text-yellow-800' },
+            { id: '3', name: 'Qualified', slug: 'qualified', translation_key: 'Pipeline.stages.qualified', color: 'bg-green-100 border-green-200 text-green-800' },
+            { id: '4', name: 'Lost', slug: 'lost', translation_key: 'Pipeline.stages.lost', color: 'bg-red-100 border-red-200 text-red-800' }
+          ])
+        }
+      } catch (error) {
+        console.error('Error loading pipeline stages:', error)
+        // Use default stages on error
+        setPipelineStages([
+          { id: '1', name: 'New', slug: 'new', translation_key: 'Pipeline.stages.new', color: 'bg-blue-100 border-blue-200 text-blue-800' },
+          { id: '2', name: 'In Contact', slug: 'contact', translation_key: 'Pipeline.stages.contact', color: 'bg-yellow-100 border-yellow-200 text-yellow-800' },
+          { id: '3', name: 'Qualified', slug: 'qualified', translation_key: 'Pipeline.stages.qualified', color: 'bg-green-100 border-green-200 text-green-800' },
+          { id: '4', name: 'Lost', slug: 'lost', translation_key: 'Pipeline.stages.lost', color: 'bg-red-100 border-red-200 text-red-800' }
+        ])
+      } finally {
+        setIsLoadingStages(false)
+      }
+    }
+    
+    loadStages()
+  }, [isClient])
   // Apply modal filters when Apply Filter is clicked
 
   const applyModalFilters = React.useCallback(async () => {
@@ -1675,6 +1992,13 @@ export default function LeadsPage({
           if (response.success && response.data) {
 
             setLeads(response.data.leads)
+            // Atualizar o total se foi retornado pela API
+            if (response.data.total !== undefined) {
+              setTotalLeads(response.data.total)
+            } else {
+              // Fallback: usar o tamanho do array se total não estiver disponível
+              setTotalLeads(response.data.leads.length)
+            }
 
             setFilteredLeads(response.data.leads)
 
@@ -1716,9 +2040,14 @@ export default function LeadsPage({
 
   }, [leads, searchTerm, filters.name, filters.email, filters.phone, filters.ssn, filters.ein, filters.source, filters.location, filters.interest, filters.status, filters.pipeline, filters.assignedUserId, sortField, isClient])
 
+  // Check if any filters are active
+  const hasActiveFilters = React.useMemo(() => {
+    return !!(searchTerm || filters.name || filters.email || filters.phone || filters.ssn || filters.ein || filters.source || filters.location || filters.interest || filters.status || filters.pipeline || filters.assignedUserId || sortField || valueRange.min || valueRange.max || dateRange.min || dateRange.max)
+  }, [searchTerm, filters.name, filters.email, filters.phone, filters.ssn, filters.ein, filters.source, filters.location, filters.interest, filters.status, filters.pipeline, filters.assignedUserId, sortField, valueRange.min, valueRange.max, dateRange.min, dateRange.max])
 
   // Pagination calculations
-  const totalItems = filteredLeads.length
+  // Use totalLeads from API when no filters are applied, otherwise use filteredLeads.length
+  const totalItems = hasActiveFilters ? filteredLeads.length : (totalLeads || filteredLeads.length)
   const totalPages = Math.ceil(totalItems / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
@@ -2035,18 +2364,22 @@ export default function LeadsPage({
 
     setValue(lead.value ? lead.value.toString() : "")
 
-    setEstimatedCloseDate(lead.estimated_close_date || "")
+    // Convert ISO date to yyyy-MM-dd format for date input
+    const closeDate = lead.estimated_close_date 
+      ? lead.estimated_close_date.split('T')[0] 
+      : ""
+    setEstimatedCloseDate(closeDate)
 
     setDescription(lead.description || "")
 
-    if (lead.status !== "New" && lead.status !== "In Contact" && lead.status !== "Qualified" && lead.status !== "Lost") {
+    // Check if status is in pipeline stages or is a custom status
+    const isStageStatus = pipelineStages.some(stage => stage.slug === lead.status.toLowerCase().replace(/\s+/g, '-'))
+    const isLegacyStatus = ["New", "In Contact", "Qualified", "Lost"].includes(lead.status)
 
+    if (!isStageStatus && !isLegacyStatus) {
       setCustomStatus(lead.status)
-
     } else {
-
       setCustomStatus("")
-
     }
 
     // Save original values for change detection
@@ -2061,7 +2394,7 @@ export default function LeadsPage({
       interest: lead.interest || "",
       status: lead.status,
       value: lead.value ? lead.value.toString() : "",
-      estimatedCloseDate: lead.estimated_close_date || ""
+      estimatedCloseDate: closeDate
     })
 
     setIsModalOpen(true)
@@ -2132,7 +2465,6 @@ export default function LeadsPage({
       pushToast('Error updating pipeline', 'error')
     }
   }
-
   async function applyQuickAssign() {
     if (!quickAssignLeadId || !quickAssignUserId) return
 
@@ -2753,13 +3085,13 @@ export default function LeadsPage({
     if (selectedLeads.size === 0) return
 
     if (!selectedUserId) {
-      pushToast("Please select a user", "error")
+      pushToast(t('toasts.selectUser'), "error")
       return
     }
 
     // Check confirmation input
     if (bulkAssignConfirm.trim().toLowerCase() !== "assign") {
-      pushToast("Please type 'assign' to confirm", "error")
+      pushToast(t('toasts.confirmAssign'), "error")
       return
     }
 
@@ -2929,9 +3261,6 @@ export default function LeadsPage({
       setBulkAssignConfirm("")
     }
   }
-
-
-
   function normalizeHeader(raw: string): string {
 
     const s = raw
@@ -3727,8 +4056,6 @@ export default function LeadsPage({
     
     return { ssn, ein }
   }
-
-
   function mapRowsToLeads(rows: Record<string, unknown>[]): Lead[] {
 
     if (rows.length === 0) return []
@@ -4523,8 +4850,6 @@ export default function LeadsPage({
     }
 
   }
-
-
   function exportData(format: "xlsx" | "csv" | "ods" | "json") {
     try {
     const selectedIds = selectedLeads
@@ -4947,18 +5272,17 @@ export default function LeadsPage({
       isDeletionCancelledRef.current = false
     }
   }
-
-
-
   return (
 
     <AuthGuard orgSlug={org}>
+
+      <RoleGuard allowedRoles={["admin", "master"]} orgSlug={org}>
 
       <SidebarProvider>
 
         <AppSidebar org={org} />
 
-        <SidebarInset>
+        <SidebarInset ref={sidebarInsetRef}>
 
         {/* HEADER */}
 
@@ -4982,7 +5306,7 @@ export default function LeadsPage({
 
                 <BreadcrumbLink href={`/${org}/dashboard`}>
 
-                  Dashboard
+                    {t('breadcrumbHome')}
 
                 </BreadcrumbLink>
 
@@ -4992,7 +5316,7 @@ export default function LeadsPage({
 
               <BreadcrumbItem>
 
-                <BreadcrumbPage>Leads</BreadcrumbPage>
+                  <BreadcrumbPage>{t('breadcrumbLeads')}</BreadcrumbPage>
 
               </BreadcrumbItem>
 
@@ -5076,7 +5400,7 @@ export default function LeadsPage({
             <div className="flex items-center gap-2">
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600"></div>
               <span className="font-medium">
-                {isImportCancelled ? 'Cancelling Import...' : 'Importing Leads'}
+                  {isImportCancelled ? t('notifications.cancellingImport') : t('notifications.importingLeads')}
               </span>
             </div>
               <Button
@@ -5143,13 +5467,13 @@ export default function LeadsPage({
                 }}
                 className="cursor-pointer text-muted-foreground hover:text-foreground"
               >
-                Cancel
+                  {t('notifications.cancel')}
               </Button>
             </div>
             
             <div className="space-y-2">
               <div className="flex justify-between text-sm text-muted-foreground">
-                <span>Batch {importNotification.progress.batch} of {importNotification.progress.totalBatches}</span>
+                  <span>{t('notifications.batchOf', { batch: importNotification.progress.batch, total: importNotification.progress.totalBatches })}</span>
                 <span>{importNotification.progress.current} / {importNotification.progress.total}</span>
               </div>
               
@@ -5172,7 +5496,7 @@ export default function LeadsPage({
               <div className="flex items-center gap-2">
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
                 <span className="font-medium">
-                  {isEditCancelled ? 'Cancelling Edit...' : 'Updating Leads'}
+                    {isEditCancelled ? t('notifications.cancellingEdit') : t('notifications.updatingLeads')}
                 </span>
               </div>
               <Button
@@ -5260,13 +5584,13 @@ export default function LeadsPage({
                 }}
                 className="cursor-pointer text-muted-foreground hover:text-foreground"
               >
-                Cancel
+                  {t('notifications.cancel')}
               </Button>
             </div>
             
             <div className="space-y-2">
               <div className="flex justify-between text-sm text-muted-foreground">
-                <span>Batch {editNotification.progress.batch} of {editNotification.progress.totalBatches}</span>
+                  <span>{t('notifications.batchOf', { batch: editNotification.progress.batch, total: editNotification.progress.totalBatches })}</span>
                 <span>{editNotification.progress.current} / {editNotification.progress.total}</span>
               </div>
               
@@ -5288,13 +5612,13 @@ export default function LeadsPage({
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                <span className="font-medium">Assigning Leads</span>
+                  <span className="font-medium">{t('notifications.assigningLeads')}</span>
               </div>
             </div>
             
             <div className="space-y-2">
               <div className="flex justify-between text-sm text-muted-foreground">
-                <span>Batch {assignNotification.progress.batch} of {assignNotification.progress.totalBatches}</span>
+                  <span>{t('notifications.batchOf', { batch: assignNotification.progress.batch, total: assignNotification.progress.totalBatches })}</span>
                 <span>{assignNotification.progress.current} / {assignNotification.progress.total}</span>
               </div>
               
@@ -5317,7 +5641,7 @@ export default function LeadsPage({
               <div className="flex items-center gap-2">
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
                 <span className="font-medium">
-                  {isDeletionCancelled ? 'Cancelling Deletion...' : 'Deleting Leads'}
+                    {isDeletionCancelled ? t('notifications.cancellingDeletion') : t('notifications.deletingLeads')}
                 </span>
               </div>
               <Button
@@ -5386,13 +5710,13 @@ export default function LeadsPage({
                 }}
                 className="cursor-pointer text-muted-foreground hover:text-foreground"
               >
-                Cancel
+                  {t('notifications.cancel')}
               </Button>
             </div>
             
             <div className="space-y-2">
               <div className="flex justify-between text-sm text-muted-foreground">
-                <span>Batch {deleteNotification.progress.batch} of {deleteNotification.progress.totalBatches}</span>
+                  <span>{t('notifications.batchOf', { batch: deleteNotification.progress.batch, total: deleteNotification.progress.totalBatches })}</span>
                 <span>{deleteNotification.progress.current} / {deleteNotification.progress.total}</span>
               </div>
               
@@ -5410,8 +5734,7 @@ export default function LeadsPage({
 
 
         {/* MAIN */}
-
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+        <div data-main-container className="flex flex-1 flex-col gap-4 p-4 pt-0">
 
           {/* CONTROLS */}
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -5420,7 +5743,7 @@ export default function LeadsPage({
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder="Search leads..."
+                  placeholder={t('search.placeholder')}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 w-64"
@@ -5434,7 +5757,7 @@ export default function LeadsPage({
                 className="cursor-pointer"
               >
                 <Filter className="h-4 w-4 mr-2" />
-                Filters
+                {t('filters.filters')}
                 {(searchTerm || Object.values(filters).some(f => f !== "") || valueRange.min || valueRange.max || dateRange.min || dateRange.max) && (
                   <span className="ml-1 bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 text-xs">
                     {[searchTerm, ...Object.values(filters), valueRange.min, valueRange.max, dateRange.min, dateRange.max].filter(f => f && f !== "").length}
@@ -5458,7 +5781,7 @@ export default function LeadsPage({
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className="cursor-pointer">
                     <Columns className="h-4 w-4 mr-2" />
-                    Columns
+                    {t('filters.columns')}
                     <ChevronDown className="ml-2 h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -5493,7 +5816,7 @@ export default function LeadsPage({
 
                     <Plus className="h-4 w-4 mr-2" />
 
-                    Add Lead
+                    {t('actions.addLead')}
 
                     <ChevronDown className="ml-2 h-4 w-4" />
 
@@ -5507,7 +5830,7 @@ export default function LeadsPage({
 
                     <Plus className="h-4 w-4" />
 
-                    Add manually
+                    {t('actions.addManually')}
 
                   </DropdownMenuItem>
 
@@ -5521,7 +5844,7 @@ export default function LeadsPage({
 
                     <Download className="h-4 w-4" />
 
-                    Import
+                    {t('actions.import')}
 
                   </DropdownMenuItem>
 
@@ -5539,7 +5862,7 @@ export default function LeadsPage({
 
                     <Upload className="h-4 w-4 mr-2" />
 
-                    {selectedLeads.size > 0 ? "Export selected" : "Export"}
+                    {selectedLeads.size > 0 ? t('actions.exportSelected') : t('actions.export')}
 
                     <ChevronDown className="ml-2 h-4 w-4" />
 
@@ -5553,7 +5876,7 @@ export default function LeadsPage({
 
                     <Upload className="h-4 w-4" />
 
-                    Export as XLSX
+                    {t('actions.exportAsXLSX')}
 
                   </DropdownMenuItem>
 
@@ -5561,7 +5884,7 @@ export default function LeadsPage({
 
                     <Upload className="h-4 w-4" />
 
-                    Export as CSV
+                    {t('actions.exportAsCSV')}
 
                   </DropdownMenuItem>
 
@@ -5569,7 +5892,7 @@ export default function LeadsPage({
 
                     <Upload className="h-4 w-4" />
 
-                    Export as ODS
+                    {t('actions.exportAsODS')}
 
                   </DropdownMenuItem>
 
@@ -5577,7 +5900,7 @@ export default function LeadsPage({
 
                     <Upload className="h-4 w-4" />
 
-                    Export as JSON
+                    {t('actions.exportAsJSON')}
 
                   </DropdownMenuItem>
 
@@ -5590,33 +5913,33 @@ export default function LeadsPage({
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" className="cursor-pointer">
                       <Edit className="h-4 w-4 mr-2" />
-                      Actions ({selectedLeads.size})
+                      {t('actions.actionsWithCount', { count: selectedLeads.size })}
                       <ChevronDown className="ml-2 h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56">
                     <DropdownMenuItem onClick={openBulkEdit} className="cursor-pointer">
                       <Edit className="h-4 w-4 mr-2" />
-                      Edit Selected
+                      {t('actions.editSelected')}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={openBulkAssign} className="cursor-pointer">
                       <UserPlus className="h-4 w-4 mr-2" />
-                      Assign to User
+                      {t('actions.assignToUser')}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => openPipelineModal('add')} className="cursor-pointer">
                       <CheckCircle2 className="h-4 w-4 mr-2" />
-                      Add to Pipeline
+                      {t('actions.addToPipeline')}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => openPipelineModal('remove')} className="cursor-pointer">
                       <X className="h-4 w-4 mr-2" />
-                      Remove from Pipeline
+                      {t('actions.removeFromPipeline')}
                     </DropdownMenuItem>
                     <DropdownMenuItem 
                       onClick={handleDeleteSelected} 
                       className="cursor-pointer text-red-600 focus:text-red-600"
                     >
                       <Trash2 className="h-4 w-4 mr-2" />
-                      Delete Selected
+                      {t('actions.deleteSelected')}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -5633,7 +5956,7 @@ export default function LeadsPage({
             <div className="flex items-center justify-between mb-3">
 
               <div className="flex items-center gap-4">
-              <h2 className="text-lg font-semibold">Lead List</h2>
+              <h2 className="text-lg font-semibold">{t('table.leadList')}</h2>
 
                 {selectedLeads.size > 0 && (
                   <Button
@@ -5643,7 +5966,7 @@ export default function LeadsPage({
                     className="cursor-pointer text-red-600 hover:text-red-700"
                   >
                   <X className="h-4 w-4" />
-                  Unselect All
+                  {t('table.unselectAll')}
                   </Button>
                 )}
                 {/* TOP PAGINATION - Show when scrolling */}
@@ -5656,7 +5979,7 @@ export default function LeadsPage({
                       disabled={currentPage === 1}
                       className="cursor-pointer"
                     >
-                      First
+                      {t('table.first')}
                     </Button>
                     <Button
                       variant="outline"
@@ -5665,12 +5988,12 @@ export default function LeadsPage({
                       disabled={currentPage === 1}
                       className="cursor-pointer"
                     >
-                      Previous
+                      {t('table.previous')}
                     </Button>
                     
                     <div className="flex items-center gap-2 px-2">
                       <span className="text-sm text-muted-foreground">
-                        Page {currentPage} of {totalPages}
+                        {t('table.pageOf', { current: currentPage, total: totalPages })}
                       </span>
                     </div>
                     
@@ -5681,7 +6004,7 @@ export default function LeadsPage({
                       disabled={currentPage === totalPages}
                       className="cursor-pointer"
                     >
-                      Next
+                      {t('table.next')}
                     </Button>
                     <Button
                       variant="outline"
@@ -5690,7 +6013,7 @@ export default function LeadsPage({
                       disabled={currentPage === totalPages}
                       className="cursor-pointer"
                     >
-                      Last
+                      {t('table.last')}
                     </Button>
                   </div>
                 )}
@@ -5701,7 +6024,7 @@ export default function LeadsPage({
 
                   <div className="flex items-center gap-2">
                     <span className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-800">
-                      {selectedLeads.size} selected
+                      {selectedLeads.size} {t('table.selected')}
                     </span>
                     <Button 
                       variant="ghost" 
@@ -5709,7 +6032,7 @@ export default function LeadsPage({
                       onClick={() => setSelectedLeads(new Set())}
                       className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
                     >
-                      Clear
+                      {t('table.clear')}
                     </Button>
                   </div>
 
@@ -5717,28 +6040,28 @@ export default function LeadsPage({
 
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
 
-                  {startIndex + 1}-{Math.min(endIndex, totalItems)} of {totalItems} items
+                  {t('table.itemsRange', { start: startIndex + 1, end: Math.min(endIndex, totalItems), total: totalItems })}
                 </div>
 
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm" className="cursor-pointer">
-                      {itemsPerPage} per page
+                      {t('table.perPage', { count: itemsPerPage })}
                       <ChevronDown className="ml-1 h-3 w-3" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-32">
                     <DropdownMenuItem onClick={() => setItemsPerPage(10)} className="cursor-pointer">
-                      10 per page
+                      {t('table.perPage', { count: 10 })}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => setItemsPerPage(20)} className="cursor-pointer">
-                      20 per page
+                      {t('table.perPage', { count: 20 })}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => setItemsPerPage(50)} className="cursor-pointer">
-                      50 per page
+                      {t('table.perPage', { count: 50 })}
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => setItemsPerPage(100)} className="cursor-pointer">
-                      100 per page
+                      {t('table.perPage', { count: 100 })}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -5746,7 +6069,7 @@ export default function LeadsPage({
 
             </div>
 
-            <div className="overflow-x-auto border rounded-lg">
+            <div ref={tableContainerRef} className="overflow-x-auto border rounded-lg" style={{ scrollBehavior: 'auto' }}>
 
               <table className="w-full text-sm border-collapse">
 
@@ -5764,14 +6087,14 @@ export default function LeadsPage({
                           </DropdownMenuTrigger>
                             <DropdownMenuContent align="start" className="w-48">
                               <DropdownMenuItem onClick={handleToggleSelectAll} className="cursor-pointer">
-                                {selectedLeads.size === leads.length && leads.length > 0 ? `Unselect All (${leads.length})` : `Select All (${leads.length})`}
+                                {selectedLeads.size === leads.length && leads.length > 0 ? t('table.unselectAllCount', { count: leads.length }) : t('table.selectAll', { count: leads.length })}
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={handleToggleSelectPage} className="cursor-pointer">
                                 {(() => {
                                   const currentPageLeadIds = new Set(currentLeads.map(lead => lead.id))
                                   const allCurrentPageSelected = currentPageLeadIds.size > 0 && 
                                     Array.from(currentPageLeadIds).every(id => selectedLeads.has(id))
-                                  return allCurrentPageSelected ? `Unselect Page` : `Select Page`
+                                  return allCurrentPageSelected ? t('table.unselectPage') : t('table.selectPage')
                                 })()}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
@@ -5781,7 +6104,7 @@ export default function LeadsPage({
 
                     {columnOrder.filter(columnId => columnLabels[columnId]).map(columnId => renderColumnHeader(columnId))}
 
-                    <th className="py-2.5 px-2 text-right min-w-[110px] w-[120px] font-semibold text-xs">Actions</th>
+                    <th className="py-2.5 px-2 text-center min-w-[110px] w-[120px] font-semibold text-xs">{t('columns.actions')}</th>
 
                   </tr>
 
@@ -5886,9 +6209,46 @@ export default function LeadsPage({
             </div>
 
             
-            {/* Pagination Controls */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-center mt-4 pt-4 border-t">
+            {/* Pagination Controls - Always Fixed Footer */}
+            {totalPages > 1 && footerLeft !== null && footerWidth !== null && (
+              <>
+                {/* Placeholder to maintain space in document flow when footer is fixed */}
+                <div 
+                  ref={footerPlaceholderRef}
+                  className="pointer-events-none invisible"
+                  style={{ 
+                    height: '80px',
+                    marginTop: '1rem',
+                    paddingTop: '1rem',
+                    paddingBottom: '1rem'
+                  }}
+                  aria-hidden="true"
+                />
+                <div 
+                  ref={footerRef}
+                  data-pagination-footer
+                  className="fixed bottom-0 z-[50] flex items-center justify-center pt-4 pb-4 border-t"
+                  style={{
+                    left: `${footerLeft}px`,
+                    width: footerWidth,
+                    right: 'auto',
+                    maxWidth: footerWidth,
+                    paddingLeft: '1rem',
+                    paddingRight: '1rem',
+
+                    // Vidro
+                    background: 'rgba(255, 255, 255, 0)', // aumentamos a opacidade
+                    backdropFilter: 'blur(6px) contrast(1.1) saturate(1.3)',
+                    WebkitBackdropFilter: 'blur(14px) contrast(1.1) saturate(1.3)',
+
+                    // Borda e sombra
+                    borderColor: 'rgba(255, 255, 255, 0.3)',
+                    boxShadow: '0 -6px 30px rgba(0, 0, 0, 0.18)',
+
+                    // Suaviza o efeito
+                    transition: 'background 0.2s ease, backdrop-filter 0.2s ease'
+                  }}
+                >
                 <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
@@ -5897,7 +6257,7 @@ export default function LeadsPage({
                     disabled={currentPage === 1}
                     className="cursor-pointer"
                   >
-                    First
+                    {t('table.first')}
                   </Button>
                   <Button
                     variant="outline"
@@ -5906,12 +6266,12 @@ export default function LeadsPage({
                     disabled={currentPage === 1}
                     className="cursor-pointer"
                   >
-                    Previous
+                    {t('table.previous')}
                   </Button>
                   
                   <div className="flex items-center gap-2 px-4">
                     <span className="text-sm text-muted-foreground">
-                      Page {currentPage} of {totalPages}
+                      {t('table.pageOf', { current: currentPage, total: totalPages })}
                     </span>
                   </div>
                   
@@ -5922,7 +6282,7 @@ export default function LeadsPage({
                     disabled={currentPage === totalPages}
                     className="cursor-pointer"
                   >
-                    Next
+                    {t('table.next')}
                   </Button>
                   <Button
                     variant="outline"
@@ -5931,10 +6291,11 @@ export default function LeadsPage({
                     disabled={currentPage === totalPages}
                     className="cursor-pointer"
                   >
-                    Last
+                    {t('table.last')}
                   </Button>
                 </div>
               </div>
+              </>
             )}
           </div>
         </div>
@@ -5953,7 +6314,7 @@ export default function LeadsPage({
         }}>
 
           <SheetContent 
-            className="w-full sm:max-w-md border-l border-border p-6 md:p-8 flex flex-col max-h-screen"
+            className="w-full sm:max-w-2xl border-l border-border p-6 md:p-8 flex flex-col max-h-screen"
             onDragOver={handleAttachmentDragOver}
             onDragLeave={handleAttachmentDragLeave}
             onDrop={(e) => editingId && handleAttachmentDrop(e, editingId)}
@@ -5964,13 +6325,13 @@ export default function LeadsPage({
 
               <SheetTitle>
 
-                {editingId ? "Edit Lead" : "Add Lead"}
+                {editingId ? t('modal.editLead') : t('modal.addLead')}
 
               </SheetTitle>
 
               <SheetDescription>
 
-                {editingId ? "Update the lead information." : "Fill in the new lead details."}
+                {editingId ? t('modal.editDescription') : t('modal.addDescription')}
 
               </SheetDescription>
 
@@ -5979,18 +6340,18 @@ export default function LeadsPage({
             <Separator className="my-4" />
             </div>
 
-            <div className="flex-1 overflow-y-auto pr-2">
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="flex-1 overflow-y-auto pr-3 pb-6">
+            <form onSubmit={handleSubmit} className="space-y-8">
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-          <div>
+          <div className="space-y-2">
 
-                  <label className="mb-1 block text-sm font-medium">Name</label>
+                  <label className="mb-2 block text-sm font-medium leading-tight">{t('form.name')}</label>
 
                   <Input
 
-                    placeholder="Full name"
+                    placeholder={t('form.namePlaceholder')}
 
                     value={name}
 
@@ -6004,15 +6365,15 @@ export default function LeadsPage({
 
           </div>
 
-          <div>
+          <div className="space-y-2">
 
-                  <label className="mb-1 block text-sm font-medium">Email</label>
+                  <label className="mb-2 block text-sm font-medium leading-tight">{t('form.email')}</label>
 
                   <Input
 
                 type="email"
 
-                    placeholder="email@example.com"
+                    placeholder={t('form.emailPlaceholder')}
 
                     value={email}
 
@@ -6026,13 +6387,13 @@ export default function LeadsPage({
 
             </div>
 
-                <div>
+                <div className="space-y-2">
 
-                  <label className="mb-1 block text-sm font-medium">Phone</label>
+                  <label className="mb-2 block text-sm font-medium leading-tight">{t('form.phone')}</label>
 
                   <Input
 
-                    placeholder="Phone"
+                    placeholder={t('form.phonePlaceholder')}
 
                     value={phone}
 
@@ -6044,13 +6405,13 @@ export default function LeadsPage({
 
                 </div>
 
-                <div>
+                <div className="space-y-2">
 
-                  <label className="mb-1 block text-sm font-medium">SSN</label>
+                  <label className="mb-2 block text-sm font-medium leading-tight">{t('form.ssn')}</label>
 
                   <Input
 
-                    placeholder="SSN"
+                    placeholder={t('form.ssnPlaceholder')}
 
                     value={ssn}
 
@@ -6062,13 +6423,13 @@ export default function LeadsPage({
 
                 </div>
 
-                <div>
+                <div className="space-y-2">
 
-                  <label className="mb-1 block text-sm font-medium">EIN</label>
+                  <label className="mb-2 block text-sm font-medium leading-tight">{t('form.ein')}</label>
 
                   <Input
 
-                    placeholder="EIN"
+                    placeholder={t('form.einPlaceholder')}
 
                     value={ein}
 
@@ -6080,13 +6441,13 @@ export default function LeadsPage({
 
                 </div>
 
-          <div>
+          <div className="space-y-2">
 
-                  <label className="mb-1 block text-sm font-medium">Source</label>
+                  <label className="mb-2 block text-sm font-medium leading-tight">{t('form.source')}</label>
 
                   <Input
 
-                    placeholder="e.g., Instagram, Landing Page"
+                    placeholder={t('form.sourcePlaceholder')}
 
                     value={source}
 
@@ -6098,81 +6459,101 @@ export default function LeadsPage({
 
             </div>
 
-                <div>
-                  <label className="mb-1 block text-sm font-medium">Location</label>
+                <div className="space-y-2">
+                  <label className="mb-2 block text-sm font-medium leading-tight">{t('form.location')}</label>
                   <Input
-                    placeholder="e.g., New York, USA"
+                    placeholder={t('form.locationPlaceholder')}
                     value={leadLocation}
                     onChange={(e) => setLeadLocation(e.target.value.slice(0, FIELD_MAX.source))}
                     maxLength={FIELD_MAX.source}
                   />
                 </div>
 
-                <div>
-                  <label className="mb-1 block text-sm font-medium">Interest</label>
+                <div className="space-y-2">
+                  <label className="mb-2 block text-sm font-medium leading-tight">{t('form.interest')}</label>
                   <Input
-                    placeholder="e.g., Product A, Service B"
+                    placeholder={t('form.interestPlaceholder')}
                     value={interest}
                     onChange={(e) => setInterest(e.target.value.slice(0, FIELD_MAX.source))}
                     maxLength={FIELD_MAX.source}
                   />
             </div>
 
-                <div className="md:col-span-2 space-y-2">
+                <div className="lg:col-span-2 space-y-2">
 
-                  <div>
+                  <div className="space-y-2">
 
-                    <label className="mb-1 block text-sm font-medium">Status</label>
+                    <label className="mb-2 block text-sm font-medium leading-tight">{t('form.status')}</label>
 
                     <select
 
                       className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input h-9 w-full min-w-0 rounded-md border bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
 
-                      value={["New","In Contact","Qualified","Lost"].includes(String(status)) ? String(status) : "custom"}
+                      value={statusSelectValue}
 
                       onChange={(e) => {
-
                         const val = e.target.value
 
                         if (val === "custom") {
-
                           setStatus(customStatus || "")
-
-                        } else {
-
-                          setStatus(val as Lead["status"])
-
-                          setCustomStatus("")
-
+                          return
                         }
 
+                        // Clear custom status first
+                          setCustomStatus("")
+
+                        // Find the stage
+                        const stage = pipelineStages.find(s => s.slug === val)
+                        
+                        if (stage && stage.translation_key) {
+                          // System stages: use legacy format
+                          const statusMap: Record<string, string> = {
+                            'new': 'New',
+                            'contact': 'In Contact',
+                            'qualified': 'Qualified',
+                            'lost': 'Lost'
+                          }
+                          setStatus((statusMap[stage.slug] || stage.slug) as Lead["status"])
+                        } else if (stage) {
+                          // Custom stages: use slug
+                          setStatus(stage.slug as Lead["status"])
+                        } else {
+                          // Fallback
+                          setStatus(val as Lead["status"])
+                        }
                       }}
+
+                      disabled={isLoadingStages}
 
                     >
 
-                      <option value="New">New</option>
-
-                      <option value="In Contact">In Contact</option>
-
-                      <option value="Qualified">Qualified</option>
-
-                      <option value="Lost">Lost</option>
-
-                      <option value="custom">Custom…</option>
+                      {isLoadingStages ? (
+                        <option value="">{t('form.loadingStages')}</option>
+                      ) : (
+                        <>
+                          {pipelineStages.map((stage) => (
+                            <option key={stage.id} value={stage.slug}>
+                              {stage.translation_key 
+                                ? t(`statuses.${stage.slug}` as any) 
+                                : stage.name}
+                            </option>
+                          ))}
+                          <option value="custom">{t('statuses.custom')}</option>
+                        </>
+                      )}
 
                     </select>
 
                   </div>
 
-                  {(!["New","In Contact","Qualified","Lost"].includes(String(status))) && (
+                  {showCustomStatusField && (
+                    <div className="space-y-2">
 
-                    <div>
-
-                      <label className="mb-1 block text-sm font-medium">Custom status</label>
+                      <label className="mb-2 block text-sm font-medium leading-tight">{t('form.customStatus')}</label>
 
                       <Input
 
-                        placeholder="e.g., Follow-up postponed"
+                        placeholder={t('form.customStatusPlaceholder')}
 
                         value={customStatus}
 
@@ -6191,7 +6572,6 @@ export default function LeadsPage({
                       />
 
                     </div>
-
                   )}
 
                 </div>
@@ -6204,19 +6584,19 @@ export default function LeadsPage({
 
               <div className="space-y-4">
 
-                <h3 className="text-sm font-semibold text-muted-foreground">Commercial Information</h3>
+                <h3 className="text-sm font-semibold text-muted-foreground">{t('form.commercialInformation')}</h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-                  <div>
+                  <div className="space-y-2">
 
-                    <label className="mb-1 block text-sm font-medium">Deal Value ($)</label>
+                    <label className="mb-2 block text-sm font-medium leading-tight">{t('form.dealValue')}</label>
 
                     <Input
 
                       type="number"
 
-                      placeholder="0.00"
+                      placeholder={t('form.dealValuePlaceholder')}
 
                       value={value}
 
@@ -6236,9 +6616,9 @@ export default function LeadsPage({
 
                   </div>
 
-                  <div>
+                  <div className="space-y-2">
 
-                    <label className="mb-1 block text-sm font-medium">Estimated Close Date</label>
+                    <label className="mb-2 block text-sm font-medium leading-tight">{t('form.estimatedCloseDateLabel')}</label>
 
                     <Input
 
@@ -6262,15 +6642,15 @@ export default function LeadsPage({
 
                 </div>
 
-                <div>
+                <div className="space-y-2">
 
-                  <label className="mb-1 block text-sm font-medium">📝 Notes / Description</label>
+                  <label className="mb-2 block text-sm font-medium leading-tight">{t('form.notesDescription')}</label>
 
                   <textarea
 
                     className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input h-20 w-full min-w-0 rounded-md border bg-transparent px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
 
-                    placeholder="Notes about the lead..."
+                    placeholder={t('form.notesPlaceholder')}
 
                     value={description}
 
@@ -6282,7 +6662,7 @@ export default function LeadsPage({
 
                   <div className="text-xs text-muted-foreground mt-1">
 
-                    {description.length}/{FIELD_MAX.description} characters
+                    {t('form.charactersCount', { current: description.length, max: FIELD_MAX.description })}
 
                   </div>
 
@@ -6296,7 +6676,7 @@ export default function LeadsPage({
                   <Separator />
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-semibold text-muted-foreground">Attachments</h3>
+                      <h3 className="text-sm font-semibold text-muted-foreground">{t('form.attachments')}</h3>
                       {(() => {
                         const lead = leads.find(l => l.id === editingId)
                         const attachments = lead?.attachments || []
@@ -6316,7 +6696,7 @@ export default function LeadsPage({
                               onClick={() => attachmentFileInputRef.current?.click()}
                             >
                               <Upload className="h-4 w-4 mr-2" />
-                              Add Files
+                              {t('form.addFiles')}
                             </Button>
                           )
                         }
@@ -6359,17 +6739,17 @@ export default function LeadsPage({
                               {uploadingAttachments[editingId] ? (
                                 <>
                                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                                  <p className="text-sm text-muted-foreground">Uploading...</p>
+                                  <p className="text-sm text-muted-foreground">{t('form.uploading')}</p>
                                 </>
                               ) : (
                                 <>
                                   <Upload className="h-8 w-8 text-muted-foreground" />
                                   <div className="text-center">
                                     <p className="text-sm font-medium">
-                                      Drag and drop files here
+                                      {t('form.dragDropFiles')}
                                     </p>
                                     <p className="text-xs text-muted-foreground mt-1">
-                                      or click to browse (max 50MB)
+                                      {t('form.clickToBrowseFiles')}
                                     </p>
                                   </div>
                                 </>
@@ -6449,7 +6829,7 @@ export default function LeadsPage({
                                   {file.name}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
-                                  {formatFileSize(file.size)} (pending, save to upload)
+                                  {formatFileSize(file.size)} {t('form.pendingSaveToUpload')}
                                 </p>
                               </div>
                               <Button
@@ -6487,7 +6867,7 @@ export default function LeadsPage({
 
                 <Button type="submit" className="flex-1 cursor-pointer">
 
-                  {editingId ? "Save" : "Add"}
+                  {editingId ? t('modal.save') : t('actions.addLead')}
 
                 </Button>
 
@@ -6502,7 +6882,7 @@ export default function LeadsPage({
                   className="cursor-pointer"
                 >
                   <X className="h-4 w-4 mr-1" />
-                  Cancel
+                  {t('modal.cancel')}
                 </Button>
 
               </div>
@@ -6517,16 +6897,15 @@ export default function LeadsPage({
 
 
     {/* PREVIEW MODAL - Lead details */}
-
     <Sheet open={preview.open} onOpenChange={(open) => setPreview((p) => ({ ...p, open }))}>
 
       <SheetContent className="w-full sm:max-w-lg border-l border-border p-6 md:p-8 flex flex-col max-h-screen">
         <div className="flex-shrink-0">
         <SheetHeader>
 
-          <SheetTitle>Lead Details</SheetTitle>
+          <SheetTitle>{t('modal.leadDetails')}</SheetTitle>
 
-          <SheetDescription>Complete lead information</SheetDescription>
+          <SheetDescription>{t('modal.completeInformation')}</SheetDescription>
 
         </SheetHeader>
 
@@ -6549,7 +6928,7 @@ export default function LeadsPage({
 
                 <div className="space-y-3">
 
-                  <h3 className="text-sm font-semibold text-muted-foreground">Basic Information</h3>
+                  <h3 className="text-sm font-semibold text-muted-foreground">{t('preview.basicInformation')}</h3>
 
                   <div className="grid grid-cols-2 gap-3">
 
@@ -7080,16 +7459,15 @@ export default function LeadsPage({
 
 
     {/* FILTER MODAL */}
-
     <Sheet open={isFilterOpen} onOpenChange={setIsFilterOpen}>
 
       <SheetContent className="w-full sm:max-w-lg border-l border-border p-6 md:p-8 flex flex-col">
 
         <SheetHeader className="flex-shrink-0">
 
-          <SheetTitle>Filter leads</SheetTitle>
+          <SheetTitle>{t('filters.title')}</SheetTitle>
 
-          <SheetDescription>Filter leads by any field to find specific records.</SheetDescription>
+          <SheetDescription>{t('filters.description')}</SheetDescription>
 
         </SheetHeader>
 
@@ -7099,31 +7477,31 @@ export default function LeadsPage({
 
           {/* Basic Information */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-foreground">Basic Information</h3>
+            <h3 className="text-sm font-semibold text-foreground">{t('filters.basicInformation')}</h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="mb-1 block text-sm font-medium">Name</label>
+                <label className="mb-2 block text-sm font-medium leading-tight">{t('filters.name')}</label>
                 <Input
-                  placeholder="Filter by name..."
+                  placeholder={t('filters.filterByName')}
                   value={filters.name}
                   onChange={(e) => setFilters(prev => ({ ...prev, name: e.target.value }))}
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="mb-1 block text-sm font-medium">Email</label>
+                <label className="mb-2 block text-sm font-medium leading-tight">{t('filters.email')}</label>
                 <Input
-                  placeholder="Filter by email..."
+                  placeholder={t('filters.filterByEmail')}
                   value={filters.email}
                   onChange={(e) => setFilters(prev => ({ ...prev, email: e.target.value }))}
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="mb-1 block text-sm font-medium">Phone</label>
+                <label className="mb-2 block text-sm font-medium leading-tight">{t('filters.phone')}</label>
                 <Input
-                  placeholder="Filter by phone..."
+                  placeholder={t('filters.filterByPhone')}
                   value={filters.phone}
                   onChange={(e) => setFilters(prev => ({ ...prev, phone: e.target.value }))}
                 />
@@ -7133,22 +7511,22 @@ export default function LeadsPage({
 
           {/* Documents */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-foreground">Documents</h3>
+            <h3 className="text-sm font-semibold text-foreground">{t('filters.documents')}</h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="mb-1 block text-sm font-medium">SSN</label>
+                <label className="mb-2 block text-sm font-medium leading-tight">{t('filters.ssn')}</label>
                 <Input
-                  placeholder="Filter by SSN..."
+                  placeholder={t('filters.filterBySSN')}
                   value={filters.ssn}
                   onChange={(e) => setFilters(prev => ({ ...prev, ssn: e.target.value }))}
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="mb-1 block text-sm font-medium">EIN</label>
+                <label className="mb-2 block text-sm font-medium leading-tight">{t('filters.ein')}</label>
                 <Input
-                  placeholder="Filter by EIN..."
+                  placeholder={t('filters.filterByEIN')}
                   value={filters.ein}
                   onChange={(e) => setFilters(prev => ({ ...prev, ein: e.target.value }))}
                 />
@@ -7158,44 +7536,44 @@ export default function LeadsPage({
 
           {/* Status and Pipeline */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-foreground">Status & Pipeline</h3>
+            <h3 className="text-sm font-semibold text-foreground">{t('filters.statusAndPipeline')}</h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="mb-1 block text-sm font-medium">Source</label>
+                <label className="mb-2 block text-sm font-medium leading-tight">{t('filters.source')}</label>
                 <Input
-                  placeholder="Filter by source..."
+                  placeholder={t('filters.filterBySource')}
                   value={filters.source}
                   onChange={(e) => setFilters(prev => ({ ...prev, source: e.target.value }))}
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="mb-1 block text-sm font-medium">Location</label>
+                <label className="mb-2 block text-sm font-medium leading-tight">{t('filters.location')}</label>
                 <Input
-                  placeholder="Filter by location..."
+                  placeholder={t('filters.filterByLocation')}
                   value={filters.location}
                   onChange={(e) => setFilters(prev => ({ ...prev, location: e.target.value }))}
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="mb-1 block text-sm font-medium">Interest</label>
+                <label className="mb-2 block text-sm font-medium leading-tight">{t('filters.interest')}</label>
                 <Input
-                  placeholder="Filter by interest..."
+                  placeholder={t('filters.filterByInterest')}
                   value={filters.interest}
                   onChange={(e) => setFilters(prev => ({ ...prev, interest: e.target.value }))}
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="mb-1 block text-sm font-medium">Status</label>
+                <label className="mb-2 block text-sm font-medium leading-tight">{t('filters.status')}</label>
                 <select
                   className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input h-9 w-full min-w-0 rounded-md border bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
                   value={filters.status}
                   onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value }))}
                 >
-                  <option value="">All statuses</option>
+                  <option value="">{t('filters.allStatuses')}</option>
                   <option value="New">New</option>
                   <option value="In Contact">In Contact</option>
                   <option value="Qualified">Qualified</option>
@@ -7204,27 +7582,27 @@ export default function LeadsPage({
               </div>
 
               <div className="space-y-2">
-                <label className="mb-1 block text-sm font-medium">Pipeline</label>
+                <label className="mb-2 block text-sm font-medium leading-tight">{t('filters.pipeline')}</label>
                 <select
                   className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input h-9 w-full min-w-0 rounded-md border bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
                   value={filters.pipeline || ""}
                   onChange={(e) => setFilters(prev => ({ ...prev, pipeline: e.target.value }))}
                 >
-                  <option value="">All leads</option>
-                  <option value="true">In Pipeline</option>
-                  <option value="false">Not in Pipeline</option>
+                  <option value="">{t('filters.allLeads')}</option>
+                  <option value="true">{t('filters.inPipeline')}</option>
+                  <option value="false">{t('filters.notInPipeline')}</option>
                 </select>
               </div>
 
               <div className="space-y-2">
-                <label className="mb-1 block text-sm font-medium">Assigned User</label>
+                <label className="mb-2 block text-sm font-medium leading-tight">{t('filters.assignedUser')}</label>
                 <select
                   className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input h-9 w-full min-w-0 rounded-md border bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] cursor-pointer"
                   value={filters.assignedUserId || ""}
                   onChange={(e) => setFilters(prev => ({ ...prev, assignedUserId: e.target.value }))}
                 >
-                  <option value="">All users</option>
-                  <option value="unassigned">Unassigned</option>
+                  <option value="">{t('filters.allUsers')}</option>
+                  <option value="unassigned">{t('filters.unassigned')}</option>
                   {organizationUsers.map((user) => (
                     <option key={user.id} value={user.id}>
                       {user.name}
@@ -7237,22 +7615,22 @@ export default function LeadsPage({
 
           {/* Ranges */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-foreground">Ranges</h3>
+            <h3 className="text-sm font-semibold text-foreground">{t('filters.ranges')}</h3>
             
             <div className="space-y-4">
               <div className="space-y-2">
-                <label className="mb-1 block text-sm font-medium">Value Range</label>
+                <label className="mb-2 block text-sm font-medium leading-tight">{t('filters.valueRange')}</label>
                 <div className="flex gap-2">
                   <Input
                     type="number"
-                    placeholder="Min value"
+                    placeholder={t('filters.minValuePlaceholder')}
                     value={valueRange.min}
                     onChange={(e) => setValueRange(prev => ({ ...prev, min: e.target.value }))}
                     className="flex-1"
                   />
                   <Input
                     type="number"
-                    placeholder="Max value"
+                    placeholder={t('filters.maxValuePlaceholder')}
                     value={valueRange.max}
                     onChange={(e) => setValueRange(prev => ({ ...prev, max: e.target.value }))}
                     className="flex-1"
@@ -7261,11 +7639,11 @@ export default function LeadsPage({
               </div>
 
               <div className="space-y-2">
-                <label className="mb-1 block text-sm font-medium">Close Date Range</label>
+                <label className="mb-2 block text-sm font-medium leading-tight">{t('filters.dateRange')}</label>
                 <div className="flex gap-2">
                   <Input
                     type="date"
-                    placeholder="From date"
+                    placeholder={t('filters.startDate')}
                     value={dateRange.min}
                     onChange={(e) => {
                       const value = e.target.value;
@@ -7281,7 +7659,7 @@ export default function LeadsPage({
 
                   <Input
                     type="date"
-                    placeholder="To date"
+                    placeholder={t('filters.endDate')}
                     value={dateRange.max}
                     onChange={(e) => {
                       const value = e.target.value;
@@ -7311,7 +7689,7 @@ export default function LeadsPage({
               }}
               className="flex-1 cursor-pointer"
             >
-              Apply Filter
+              {t('filters.applyFilter')}
             </Button>
 
             <Button
@@ -7323,7 +7701,7 @@ export default function LeadsPage({
               className="flex-1 cursor-pointer"
             >
               <X className="h-4 w-4 mr-1" />
-              Clear All
+              {t('filters.clearAll')}
 
             </Button>
 
@@ -7349,9 +7727,9 @@ export default function LeadsPage({
 
               <div className="space-y-2">
 
-                <h3 className="text-lg font-semibold leading-none tracking-tight">Import leads</h3>
+                <h3 className="text-lg font-semibold leading-none tracking-tight">{t('import.title')}</h3>
 
-                <p className="text-sm text-muted-foreground">Accepted formats: .xlsx, .xls, .csv, .ods, .json. <br></br>Columns: name, email, phone, ssn, ein, source, status, value, close date, location, interest, notes</p>
+                <p className="text-sm text-muted-foreground">{t('import.acceptedFormats')} <br></br>{t('import.columns')}</p>
 
               </div>
 
@@ -7460,16 +7838,16 @@ export default function LeadsPage({
 
                   {isProcessingFile ? (
                     <>
-                      <div className="text-sm text-muted-foreground">Processing file...</div>
-                      <div className="mt-2 text-xs">Please wait while we analyze your file</div>
+                      <div className="text-sm text-muted-foreground">{t('import.processing')}</div>
+                      <div className="mt-2 text-xs">{t('import.processingDescription')}</div>
                       <div className="mt-4 flex justify-center">
                         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
                       </div>
                     </>
                   ) : (
                     <>
-                      <div className="text-sm text-muted-foreground">Drag and drop your file here</div>
-                      <div className="mt-2 text-xs">or click to browse</div>
+                      <div className="text-sm text-muted-foreground">{t('import.dragDrop')}</div>
+                      <div className="mt-2 text-xs">{t('import.clickToBrowse')}</div>
                       <div className="mt-4 text-xs text-muted-foreground">.xlsx, .xls, .csv, .ods, .json</div>
                     </>
                   )}
@@ -7513,7 +7891,7 @@ export default function LeadsPage({
 
               <Separator className="my-4" />
 
-              <div className="text-xs text-muted-foreground">We detect headers automatically, including variants.</div>
+              <div className="text-xs text-muted-foreground">{t('import.autoDetect')}</div>
 
               <div className="mt-4 flex justify-end gap-2">
 
@@ -7529,7 +7907,7 @@ export default function LeadsPage({
 
                 >
 
-                  {isImporting ? "Importing..." : "Close"}
+                  {isImporting ? t('import.importing') : t('import.close')}
 
                 </Button>
 
@@ -7549,16 +7927,16 @@ export default function LeadsPage({
             <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={() => setShowPreview(false)} />
             <div className="relative z-10 w-full max-w-4xl max-h-[80vh] rounded-xl border border-border bg-background p-6 shadow-xl overflow-hidden">
               <div className="space-y-2">
-                <h3 className="text-lg font-semibold leading-none tracking-tight">File Preview</h3>
+                <h3 className="text-lg font-semibold leading-none tracking-tight">{t('import.filePreview')}</h3>
                 <p className="text-sm text-muted-foreground">
-                  Found {filePreview.totalLeads} leads with {filePreview.fields.length} columns
+                  {t('import.foundLeads', { total: filePreview.totalLeads, fields: filePreview.fields.length })}
                 </p>
               </div>
               <Separator className="my-4" />
               
               <div className="space-y-4 max-h-[50vh] overflow-y-auto">
                 <div>
-                  <h4 className="text-sm font-medium mb-2">Detected Fields:</h4>
+                  <h4 className="text-sm font-medium mb-2">{t('import.detectedFields')}</h4>
                   <div className="flex flex-wrap gap-2">
                     {filePreview.fields.map((field: string, index: number) => (
                       <span key={index} className="px-2 py-1 bg-muted rounded text-xs">
@@ -7569,19 +7947,19 @@ export default function LeadsPage({
                 </div>
                 
                 <div>
-                  <h4 className="text-sm font-medium mb-2">Sample Leads (first 5):</h4>
+                  <h4 className="text-sm font-medium mb-2">{t('import.sampleLeads')}</h4>
                   <div className="space-y-2">
                     {filePreview.leads.slice(0, 5).map((lead: Lead, index: number) => (
                       <div key={index} className="p-3 border rounded-lg text-sm">
                         <div className="grid grid-cols-2 gap-2">
-                          <div><strong>Name:</strong> {lead.name || 'N/A'}</div>
-                          <div><strong>Email:</strong> {lead.email || 'N/A'}</div>
-                          <div><strong>Phone:</strong> {lead.phone || 'N/A'}</div>
-                          <div><strong>Source:</strong> {lead.source || 'N/A'}</div>
-                          <div><strong>Status:</strong> {lead.status || 'N/A'}</div>
-                          <div><strong>Value:</strong> {lead.value ? `$${lead.value}` : 'N/A'}</div>
-                          <div><strong>Close Date:</strong> {lead.estimated_close_date || 'N/A'}</div>
-                          <div><strong>SSN:</strong> {lead.ssn || 'N/A'}</div>
+                          <div><strong>{t('import.name')}</strong> {lead.name || 'N/A'}</div>
+                          <div><strong>{t('import.email')}</strong> {lead.email || 'N/A'}</div>
+                          <div><strong>{t('import.phone')}</strong> {lead.phone || 'N/A'}</div>
+                          <div><strong>{t('import.source')}</strong> {lead.source || 'N/A'}</div>
+                          <div><strong>{t('import.status')}</strong> {lead.status || 'N/A'}</div>
+                          <div><strong>{t('import.value')}</strong> {lead.value ? `$${lead.value}` : 'N/A'}</div>
+                          <div><strong>{t('import.closeDate')}</strong> {lead.estimated_close_date || 'N/A'}</div>
+                          <div><strong>{t('import.ssn')}</strong> {lead.ssn || 'N/A'}</div>
                         </div>
                       </div>
                     ))}
@@ -7596,13 +7974,13 @@ export default function LeadsPage({
                   onClick={() => setShowPreview(false)}
                   className="cursor-pointer"
                 >
-                  Cancel
+                  {t('import.cancel')}
                 </Button>
                 <Button 
                   onClick={confirmImport}
                   className="cursor-pointer"
                 >
-                  Import {filePreview.totalLeads} Leads
+                  {t('import.importLeads', { count: filePreview.totalLeads })}
                 </Button>
               </div>
             </div>
@@ -7617,11 +7995,11 @@ export default function LeadsPage({
 
         <SheetHeader>
 
-          <SheetTitle>Edit selected leads</SheetTitle>
+          <SheetTitle>{t('bulk.editSelectedLeads')}</SheetTitle>
 
           <SheetDescription>
 
-            Update Status and/or Source for {selectedLeads.size} selected lead(s).
+            {t('bulk.updateStatusSource', { count: selectedLeads.size })}
 
           </SheetDescription>
 
@@ -7633,7 +8011,7 @@ export default function LeadsPage({
 
           <div className="space-y-2">
 
-            <label className="mb-1 block text-sm font-medium">Status</label>
+                <label className="mb-2 block text-sm font-medium">{t('bulk.status')}</label>
 
             <select
 
@@ -7643,29 +8021,49 @@ export default function LeadsPage({
 
               onChange={(e) => setBulkStatus(e.target.value)}
 
+              disabled={isLoadingStages}
+
             >
 
-              <option value="">Keep unchanged</option>
+              <option value="">{t('bulk.keepUnchanged')}</option>
 
-              <option value="New">New</option>
-
-              <option value="In Contact">In Contact</option>
-
-              <option value="Qualified">Qualified</option>
-
-              <option value="Lost">Lost</option>
+              {isLoadingStages ? (
+                <option value="">{t('form.loadingStages')}</option>
+              ) : (
+                <>
+                  {bulkEditStageOptions}
+                  <option value="custom">{t('statuses.custom')}</option>
+                </>
+              )}
 
             </select>
 
           </div>
 
+          {/* Custom Status Input for Bulk Edit */}
+          {bulkStatus === "custom" && (
+          <div className="space-y-2">
+              <label className="mb-2 block text-sm font-medium">{t('form.customStatus')}</label>
+              <Input
+                placeholder={t('form.customStatusPlaceholder')}
+                value={customStatus}
+                onChange={(e) => {
+                  const v = e.target.value.slice(0, FIELD_MAX.status)
+                  setCustomStatus(v)
+                  setBulkStatus(v)
+                }}
+                maxLength={FIELD_MAX.status}
+              />
+            </div>
+          )}
+
           <div className="space-y-2">
 
-            <label className="mb-1 block text-sm font-medium">Source</label>
+                <label className="mb-2 block text-sm font-medium">{t('bulk.source')}</label>
 
             <Input
 
-              placeholder="Leave empty to keep unchanged"
+              placeholder={t('bulk.leaveEmptyUnchanged')}
 
               value={bulkSource}
 
@@ -7678,14 +8076,14 @@ export default function LeadsPage({
           <Separator />
 
           <div className="space-y-2">
-            <label className="mb-1 block text-sm font-medium">Confirmation</label>
+            <label className="mb-1 block text-sm font-medium">{t('bulk.confirmation')}</label>
             <Input
-              placeholder="Type 'edit' to confirm bulk edit"
+              placeholder={t('bulk.confirmPlaceholder')}
               value={bulkEditConfirm}
               onChange={(e) => setBulkEditConfirm(e.target.value)}
             />
             <div className="text-xs text-muted-foreground">
-              This action will update {selectedLeads.size} lead(s). Type 'edit' to confirm.
+              {t('bulk.confirmEditMessage', { count: selectedLeads.size })}
             </div>
           </div>
 
@@ -7698,10 +8096,10 @@ export default function LeadsPage({
               className="flex-1 cursor-pointer"
               disabled={bulkEditConfirm.trim().toLowerCase() !== "edit"}
             >
-              Save changes
+              {t('bulk.saveChanges')}
             </Button>
 
-            <Button variant="outline" onClick={() => setIsBulkEditOpen(false)} className="cursor-pointer">Cancel</Button>
+            <Button variant="outline" onClick={() => setIsBulkEditOpen(false)} className="cursor-pointer">{t('bulk.cancel')}</Button>
 
           </div>
 
@@ -7713,15 +8111,15 @@ export default function LeadsPage({
 
     {/* PIPELINE MODAL */}
     <Sheet open={isPipelineModalOpen} onOpenChange={setIsPipelineModalOpen}>
-      <SheetContent className="w-full sm:max-w-md border-l border-border p-6 md:p-8">
+      <SheetContent className="w-full sm:max-w-md border-l border-border p-6 md:p-8 [&>button]:cursor-pointer">
         <SheetHeader>
           <SheetTitle>
-            {pipelineAction === 'add' ? 'Add to Pipeline' : 'Remove from Pipeline'}
+            {pipelineAction === 'add' ? t('bulk.addToPipeline') : t('bulk.removeFromPipeline')}
           </SheetTitle>
           <SheetDescription>
             {pipelineAction === 'add' 
-              ? `Add ${selectedLeads.size} selected lead(s) to the pipeline.`
-              : `Remove ${selectedLeads.size} selected lead(s) from the pipeline.`
+              ? t('bulk.addToPipelineDesc', { count: selectedLeads.size })
+              : t('bulk.removeFromPipelineDesc', { count: selectedLeads.size })
             }
           </SheetDescription>
         </SheetHeader>
@@ -7729,8 +8127,8 @@ export default function LeadsPage({
         <div className="space-y-6">
           <div className="text-sm text-muted-foreground">
             {pipelineAction === 'add' 
-              ? 'These leads will appear in the pipeline view and can be managed through the Kanban board.'
-              : 'These leads will be removed from the pipeline view but will remain in the leads list.'
+              ? t('bulk.addToPipelineInfo')
+              : t('bulk.removeFromPipelineInfo')
             }
           </div>
           <Separator />
@@ -7739,14 +8137,14 @@ export default function LeadsPage({
               onClick={handlePipelineBulkAction} 
               className="flex-1 cursor-pointer"
             >
-              {pipelineAction === 'add' ? 'Add to Pipeline' : 'Remove from Pipeline'}
+              {pipelineAction === 'add' ? t('bulk.addToPipeline') : t('bulk.removeFromPipeline')}
             </Button>
             <Button 
               variant="outline" 
               onClick={() => setIsPipelineModalOpen(false)} 
               className="cursor-pointer"
             >
-              Cancel
+              {t('bulk.cancel')}
             </Button>
           </div>
         </div>
@@ -7757,9 +8155,9 @@ export default function LeadsPage({
     <Sheet open={isBulkAssignOpen} onOpenChange={setIsBulkAssignOpen}>
       <SheetContent className="w-full sm:max-w-md border-l border-border p-6 md:p-8">
         <SheetHeader>
-          <SheetTitle>Assign Leads to User</SheetTitle>
+          <SheetTitle>{t('bulk.assignLeadsTitle')}</SheetTitle>
           <SheetDescription>
-            Assign {selectedLeads.size} selected lead(s) to a user.
+            {t('bulk.assignDescriptionSelected', { count: selectedLeads.size })}
           </SheetDescription>
         </SheetHeader>
         
@@ -7767,13 +8165,13 @@ export default function LeadsPage({
         
         <div className="space-y-6">
           <div className="space-y-2">
-            <label className="mb-1 block text-sm font-medium">Select User</label>
+            <label className="mb-1 block text-sm font-medium">{t('bulk.selectUser')}</label>
             <select
               value={selectedUserId}
               onChange={(e) => setSelectedUserId(e.target.value)}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
-              <option value="">-- Select a user --</option>
+              <option value="">{t('bulk.selectUserPlaceholder')}</option>
               {organizationUsers.map((user) => (
                 <option key={user.id} value={user.id}>
                   {user.name} ({user.email})
@@ -7785,14 +8183,14 @@ export default function LeadsPage({
           <Separator />
           
           <div className="space-y-2">
-            <label className="mb-1 block text-sm font-medium">Confirmation</label>
+            <label className="mb-1 block text-sm font-medium">{t('bulk.confirmation')}</label>
             <Input
-              placeholder="Type 'assign' to confirm"
+              placeholder={t('bulk.confirmAssign')}
               value={bulkAssignConfirm}
               onChange={(e) => setBulkAssignConfirm(e.target.value)}
             />
             <div className="text-xs text-muted-foreground">
-              This action will assign {selectedLeads.size} lead(s) to the selected user. Type 'assign' to confirm.
+              {t('bulk.assignConfirmMessage', { count: selectedLeads.size })}
             </div>
           </div>
           
@@ -7804,23 +8202,22 @@ export default function LeadsPage({
               className="flex-1 cursor-pointer"
               disabled={bulkAssignConfirm.trim().toLowerCase() !== "assign" || !selectedUserId}
             >
-              Assign Leads
+              {t('bulk.assignLeads')}
             </Button>
             <Button variant="outline" onClick={() => setIsBulkAssignOpen(false)} className="cursor-pointer">
-              Cancel
+              {t('bulk.cancel')}
             </Button>
           </div>
         </div>
       </SheetContent>
     </Sheet>
-    
     {/* QUICK ASSIGN MODAL */}
     <Sheet open={quickAssignLeadId !== null} onOpenChange={(open) => !open && setQuickAssignLeadId(null)}>
       <SheetContent className="w-full sm:max-w-md border-l border-border p-6 md:p-8">
         <SheetHeader>
-          <SheetTitle>Assign Lead to User</SheetTitle>
+          <SheetTitle>{t('bulk.assignToUser')}</SheetTitle>
           <SheetDescription>
-            Select a user to assign this lead.
+            {t('bulk.selectUserDescription')}
           </SheetDescription>
         </SheetHeader>
         
@@ -7876,15 +8273,15 @@ export default function LeadsPage({
 
             <SheetHeader>
 
-              <SheetTitle>Confirm deletion</SheetTitle>
+              <SheetTitle>{t('delete.confirmDeletion')}</SheetTitle>
 
               <SheetDescription>
 
-                This action is irreversible. {pendingDeletionIds.length > 1 && (
+                {t('delete.irreversible')} {pendingDeletionIds.length > 1 && (
 
                   <>
 
-                    <br></br>Type "Delete" to proceed.
+                    <br></br>{t('delete.typeToProceed')}
 
                   </>
 
@@ -7902,9 +8299,9 @@ export default function LeadsPage({
 
                 {pendingDeletionIds.length === 1
 
-                  ? "You are about to remove 1 lead."
+                  ? t('delete.aboutToRemoveOne')
 
-                  : `You are about to remove ${pendingDeletionIds.length} leads.`}
+                  : t('delete.aboutToRemoveMany', { count: pendingDeletionIds.length })}
 
               </div>
 
@@ -7912,11 +8309,11 @@ export default function LeadsPage({
 
                 <div className="space-y-2">
 
-                  <label className="mb-1 block text-sm font-medium">Confirmation</label>
+                  <label className="mb-1 block text-sm font-medium">{t('delete.confirmation')}</label>
 
                   <Input
 
-                    placeholder="Type 'Delete' to continue"
+                    placeholder={t('delete.typeToContinue')}
 
                     value={confirmInput}
 
@@ -7944,7 +8341,7 @@ export default function LeadsPage({
 
                 >
 
-                  Delete permanently
+                  {t('delete.deletePermanently')}
 
                 </Button>
 
@@ -7958,7 +8355,7 @@ export default function LeadsPage({
 
                 >
 
-                  Cancel
+                  {t('delete.cancel')}
 
                 </Button>
 
@@ -7988,11 +8385,11 @@ export default function LeadsPage({
     
     {/* LEAD DETAILS MODAL - MODERN DESIGN */}
     <Sheet open={preview.open} onOpenChange={(open) => setPreview({ open, lead: open ? preview.lead : null })}>
-      <SheetContent className="w-full sm:max-w-3xl border-l border-border p-0 overflow-y-auto">
+      <SheetContent className="w-full sm:max-w-3xl border-l border-border p-0 overflow-y-auto [&>button]:cursor-pointer">
         {preview.lead && (
           <>
-            <SheetTitle className="sr-only">Lead Details: {preview.lead.name}</SheetTitle>
-            <SheetDescription className="sr-only">Complete information about the lead including contact details, business information, and metadata.</SheetDescription>
+            <SheetTitle className="sr-only">{t('preview.leadDetails')}: {preview.lead.name}</SheetTitle>
+            <SheetDescription className="sr-only">{t('preview.completeLeadInformation')}</SheetDescription>
             {/* Header */}
             <div className="sticky top-0 z-10 bg-background border-b p-6">
               <div className="flex items-start justify-between">
@@ -8001,12 +8398,12 @@ export default function LeadsPage({
                     <User className="h-6 w-6" />
                     <h2 className="text-2xl font-bold">{preview.lead.name}</h2>
                   </div>
-                  <p className="text-muted-foreground text-sm">Complete lead information and details</p>
+                  <p className="text-muted-foreground text-sm">{t('preview.completeLeadInformation')}</p>
                 </div>
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-8 w-8 p-0"
+                  className="h-8 w-8 p-0 cursor-pointer"
                   onClick={() => setPreview({ open: false, lead: null })}
                 >
                   <X className="h-4 w-4" />
@@ -8021,9 +8418,8 @@ export default function LeadsPage({
                 </div>
                 {preview.lead.value && (
                   <div className="inline-flex items-center gap-2 bg-muted px-3 py-1.5 rounded-full">
-                    <DollarSign className="h-4 w-4" />
                     <span className="text-sm font-medium">
-                      {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(preview.lead.value)}
+                      {formatCurrency(preview.lead.value)}
                     </span>
                   </div>
                 )}
@@ -8035,7 +8431,7 @@ export default function LeadsPage({
               <div className="bg-muted/50 rounded-xl p-5 border">
                 <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                   <Mail className="h-5 w-5" />
-                  Contact Information
+                  {t('preview.contactInformation')}
                 </h3>
                 <div className="grid gap-3">
                   {preview.lead.email && (
@@ -8043,7 +8439,7 @@ export default function LeadsPage({
                       <div className="flex items-center gap-3 flex-1">
                         <Mail className="h-4 w-4 text-muted-foreground" />
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs text-muted-foreground">Email</p>
+                          <p className="text-xs text-muted-foreground">{t('preview.email')}</p>
                           <p className="text-sm font-medium truncate">{preview.lead.email}</p>
                         </div>
                       </div>
@@ -8067,7 +8463,7 @@ export default function LeadsPage({
                       <div className="flex items-center gap-3 flex-1">
                         <Phone className="h-4 w-4 text-muted-foreground" />
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs text-muted-foreground">Phone</p>
+                          <p className="text-xs text-muted-foreground">{t('preview.phone')}</p>
                           <p className="text-sm font-medium truncate">{preview.lead.phone}</p>
                         </div>
                       </div>
@@ -8093,7 +8489,7 @@ export default function LeadsPage({
                 <div className="bg-muted/50 rounded-xl p-5 border">
                   <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                     <Briefcase className="h-5 w-5" />
-                    Business Information
+                  {t('preview.businessInformation')}
                   </h3>
                   <div className="grid gap-3">
                     {preview.lead.ssn && (
@@ -8101,7 +8497,7 @@ export default function LeadsPage({
                         <div className="flex items-center gap-3 flex-1">
                           <CreditCard className="h-4 w-4 text-muted-foreground" />
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs text-muted-foreground">SSN</p>
+                            <p className="text-xs text-muted-foreground">{t('preview.ssn')}</p>
                             <p className="text-sm font-medium font-mono">{preview.lead.ssn}</p>
                           </div>
                         </div>
@@ -8125,7 +8521,7 @@ export default function LeadsPage({
                         <div className="flex items-center gap-3 flex-1">
                           <FileDigit className="h-4 w-4 text-muted-foreground" />
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs text-muted-foreground">EIN</p>
+                            <p className="text-xs text-muted-foreground">{t('preview.ein')}</p>
                             <p className="text-sm font-medium font-mono">{preview.lead.ein}</p>
                           </div>
                         </div>
@@ -8149,7 +8545,7 @@ export default function LeadsPage({
                         <div className="flex items-center gap-3 flex-1">
                           <MapPin className="h-4 w-4 text-muted-foreground" />
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs text-muted-foreground">Source</p>
+                            <p className="text-xs text-muted-foreground">{t('preview.source')}</p>
                             <p className="text-sm font-medium">{preview.lead.source}</p>
                           </div>
                         </div>
@@ -8176,14 +8572,14 @@ export default function LeadsPage({
                 <div className="bg-muted/50 rounded-xl p-5 border">
                   <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                     <Calendar className="h-5 w-5" />
-                    Deal Timeline
+                    {t('preview.dealTimeline')}
                   </h3>
                   <div className="grid gap-3">
                     <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
                       <div className="flex items-center gap-3 flex-1">
                         <Calendar className="h-4 w-4 text-muted-foreground" />
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs text-muted-foreground">Estimated Close Date</p>
+                          <p className="text-xs text-muted-foreground">{t('preview.estimatedCloseDate')}</p>
                           <p className="text-sm font-medium">{new Date(preview.lead.estimated_close_date).toLocaleDateString()}</p>
                         </div>
                       </div>
@@ -8208,16 +8604,16 @@ export default function LeadsPage({
               <div className="bg-muted/50 rounded-xl p-5 border">
                 <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                   <UserPlus className="h-5 w-5" />
-                  Assignment
+                  {t('preview.assignment')}
                 </h3>
                 <div className="grid gap-3">
                   <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
                     <div className="flex items-center gap-3 flex-1">
                       <User className="h-4 w-4 text-muted-foreground" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs text-muted-foreground">Assigned to</p>
+                        <p className="text-xs text-muted-foreground">{t('preview.assignedTo')}</p>
                         <p className="text-sm font-medium">
-                          {preview.lead.assigned_user_id ? (assignedUserName || "Loading...") : "Not assigned"}
+                          {preview.lead.assigned_user_id ? (assignedUserName || t('preview.loading')) : t('preview.notAssigned')}
                         </p>
                       </div>
                     </div>
@@ -8242,7 +8638,7 @@ export default function LeadsPage({
                       <div className="flex items-center gap-3 flex-1">
                         <Clock className="h-4 w-4 text-muted-foreground" />
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs text-muted-foreground">Assigned since</p>
+                          <p className="text-xs text-muted-foreground">{t('preview.assignedSince')}</p>
                           <p className="text-sm font-medium">{new Date(preview.lead.updated_at).toLocaleString()}</p>
                         </div>
                       </div>
@@ -8268,7 +8664,7 @@ export default function LeadsPage({
                 <div className="bg-muted/50 rounded-xl p-5 border">
                   <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                     <MapPin className="h-5 w-5" />
-                    Additional Information
+                    {t('preview.additionalInformation')}
                   </h3>
                   <div className="grid gap-3">
                     {preview.lead.location && (
@@ -8276,7 +8672,7 @@ export default function LeadsPage({
                         <div className="flex items-center gap-3 flex-1">
                           <MapPin className="h-4 w-4 text-muted-foreground" />
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs text-muted-foreground">Location</p>
+                            <p className="text-xs text-muted-foreground">{t('preview.location')}</p>
                             <p className="text-sm font-medium">{preview.lead.location}</p>
                           </div>
                         </div>
@@ -8300,7 +8696,7 @@ export default function LeadsPage({
                         <div className="flex items-center gap-3 flex-1">
                           <Tag className="h-4 w-4 text-muted-foreground" />
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs text-muted-foreground">Interest</p>
+                            <p className="text-xs text-muted-foreground">{t('preview.interest')}</p>
                             <p className="text-sm font-medium">{preview.lead.interest}</p>
                           </div>
                         </div>
@@ -8328,7 +8724,7 @@ export default function LeadsPage({
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-lg font-semibold flex items-center gap-2">
                       <Info className="h-5 w-5" />
-                      Description
+                      {t('preview.description')}
                     </h3>
                     <Button
                       variant="ghost"
@@ -8353,14 +8749,14 @@ export default function LeadsPage({
               <div className="bg-muted/50 rounded-xl p-5 border">
                 <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                   <Clock className="h-5 w-5" />
-                  Metadata
+                  {t('preview.metadata')}
                 </h3>
                 <div className="grid gap-3">
                   <div className="flex items-center justify-between bg-background rounded-lg p-3 border">
                     <div className="flex items-center gap-3 flex-1">
                       <Clock className="h-4 w-4 text-muted-foreground" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs text-muted-foreground">Created</p>
+                        <p className="text-xs text-muted-foreground">{t('preview.created')}</p>
                         <p className="text-sm font-medium">{new Date(preview.lead.created_at).toLocaleString()}</p>
                       </div>
                     </div>
@@ -8383,8 +8779,8 @@ export default function LeadsPage({
                       <div className="flex items-center gap-3 flex-1">
                         <User className="h-4 w-4 text-muted-foreground" />
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs text-muted-foreground">Created by</p>
-                          <p className="text-sm font-medium">{createdByUserName || "Loading..."}</p>
+                          <p className="text-xs text-muted-foreground">{t('preview.createdBy')}</p>
+                          <p className="text-sm font-medium">{createdByUserName || t('preview.loading')}</p>
                         </div>
                       </div>
                       {createdByUserName && (
@@ -8408,7 +8804,7 @@ export default function LeadsPage({
                     <div className="flex items-center gap-3 flex-1">
                       <Clock className="h-4 w-4 text-muted-foreground" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs text-muted-foreground">Last Updated</p>
+                        <p className="text-xs text-muted-foreground">{t('preview.lastUpdated')}</p>
                         <p className="text-sm font-medium">{new Date(preview.lead.updated_at).toLocaleString()}</p>
                       </div>
                     </div>
@@ -8430,7 +8826,7 @@ export default function LeadsPage({
                     <div className="flex items-center gap-3 flex-1">
                       <Hash className="h-4 w-4 text-muted-foreground" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs text-muted-foreground">Lead ID</p>
+                        <p className="text-xs text-muted-foreground">{t('preview.leadId')}</p>
                         <p className="text-sm font-medium font-mono text-xs truncate">{preview.lead.id}</p>
                       </div>
                     </div>
@@ -8459,7 +8855,7 @@ export default function LeadsPage({
                   size="lg"
                 >
                   <X className="h-4 w-4 mr-2" />
-                  Close
+                  {t('modal.close')}
                 </Button>
               </div>
             </div>
@@ -8468,7 +8864,7 @@ export default function LeadsPage({
       </SheetContent>
     </Sheet>
 
+      </RoleGuard>
     </AuthGuard>
   )
 }
-

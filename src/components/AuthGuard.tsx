@@ -91,20 +91,9 @@ export default function AuthGuard({ children, orgSlug }: AuthGuardProps) {
     }
   }, [isLoading, isAuthenticated, updateActivity]);
 
-  // Mostrar loading enquanto verifica autenticação
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Verifying authentication...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Se não estiver autenticado, não renderizar nada (será redirecionado)
-  if (!isAuthenticatedForOrg(orgSlug)) {
+  // Não renderizar nada enquanto verifica autenticação ou se não estiver autenticado
+  // Isso evita que qualquer dado vaze ou chamadas de API sejam feitas antes da verificação
+  if (isLoading || !isAuthenticatedForOrg(orgSlug)) {
     return null;
   }
 

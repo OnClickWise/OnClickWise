@@ -241,12 +241,45 @@ class ApiService {
         };
       }
 
-      const data = await response.json();
-      console.log('API response:', data);
-      return {
-        success: true,
-        data: data
-      };
+      // Check if response has content before trying to parse JSON
+      const contentLength = response.headers.get('content-length');
+      
+      // If no content-type or content-length is 0, or status is 204 (No Content), return success without data
+      // Note: contentType is already declared at line 193
+      if (response.status === 204 || contentLength === '0' || !contentType || !contentType.includes('application/json')) {
+        console.log('API response: No content (success)');
+        return {
+          success: true,
+          data: undefined
+        };
+      }
+      
+      // Check if the response body is empty
+      const text = await response.text();
+      if (!text || text.trim() === '') {
+        console.log('API response: Empty body (success)');
+        return {
+          success: true,
+          data: undefined
+        };
+      }
+      
+      // Try to parse JSON
+      try {
+        const data = JSON.parse(text);
+        console.log('API response:', data);
+        return {
+          success: true,
+          data: data
+        };
+      } catch (error) {
+        console.error('Failed to parse JSON response:', error);
+        console.error('Response text:', text);
+        return {
+          success: false,
+          error: `Failed to parse response: ${text}`
+        };
+      }
     } catch (error) {
       console.error('API request failed:', error);
       return {
@@ -272,7 +305,7 @@ class ApiService {
     assigned_user_id?: string;
     page?: number;
     limit?: number;
-  }): Promise<ApiResponse<{ leads: Lead[] }>> {
+  }): Promise<ApiResponse<{ leads: Lead[]; total?: number }>> {
     // Verificar se estamos no cliente
     if (typeof window === 'undefined') {
       return {
@@ -290,7 +323,7 @@ class ApiService {
     if (params?.limit) queryParams.append('limit', params.limit.toString());
 
     const endpoint = `/leads${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-    return this.request<{ leads: Lead[] }>(endpoint);
+    return this.request<{ leads: Lead[]; total?: number }>(endpoint);
   }
 
   async getLeadById(id: string): Promise<ApiResponse<{ lead: Lead }>> {
@@ -375,7 +408,7 @@ class ApiService {
     page?: number;
     limit?: number;
     show_on_pipeline?: boolean;
-  } = {}): Promise<ApiResponse<{ leads: Lead[] }>> {
+  } = {}): Promise<ApiResponse<{ leads: Lead[]; total?: number }>> {
     // Verificar se estamos no cliente
     if (typeof window === 'undefined') {
       return {
@@ -412,7 +445,7 @@ class ApiService {
         console.log('API: Final URL:', url);
         console.log('API: Query params:', Object.fromEntries(queryParams.entries()));
 
-        return this.request<{ leads: Lead[] }>(url);
+        return this.request<{ leads: Lead[]; total?: number }>(url);
   }
 
   // Métodos específicos para busca por campo

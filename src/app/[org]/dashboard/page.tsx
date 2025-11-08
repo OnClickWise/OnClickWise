@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { useSearchParams } from "next/navigation"
+import { useTranslations, useLocale } from 'next-intl'
 import { AppSidebar } from "@/components/app-sidebar"
 import AuthGuard from "@/components/AuthGuard"
 import {
@@ -55,6 +56,7 @@ import {
 } from "lucide-react"
 import { apiService, Lead } from "@/lib/api"
 import { useApi } from "@/hooks/useApi"
+import { formatCurrency, getCurrencySymbol } from "@/lib/utils"
 
 // Cores minimalistas para os gráficos
 const COLORS = [
@@ -73,7 +75,7 @@ interface DashboardStats {
   totalConversations: number
   totalValue: number
   conversionRate: number
-  leadsByStatus: { status: string; count: number; value: number }[]
+  leadsByStatus: { status: string; count: number; value: number; stageType?: string }[]
   leadsBySource: { source: string; count: number }[]
   monthlyTrend: { month: string; fullDate?: string; leads: number; value: number }[]
   conversationStats: { platform: string; count: number; active: number }[]
@@ -85,10 +87,14 @@ const processLeadTrend = (
   leads: Lead[], 
   timePeriod: string, 
   customStartDate?: string, 
-  customEndDate?: string
+  customEndDate?: string,
+  locale: string = 'pt-BR',
+  pipelineStages: any[] = []
 ): { month: string; fullDate?: string; leads: number; value: number }[] => {
   const now = new Date();
-  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const monthNames = locale === 'pt-BR' 
+    ? ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+    : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   
   // Determinar período e se deve usar dias ou meses
   let startDate: Date;
@@ -170,7 +176,9 @@ const processLeadTrend = (
       });
       
       const dayValue = dayLeads.reduce((sum, lead) => {
-        if (lead.status === 'Lost') return sum;
+        // Encontrar a stage correspondente para verificar se é do tipo 'lost'
+        const matchingStage = pipelineStages.find((s: any) => s.slug === lead.status)
+        if (matchingStage && matchingStage.stage_type === 'lost') return sum;
         return sum + (Number(lead.value) || 0);
       }, 0);
       
@@ -209,7 +217,9 @@ const processLeadTrend = (
       });
       
       const monthValue = monthLeads.reduce((sum, lead) => {
-        if (lead.status === 'Lost') return sum;
+        // Encontrar a stage correspondente para verificar se é do tipo 'lost'
+        const matchingStage = pipelineStages.find((s: any) => s.slug === lead.status)
+        if (matchingStage && matchingStage.stage_type === 'lost') return sum;
         return sum + (Number(lead.value) || 0);
       }, 0);
       
@@ -232,10 +242,12 @@ const processLeadTrend = (
 }
 
 // Componente para Dashboard de Admin
-const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[] }) => {
-  // Filtrar apenas status do pipeline (nomes exatos do banco de dados)
-  const pipelineStatuses = ['New', 'In Contact', 'Qualified', 'Lost'];
-  const pipelineData = stats.leadsByStatus.filter(s => pipelineStatuses.includes(s.status));
+const AdminDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardStats; leads: Lead[]; pipelineStages: any[] }) => {
+  const t = useTranslations('Dashboard')
+  const locale = useLocale()
+  
+  // Usar todas as stages do pipeline (agora são dinâmicas/personalizadas)
+  const pipelineData = stats.leadsByStatus;
   
   // Estado para controlar o segmento selecionado no donut chart
   const [selectedSource, setSelectedSource] = React.useState<string | null>(null);
@@ -296,152 +308,14 @@ const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[]
     });
   }, []);
   
-  // Obter dados da fonte selecionada
-  const selectedSourceData = selectedSource 
-    ? stats.leadsBySource.find(s => s.source === selectedSource)
-    : null;
+  // Obter dados da fonte selecionada (usando useMemo para evitar recalcular desnecessariamente)
+  const selectedSourceData = React.useMemo(() => {
+    return selectedSource 
+      ? stats.leadsBySource.find(s => s.source === selectedSource)
+      : null;
+  }, [selectedSource, stats.leadsBySource]);
   
-  // Aplicar animação explode diretamente no DOM após render
-  React.useEffect(() => {
-    if (!leadSourcesChartRef.current) return;
-    
-    // Pequeno delay para garantir que o SVG foi renderizado
-    const timer = setTimeout(() => {
-      const svgElement = leadSourcesChartRef.current?.querySelector('svg');
-      if (!svgElement) return;
-      
-      // Tentar diferentes seletores
-      let sectors = svgElement.querySelectorAll('.recharts-pie-sector');
-      if (sectors.length === 0) {
-        sectors = svgElement.querySelectorAll('.recharts-pie .recharts-layer');
-      }
-      
-      sectors.forEach((sector: Element, index: number) => {
-        const pathElement = sector.querySelector('path') as SVGPathElement | null;
-        if (!pathElement) return;
-        
-        const sectorElement = sector as SVGGElement;
-        const isActive = index === activeIndex;
-        
-        if (isActive) {
-          const explodeDistance = 15;
-          
-          // Pegar o centro do gráfico
-          const svgRect = svgElement.getBoundingClientRect();
-          const pieGroup = svgElement.querySelector('.recharts-pie');
-          let chartCenterX = svgRect.width / 2;
-          let chartCenterY = svgRect.height / 2;
-          
-          if (pieGroup) {
-            const transform = pieGroup.getAttribute('transform');
-            if (transform) {
-              const match = transform.match(/translate\(([\d.]+),\s*([\d.]+)\)/);
-              if (match) {
-                chartCenterX = parseFloat(match[1]);
-                chartCenterY = parseFloat(match[2]);
-              }
-            }
-          }
-          
-          // Usar método de centróide mais preciso
-          // Pegar múltiplos pontos ao longo do path e calcular o centróide real
-          const pathLength = pathElement.getTotalLength();
-          const numSamples = 20; // Mais amostras = mais preciso
-          let sumX = 0;
-          let sumY = 0;
-          
-          for (let i = 0; i <= numSamples; i++) {
-            const point = pathElement.getPointAtLength((i / numSamples) * pathLength);
-            sumX += point.x;
-            sumY += point.y;
-          }
-          
-          const centroidX = sumX / (numSamples + 1);
-          const centroidY = sumY / (numSamples + 1);
-          
-          // Calcular vetor normalizado do centro do gráfico para o centróide
-          const dx = centroidX - chartCenterX;
-          const dy = centroidY - chartCenterY;
-          const length = Math.sqrt(dx * dx + dy * dy);
-          const offsetX = (dx / length) * explodeDistance;
-          const offsetY = (dy / length) * explodeDistance;
-          
-          // Cancelar qualquer animação anterior
-          const animations = sectorElement.getAnimations();
-          animations.forEach(anim => anim.cancel());
-          
-          // Animar suavemente usando Web Animations API
-          const animation = sectorElement.animate(
-            [
-              { transform: 'translate(0px, 0px)' },
-              { transform: `translate(${offsetX}px, ${offsetY}px)` }
-            ],
-            {
-              duration: 400,
-              easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
-              fill: 'forwards'
-            }
-          );
-          
-          // Aplicar o transform final após a animação
-          animation.onfinish = () => {
-            sectorElement.setAttribute('transform', `translate(${offsetX}, ${offsetY})`);
-          };
-          
-          pathElement.style.filter = 'drop-shadow(0 8px 20px rgba(59, 130, 246, 0.6)) brightness(1.15)';
-          
-          // Fazer o setor ficar por cima (z-index)
-          sectorElement.style.zIndex = '10';
-          sector.classList.add('pie-sector-exploded');
-        } else {
-          // Cancelar qualquer animação anterior
-          const animations = sectorElement.getAnimations();
-          animations.forEach(anim => anim.cancel());
-          
-          const currentTransform = sectorElement.getAttribute('transform');
-          
-          // Verificar se tem transform não-zero (considerando possíveis formatos)
-          const hasTransform = currentTransform && 
-            currentTransform !== 'translate(0, 0)' && 
-            currentTransform !== 'translate(0px, 0px)' &&
-            !currentTransform.match(/translate\(0,?\s*0\)/);
-          
-          if (hasTransform) {
-            // Converter o transform do SVG para formato CSS (adicionar 'px' se necessário)
-            const cssTransform = currentTransform.replace(/translate\(([-\d.]+),\s*([-\d.]+)\)/, 'translate($1px, $2px)');
-            
-            // Animar de volta suavemente
-            const animation = sectorElement.animate(
-              [
-                { transform: cssTransform },
-                { transform: 'translate(0px, 0px)' }
-              ],
-              {
-                duration: 400,
-                easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
-                fill: 'forwards'
-              }
-            );
-            
-            // Remover transform final após a animação
-            animation.onfinish = () => {
-              sectorElement.setAttribute('transform', 'translate(0, 0)');
-              pathElement.style.filter = 'none';
-              sectorElement.style.zIndex = '';
-              sector.classList.remove('pie-sector-exploded');
-            };
-          } else {
-            // Já está na posição original, apenas limpar estilos
-            pathElement.style.filter = 'none';
-            sectorElement.style.zIndex = '';
-            sector.classList.remove('pie-sector-exploded');
-          }
-        }
-      });
-    }, 100); // Delay de 100ms para garantir render
-    
-    return () => clearTimeout(timer);
-  }, [activeIndex, stats.leadsBySource]);
+  // Removido: useEffect de animação explode - mantendo apenas efeito de opacidade
   
   // Adicionar listener para clicar fora do Lead Sources
   React.useEffect(() => {
@@ -492,14 +366,20 @@ const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[]
   
   // Processar dados do gráfico Evolution baseado no período selecionado
   const filteredMonthlyTrend = React.useMemo(() => {
-    return processLeadTrend(leads, timePeriod, customStartDate, customEndDate);
-  }, [leads, timePeriod, customStartDate, customEndDate]);
+    return processLeadTrend(leads, timePeriod, customStartDate, customEndDate, locale, pipelineStages);
+  }, [leads, timePeriod, customStartDate, customEndDate, locale, pipelineStages]);
   
-  // Calcular dados adicionais
-  const wonLeads = stats.leadsByStatus.find(s => s.status === 'Closed Won')?.count || 0;
-  const lostLeads = stats.leadsByStatus.find(s => s.status === 'Lost')?.count || 0;
-  const wonValue = stats.leadsByStatus.find(s => s.status === 'Closed Won')?.value || 0;
-  const winRate = stats.totalLeads > 0 ? ((wonLeads / stats.totalLeads) * 100) : 0;
+  // Calcular dados adicionais usando stage_type
+  const wonLeads = stats.leadsByStatus
+    .filter(s => s.stageType === 'won')
+    .reduce((sum, s) => sum + s.count, 0);
+  const lostLeads = stats.leadsByStatus
+    .filter(s => s.stageType === 'lost')
+    .reduce((sum, s) => sum + s.count, 0);
+  const wonValue = stats.leadsByStatus
+    .filter(s => s.stageType === 'won')
+    .reduce((sum, s) => sum + s.value, 0);
+  const winRate = (wonLeads + lostLeads) > 0 ? ((wonLeads / (wonLeads + lostLeads)) * 100) : 0;
   const averageLeadValue = stats.totalLeads > 0 ? (stats.totalValue / stats.totalLeads) : 0;
 
 
@@ -509,37 +389,37 @@ const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[]
     <div className="grid auto-rows-min gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="hover:shadow-md transition-shadow">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Leads</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">{t('mainCards.totalLeads')}</CardTitle>
             <Users className="h-4 w-4 text-blue-500" />
         </CardHeader>
         <CardContent>
             <div className="text-3xl font-semibold">{stats.totalLeads}</div>
             <p className="text-xs text-muted-foreground mt-2">
-              Across the company
+              {t('mainCards.acrossCompany')}
             </p>
             <div className="mt-3 flex items-center gap-3 text-xs">
-              <span className="text-emerald-600 font-medium">{wonLeads} won</span>
+              <span className="text-emerald-600 font-medium">{wonLeads} {t('mainCards.won')}</span>
               <span className="text-muted-foreground">•</span>
-              <span className="text-rose-600 font-medium">{lostLeads} lost</span>
+              <span className="text-rose-600 font-medium">{lostLeads} {t('mainCards.lost')}</span>
             </div>
         </CardContent>
       </Card>
 
         <Card className="hover:shadow-md transition-shadow">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Pipeline Value</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">{t('mainCards.totalPipelineValue')}</CardTitle>
             <DollarSign className="h-4 w-4 text-emerald-500" />
         </CardHeader>
         <CardContent>
             <div className="text-3xl font-semibold">
-              $ {stats.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              {formatCurrency(stats.totalValue, locale)}
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-              Average value: $ {averageLeadValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              {t('mainCards.averageValue')}: {formatCurrency(averageLeadValue, locale)}
             </p>
             <div className="mt-3 text-xs">
               <span className="text-emerald-600 font-medium">
-                $ {wonValue.toLocaleString('en-US', { minimumFractionDigits: 2 })} in sales
+                {formatCurrency(wonValue, locale)} {t('mainCards.inSales')}
               </span>
             </div>
         </CardContent>
@@ -547,17 +427,17 @@ const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[]
 
          <Card className="hover:shadow-md transition-shadow">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-             <CardTitle className="text-sm font-medium text-muted-foreground">Active Conversations</CardTitle>
+             <CardTitle className="text-sm font-medium text-muted-foreground">{t('mainCards.activeConversations')}</CardTitle>
              <MessageSquare className="h-4 w-4 text-blue-500" />
         </CardHeader>
         <CardContent>
              <div className="text-3xl font-semibold">{stats.totalConversations}</div>
              <p className="text-xs text-muted-foreground mt-2">
-               Total conversations
+               {t('mainCards.totalConversations')}
              </p>
              <div className="mt-3 flex items-center gap-2">
                <div className="flex-1">
-                 <p className="text-xs text-muted-foreground">Active (7 days)</p>
+                 <p className="text-xs text-muted-foreground">{t('mainCards.activeDays')}</p>
                  <p className="text-lg font-semibold text-emerald-600">{stats.conversationStats[0]?.active || 0}</p>
                </div>
              </div>
@@ -566,13 +446,13 @@ const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[]
 
         <Card className="hover:shadow-md transition-shadow">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Win Rate</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">{t('mainCards.winRate')}</CardTitle>
             <TrendingUp className="h-4 w-4 text-amber-500" />
         </CardHeader>
         <CardContent>
             <div className="text-3xl font-semibold">{winRate.toFixed(1)}%</div>
             <p className="text-xs text-muted-foreground mt-2">
-              {wonLeads} won of {wonLeads + lostLeads} closed
+              {t('mainCards.wonOf', { won: wonLeads, total: wonLeads + lostLeads })}
             </p>
             <div className="mt-3 h-1.5 bg-muted rounded-full overflow-hidden">
               <div 
@@ -588,9 +468,9 @@ const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[]
       <div className="grid gap-4 md:grid-cols-2">
         <Card ref={evolutionChartRef} className="hover:shadow-md transition-shadow">
           <CardHeader>
-            <CardTitle className="text-lg">Leads & Revenue Evolution</CardTitle>
+            <CardTitle className="text-lg">{t('charts.leadsRevenueEvolution')}</CardTitle>
           <CardDescription>
-              Select time period to analyze trends
+              {t('charts.selectTimePeriod')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -599,18 +479,18 @@ const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[]
             <div className="flex flex-wrap items-end gap-4">
               <div className="flex-1 min-w-[200px]">
                 <Label htmlFor="time-period" className="text-sm font-medium mb-2 block">
-                  Time Period
+                  {t('charts.timePeriod')}
                 </Label>
                 <Select value={timePeriod} onValueChange={setTimePeriod}>
                   <SelectTrigger id="time-period" className="w-full">
-                    <SelectValue placeholder="Select period" />
+                    <SelectValue placeholder={t('charts.selectPeriod')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="7days">Last 7 days</SelectItem>
-                    <SelectItem value="30days">Last 30 days</SelectItem>
-                    <SelectItem value="3months">Last 3 months</SelectItem>
-                    <SelectItem value="6months">Last 6 months</SelectItem>
-                    <SelectItem value="custom">Custom dates</SelectItem>
+                    <SelectItem value="7days">{t('charts.last7days')}</SelectItem>
+                    <SelectItem value="30days">{t('charts.last30days')}</SelectItem>
+                    <SelectItem value="3months">{t('charts.last3months')}</SelectItem>
+                    <SelectItem value="6months">{t('charts.last6months')}</SelectItem>
+                    <SelectItem value="custom">{t('charts.customDates')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -619,7 +499,7 @@ const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[]
                 <>
                   <div className="flex-1 min-w-[150px]">
                     <Label htmlFor="start-date" className="text-sm font-medium mb-2 block">
-                      Start Date
+                      {t('charts.startDate')}
                     </Label>
                     <Input
                       id="start-date"
@@ -631,7 +511,7 @@ const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[]
                   </div>
                   <div className="flex-1 min-w-[150px]">
                     <Label htmlFor="end-date" className="text-sm font-medium mb-2 block">
-                      End Date
+                      {t('charts.endDate')}
                     </Label>
                     <Input
                       id="end-date"
@@ -648,7 +528,7 @@ const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[]
             {timePeriod === 'custom' && customStartDate && customEndDate && (
               <>
                 <p className="text-xs text-slate-500">
-                  Showing data from {(() => {
+                  {t('charts.showingDataFrom')} {(() => {
                     const [year, month, day] = customStartDate.split('-').map(Number);
                     const date = new Date(year, month - 1, day);
                     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -664,7 +544,7 @@ const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[]
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
                     <p className="text-xs text-amber-800">
-                      Period limited to 1 year (365 days) for performance. Showing data from the last year of your selection.
+                      {t('charts.periodLimitedWarning')}
                     </p>
                   </div>
                 )}
@@ -701,7 +581,7 @@ const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[]
                   fontWeight: visibleMetrics.leads ? 600 : 500,
                 }}
               >
-                Leads
+                {t('charts.leads')}
               </span>
             </div>
             
@@ -732,7 +612,7 @@ const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[]
                   fontWeight: visibleMetrics.value ? 600 : 500,
                 }}
               >
-                Revenue
+                {t('charts.revenue')}
               </span>
             </div>
           </div>
@@ -802,7 +682,7 @@ const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[]
                   orientation="right" 
                   tick={{ fontSize: 11, fill: '#10b981', fontWeight: 600 }}
                   axisLine={{ stroke: '#10b981', strokeWidth: 2 }}
-                  tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+                  tickFormatter={(value) => `${getCurrencySymbol(locale)}${(value / 1000).toFixed(0)}k`}
                 />
                 
                 {dragStart !== null && dragEnd !== null && (
@@ -882,7 +762,7 @@ const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[]
                           <div className="space-y-2">
                             {visibleMetrics.leads && (
                               <div>
-                                <p className="text-blue-600 font-semibold">Leads: {current.leads}</p>
+                                <p className="text-blue-600 font-semibold">{t('charts.leads')}: {current.leads}</p>
                                 <p className={`text-xs font-medium ${leadsDiff >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                                   {leadsDiff >= 0 ? '+' : ''}{leadsDiff} ({leadsPercent >= '0' ? '+' : ''}{leadsPercent}%)
                                 </p>
@@ -890,14 +770,14 @@ const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[]
                             )}
                             {visibleMetrics.value && (
                               <div>
-                                <p className="text-emerald-600 font-semibold">Revenue: $ {current.value.toLocaleString('en-US')}</p>
+                                <p className="text-emerald-600 font-semibold">{t('charts.revenue')}: {formatCurrency(current.value, locale, { minimumFractionDigits: 0 })}</p>
                                 <p className={`text-xs font-medium ${valueDiff >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                                  {valueDiff >= 0 ? '+' : ''}$ {valueDiff.toLocaleString('en-US')} ({valuePercent >= '0' ? '+' : ''}{valuePercent}%)
+                                  {valueDiff >= 0 ? '+' : ''}{formatCurrency(Math.abs(valueDiff), locale, { minimumFractionDigits: 0 })} ({valuePercent >= '0' ? '+' : ''}{valuePercent}%)
                                 </p>
                               </div>
                             )}
                           </div>
-                          <p className="text-[10px] text-slate-500 mt-2 font-medium">vs {selectedDisplayDate}</p>
+                          <p className="text-[10px] text-slate-500 mt-2 font-medium">{t('charts.vs')} {selectedDisplayDate}</p>
                         </div>
                       );
                     }
@@ -915,21 +795,21 @@ const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[]
                       
                       return (
                         <div className="text-xs bg-white">
-                          <p className="font-semibold mb-2">Range Summary</p>
+                          <p className="font-semibold mb-2">{t('charts.rangeSummary')}</p>
                           <p className="text-slate-600 text-[10px] mb-2 font-medium">
                             {startDisplayDate} - {endDisplayDate}
                           </p>
                           <div className="space-y-1">
                             {visibleMetrics.leads && (
                               <>
-                                <p className="text-blue-600 font-semibold">Total Leads: {totalLeads}</p>
-                                <p className="text-blue-600 text-[10px] font-medium">Avg: {avgLeads.toFixed(1)}</p>
+                                <p className="text-blue-600 font-semibold">{t('charts.totalLeadsLabel')}: {totalLeads}</p>
+                                <p className="text-blue-600 text-[10px] font-medium">{t('charts.avg')}: {avgLeads.toFixed(1)}</p>
                               </>
                             )}
                             {visibleMetrics.value && (
                               <>
-                                <p className="text-emerald-600 font-semibold">Total Revenue: $ {totalValue.toLocaleString('en-US')}</p>
-                                <p className="text-emerald-600 text-[10px] font-medium">Avg: $ {avgValue.toLocaleString('en-US')}</p>
+                                <p className="text-emerald-600 font-semibold">{t('charts.totalRevenue')}: {formatCurrency(totalValue, locale, { minimumFractionDigits: 0 })}</p>
+                                <p className="text-emerald-600 text-[10px] font-medium">{t('charts.avg')}: {formatCurrency(avgValue, locale, { minimumFractionDigits: 0 })}</p>
                               </>
                             )}
                           </div>
@@ -941,12 +821,12 @@ const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[]
                       <div className="text-xs bg-white">
                         <p className="font-semibold mb-2">{displayDate}</p>
                         {visibleMetrics.leads && (
-                          <p className="text-blue-600 font-semibold">Leads: {current.leads}</p>
+                          <p className="text-blue-600 font-semibold">{t('charts.leads')}: {current.leads}</p>
                         )}
                         {visibleMetrics.value && (
-                          <p className="text-emerald-600 font-semibold">Revenue: $ {current.value.toLocaleString('en-US')}</p>
+                          <p className="text-emerald-600 font-semibold">{t('charts.revenue')}: {formatCurrency(current.value, locale, { minimumFractionDigits: 0 })}</p>
                         )}
-                        <p className="text-[10px] text-slate-500 mt-2 font-medium">Click to select</p>
+                        <p className="text-[10px] text-slate-500 mt-2 font-medium">{t('charts.clickToSelect')}</p>
                       </div>
                     );
                   }}
@@ -971,7 +851,7 @@ const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[]
                       strokeWidth: 2
                     }}
                     name="leads"
-                    animationDuration={500}
+                    isAnimationActive={false}
                   />
                 )}
                 {visibleMetrics.value && (
@@ -994,7 +874,7 @@ const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[]
                       strokeWidth: 2
                     }}
                     name="value"
-                    animationDuration={500}
+                    isAnimationActive={false}
                   />
                 )}
               </LineChart>
@@ -1009,9 +889,9 @@ const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[]
         >
           <CardHeader className="pb-4">
             <div className="space-y-1">
-              <CardTitle className="text-xl font-semibold text-slate-900">Lead Sources</CardTitle>
+              <CardTitle className="text-xl font-semibold text-slate-900">{t('charts.leadSources')}</CardTitle>
               <CardDescription className="text-sm text-slate-500">
-                Distribution across acquisition channels
+                {t('charts.distributionAcrossChannels')}
           </CardDescription>
             </div>
         </CardHeader>
@@ -1046,35 +926,15 @@ const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[]
                   const isSelected = selectedSource === entry.source;
                   const isActive = index === activeIndex;
                   
-                  // Calcular transform para o segmento ativo
-                  let transform = '';
-                  if (isActive) {
-                    const totalValue = stats.leadsBySource.reduce((sum, s) => sum + s.count, 0);
-                    let startAngle = -90;
-                    for (let i = 0; i < index; i++) {
-                      startAngle += (stats.leadsBySource[i].count / totalValue) * 360;
-                    }
-                    const segmentAngle = (entry.count / totalValue) * 360;
-                    const midAngle = startAngle + segmentAngle / 2;
-                    const radian = (Math.PI / 180) * midAngle;
-                    const explodeDistance = 15;
-                    const offsetX = explodeDistance * Math.cos(radian);
-                    const offsetY = explodeDistance * Math.sin(radian);
-                    transform = `translate(${offsetX}px, ${offsetY}px)`;
-                  }
-                  
                   return (
                     <Cell 
                       key={`cell-${index}`} 
                       fill={`url(#admin-gradient-${index % COLORS.length})`}
-                      className={isActive ? 'pie-explode-active' : ''}
                       style={{
                         cursor: 'pointer',
                         outline: 'none',
                         opacity: selectedSource && !isSelected ? 0.35 : 1,
-                        transition: 'opacity 0.35s ease-in-out, transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                        transform: transform,
-                        filter: isActive ? 'drop-shadow(0 8px 20px rgba(59, 130, 246, 0.6)) brightness(1.15)' : 'none',
+                        transition: 'opacity 0.35s ease-in-out',
                       }}
                       stroke="none"
                       strokeWidth={0}
@@ -1096,7 +956,7 @@ const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[]
                       formatter={(value: any, name: string, props: any) => {
                         const total = stats.leadsBySource.reduce((sum, item) => sum + item.count, 0)
                         const percentage = ((Number(value) / total) * 100).toFixed(1)
-                        return [`${value} leads (${percentage}%)`, props.payload.source]
+                        return [`${value} ${t('charts.leadsPlural')} (${percentage}%)`, props.payload.source]
                       }}
                       labelStyle={{ fontWeight: 600, color: '#1e293b', marginBottom: '4px' }}
                       itemStyle={{ color: '#64748b', fontSize: '13px' }}
@@ -1112,13 +972,13 @@ const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[]
                         <p className="text-sm font-medium text-slate-500 mb-1">{selectedSourceData.source}</p>
                         <p className="text-3xl font-bold text-slate-900">{selectedSourceData.count}</p>
                         <p className="text-xs font-medium text-slate-500 mt-1">
-                          {((selectedSourceData.count / stats.totalLeads) * 100).toFixed(1)}% of total
+                          {((selectedSourceData.count / stats.totalLeads) * 100).toFixed(1)}% {t('charts.ofTotal')}
                         </p>
                       </div>
                     ) : (
                       <div className="animate-in fade-in duration-300">
                         <p className="text-3xl font-bold text-slate-900">{stats.totalLeads}</p>
-                        <p className="text-xs font-medium text-slate-500 mt-1">Total Leads</p>
+                        <p className="text-xs font-medium text-slate-500 mt-1">{t('charts.totalLeads')}</p>
                       </div>
                     )}
                   </div>
@@ -1180,14 +1040,17 @@ const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[]
                         className="text-xs text-slate-500 hover:text-blue-600 transition-colors duration-200 cursor-pointer hover:underline focus:outline-none"
                         onClick={() => setShowMoreSources(true)}
                       >
-                        +{stats.leadsBySource.length - 6} more source{stats.leadsBySource.length - 6 > 1 ? 's' : ''}
+                        {stats.leadsBySource.length - 6 === 1 
+                          ? t('charts.moreSource', { count: stats.leadsBySource.length - 6 })
+                          : t('charts.moreSources', { count: stats.leadsBySource.length - 6 })
+                        }
                       </button>
                     </DialogTrigger>
                     <DialogContent className="max-w-md">
                       <DialogHeader>
-                        <DialogTitle className="text-lg font-semibold">Additional Lead Sources</DialogTitle>
+                        <DialogTitle className="text-lg font-semibold">{t('charts.additionalLeadSources')}</DialogTitle>
                         <DialogDescription className="text-sm text-slate-500">
-                          Other sources not shown in the main chart
+                          {t('charts.otherSourcesNotShown')}
                         </DialogDescription>
                       </DialogHeader>
                       <div className="mt-4 space-y-2 max-h-[400px] overflow-y-auto">
@@ -1209,7 +1072,7 @@ const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[]
                                     {source.source}
                                   </p>
                                   <p className="text-xs text-slate-500">
-                                    {percentage}% of total
+                                    {percentage}% {t('charts.ofTotal')}
                                   </p>
                                 </div>
                               </div>
@@ -1218,7 +1081,7 @@ const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[]
                                   {source.count}
                                 </p>
                                 <p className="text-xs text-slate-500">
-                                  lead{source.count !== 1 ? 's' : ''}
+                                  {source.count === 1 ? t('charts.lead') : t('charts.leadsPlural')}
                                 </p>
                               </div>
                             </div>
@@ -1239,9 +1102,9 @@ const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[]
         <Card className="hover:shadow-lg transition-all duration-300 border-slate-200">
         <CardHeader className="pb-4">
           <div className="space-y-1">
-            <CardTitle className="text-xl font-semibold text-slate-900">Sales Pipeline</CardTitle>
-            <CardDescription className="text-sm text-slate-500">
-              Lead distribution by funnel stage
+              <CardTitle className="text-xl font-semibold text-slate-900">{t('charts.salesPipeline')}</CardTitle>
+              <CardDescription className="text-sm text-slate-500">
+                {t('charts.leadDistributionByStage')}
             </CardDescription>
           </div>
         </CardHeader>
@@ -1288,12 +1151,12 @@ const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[]
                     boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
                     padding: '12px 16px'
                   }}
-                  formatter={(value: any, name: string) => {
-                    if (name === 'count') return [`${value} leads`, 'Quantity'];
-                    return [value, name];
-                  }}
+                  formatter={(value: any, name: string, props: any) => [
+                    `${value} ${t('charts.leadsPlural')}`,
+                    props.payload.status
+                  ]}
                   labelStyle={{ fontWeight: 600, color: '#1e293b', marginBottom: '4px' }}
-                  itemStyle={{ color: '#64748b', fontSize: '14px' }}
+                  itemStyle={{ color: '#64748b', fontSize: '13px' }}
                   cursor={{ fill: 'rgba(148, 163, 184, 0.1)' }}
                 />
                 <Bar 
@@ -1305,7 +1168,7 @@ const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[]
                     <Cell 
                       key={`cell-${index}`} 
                       fill={`url(#pipeline-gradient-${index})`}
-                      className="hover:opacity-90 transition-opacity duration-200"
+                      className="hover:opacity-90 transition-opacity duration-200 cursor-pointer"
                       style={{
                         filter: 'drop-shadow(0 4px 6px rgba(0, 0, 0, 0.07))'
                       }}
@@ -1318,19 +1181,19 @@ const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[]
             {/* Summary Statistics */}
             <div className="mt-8 grid grid-cols-3 gap-4 pt-6 border-t border-slate-200">
               <div className="text-center">
-                <p className="text-xs text-slate-500 font-medium mb-1">Total Leads</p>
+                <p className="text-xs text-slate-500 font-medium mb-1">{t('charts.totalLeads')}</p>
                 <p className="text-lg font-bold text-slate-900">
                   {pipelineData.reduce((sum, item) => sum + item.count, 0)}
                 </p>
               </div>
               <div className="text-center">
-                <p className="text-xs text-slate-500 font-medium mb-1">Active Stages</p>
+                <p className="text-xs text-slate-500 font-medium mb-1">{t('charts.activeStages')}</p>
                 <p className="text-lg font-bold text-emerald-600">
                   {pipelineData.filter(item => item.count > 0).length}
                 </p>
               </div>
               <div className="text-center">
-                <p className="text-xs text-slate-500 font-medium mb-1">Avg per Stage</p>
+                <p className="text-xs text-slate-500 font-medium mb-1">{t('charts.avgPerStage')}</p>
                 <p className="text-lg font-bold text-blue-600">
                   {(pipelineData.reduce((sum, item) => sum + item.count, 0) / pipelineData.length).toFixed(1)}
                 </p>
@@ -1342,9 +1205,9 @@ const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[]
         <Card className="hover:shadow-lg transition-all duration-300 border-slate-200">
           <CardHeader className="pb-4">
             <div className="space-y-1">
-              <CardTitle className="text-xl font-semibold text-slate-900">Value by Pipeline Stage</CardTitle>
+              <CardTitle className="text-xl font-semibold text-slate-900">{t('charts.valueByPipelineStage')}</CardTitle>
               <CardDescription className="text-sm text-slate-500">
-                Financial distribution by pipeline status
+                {t('charts.financialDistribution')}
               </CardDescription>
             </div>
           </CardHeader>
@@ -1382,7 +1245,7 @@ const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[]
                   tick={{ fontSize: 12, fill: '#475569' }}
                   axisLine={{ stroke: '#cbd5e1', strokeWidth: 1 }}
                   tickLine={{ stroke: '#cbd5e1' }}
-                  tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+                  tickFormatter={(value) => `${getCurrencySymbol(locale)}${(value / 1000).toFixed(0)}k`}
                 />
                 <Tooltip 
                   contentStyle={{ 
@@ -1393,7 +1256,7 @@ const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[]
                     padding: '12px 16px'
                   }}
                   formatter={(value: any, name: string, props: any) => [
-                    `$ ${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`, 
+                    formatCurrency(Number(value), locale), 
                     props.payload.status
                   ]}
                   labelStyle={{ fontWeight: 600, color: '#1e293b', marginBottom: '4px' }}
@@ -1409,7 +1272,7 @@ const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[]
                     <Cell 
                       key={`cell-${index}`} 
                       fill={`url(#admin-value-gradient-${index})`}
-                      className="hover:opacity-90 transition-opacity duration-200"
+                      className="hover:opacity-90 transition-opacity duration-200 cursor-pointer"
                       style={{
                         filter: 'drop-shadow(0 4px 6px rgba(0, 0, 0, 0.07))'
                       }}
@@ -1425,9 +1288,9 @@ const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[]
       {/* Conversations Charts Group */}
       <Card className="hover:shadow-md transition-shadow">
         <CardHeader>
-          <CardTitle className="text-lg">Chats by Platform</CardTitle>
+          <CardTitle className="text-lg">{t('charts.chatsByPlatform')}</CardTitle>
           <CardDescription>
-            Communication distribution across channels
+            {t('charts.communicationDistribution')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -1444,20 +1307,20 @@ const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[]
                 </div>
                    </div>
                    <div className="flex items-center justify-between">
-                     <span className="text-sm font-medium text-muted-foreground">Total conversations</span>
+                     <span className="text-sm font-medium text-muted-foreground">{t('charts.totalConversations')}</span>
                 <div className="text-right">
                        <div className="text-2xl font-semibold">{stat.count}</div>
                   </div>
                 </div>
                    <div className="flex items-center justify-between">
-                     <span className="text-sm font-medium text-muted-foreground">Active conversations</span>
+                     <span className="text-sm font-medium text-muted-foreground">{t('charts.activeConversations')}</span>
                      <div className="text-right">
                        <div className="text-2xl font-semibold text-emerald-600">{stat.active}</div>
                      </div>
                    </div>
                    <div className="pt-4 border-t">
                      <div className="flex justify-between items-center">
-                       <span className="text-xs text-muted-foreground">Activity rate</span>
+                       <span className="text-xs text-muted-foreground">{t('charts.activityRate')}</span>
                        <span className="text-xs font-medium">{stat.count > 0 ? ((stat.active / stat.count) * 100).toFixed(0) : 0}%</span>
                      </div>
                      <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
@@ -1483,23 +1346,23 @@ const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[]
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="hover:shadow-md transition-shadow">
           <CardHeader>
-            <CardTitle className="text-base font-semibold">Overall Performance</CardTitle>
+            <CardTitle className="text-base font-semibold">{t('performance.overallPerformance')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Conversion Rate</span>
+              <span className="text-sm text-muted-foreground">{t('performance.conversionRate')}</span>
               <span className="text-base font-semibold">{stats.conversionRate.toFixed(1)}%</span>
     </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Average Ticket</span>
+              <span className="text-sm text-muted-foreground">{t('performance.averageTicket')}</span>
               <span className="text-base font-semibold">
-                $ {averageLeadValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                {formatCurrency(averageLeadValue, locale)}
               </span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Total Sales</span>
+              <span className="text-sm text-muted-foreground">{t('performance.totalSales')}</span>
               <span className="text-base font-semibold text-emerald-600">
-                $ {wonValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                {formatCurrency(wonValue, locale)}
               </span>
             </div>
           </CardContent>
@@ -1507,21 +1370,21 @@ const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[]
 
          <Card className="hover:shadow-md transition-shadow">
       <CardHeader>
-             <CardTitle className="text-base font-semibold">Conversation Activity</CardTitle>
+             <CardTitle className="text-base font-semibold">{t('employeeStats.conversationActivity')}</CardTitle>
            </CardHeader>
            <CardContent className="space-y-4">
              <div className="flex justify-between items-center">
-               <span className="text-sm text-muted-foreground">Total Conversations</span>
+               <span className="text-sm text-muted-foreground">{t('performance.totalConversations')}</span>
                <span className="text-base font-semibold">{stats.conversationStats[0]?.count || 0}</span>
              </div>
              <div className="flex justify-between items-center">
-               <span className="text-sm text-muted-foreground">Active Conversations</span>
+               <span className="text-sm text-muted-foreground">{t('performance.activeConversations')}</span>
                <span className="text-base font-semibold">
                  {stats.conversationStats[0]?.active || 0}
                </span>
              </div>
              <div className="flex justify-between items-center">
-               <span className="text-sm text-muted-foreground">Activity Rate</span>
+               <span className="text-sm text-muted-foreground">{t('performance.activityRate')}</span>
                <span className="text-base font-semibold">
                  {stats.conversationStats[0] && stats.conversationStats[0].count > 0
                    ? ((stats.conversationStats[0].active / stats.conversationStats[0].count) * 100).toFixed(1)
@@ -1533,21 +1396,21 @@ const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[]
 
         <Card className="hover:shadow-md transition-shadow">
           <CardHeader>
-            <CardTitle className="text-base font-semibold">Funnel Analysis</CardTitle>
+            <CardTitle className="text-base font-semibold">{t('performance.funnelAnalysis')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">In Pipeline</span>
+              <span className="text-sm text-muted-foreground">{t('performance.inPipeline')}</span>
               <span className="text-base font-semibold">
                 {stats.totalLeads - wonLeads - lostLeads}
               </span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Win Rate</span>
+              <span className="text-sm text-muted-foreground">{t('performance.winRate')}</span>
               <span className="text-base font-semibold text-emerald-600">{winRate.toFixed(1)}%</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">In Negotiation</span>
+              <span className="text-sm text-muted-foreground">{t('performance.inNegotiation')}</span>
               <span className="text-base font-semibold">
                 {stats.leadsByStatus.find(s => s.status === 'Negotiation')?.count || 0}
               </span>
@@ -1560,9 +1423,9 @@ const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[]
       {stats.leadsByUser && stats.leadsByUser.length > 0 && (
         <Card className="hover:shadow-md transition-shadow">
           <CardHeader>
-            <CardTitle className="text-lg">Team Performance</CardTitle>
+            <CardTitle className="text-lg">{t('teamPerformance.title')}</CardTitle>
         <CardDescription>
-              Lead distribution and performance by sales representative
+              {t('teamPerformance.description')}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -1581,14 +1444,14 @@ const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[]
                         <div>
                           <p className="text-sm font-semibold">{user.userName}</p>
                           <p className="text-xs text-muted-foreground">
-                            Avg ticket: $ {avgTicket.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            {t('teamPerformance.avgTicket')}: {formatCurrency(avgTicket, locale)}
                           </p>
                         </div>
                       </div>
                       <div className="text-right">
                         <div className="text-xl font-semibold">{user.count}</div>
                         <div className="text-xs text-muted-foreground">
-                          $ {user.value.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                          {formatCurrency(user.value, locale)}
                         </div>
                       </div>
                     </div>
@@ -1614,19 +1477,19 @@ const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[]
                 <p className="text-3xl font-semibold text-slate-900">
                   {stats.leadsByUser.length}
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">Active Sales Reps</p>
+                <p className="text-xs text-muted-foreground mt-1">{t('teamPerformance.activeSalesReps')}</p>
               </div>
               <div className="text-center">
                 <p className="text-3xl font-semibold text-slate-900">
                   {Math.round(stats.totalLeads / stats.leadsByUser.length)}
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">Leads per Rep</p>
+                <p className="text-xs text-muted-foreground mt-1">{t('teamPerformance.leadsPerRep')}</p>
               </div>
               <div className="text-center">
                 <p className="text-3xl font-semibold text-slate-900">
-                  $ {(stats.totalValue / stats.leadsByUser.length).toLocaleString('en-US', { minimumFractionDigits: 0 })}
+                  {formatCurrency(stats.totalValue / stats.leadsByUser.length, locale, { minimumFractionDigits: 0 })}
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">Value per Rep</p>
+                <p className="text-xs text-muted-foreground mt-1">{t('teamPerformance.valuePerRep')}</p>
               </div>
             </div>
       </CardContent>
@@ -1637,11 +1500,12 @@ const AdminDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[]
 }
 
 // Componente para Dashboard de Master
-const MasterDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[] }) => {
-  // Filtrar apenas status do pipeline (nomes exatos do banco de dados)
-  // Nota: pipelineData já vem filtrado do backend com apenas leads que têm show_on_pipeline = true
-  const pipelineStatuses = ['New', 'In Contact', 'Qualified', 'Lost'];
-  const pipelineData = stats.leadsByStatus.filter(s => pipelineStatuses.includes(s.status));
+const MasterDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardStats; leads: Lead[]; pipelineStages: any[] }) => {
+  const t = useTranslations('Dashboard')
+  const locale = useLocale()
+  
+  // Usar todas as stages do pipeline (agora são dinâmicas/personalizadas)
+  const pipelineData = stats.leadsByStatus;
   
   // Estado para controlar o segmento selecionado no donut chart
   const [selectedSource, setSelectedSource] = React.useState<string | null>(null);
@@ -1672,11 +1536,17 @@ const MasterDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[
   const leadSourcesChartRef = React.useRef<HTMLDivElement>(null);
   const evolutionChartRef = React.useRef<HTMLDivElement>(null);
   
-  // Calcular dados adicionais
-  const wonLeads = stats.leadsByStatus.find(s => s.status === 'Closed Won')?.count || 0;
-  const lostLeads = stats.leadsByStatus.find(s => s.status === 'Lost')?.count || 0;
-  const wonValue = stats.leadsByStatus.find(s => s.status === 'Closed Won')?.value || 0;
-  const winRate = stats.totalLeads > 0 ? ((wonLeads / stats.totalLeads) * 100) : 0;
+  // Calcular dados adicionais usando stage_type
+  const wonLeads = stats.leadsByStatus
+    .filter(s => s.stageType === 'won')
+    .reduce((sum, s) => sum + s.count, 0);
+  const lostLeads = stats.leadsByStatus
+    .filter(s => s.stageType === 'lost')
+    .reduce((sum, s) => sum + s.count, 0);
+  const wonValue = stats.leadsByStatus
+    .filter(s => s.stageType === 'won')
+    .reduce((sum, s) => sum + s.value, 0);
+  const winRate = (wonLeads + lostLeads) > 0 ? ((wonLeads / (wonLeads + lostLeads)) * 100) : 0;
   const averageLeadValue = stats.totalLeads > 0 ? (stats.totalValue / stats.totalLeads) : 0;
   
   // Função para alternar seleção de fonte com useCallback para evitar re-renders
@@ -1709,152 +1579,14 @@ const MasterDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[
     });
   }, []);
   
-  // Obter dados da fonte selecionada
-  const selectedSourceData = selectedSource 
-    ? stats.leadsBySource.find(s => s.source === selectedSource)
-    : null;
+  // Obter dados da fonte selecionada (usando useMemo para evitar recalcular desnecessariamente)
+  const selectedSourceData = React.useMemo(() => {
+    return selectedSource 
+      ? stats.leadsBySource.find(s => s.source === selectedSource)
+      : null;
+  }, [selectedSource, stats.leadsBySource]);
   
-  // Aplicar animação explode diretamente no DOM após render
-  React.useEffect(() => {
-    if (!leadSourcesChartRef.current) return;
-    
-    // Pequeno delay para garantir que o SVG foi renderizado
-    const timer = setTimeout(() => {
-      const svgElement = leadSourcesChartRef.current?.querySelector('svg');
-      if (!svgElement) return;
-      
-      // Tentar diferentes seletores
-      let sectors = svgElement.querySelectorAll('.recharts-pie-sector');
-      if (sectors.length === 0) {
-        sectors = svgElement.querySelectorAll('.recharts-pie .recharts-layer');
-      }
-      
-      sectors.forEach((sector: Element, index: number) => {
-        const pathElement = sector.querySelector('path') as SVGPathElement | null;
-        if (!pathElement) return;
-        
-        const sectorElement = sector as SVGGElement;
-        const isActive = index === activeIndex;
-        
-        if (isActive) {
-          const explodeDistance = 15;
-          
-          // Pegar o centro do gráfico
-          const svgRect = svgElement.getBoundingClientRect();
-          const pieGroup = svgElement.querySelector('.recharts-pie');
-          let chartCenterX = svgRect.width / 2;
-          let chartCenterY = svgRect.height / 2;
-          
-          if (pieGroup) {
-            const transform = pieGroup.getAttribute('transform');
-            if (transform) {
-              const match = transform.match(/translate\(([\d.]+),\s*([\d.]+)\)/);
-              if (match) {
-                chartCenterX = parseFloat(match[1]);
-                chartCenterY = parseFloat(match[2]);
-              }
-            }
-          }
-          
-          // Usar método de centróide mais preciso
-          // Pegar múltiplos pontos ao longo do path e calcular o centróide real
-          const pathLength = pathElement.getTotalLength();
-          const numSamples = 20; // Mais amostras = mais preciso
-          let sumX = 0;
-          let sumY = 0;
-          
-          for (let i = 0; i <= numSamples; i++) {
-            const point = pathElement.getPointAtLength((i / numSamples) * pathLength);
-            sumX += point.x;
-            sumY += point.y;
-          }
-          
-          const centroidX = sumX / (numSamples + 1);
-          const centroidY = sumY / (numSamples + 1);
-          
-          // Calcular vetor normalizado do centro do gráfico para o centróide
-          const dx = centroidX - chartCenterX;
-          const dy = centroidY - chartCenterY;
-          const length = Math.sqrt(dx * dx + dy * dy);
-          const offsetX = (dx / length) * explodeDistance;
-          const offsetY = (dy / length) * explodeDistance;
-          
-          // Cancelar qualquer animação anterior
-          const animations = sectorElement.getAnimations();
-          animations.forEach(anim => anim.cancel());
-          
-          // Animar suavemente usando Web Animations API
-          const animation = sectorElement.animate(
-            [
-              { transform: 'translate(0px, 0px)' },
-              { transform: `translate(${offsetX}px, ${offsetY}px)` }
-            ],
-            {
-              duration: 400,
-              easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
-              fill: 'forwards'
-            }
-          );
-          
-          // Aplicar o transform final após a animação
-          animation.onfinish = () => {
-            sectorElement.setAttribute('transform', `translate(${offsetX}, ${offsetY})`);
-          };
-          
-          pathElement.style.filter = 'drop-shadow(0 8px 20px rgba(59, 130, 246, 0.6)) brightness(1.15)';
-          
-          // Fazer o setor ficar por cima (z-index)
-          sectorElement.style.zIndex = '10';
-          sector.classList.add('pie-sector-exploded');
-        } else {
-          // Cancelar qualquer animação anterior
-          const animations = sectorElement.getAnimations();
-          animations.forEach(anim => anim.cancel());
-          
-          const currentTransform = sectorElement.getAttribute('transform');
-          
-          // Verificar se tem transform não-zero (considerando possíveis formatos)
-          const hasTransform = currentTransform && 
-            currentTransform !== 'translate(0, 0)' && 
-            currentTransform !== 'translate(0px, 0px)' &&
-            !currentTransform.match(/translate\(0,?\s*0\)/);
-          
-          if (hasTransform) {
-            // Converter o transform do SVG para formato CSS (adicionar 'px' se necessário)
-            const cssTransform = currentTransform.replace(/translate\(([-\d.]+),\s*([-\d.]+)\)/, 'translate($1px, $2px)');
-            
-            // Animar de volta suavemente
-            const animation = sectorElement.animate(
-              [
-                { transform: cssTransform },
-                { transform: 'translate(0px, 0px)' }
-              ],
-              {
-                duration: 400,
-                easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
-                fill: 'forwards'
-              }
-            );
-            
-            // Remover transform final após a animação
-            animation.onfinish = () => {
-              sectorElement.setAttribute('transform', 'translate(0, 0)');
-              pathElement.style.filter = 'none';
-              sectorElement.style.zIndex = '';
-              sector.classList.remove('pie-sector-exploded');
-            };
-          } else {
-            // Já está na posição original, apenas limpar estilos
-            pathElement.style.filter = 'none';
-            sectorElement.style.zIndex = '';
-            sector.classList.remove('pie-sector-exploded');
-          }
-        }
-      });
-    }, 100); // Delay de 100ms para garantir render
-    
-    return () => clearTimeout(timer);
-  }, [activeIndex, stats.leadsBySource]);
+  // Removido: useEffect de animação explode - mantendo apenas efeito de opacidade
   
   // Adicionar listener para clicar fora do Lead Sources
   React.useEffect(() => {
@@ -1905,8 +1637,8 @@ const MasterDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[
   
   // Processar dados do gráfico Evolution baseado no período selecionado
   const filteredMonthlyTrend = React.useMemo(() => {
-    return processLeadTrend(leads, timePeriod, customStartDate, customEndDate);
-  }, [leads, timePeriod, customStartDate, customEndDate]);
+    return processLeadTrend(leads, timePeriod, customStartDate, customEndDate, locale, pipelineStages);
+  }, [leads, timePeriod, customStartDate, customEndDate, locale, pipelineStages]);
 
 
   return (
@@ -1915,37 +1647,37 @@ const MasterDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[
     <div className="grid auto-rows-min gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="hover:shadow-md transition-shadow">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Leads</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">{t('mainCards.totalLeads')}</CardTitle>
             <Users className="h-4 w-4 text-blue-500" />
         </CardHeader>
         <CardContent>
             <div className="text-3xl font-semibold">{stats.totalLeads}</div>
             <p className="text-xs text-muted-foreground mt-2">
-              Across the company
+              {t('mainCards.acrossCompany')}
             </p>
             <div className="mt-3 flex items-center gap-3 text-xs">
-              <span className="text-emerald-600 font-medium">{wonLeads} won</span>
+              <span className="text-emerald-600 font-medium">{wonLeads} {t('mainCards.won')}</span>
               <span className="text-muted-foreground">•</span>
-              <span className="text-rose-600 font-medium">{lostLeads} lost</span>
+              <span className="text-rose-600 font-medium">{lostLeads} {t('mainCards.lost')}</span>
             </div>
         </CardContent>
       </Card>
 
         <Card className="hover:shadow-md transition-shadow">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Pipeline Value</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">{t('mainCards.totalPipelineValue')}</CardTitle>
             <DollarSign className="h-4 w-4 text-emerald-500" />
         </CardHeader>
         <CardContent>
             <div className="text-3xl font-semibold">
-              $ {stats.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              {formatCurrency(stats.totalValue, locale)}
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-              Average value: $ {averageLeadValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              {t('mainCards.averageValue')}: {formatCurrency(averageLeadValue, locale)}
             </p>
             <div className="mt-3 text-xs">
               <span className="text-emerald-600 font-medium">
-                $ {wonValue.toLocaleString('en-US', { minimumFractionDigits: 2 })} in sales
+                {formatCurrency(wonValue, locale)} {t('mainCards.inSales')}
               </span>
             </div>
         </CardContent>
@@ -1953,17 +1685,17 @@ const MasterDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[
 
          <Card className="hover:shadow-md transition-shadow">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-             <CardTitle className="text-sm font-medium text-muted-foreground">Active Conversations</CardTitle>
+             <CardTitle className="text-sm font-medium text-muted-foreground">{t('mainCards.activeConversations')}</CardTitle>
              <MessageSquare className="h-4 w-4 text-blue-500" />
         </CardHeader>
         <CardContent>
              <div className="text-3xl font-semibold">{stats.totalConversations}</div>
              <p className="text-xs text-muted-foreground mt-2">
-               Total conversations
+               {t('mainCards.totalConversations')}
              </p>
              <div className="mt-3 flex items-center gap-2">
                <div className="flex-1">
-                 <p className="text-xs text-muted-foreground">Active (7 days)</p>
+                 <p className="text-xs text-muted-foreground">{t('mainCards.activeDays')}</p>
                  <p className="text-lg font-semibold text-emerald-600">{stats.conversationStats[0]?.active || 0}</p>
                </div>
              </div>
@@ -1972,13 +1704,13 @@ const MasterDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[
 
         <Card className="hover:shadow-md transition-shadow">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Win Rate</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">{t('mainCards.winRate')}</CardTitle>
             <TrendingUp className="h-4 w-4 text-amber-500" />
         </CardHeader>
         <CardContent>
             <div className="text-3xl font-semibold">{winRate.toFixed(1)}%</div>
             <p className="text-xs text-muted-foreground mt-2">
-              {wonLeads} won of {wonLeads + lostLeads} closed
+              {t('mainCards.wonOf', { won: wonLeads, total: wonLeads + lostLeads })}
             </p>
             <div className="mt-3 h-1.5 bg-muted rounded-full overflow-hidden">
               <div 
@@ -1994,9 +1726,9 @@ const MasterDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[
       <div className="grid gap-4 md:grid-cols-2">
         <Card ref={evolutionChartRef} className="hover:shadow-md transition-shadow">
           <CardHeader>
-            <CardTitle className="text-lg">Leads & Revenue Evolution</CardTitle>
+            <CardTitle className="text-lg">{t('charts.leadsRevenueEvolution')}</CardTitle>
           <CardDescription>
-              Select time period to analyze trends
+              {t('charts.selectTimePeriod')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -2005,18 +1737,18 @@ const MasterDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[
             <div className="flex flex-wrap items-end gap-4">
               <div className="flex-1 min-w-[200px]">
                 <Label htmlFor="time-period" className="text-sm font-medium mb-2 block">
-                  Time Period
+                  {t('charts.timePeriod')}
                 </Label>
                 <Select value={timePeriod} onValueChange={setTimePeriod}>
                   <SelectTrigger id="time-period" className="w-full">
-                    <SelectValue placeholder="Select period" />
+                    <SelectValue placeholder={t('charts.selectPeriod')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="7days">Last 7 days</SelectItem>
-                    <SelectItem value="30days">Last 30 days</SelectItem>
-                    <SelectItem value="3months">Last 3 months</SelectItem>
-                    <SelectItem value="6months">Last 6 months</SelectItem>
-                    <SelectItem value="custom">Custom dates</SelectItem>
+                    <SelectItem value="7days">{t('charts.last7days')}</SelectItem>
+                    <SelectItem value="30days">{t('charts.last30days')}</SelectItem>
+                    <SelectItem value="3months">{t('charts.last3months')}</SelectItem>
+                    <SelectItem value="6months">{t('charts.last6months')}</SelectItem>
+                    <SelectItem value="custom">{t('charts.customDates')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -2025,7 +1757,7 @@ const MasterDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[
                 <>
                   <div className="flex-1 min-w-[150px]">
                     <Label htmlFor="start-date" className="text-sm font-medium mb-2 block">
-                      Start Date
+                      {t('charts.startDate')}
                     </Label>
                     <Input
                       id="start-date"
@@ -2037,7 +1769,7 @@ const MasterDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[
                   </div>
                   <div className="flex-1 min-w-[150px]">
                     <Label htmlFor="end-date" className="text-sm font-medium mb-2 block">
-                      End Date
+                      {t('charts.endDate')}
                     </Label>
                     <Input
                       id="end-date"
@@ -2054,7 +1786,7 @@ const MasterDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[
             {timePeriod === 'custom' && customStartDate && customEndDate && (
               <>
                 <p className="text-xs text-slate-500">
-                  Showing data from {(() => {
+                  {t('charts.showingDataFrom')} {(() => {
                     const [year, month, day] = customStartDate.split('-').map(Number);
                     const date = new Date(year, month - 1, day);
                     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -2070,7 +1802,7 @@ const MasterDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
                     <p className="text-xs text-amber-800">
-                      Period limited to 1 year (365 days) for performance. Showing data from the last year of your selection.
+                      {t('charts.periodLimitedWarning')}
                     </p>
                   </div>
                 )}
@@ -2107,7 +1839,7 @@ const MasterDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[
                   fontWeight: visibleMetrics.leads ? 600 : 500,
                 }}
               >
-                Leads
+                {t('charts.leads')}
               </span>
             </div>
             
@@ -2138,7 +1870,7 @@ const MasterDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[
                   fontWeight: visibleMetrics.value ? 600 : 500,
                 }}
               >
-                Revenue
+                {t('charts.revenue')}
               </span>
             </div>
           </div>
@@ -2208,7 +1940,7 @@ const MasterDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[
                   orientation="right" 
                   tick={{ fontSize: 11, fill: '#10b981', fontWeight: 600 }}
                   axisLine={{ stroke: '#10b981', strokeWidth: 2 }}
-                  tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+                  tickFormatter={(value) => `${getCurrencySymbol(locale)}${(value / 1000).toFixed(0)}k`}
                 />
                 
                 {dragStart !== null && dragEnd !== null && (
@@ -2288,7 +2020,7 @@ const MasterDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[
                           <div className="space-y-2">
                             {visibleMetrics.leads && (
                               <div>
-                                <p className="text-blue-600 font-semibold">Leads: {current.leads}</p>
+                                <p className="text-blue-600 font-semibold">{t('charts.leads')}: {current.leads}</p>
                                 <p className={`text-xs font-medium ${leadsDiff >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                                   {leadsDiff >= 0 ? '+' : ''}{leadsDiff} ({leadsPercent >= '0' ? '+' : ''}{leadsPercent}%)
                                 </p>
@@ -2296,14 +2028,14 @@ const MasterDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[
                             )}
                             {visibleMetrics.value && (
                               <div>
-                                <p className="text-emerald-600 font-semibold">Revenue: $ {current.value.toLocaleString('en-US')}</p>
+                                <p className="text-emerald-600 font-semibold">{t('charts.revenue')}: {formatCurrency(current.value, locale, { minimumFractionDigits: 0 })}</p>
                                 <p className={`text-xs font-medium ${valueDiff >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                                  {valueDiff >= 0 ? '+' : ''}$ {valueDiff.toLocaleString('en-US')} ({valuePercent >= '0' ? '+' : ''}{valuePercent}%)
+                                  {valueDiff >= 0 ? '+' : ''}{formatCurrency(Math.abs(valueDiff), locale, { minimumFractionDigits: 0 })} ({valuePercent >= '0' ? '+' : ''}{valuePercent}%)
                                 </p>
                               </div>
                             )}
                           </div>
-                          <p className="text-[10px] text-slate-500 mt-2 font-medium">vs {selectedDisplayDate}</p>
+                          <p className="text-[10px] text-slate-500 mt-2 font-medium">{t('charts.vs')} {selectedDisplayDate}</p>
                         </div>
                       );
                     }
@@ -2321,21 +2053,21 @@ const MasterDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[
                       
                       return (
                         <div className="text-xs bg-white">
-                          <p className="font-semibold mb-2">Range Summary</p>
+                          <p className="font-semibold mb-2">{t('charts.rangeSummary')}</p>
                           <p className="text-slate-600 text-[10px] mb-2 font-medium">
                             {startDisplayDate} - {endDisplayDate}
                           </p>
                           <div className="space-y-1">
                             {visibleMetrics.leads && (
                               <>
-                                <p className="text-blue-600 font-semibold">Total Leads: {totalLeads}</p>
-                                <p className="text-blue-600 text-[10px] font-medium">Avg: {avgLeads.toFixed(1)}</p>
+                                <p className="text-blue-600 font-semibold">{t('charts.totalLeadsLabel')}: {totalLeads}</p>
+                                <p className="text-blue-600 text-[10px] font-medium">{t('charts.avg')}: {avgLeads.toFixed(1)}</p>
                               </>
                             )}
                             {visibleMetrics.value && (
                               <>
-                                <p className="text-emerald-600 font-semibold">Total Revenue: $ {totalValue.toLocaleString('en-US')}</p>
-                                <p className="text-emerald-600 text-[10px] font-medium">Avg: $ {avgValue.toLocaleString('en-US')}</p>
+                                <p className="text-emerald-600 font-semibold">{t('charts.totalRevenue')}: {formatCurrency(totalValue, locale, { minimumFractionDigits: 0 })}</p>
+                                <p className="text-emerald-600 text-[10px] font-medium">{t('charts.avg')}: {formatCurrency(avgValue, locale, { minimumFractionDigits: 0 })}</p>
                               </>
                             )}
                           </div>
@@ -2347,12 +2079,12 @@ const MasterDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[
                       <div className="text-xs bg-white">
                         <p className="font-semibold mb-2">{displayDate}</p>
                         {visibleMetrics.leads && (
-                          <p className="text-blue-600 font-semibold">Leads: {current.leads}</p>
+                          <p className="text-blue-600 font-semibold">{t('charts.leads')}: {current.leads}</p>
                         )}
                         {visibleMetrics.value && (
-                          <p className="text-emerald-600 font-semibold">Revenue: $ {current.value.toLocaleString('en-US')}</p>
+                          <p className="text-emerald-600 font-semibold">{t('charts.revenue')}: {formatCurrency(current.value, locale, { minimumFractionDigits: 0 })}</p>
                         )}
-                        <p className="text-[10px] text-slate-500 mt-2 font-medium">Click to select</p>
+                        <p className="text-[10px] text-slate-500 mt-2 font-medium">{t('charts.clickToSelect')}</p>
                       </div>
                     );
                   }}
@@ -2377,7 +2109,7 @@ const MasterDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[
                       strokeWidth: 2
                     }}
                     name="leads"
-                    animationDuration={500}
+                    isAnimationActive={false}
                   />
                 )}
                 {visibleMetrics.value && (
@@ -2400,7 +2132,7 @@ const MasterDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[
                       strokeWidth: 2
                     }}
                     name="value"
-                    animationDuration={500}
+                    isAnimationActive={false}
                   />
                 )}
               </LineChart>
@@ -2415,9 +2147,9 @@ const MasterDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[
         >
           <CardHeader className="pb-4">
             <div className="space-y-1">
-              <CardTitle className="text-xl font-semibold text-slate-900">Lead Sources</CardTitle>
+              <CardTitle className="text-xl font-semibold text-slate-900">{t('charts.leadSources')}</CardTitle>
               <CardDescription className="text-sm text-slate-500">
-                Distribution across acquisition channels
+                {t('charts.distributionAcrossChannels')}
           </CardDescription>
             </div>
         </CardHeader>
@@ -2502,7 +2234,7 @@ const MasterDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[
                       formatter={(value: any, name: string, props: any) => {
                         const total = stats.leadsBySource.reduce((sum, item) => sum + item.count, 0)
                         const percentage = ((Number(value) / total) * 100).toFixed(1)
-                        return [`${value} leads (${percentage}%)`, props.payload.source]
+                        return [`${value} ${t('charts.leadsPlural')} (${percentage}%)`, props.payload.source]
                       }}
                       labelStyle={{ fontWeight: 600, color: '#1e293b', marginBottom: '4px' }}
                       itemStyle={{ color: '#64748b', fontSize: '13px' }}
@@ -2518,13 +2250,13 @@ const MasterDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[
                         <p className="text-sm font-medium text-slate-500 mb-1">{selectedSourceData.source}</p>
                         <p className="text-3xl font-bold text-slate-900">{selectedSourceData.count}</p>
                         <p className="text-xs font-medium text-slate-500 mt-1">
-                          {((selectedSourceData.count / stats.totalLeads) * 100).toFixed(1)}% of total
+                          {((selectedSourceData.count / stats.totalLeads) * 100).toFixed(1)}% {t('charts.ofTotal')}
                         </p>
                       </div>
                     ) : (
                       <div className="animate-in fade-in duration-300">
                         <p className="text-3xl font-bold text-slate-900">{stats.totalLeads}</p>
-                        <p className="text-xs font-medium text-slate-500 mt-1">Total Leads</p>
+                        <p className="text-xs font-medium text-slate-500 mt-1">{t('charts.totalLeads')}</p>
                       </div>
                     )}
                   </div>
@@ -2586,14 +2318,17 @@ const MasterDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[
                         className="text-xs text-slate-500 hover:text-blue-600 transition-colors duration-200 cursor-pointer hover:underline focus:outline-none"
                         onClick={() => setShowMoreSources(true)}
                       >
-                        +{stats.leadsBySource.length - 6} more source{stats.leadsBySource.length - 6 > 1 ? 's' : ''}
+                        {stats.leadsBySource.length - 6 === 1 
+                          ? t('charts.moreSource', { count: stats.leadsBySource.length - 6 })
+                          : t('charts.moreSources', { count: stats.leadsBySource.length - 6 })
+                        }
                       </button>
                     </DialogTrigger>
                     <DialogContent className="max-w-md">
                       <DialogHeader>
-                        <DialogTitle className="text-lg font-semibold">Additional Lead Sources</DialogTitle>
+                        <DialogTitle className="text-lg font-semibold">{t('charts.additionalLeadSources')}</DialogTitle>
                         <DialogDescription className="text-sm text-slate-500">
-                          Other sources not shown in the main chart
+                          {t('charts.otherSourcesNotShown')}
                         </DialogDescription>
                       </DialogHeader>
                       <div className="mt-4 space-y-2 max-h-[400px] overflow-y-auto">
@@ -2615,7 +2350,7 @@ const MasterDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[
                                     {source.source}
                                   </p>
                                   <p className="text-xs text-slate-500">
-                                    {percentage}% of total
+                                    {percentage}% {t('charts.ofTotal')}
                                   </p>
                                 </div>
                               </div>
@@ -2624,7 +2359,7 @@ const MasterDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[
                                   {source.count}
                                 </p>
                                 <p className="text-xs text-slate-500">
-                                  lead{source.count !== 1 ? 's' : ''}
+                                  {source.count === 1 ? t('charts.lead') : t('charts.leadsPlural')}
                                 </p>
                               </div>
                             </div>
@@ -2644,9 +2379,9 @@ const MasterDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[
     <div className="grid gap-4 md:grid-cols-2">
         <Card className="hover:shadow-md transition-shadow">
         <CardHeader>
-            <CardTitle className="text-lg">Sales Pipeline</CardTitle>
+            <CardTitle className="text-lg">{t('charts.salesPipeline')}</CardTitle>
           <CardDescription>
-              Lead distribution by funnel stage
+              {t('charts.leadDistributionByStage')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -2663,19 +2398,27 @@ const MasterDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[
                 <YAxis tick={{ fontSize: 11, fill: '#64748b' }} />
                 <Tooltip 
                   contentStyle={{ 
-                    backgroundColor: 'white',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '8px',
-                    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                    backgroundColor: 'rgba(255, 255, 255, 0.98)',
+                    border: 'none',
+                    borderRadius: '12px',
+                    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                    padding: '12px 16px'
                   }}
-                  formatter={(value: any, name: string) => {
-                    if (name === 'count') return [value, 'Quantity'];
-                    return [value, name];
-                  }}
+                  formatter={(value: any, name: string, props: any) => [
+                    `${value} ${t('charts.leadsPlural')}`,
+                    props.payload.status
+                  ]}
+                  labelStyle={{ fontWeight: 600, color: '#1e293b', marginBottom: '4px' }}
+                  itemStyle={{ color: '#64748b', fontSize: '13px' }}
+                  cursor={{ fill: 'rgba(148, 163, 184, 0.1)' }}
                 />
                 <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={90}>
                   {pipelineData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} opacity={0.9} />
+                    <Cell 
+                      key={`cell-${index}`} 
+                      fill={COLORS[index % COLORS.length]} 
+                      className="hover:opacity-90 transition-opacity duration-200 cursor-pointer"
+                    />
                   ))}
                 </Bar>
               </BarChart>
@@ -2686,9 +2429,9 @@ const MasterDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[
         <Card className="hover:shadow-lg transition-all duration-300 border-slate-200">
           <CardHeader className="pb-4">
             <div className="space-y-1">
-              <CardTitle className="text-xl font-semibold text-slate-900">Value by Pipeline Stage</CardTitle>
+              <CardTitle className="text-xl font-semibold text-slate-900">{t('charts.valueByPipelineStage')}</CardTitle>
               <CardDescription className="text-sm text-slate-500">
-                Financial distribution by pipeline status
+                {t('charts.financialDistribution')}
               </CardDescription>
             </div>
           </CardHeader>
@@ -2726,7 +2469,7 @@ const MasterDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[
                   tick={{ fontSize: 12, fill: '#475569' }}
                   axisLine={{ stroke: '#cbd5e1', strokeWidth: 1 }}
                   tickLine={{ stroke: '#cbd5e1' }}
-                  tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
+                  tickFormatter={(value) => `${getCurrencySymbol(locale)}${(value / 1000).toFixed(0)}k`}
                 />
                 <Tooltip 
                   contentStyle={{ 
@@ -2737,7 +2480,7 @@ const MasterDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[
                     padding: '12px 16px'
                   }}
                   formatter={(value: any, name: string, props: any) => [
-                    `$ ${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`, 
+                    formatCurrency(Number(value), locale), 
                     props.payload.status
                   ]}
                   labelStyle={{ fontWeight: 600, color: '#1e293b', marginBottom: '4px' }}
@@ -2753,7 +2496,7 @@ const MasterDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[
                     <Cell 
                       key={`cell-${index}`} 
                       fill={`url(#value-gradient-${index})`}
-                      className="hover:opacity-90 transition-opacity duration-200"
+                      className="hover:opacity-90 transition-opacity duration-200 cursor-pointer"
                       style={{
                         filter: 'drop-shadow(0 4px 6px rgba(0, 0, 0, 0.07))'
                       }}
@@ -2769,9 +2512,9 @@ const MasterDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[
       {/* Conversations Charts Group */}
       <Card className="hover:shadow-md transition-shadow">
         <CardHeader>
-          <CardTitle className="text-lg">Chats by Platform</CardTitle>
+          <CardTitle className="text-lg">{t('charts.chatsByPlatform')}</CardTitle>
           <CardDescription>
-            Communication distribution across channels
+            {t('charts.communicationDistribution')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -2788,20 +2531,20 @@ const MasterDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[
                 </div>
                    </div>
                    <div className="flex items-center justify-between">
-                     <span className="text-sm font-medium text-muted-foreground">Total conversations</span>
+                     <span className="text-sm font-medium text-muted-foreground">{t('charts.totalConversations')}</span>
                 <div className="text-right">
                        <div className="text-2xl font-semibold">{stat.count}</div>
                   </div>
                 </div>
                    <div className="flex items-center justify-between">
-                     <span className="text-sm font-medium text-muted-foreground">Active conversations</span>
+                     <span className="text-sm font-medium text-muted-foreground">{t('charts.activeConversations')}</span>
                      <div className="text-right">
                        <div className="text-2xl font-semibold text-emerald-600">{stat.active}</div>
                      </div>
                    </div>
                    <div className="pt-4 border-t">
                      <div className="flex justify-between items-center">
-                       <span className="text-xs text-muted-foreground">Activity rate</span>
+                       <span className="text-xs text-muted-foreground">{t('charts.activityRate')}</span>
                        <span className="text-xs font-medium">{stat.count > 0 ? ((stat.active / stat.count) * 100).toFixed(0) : 0}%</span>
                      </div>
                      <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
@@ -2827,23 +2570,23 @@ const MasterDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="hover:shadow-md transition-shadow">
           <CardHeader>
-            <CardTitle className="text-base font-semibold">Overall Performance</CardTitle>
+            <CardTitle className="text-base font-semibold">{t('performance.overallPerformance')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Conversion Rate</span>
+              <span className="text-sm text-muted-foreground">{t('performance.conversionRate')}</span>
               <span className="text-base font-semibold">{stats.conversionRate.toFixed(1)}%</span>
     </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Average Ticket</span>
+              <span className="text-sm text-muted-foreground">{t('performance.averageTicket')}</span>
               <span className="text-base font-semibold">
-                $ {averageLeadValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                {formatCurrency(averageLeadValue, locale)}
               </span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Total Sales</span>
+              <span className="text-sm text-muted-foreground">{t('performance.totalSales')}</span>
               <span className="text-base font-semibold text-emerald-600">
-                $ {wonValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                {formatCurrency(wonValue, locale)}
               </span>
             </div>
           </CardContent>
@@ -2851,21 +2594,21 @@ const MasterDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[
 
          <Card className="hover:shadow-md transition-shadow">
       <CardHeader>
-             <CardTitle className="text-base font-semibold">Conversation Activity</CardTitle>
+             <CardTitle className="text-base font-semibold">{t('employeeStats.conversationActivity')}</CardTitle>
            </CardHeader>
            <CardContent className="space-y-4">
              <div className="flex justify-between items-center">
-               <span className="text-sm text-muted-foreground">Total Conversations</span>
+               <span className="text-sm text-muted-foreground">{t('performance.totalConversations')}</span>
                <span className="text-base font-semibold">{stats.conversationStats[0]?.count || 0}</span>
              </div>
              <div className="flex justify-between items-center">
-               <span className="text-sm text-muted-foreground">Active Conversations</span>
+               <span className="text-sm text-muted-foreground">{t('performance.activeConversations')}</span>
                <span className="text-base font-semibold">
                  {stats.conversationStats[0]?.active || 0}
                </span>
              </div>
              <div className="flex justify-between items-center">
-               <span className="text-sm text-muted-foreground">Activity Rate</span>
+               <span className="text-sm text-muted-foreground">{t('performance.activityRate')}</span>
                <span className="text-base font-semibold">
                  {stats.conversationStats[0] && stats.conversationStats[0].count > 0
                    ? ((stats.conversationStats[0].active / stats.conversationStats[0].count) * 100).toFixed(1)
@@ -2877,21 +2620,21 @@ const MasterDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[
 
         <Card className="hover:shadow-md transition-shadow">
           <CardHeader>
-            <CardTitle className="text-base font-semibold">Funnel Analysis</CardTitle>
+            <CardTitle className="text-base font-semibold">{t('performance.funnelAnalysis')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">In Pipeline</span>
+              <span className="text-sm text-muted-foreground">{t('performance.inPipeline')}</span>
               <span className="text-base font-semibold">
                 {stats.totalLeads - wonLeads - lostLeads}
               </span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">Win Rate</span>
+              <span className="text-sm text-muted-foreground">{t('performance.winRate')}</span>
               <span className="text-base font-semibold text-emerald-600">{winRate.toFixed(1)}%</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">In Negotiation</span>
+              <span className="text-sm text-muted-foreground">{t('performance.inNegotiation')}</span>
               <span className="text-base font-semibold">
                 {stats.leadsByStatus.find(s => s.status === 'Negotiation')?.count || 0}
               </span>
@@ -2904,9 +2647,9 @@ const MasterDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[
       {stats.leadsByUser && stats.leadsByUser.length > 0 && (
         <Card className="hover:shadow-md transition-shadow">
           <CardHeader>
-            <CardTitle className="text-lg">Team Performance</CardTitle>
+            <CardTitle className="text-lg">{t('teamPerformance.title')}</CardTitle>
         <CardDescription>
-              Lead distribution and performance by sales representative
+              {t('teamPerformance.description')}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -2925,14 +2668,14 @@ const MasterDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[
                         <div>
                           <p className="text-sm font-semibold">{user.userName}</p>
                           <p className="text-xs text-muted-foreground">
-                            Avg ticket: $ {avgTicket.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            {t('teamPerformance.avgTicket')}: {formatCurrency(avgTicket, locale)}
                           </p>
                         </div>
                       </div>
                       <div className="text-right">
                         <div className="text-xl font-semibold">{user.count}</div>
                         <div className="text-xs text-muted-foreground">
-                          $ {user.value.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                          {formatCurrency(user.value, locale)}
                         </div>
                       </div>
                     </div>
@@ -2958,19 +2701,19 @@ const MasterDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[
                 <p className="text-3xl font-semibold text-slate-900">
                   {stats.leadsByUser.length}
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">Active Sales Reps</p>
+                <p className="text-xs text-muted-foreground mt-1">{t('teamPerformance.activeSalesReps')}</p>
               </div>
               <div className="text-center">
                 <p className="text-3xl font-semibold text-slate-900">
                   {Math.round(stats.totalLeads / stats.leadsByUser.length)}
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">Leads per Rep</p>
+                <p className="text-xs text-muted-foreground mt-1">{t('teamPerformance.leadsPerRep')}</p>
               </div>
               <div className="text-center">
                 <p className="text-3xl font-semibold text-slate-900">
-                  $ {(stats.totalValue / stats.leadsByUser.length).toLocaleString('en-US', { minimumFractionDigits: 0 })}
+                  {formatCurrency(stats.totalValue / stats.leadsByUser.length, locale, { minimumFractionDigits: 0 })}
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">Value per Rep</p>
+                <p className="text-xs text-muted-foreground mt-1">{t('teamPerformance.valuePerRep')}</p>
               </div>
             </div>
       </CardContent>
@@ -2980,92 +2723,419 @@ const MasterDashboard = ({ stats, leads }: { stats: DashboardStats; leads: Lead[
   );
 }
 
+// Função helper para extrair cor de fundo de qualquer formato e converter para hex
+const extractBgColor = (colorInput: string): string => {
+  if (!colorInput || typeof colorInput !== 'string') {
+    return '#3b82f6' // Cor padrão
+  }
+  
+  const trimmed = colorInput.trim()
+  
+  // Se já é hex direto (#000000)
+  if (trimmed.startsWith('#')) {
+    return trimmed
+  }
+  
+  // Se é JSON ({"bg":"#000000","text":"#FFFFFF"})
+  if (trimmed.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(trimmed)
+      if (parsed?.bg && typeof parsed.bg === 'string') {
+        return parsed.bg.startsWith('#') ? parsed.bg : parsed.bg
+      }
+    } catch {
+      // Ignorar erro de parse
+    }
+  }
+  
+  // Mapeamento de classes Tailwind bg-* para cores hexadecimais
+  // Foco nas cores mais comuns usadas no CRM
+  const tailwindColors: Record<string, string> = {
+    // Blue
+    'bg-blue-50': '#eff6ff', 'bg-blue-100': '#dbeafe', 'bg-blue-200': '#bfdbfe', 'bg-blue-300': '#93c5fd',
+    'bg-blue-400': '#60a5fa', 'bg-blue-500': '#3b82f6', 'bg-blue-600': '#2563eb', 'bg-blue-700': '#1d4ed8',
+    'bg-blue-800': '#1e40af', 'bg-blue-900': '#1e3a8a',
+    // Red
+    'bg-red-50': '#fef2f2', 'bg-red-100': '#fee2e2', 'bg-red-200': '#fecaca', 'bg-red-300': '#fca5a5',
+    'bg-red-400': '#f87171', 'bg-red-500': '#ef4444', 'bg-red-600': '#dc2626', 'bg-red-700': '#b91c1c',
+    'bg-red-800': '#991b1b', 'bg-red-900': '#7f1d1d',
+    // Yellow
+    'bg-yellow-50': '#fefce8', 'bg-yellow-100': '#fef9c3', 'bg-yellow-200': '#fef08a', 'bg-yellow-300': '#fde047',
+    'bg-yellow-400': '#facc15', 'bg-yellow-500': '#eab308', 'bg-yellow-600': '#ca8a04', 'bg-yellow-700': '#a16207',
+    'bg-yellow-800': '#854d0e', 'bg-yellow-900': '#713f12',
+    // Green
+    'bg-green-50': '#f0fdf4', 'bg-green-100': '#dcfce7', 'bg-green-200': '#bbf7d0', 'bg-green-300': '#86efac',
+    'bg-green-400': '#4ade80', 'bg-green-500': '#22c55e', 'bg-green-600': '#16a34a', 'bg-green-700': '#15803d',
+    'bg-green-800': '#166534', 'bg-green-900': '#14532d',
+    // Orange
+    'bg-orange-50': '#fff7ed', 'bg-orange-100': '#ffedd5', 'bg-orange-200': '#fed7aa', 'bg-orange-300': '#fdba74',
+    'bg-orange-400': '#fb923c', 'bg-orange-500': '#f97316', 'bg-orange-600': '#ea580c', 'bg-orange-700': '#c2410c',
+    'bg-orange-800': '#9a3412', 'bg-orange-900': '#7c2d12',
+    // Purple
+    'bg-purple-50': '#faf5ff', 'bg-purple-100': '#f3e8ff', 'bg-purple-200': '#e9d5ff', 'bg-purple-300': '#d8b4fe',
+    'bg-purple-400': '#c084fc', 'bg-purple-500': '#a855f7', 'bg-purple-600': '#9333ea', 'bg-purple-700': '#7e22ce',
+    'bg-purple-800': '#6b21a8', 'bg-purple-900': '#581c87',
+    // Indigo
+    'bg-indigo-50': '#eef2ff', 'bg-indigo-100': '#e0e7ff', 'bg-indigo-200': '#c7d2fe', 'bg-indigo-300': '#a5b4fc',
+    'bg-indigo-400': '#818cf8', 'bg-indigo-500': '#6366f1', 'bg-indigo-600': '#4f46e5', 'bg-indigo-700': '#4338ca',
+    'bg-indigo-800': '#3730a3', 'bg-indigo-900': '#312e81',
+    // Pink
+    'bg-pink-50': '#fdf2f8', 'bg-pink-100': '#fce7f3', 'bg-pink-200': '#fbcfe8', 'bg-pink-300': '#f9a8d4',
+    'bg-pink-400': '#f472b6', 'bg-pink-500': '#ec4899', 'bg-pink-600': '#db2777', 'bg-pink-700': '#be185d',
+    'bg-pink-800': '#9f1239', 'bg-pink-900': '#831843',
+    // Gray/Slate
+    'bg-gray-50': '#f9fafb', 'bg-gray-100': '#f3f4f6', 'bg-gray-200': '#e5e7eb', 'bg-gray-300': '#d1d5db',
+    'bg-gray-400': '#9ca3af', 'bg-gray-500': '#6b7280', 'bg-gray-600': '#4b5563', 'bg-gray-700': '#374151',
+    'bg-gray-800': '#1f2937', 'bg-gray-900': '#111827',
+    'bg-slate-50': '#f8fafc', 'bg-slate-100': '#f1f5f9', 'bg-slate-200': '#e2e8f0', 'bg-slate-300': '#cbd5e1',
+    'bg-slate-400': '#94a3b8', 'bg-slate-500': '#64748b', 'bg-slate-600': '#475569', 'bg-slate-700': '#334155',
+    'bg-slate-800': '#1e293b', 'bg-slate-900': '#0f172a',
+    // Black/White
+    'bg-black': '#000000',
+    'bg-white': '#ffffff',
+  }
+  
+  // Extrair a classe bg-* da string (pode conter múltiplas classes como "bg-blue-100 border-blue-200 text-blue-800")
+  const bgMatch = trimmed.match(/bg-[\w-]+/)
+  if (bgMatch) {
+    const bgClass = bgMatch[0]
+    const hexColor = tailwindColors[bgClass]
+    if (hexColor) {
+      return hexColor
+    }
+  }
+  
+  // Se não conseguir converter, retornar cor padrão da empresa
+  return '#3b82f6'
+}
+
 // Componente para Dashboard de Employee
-const EmployeeDashboard = ({ stats }: { stats: DashboardStats }) => {
-  // Filtrar apenas status do pipeline (nomes exatos do banco de dados)
-  const pipelineStatuses = ['New', 'In Contact', 'Qualified', 'Lost'];
-  const pipelineData = stats.leadsByStatus.filter(s => pipelineStatuses.includes(s.status));
+const EmployeeDashboard = ({ stats, pipelineStages }: { stats: DashboardStats; pipelineStages: any[] }) => {
+  const t = useTranslations('Dashboard')
+  const locale = useLocale()
+  const { apiCall } = useApi()
+  const [notes, setNotes] = React.useState<string>('')
+  const [notesLoading, setNotesLoading] = React.useState(false)
+  const [notesSaving, setNotesSaving] = React.useState(false)
+  const [saveStatus, setSaveStatus] = React.useState<'idle' | 'saving' | 'saved'>('idle')
+  const [initialNotesLoaded, setInitialNotesLoaded] = React.useState(false)
+  const [hasUserEdited, setHasUserEdited] = React.useState(false)
+  const notesFetchedRef = React.useRef(false)
+  const saveTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
+  const initialNotesValueRef = React.useRef<string>('')
   
-  // Estado para controlar qual métrica está visível no Evolution Chart
-  const [visibleMetrics, setVisibleMetrics] = React.useState<{ leads: boolean; value: boolean }>({
-    leads: true,
-    value: true,
-  });
+  // Usar todas as stages do pipeline (agora são dinâmicas/personalizadas)
+  const pipelineData = React.useMemo(() => stats.leadsByStatus, [stats.leadsByStatus])
   
-  // Função para alternar visibilidade de métrica no Evolution Chart
-  const handleMetricToggle = React.useCallback((metric: 'leads' | 'value') => {
-    setVisibleMetrics(prev => {
-      const currentValue = prev[metric];
-      // Se ambas estão visíveis, esconde a outra e deixa só essa
-      if (prev.leads && prev.value) {
-        return metric === 'leads' 
-          ? { leads: true, value: false }
-          : { leads: false, value: true };
+  // Criar mapeamento de status para cor de fundo das stages
+  const statusToColorMap = React.useMemo(() => {
+    const map = new Map<string, string>()
+    
+    pipelineData.forEach((entry) => {
+      // Tentar encontrar a stage pelo nome ou pelo slug
+      const matchingStage = pipelineStages.find((s: any) => {
+        return s.name === entry.status || s.slug === entry.status
+      })
+      
+      if (matchingStage && matchingStage.color) {
+        const hexColor = extractBgColor(matchingStage.color)
+        map.set(entry.status, hexColor)
+      } else {
+        // Se não encontrar, usar cor padrão da empresa
+        map.set(entry.status, '#3b82f6')
       }
-      // Se só essa está visível, mostra ambas
-      if (currentValue && !prev[metric === 'leads' ? 'value' : 'leads']) {
-        return { leads: true, value: true };
+    })
+    
+    return map
+  }, [pipelineData, pipelineStages])
+  
+  // Memoizar os dados do gráfico com cores para evitar re-renders desnecessários
+  const chartDataWithColors = React.useMemo(() => {
+    return pipelineData.map((entry, index) => ({
+      ...entry,
+      color: statusToColorMap.get(entry.status) || COLORS[index % COLORS.length]
+    }))
+  }, [pipelineData, statusToColorMap])
+  
+  // Buscar notas ao carregar (apenas uma vez)
+  React.useEffect(() => {
+    const fetchNotes = async () => {
+      try {
+        setNotesLoading(true)
+        
+        // Usar fetch direto para garantir que funcione
+        const token = localStorage.getItem('token')
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
+        
+        const response = await fetch(`${API_BASE_URL}/auth/employee-notes`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        })
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+        }
+        
+        const data = await response.json()
+        
+        // A API retorna { success: true, notes: "..." } ou { success: true, notes: null }
+        let loadedNotes = ''
+        if (data && data.success !== false) {
+          // Pegar notes mesmo se for null ou undefined
+          if (data.notes !== undefined && data.notes !== null) {
+            loadedNotes = String(data.notes)
+          } else {
+            loadedNotes = ''
+          }
+        }
+        
+        setNotes(loadedNotes)
+        initialNotesValueRef.current = loadedNotes // Salvar valor inicial para comparação
+        setInitialNotesLoaded(true) // Marcar que as notas iniciais foram carregadas
+        notesFetchedRef.current = true
+      } catch (error) {
+        console.error('Error fetching notes:', error)
+        setInitialNotesLoaded(true) // Marcar como carregado mesmo em erro
+        notesFetchedRef.current = true
+      } finally {
+        setNotesLoading(false)
       }
-      // Se a outra está visível, troca
-      return metric === 'leads'
-        ? { leads: true, value: false }
-        : { leads: false, value: true };
-    });
-  }, []);
+    }
+    
+    // Sempre buscar ao montar o componente (para funcionar após F5)
+    fetchNotes()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  
+  // Salvar notas automaticamente
+  const saveNotes = React.useCallback(async (notesToSave: string) => {
+    try {
+      setNotesSaving(true)
+      setSaveStatus('saving')
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/auth/employee-notes`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ notes: notesToSave }),
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to save notes')
+      }
+      
+      setSaveStatus('saved')
+      // Limpar status "saved" após 1 segundo
+      setTimeout(() => {
+        setSaveStatus('idle')
+      }, 1000)
+      // Atualizar valor inicial para evitar salvar novamente se voltar ao mesmo valor
+      initialNotesValueRef.current = notesToSave
+      setHasUserEdited(false) // Resetar flag de edição após salvar
+    } catch (error) {
+      console.error('Error saving notes:', error)
+      setSaveStatus('idle')
+      alert('Erro ao salvar anotações')
+    } finally {
+      setNotesSaving(false)
+    }
+  }, [])
+  
+  // Debounce: salvar automaticamente após parar de digitar por 2 segundos
+  React.useEffect(() => {
+    // Não salvar se ainda não carregou as notas iniciais
+    if (!initialNotesLoaded) return
+    
+    // Não salvar se o usuário não editou as notas (comparar com valor inicial)
+    if (!hasUserEdited || notes === initialNotesValueRef.current) return
+    
+    // Limpar timeout anterior se existir
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current)
+    }
+    
+    // Criar novo timeout para salvar após 2 segundos de inatividade
+    saveTimeoutRef.current = setTimeout(() => {
+      saveNotes(notes)
+    }, 2000)
+    
+    // Cleanup: limpar timeout quando o componente desmontar ou notes mudar
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current)
+      }
+    }
+  }, [notes, saveNotes, initialNotesLoaded, hasUserEdited])
+  
+  // Salvar notas manualmente (botão ainda disponível)
+  const handleSaveNotes = () => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current)
+    }
+    saveNotes(notes)
+  }
+  
+  const handleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newValue = e.target.value
+    setNotes(newValue)
+    setSaveStatus('idle') // Resetar status ao digitar
+    setHasUserEdited(true) // Marcar que o usuário editou
+  }
   
   return (
-  <div className="space-y-6">
-    {/* Cards de Estatísticas para Employee */}
-    <div className="grid auto-rows-min gap-4 md:grid-cols-2">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Meus Leads</CardTitle>
-          <Users className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{Math.floor(stats.totalLeads * 0.3)}</div>
-          <p className="text-xs text-muted-foreground">
-            Leads atribuídos a você
-          </p>
-        </CardContent>
-      </Card>
+    <div className="space-y-6 p-1">
+      {/* Header com título */}
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-black">Dashboard</h1>
+        <p className="text-muted-foreground mt-1">Visão geral do seu desempenho</p>
+      </div>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Conversas Ativas</CardTitle>
-          <MessageSquare className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{Math.floor(stats.totalConversations * 0.2)}</div>
-          <p className="text-xs text-muted-foreground">
-            Suas conversas ativas
-          </p>
-        </CardContent>
-      </Card>
+      {/* Cards de Estatísticas */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Card Meus Leads */}
+        <Card className="border-2 border-gray-100 shadow-lg hover:shadow-xl transition-shadow duration-300">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <p className="text-sm font-medium text-gray-600 uppercase tracking-wide mb-2">
+                  {t('employeeStats.myLeads')}
+                </p>
+                <div className="flex items-baseline gap-2">
+                  <h3 className="text-4xl font-bold text-black">{stats.totalLeads}</h3>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Card Conversas Ativas */}
+        <Card className="border-2 border-gray-100 shadow-lg hover:shadow-xl transition-shadow duration-300">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <p className="text-sm font-medium text-gray-600 uppercase tracking-wide mb-2">
+                  {t('employeeStats.activeConversations')}
+                </p>
+                <div className="flex items-baseline gap-2">
+                  <h3 className="text-4xl font-bold text-black">{stats.totalConversations}</h3>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Gráfico e Notas lado a lado */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Gráfico de Leads por Status */}
+        <Card className="border-2 border-gray-100 shadow-lg">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-xl font-semibold text-black">{t('charts.leadsByStatus')}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {chartDataWithColors.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={chartDataWithColors}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis 
+                    dataKey="status" 
+                    stroke="#6b7280"
+                    fontSize={12}
+                    tickLine={false}
+                  />
+                  <YAxis 
+                    stroke="#6b7280"
+                    fontSize={12}
+                    tickLine={false}
+                  />
+                  <Tooltip 
+                    contentStyle={{
+                      backgroundColor: '#fff',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '8px',
+                      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+                    }}
+                    formatter={(value: any, name: string) => {
+                      if (name === 'count') {
+                        return [value, locale === 'pt-BR' ? 'Quantidade' : 'Count']
+                      }
+                      return [value, name]
+                    }}
+                    labelFormatter={(label) => label}
+                  />
+                  <Bar 
+                    dataKey="count" 
+                    fill="#3b82f6"
+                    radius={[8, 8, 0, 0]}
+                    isAnimationActive={false}
+                  >
+                    {chartDataWithColors.map((entry, index) => (
+                      <Cell 
+                        key={`cell-${entry.status}-${index}`} 
+                        fill={entry.color} 
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[300px] text-gray-500">
+                <div className="text-center">
+                  <MessageSquare className="h-12 w-12 mx-auto mb-2 text-gray-300" />
+                  <p>Nenhum lead encontrado no pipeline</p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Bloco de Notas */}
+        <Card className="border-2 border-gray-100 shadow-lg">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-xl font-semibold text-black">Bloco de Notas</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {notesLoading ? (
+              <div className="flex items-center justify-center h-[300px]">
+                <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#3b82f6] border-t-transparent"></div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <textarea
+                  className="w-full h-[250px] p-4 border-2 border-gray-200 rounded-lg resize-none overflow-y-auto focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-[#3b82f6] transition-all text-gray-900 placeholder:text-gray-400"
+                  value={notes || ''}
+                  onChange={handleNotesChange}
+                  placeholder="Digite suas anotações aqui..."
+                />
+                <div className="flex justify-end">
+                  <Button 
+                    onClick={handleSaveNotes} 
+                    disabled={notesSaving || saveStatus === 'saving'}
+                    className={`font-medium px-6 shadow-md hover:shadow-lg transition-all ${
+                      saveStatus === 'saved' 
+                        ? 'bg-green-600 hover:bg-green-700 text-white cursor-pointer' 
+                        : 'bg-[#3b82f6] hover:bg-[#2563eb] text-white cursor-pointer'
+                    } ${(notesSaving || saveStatus === 'saving') ? 'cursor-not-allowed opacity-50' : ''}`}
+                    size="sm"
+                  >
+                    {notesSaving || saveStatus === 'saving' 
+                      ? 'Salvando...' 
+                      : saveStatus === 'saved' 
+                        ? '✓ Salvo' 
+                        : 'Salvar'}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
-
-    {/* Gráfico Simples para Employee */}
-    <Card>
-      <CardHeader>
-        <CardTitle>Meus Leads por Status</CardTitle>
-        <CardDescription>
-          Status dos seus leads no pipeline
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={pipelineData}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="status" />
-            <YAxis />
-            <Tooltip />
-            <Bar dataKey="count" fill="#8884d8" />
-          </BarChart>
-        </ResponsiveContainer>
-      </CardContent>
-    </Card>
-  </div>
-)
+  )
 }
 
 export default function DashboardPage({
@@ -3074,17 +3144,20 @@ export default function DashboardPage({
   params: Promise<{ org: string }>
 }) {
   const { org } = React.use(params)
-  const { isClient } = useApi()
+  const { isClient, apiCall } = useApi()
+  const t = useTranslations('Dashboard')
   const [stats, setStats] = React.useState<DashboardStats | null>(null)
   const [allLeads, setAllLeads] = React.useState<Lead[]>([])
+  const [pipelineStages, setPipelineStages] = React.useState<any[]>([])
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [userRole, setUserRole] = React.useState<string | null>(null)
+  const [userId, setUserId] = React.useState<string | null>(null)
 
   React.useEffect(() => {
     if (!isClient) return
 
-    // Buscar dados do usuário para verificar role
+    // Buscar dados do usuário para verificar role e ID
     const fetchUserData = async () => {
       try {
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/auth/me`, {
@@ -3097,7 +3170,9 @@ export default function DashboardPage({
         if (response.ok) {
           const data = await response.json()
           const role = data.user?.role || 'employee'
+          const id = data.user?.id || null
           setUserRole(role)
+          setUserId(id)
         }
       } catch (error) {
         console.error('Error fetching user data:', error)
@@ -3115,8 +3190,29 @@ export default function DashboardPage({
       try {
         setLoading(true)
         
-        // Buscar todos os leads
-        const leadsResponse = await apiService.getAllLeads()
+        // Buscar pipeline stages
+        const stagesResponse = await apiCall('/pipeline-stages')
+        const stages = stagesResponse.data || []
+        setPipelineStages(stages)
+        
+        // Criar mapa de status para stage_type
+        const statusToTypeMap = new Map<string, string>()
+        stages.forEach((stage: any) => {
+          if (stage.slug) {
+            statusToTypeMap.set(stage.slug, stage.stage_type || 'progress')
+          }
+        })
+        
+        // Buscar todos os leads (filtrar por employee se necessário)
+        let leadsResponse
+        if (userRole === 'employee' && userId) {
+          // Employee só vê seus próprios leads
+          leadsResponse = await apiService.searchLeads({ assigned_user_id: userId })
+        } else {
+          // Admin e Master veem todos os leads
+          leadsResponse = await apiService.getAllLeads()
+        }
+        
         if (!leadsResponse.success) {
           throw new Error(leadsResponse.error || 'Erro ao buscar leads')
         }
@@ -3134,38 +3230,47 @@ export default function DashboardPage({
         const totalLeads = leads.length
         // Calcular valor total excluindo leads perdidos (mesma lógica do pipeline)
         const totalValue = leads.reduce((sum, lead) => {
-          if (lead.status === 'Lost') return sum
+          // Encontrar a stage correspondente para verificar se é do tipo 'lost'
+          const matchingStage = stages.find((s: any) => s.slug === lead.status)
+          if (matchingStage && matchingStage.stage_type === 'lost') return sum
           return sum + (Number(lead.value) || 0)
         }, 0)
         
-        // Agrupar leads por status (apenas leads que aparecem no pipeline)
-        const leadsByStatusMap = new Map<string, { count: number; value: number }>()
+        // Agrupar leads por stage (usando as stages personalizadas)
+        const leadsByStatusMap = new Map<string, { count: number; value: number; stageType?: string }>()
         leads.forEach(lead => {
           // Apenas contar leads que estão configurados para aparecer no pipeline
           if (!lead.show_on_pipeline) return
           
           const status = lead.status || 'Novo'
-          const current = leadsByStatusMap.get(status) || { count: 0, value: 0 }
-          leadsByStatusMap.set(status, {
+          // Encontrar a stage correspondente para pegar o nome e o tipo
+          const matchingStage = stages.find((s: any) => s.slug === status)
+          const stageName = matchingStage?.name || status
+          const stageType = matchingStage?.stage_type
+          
+          const current = leadsByStatusMap.get(stageName) || { count: 0, value: 0, stageType }
+          leadsByStatusMap.set(stageName, {
             count: current.count + 1,
-            value: current.value + (Number(lead.value) || 0)
+            value: current.value + (Number(lead.value) || 0),
+            stageType: stageType
           })
         })
         
-        // Ordenar status para seguir o fluxo do funil
-        const statusOrder = ['New', 'In Contact', 'Qualified', 'Proposal Sent', 'Negotiation', 'Closed Won', 'Lost']
+        // Ordenar stages pela ordem definida no banco de dados
         const leadsByStatus = Array.from(leadsByStatusMap.entries())
           .map(([status, data]) => ({
-          status,
-          count: data.count,
-          value: data.value
-        }))
+            status,
+            count: data.count,
+            value: data.value,
+            stageType: data.stageType
+          }))
           .sort((a, b) => {
-            const indexA = statusOrder.indexOf(a.status)
-            const indexB = statusOrder.indexOf(b.status)
-            if (indexA === -1) return 1
-            if (indexB === -1) return -1
-            return indexA - indexB
+            // Encontrar a ordem das stages no array de stages
+            const stageA = stages.find((s: any) => s.name === a.status)
+            const stageB = stages.find((s: any) => s.name === b.status)
+            const orderA = stageA?.order ?? 9999
+            const orderB = stageB?.order ?? 9999
+            return orderA - orderB
           })
 
         // Agrupar leads por fonte
@@ -3197,7 +3302,9 @@ export default function DashboardPage({
           
           // Calcular valor mensal excluindo leads perdidos
           const monthValue = monthLeads.reduce((sum, lead) => {
-            if (lead.status === 'Lost') return sum
+            // Encontrar a stage correspondente para verificar se é do tipo 'lost'
+            const matchingStage = stages.find((s: any) => s.slug === lead.status)
+            if (matchingStage && matchingStage.stage_type === 'lost') return sum
             return sum + (Number(lead.value) || 0)
           }, 0)
           
@@ -3227,9 +3334,26 @@ export default function DashboardPage({
 
         const totalConversations = conversations.length
         
-        // Calcular taxa de conversão real (leads fechados ganhos / total de leads)
-        const closedWonLeads = leads.filter(lead => lead.status === 'Closed Won').length
-        const conversionRate = totalLeads > 0 ? ((closedWonLeads / totalLeads) * 100) : 0
+        // Calcular taxa de conversão real usando stage_type (entry → won)
+        const entryStages = stages.filter((s: any) => s.stage_type === 'entry')
+        const wonStages = stages.filter((s: any) => s.stage_type === 'won')
+        
+        const entryLeadsCount = leads.filter(lead => {
+          const matchingStage = stages.find((s: any) => s.slug === lead.status)
+          return matchingStage && matchingStage.stage_type === 'entry'
+        }).length
+        
+        const wonLeadsCount = leads.filter(lead => {
+          const matchingStage = stages.find((s: any) => s.slug === lead.status)
+          return matchingStage && matchingStage.stage_type === 'won'
+        }).length
+        
+        // Taxa de conversão: ganhos / entrada (ou ganhos / total se não houver stage de entrada)
+        const conversionRate = entryLeadsCount > 0 
+          ? ((wonLeadsCount / entryLeadsCount) * 100) 
+          : totalLeads > 0 
+            ? ((wonLeadsCount / totalLeads) * 100)
+            : 0
 
         // Buscar informações de usuários (apenas para master/admin)
         let leadsByUser: { userName: string; count: number; value: number }[] = []
@@ -3248,7 +3372,7 @@ export default function DashboardPage({
                 
                 const userId = lead.assigned_user_id
                 const user = users.find((u: any) => u.id === userId)
-                const userName = user?.name || 'Unassigned'
+                const userName = user?.name || t('Common.unassigned', { default: 'Unassigned' })
                 
                 const current = leadsByUserMap.get(userName) || { count: 0, value: 0 }
                 // Contar o lead, mas excluir valor se for perdido
@@ -3286,14 +3410,14 @@ export default function DashboardPage({
 
       } catch (error) {
         console.error('Error fetching dashboard data:', error)
-        setError('Erro ao carregar dados do dashboard')
+        setError(t('errorLoadingData'))
       } finally {
         setLoading(false)
       }
     }
 
     fetchDashboardData()
-  }, [isClient, userRole])
+  }, [isClient, userRole, userId])
 
   if (loading) {
     return (
@@ -3309,12 +3433,12 @@ export default function DashboardPage({
               <BreadcrumbList>
                 <BreadcrumbItem className="hidden md:block">
                   <BreadcrumbLink href={`/${org}/dashboard`}>
-                    Dashboard
+                    {t('title')}
                   </BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator className="hidden md:block" />
                 <BreadcrumbItem>
-                      <BreadcrumbPage>Dashboard</BreadcrumbPage>
+                      <BreadcrumbPage>{t('title')}</BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
@@ -3324,7 +3448,7 @@ export default function DashboardPage({
               <div className="flex items-center justify-center min-h-[400px]">
                 <div className="text-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-                  <p className="text-muted-foreground">Carregando dashboard...</p>
+                  <p className="text-muted-foreground">{t('loadingDashboard')}</p>
                 </div>
               </div>
             </div>
@@ -3348,12 +3472,12 @@ export default function DashboardPage({
                   <BreadcrumbList>
                     <BreadcrumbItem className="hidden md:block">
                       <BreadcrumbLink href={`/${org}/dashboard`}>
-                        Dashboard
+                        {t('title')}
                       </BreadcrumbLink>
                     </BreadcrumbItem>
                     <BreadcrumbSeparator className="hidden md:block" />
                     <BreadcrumbItem>
-                      <BreadcrumbPage>Dashboard</BreadcrumbPage>
+                      <BreadcrumbPage>{t('title')}</BreadcrumbPage>
                     </BreadcrumbItem>
                   </BreadcrumbList>
                 </Breadcrumb>
@@ -3363,7 +3487,7 @@ export default function DashboardPage({
               <div className="flex items-center justify-center min-h-[400px]">
                 <Card className="w-full max-w-md">
                   <CardHeader>
-                    <CardTitle className="text-center text-red-600">Erro</CardTitle>
+                    <CardTitle className="text-center text-red-600">{t('Common.error', { default: 'Error' })}</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <p className="text-center text-muted-foreground">{error}</p>
@@ -3385,11 +3509,11 @@ export default function DashboardPage({
     const normalizedRole = userRole?.toString().toLowerCase().trim()
     
     if (normalizedRole === 'admin') {
-      return <AdminDashboard stats={stats} leads={allLeads} />
+      return <AdminDashboard stats={stats} leads={allLeads} pipelineStages={pipelineStages} />
     } else if (normalizedRole === 'master') {
-      return <MasterDashboard stats={stats} leads={allLeads} />
+      return <MasterDashboard stats={stats} leads={allLeads} pipelineStages={pipelineStages} />
     } else {
-      return <EmployeeDashboard stats={stats} />
+      return <EmployeeDashboard stats={stats} pipelineStages={pipelineStages} />
     }
   }
 
@@ -3406,15 +3530,15 @@ export default function DashboardPage({
                 <BreadcrumbList>
                   <BreadcrumbItem className="hidden md:block">
                     <BreadcrumbLink href={`/${org}/dashboard`}>
-                      Dashboard
+                      {t('title')}
                     </BreadcrumbLink>
                   </BreadcrumbItem>
                   <BreadcrumbSeparator className="hidden md:block" />
                   <BreadcrumbItem>
                     <BreadcrumbPage>
-                      Dashboard {userRole === 'admin' && '(Admin)'}
-                      {userRole === 'master' && '(Master)'}
-                      {userRole === 'employee' && '(Employee)'}
+                      {t('title')} {userRole === 'admin' && `(${t('roles.admin')})`}
+                      {userRole === 'master' && `(${t('roles.master')})`}
+                      {userRole === 'employee' && `(${t('roles.employee')})`}
                     </BreadcrumbPage>
                   </BreadcrumbItem>
                 </BreadcrumbList>

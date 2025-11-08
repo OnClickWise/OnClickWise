@@ -2,12 +2,14 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Building2, Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
+  const t = useTranslations('GeneralLogin');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
@@ -45,14 +47,17 @@ export default function LoginPage() {
         localStorage.setItem('token', result.token);
         localStorage.setItem('organization', JSON.stringify(result.organization));
         
+        // Disparar evento para ClientLocaleProvider atualizar o locale do usuário
+        window.dispatchEvent(new Event('userLoggedIn'));
+        
         // Redirecionar para o dashboard
         router.push(`/${result.organization.slug}/dashboard`);
       } else {
-        setError(result.error || 'Login failed');
+        setError(result.error || t('loginFailed'));
       }
     } catch (error) {
       console.error('Login error:', error);
-      setError('Connection error. Please try again.');
+      setError(t('connectionError'));
     } finally {
       setLoading(false);
     }
@@ -77,14 +82,14 @@ export default function LoginPage() {
             {/* Login Form */}
             <div className="bg-card border rounded-xl p-8 shadow-sm">
               <div className="text-center mb-8">
-                <h1 className="text-2xl font-bold text-card-foreground mb-2">Company Login</h1>
-                <p className="text-muted-foreground">Access your business account</p>
+                <h1 className="text-2xl font-bold text-card-foreground mb-2">{t('pageTitle')}</h1>
+                <p className="text-muted-foreground">{t('pageDescription')}</p>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
                   <label htmlFor="email" className="block text-sm font-medium text-card-foreground mb-2">
-                    Company Email
+                    {t('companyEmail')}
                   </label>
                   <Input
                     id="email"
@@ -94,13 +99,13 @@ export default function LoginPage() {
                     onChange={handleInputChange}
                     required
                     className="w-full"
-                    placeholder="your@email.com"
+                    placeholder={t('emailPlaceholder')}
                   />
                 </div>
 
                 <div>
                   <label htmlFor="password" className="block text-sm font-medium text-card-foreground mb-2">
-                    Password
+                    {t('password')}
                   </label>
                   <Input
                     id="password"
@@ -110,7 +115,7 @@ export default function LoginPage() {
                     onChange={handleInputChange}
                     required
                     className="w-full"
-                    placeholder="Your password"
+                    placeholder={t('passwordPlaceholder')}
                   />
                 </div>
 
@@ -128,22 +133,22 @@ export default function LoginPage() {
                   {loading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Signing in...
+                      {t('signingIn')}
                     </>
                   ) : (
-                    'Sign In'
+                    t('signIn')
                   )}
                 </Button>
 
                 <div className="text-center space-y-4">
                   <p className="text-muted-foreground">
-                    Don't have an account?{' '}
+                    {t('noAccount')}{' '}
                     <button
                       type="button"
                       onClick={() => router.push('/register')}
                       className="text-primary hover:text-primary/80 font-medium cursor-pointer"
                     >
-                      Sign up
+                      {t('signUp')}
                     </button>
                   </p>
                 </div>

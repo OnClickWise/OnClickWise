@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,6 +14,7 @@ interface ChangePasswordModalProps {
 }
 
 export default function ChangePasswordModal({ isOpen, onClose, onSuccess }: ChangePasswordModalProps) {
+  const t = useTranslations('ChangePassword');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -35,22 +37,22 @@ export default function ChangePasswordModal({ isOpen, onClose, onSuccess }: Chan
 
   const validateForm = () => {
     if (!formData.current_password || !formData.new_password || !formData.confirm_password) {
-      setError('Todos os campos são obrigatórios');
+      setError(t('allFieldsRequired'));
       return false;
     }
 
     if (formData.new_password.length < 6) {
-      setError('A nova senha deve ter pelo menos 6 caracteres');
+      setError(t('passwordMinLength'));
       return false;
     }
 
     if (formData.new_password !== formData.confirm_password) {
-      setError('As senhas não coincidem');
+      setError(t('passwordsDoNotMatch'));
       return false;
     }
 
     if (formData.current_password === formData.new_password) {
-      setError('A nova senha deve ser diferente da senha atual');
+      setError(t('passwordMustBeDifferent'));
       return false;
     }
 
@@ -70,7 +72,7 @@ export default function ChangePasswordModal({ isOpen, onClose, onSuccess }: Chan
     try {
       const token = localStorage.getItem('token');
       if (!token) {
-        setError('Token não encontrado. Faça login novamente.');
+        setError(t('tokenNotFound'));
         setLoading(false);
         return;
       }
@@ -96,11 +98,11 @@ export default function ChangePasswordModal({ isOpen, onClose, onSuccess }: Chan
           onSuccess();
         }, 2000);
       } else {
-        setError(result.error || 'Erro ao alterar senha');
+        setError(result.error || t('errorChangingPassword'));
       }
     } catch (error) {
       console.error('Change password error:', error);
-      setError('Erro de conexão. Tente novamente.');
+      setError(t('connectionError'));
     } finally {
       setLoading(false);
     }
@@ -116,9 +118,9 @@ export default function ChangePasswordModal({ isOpen, onClose, onSuccess }: Chan
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <CheckCircle className="w-8 h-8 text-green-600" />
             </div>
-            <h3 className="text-xl font-semibold text-green-800 mb-2">Senha Alterada!</h3>
+            <h3 className="text-xl font-semibold text-green-800 mb-2">{t('passwordChanged')}</h3>
             <p className="text-green-600 mb-4">
-              Sua senha foi alterada com sucesso. Você será redirecionado em breve.
+              {t('passwordChangedMessage')}
             </p>
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600 mx-auto"></div>
           </CardContent>
@@ -134,16 +136,16 @@ export default function ChangePasswordModal({ isOpen, onClose, onSuccess }: Chan
           <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Lock className="w-6 h-6 text-orange-600" />
           </div>
-          <CardTitle className="text-xl text-orange-800">Definir Nova Senha</CardTitle>
+          <CardTitle className="text-xl text-orange-800">{t('setNewPassword')}</CardTitle>
           <CardDescription className="text-orange-600">
-            Esta é sua primeira vez fazendo login. Por favor, defina uma nova senha para sua conta.
+            {t('firstTimeMessage')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="current_password" className="block text-sm font-medium text-gray-700 mb-2">
-                Senha Atual (Temporária)
+                {t('currentPassword')}
               </label>
               <div className="relative">
                 <Input
@@ -154,7 +156,7 @@ export default function ChangePasswordModal({ isOpen, onClose, onSuccess }: Chan
                   onChange={handleInputChange}
                   required
                   className="pr-10"
-                  placeholder="Digite sua senha temporária"
+                  placeholder={t('currentPasswordPlaceholder')}
                 />
                 <button
                   type="button"
@@ -168,7 +170,7 @@ export default function ChangePasswordModal({ isOpen, onClose, onSuccess }: Chan
 
             <div>
               <label htmlFor="new_password" className="block text-sm font-medium text-gray-700 mb-2">
-                Nova Senha
+                {t('newPassword')}
               </label>
               <div className="relative">
                 <Input
@@ -179,7 +181,7 @@ export default function ChangePasswordModal({ isOpen, onClose, onSuccess }: Chan
                   onChange={handleInputChange}
                   required
                   className="pr-10"
-                  placeholder="Digite sua nova senha"
+                  placeholder={t('newPasswordPlaceholder')}
                 />
                 <button
                   type="button"
@@ -193,7 +195,7 @@ export default function ChangePasswordModal({ isOpen, onClose, onSuccess }: Chan
 
             <div>
               <label htmlFor="confirm_password" className="block text-sm font-medium text-gray-700 mb-2">
-                Confirmar Nova Senha
+                {t('confirmPassword')}
               </label>
               <div className="relative">
                 <Input
@@ -204,7 +206,7 @@ export default function ChangePasswordModal({ isOpen, onClose, onSuccess }: Chan
                   onChange={handleInputChange}
                   required
                   className="pr-10"
-                  placeholder="Confirme sua nova senha"
+                  placeholder={t('confirmPasswordPlaceholder')}
                 />
                 <button
                   type="button"
@@ -230,14 +232,14 @@ export default function ChangePasswordModal({ isOpen, onClose, onSuccess }: Chan
                 className="flex-1 cursor-pointer"
                 disabled={loading}
               >
-                Cancelar
+                {t('cancel')}
               </Button>
               <Button
                 type="submit"
                 className="flex-1 bg-orange-600 hover:bg-orange-700 cursor-pointer"
                 disabled={loading}
               >
-                {loading ? 'Alterando...' : 'Alterar Senha'}
+                {loading ? t('changing') : t('changePassword')}
               </Button>
             </div>
           </form>

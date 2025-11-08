@@ -100,8 +100,8 @@ function UserAvatar({ src, name = "User", className, size = "md" }: UserAvatarPr
   };
 
   return (
-    <Avatar className={cn(sizeClasses[size], className)}>
-      <AvatarImage src={src} alt={name} />
+    <Avatar className={cn(sizeClasses[size], "rounded-full", className)}>
+      <AvatarImage src={src} alt={name} className="rounded-full" />
       <AvatarFallback 
         className={cn(textSizeClasses[size], "bg-transparent")}
         style={{ 
@@ -162,21 +162,10 @@ function OrganizationAvatar({ src, name = "Organization", className, size = "md"
   };
 
   return (
-    <Avatar className={cn(
-      sizeClasses[size], 
-      "rounded-lg transition-all duration-200",
-      // Quando a sidebar está colapsada, o avatar fica menor
-      "group-data-[state=collapsed]:size-6 group-data-[state=collapsed]:rounded-full",
-      className
-    )}>
-      <AvatarImage src={src} alt={name} />
+    <Avatar className={cn(sizeClasses[size], "rounded-full", className)}>
+      <AvatarImage src={src} alt={name} className="rounded-full" />
       <AvatarFallback 
-        className={cn(
-          textSizeClasses[size], 
-          "rounded-lg bg-transparent transition-all duration-200",
-          // Quando a sidebar está colapsada, o texto fica menor
-          "group-data-[state=collapsed]:text-xs group-data-[state=collapsed]:rounded-full"
-        )}
+        className={cn(textSizeClasses[size], "rounded-full bg-transparent")}
         style={{ 
           backgroundImage: `url(${generateConsistentOrgLogo(name)})`,
           backgroundSize: 'cover',

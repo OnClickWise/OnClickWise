@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect, useRef, use } from 'react';
+import { useTranslations } from 'next-intl';
 import { AppSidebar } from "@/components/app-sidebar"
 import AuthGuard from "@/components/AuthGuard"
+import RoleGuard from "@/components/RoleGuard"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -59,6 +61,7 @@ export default function OrgPage({
   const resolvedParams = use(params);
   const { apiCall, isClient } = useApi();
   const { token } = useAuth();
+  const t = useTranslations('OrgSettings');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -137,7 +140,7 @@ export default function OrgPage({
       }
     } catch (error) {
       console.error('Settings - Error loading organization data:', error);
-      addNotification('error', 'Error loading organization data');
+      addNotification('error', t('errors.loadingData'));
     } finally {
       setLoading(false);
     }
@@ -169,13 +172,13 @@ export default function OrgPage({
     // Validate file type
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
-      addNotification('error', 'Invalid file type. Only images are allowed.');
+      addNotification('error', t('errors.invalidFileType'));
       return;
     }
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      addNotification('error', 'File size too large. Maximum 5MB allowed.');
+      addNotification('error', t('errors.fileTooLarge'));
       return;
     }
 
@@ -221,11 +224,11 @@ export default function OrgPage({
           // Emit event to update sidebar immediately
           window.dispatchEvent(new CustomEvent('organizationUpdated'));
           
-          addNotification('success', 'Logo uploaded successfully!');
+          addNotification('success', t('success.logoUploaded'));
           setSaving(false);
           return;
         } else {
-          addNotification('error', uploadResult.error || 'Failed to upload logo');
+          addNotification('error', uploadResult.error || t('errors.uploadFailed'));
           setSaving(false);
           return;
         }
@@ -268,32 +271,16 @@ export default function OrgPage({
         
         // Show success notification with details
         const changedFieldsList = Object.keys(changedFields).map(field => {
-          const fieldNames: { [key: string]: string } = {
-            name: 'Company Name',
-            slug: 'Company Slug',
-            phone: 'Phone',
-            address: 'Address',
-            city: 'City',
-            state: 'State',
-            country: 'Country',
-            logo_url: 'Logo',
-            primary_color: 'Primary Color',
-            secondary_color: 'Secondary Color',
-            legal_representative_name: 'Legal Representative Name',
-            legal_representative_email: 'Legal Representative Email',
-            legal_representative_phone: 'Legal Representative Phone',
-            legal_representative_ssn: 'Legal Representative SSN'
-          };
-          return fieldNames[field] || field;
+          return t(`fieldNames.${field as keyof OrganizationData}`);
         });
         
-        addNotification('success', `Successfully updated: ${changedFieldsList.join(', ')}`);
+        addNotification('success', `${t('success.updated')}: ${changedFieldsList.join(', ')}`);
       } else {
-        addNotification('error', response.error || 'Error updating data');
+        addNotification('error', response.error || t('errors.updateFailed'));
       }
     } catch (error) {
       console.error('Error updating organization:', error);
-      addNotification('error', 'Error updating organization data');
+      addNotification('error', t('errors.updateFailed'));
     } finally {
       setSaving(false);
     }
@@ -302,23 +289,26 @@ export default function OrgPage({
   if (loading) {
     return (
       <AuthGuard orgSlug={resolvedParams.org}>
+        <RoleGuard allowedRoles={['admin', 'master']} orgSlug={resolvedParams.org}>
         <SidebarProvider>
           <AppSidebar org={resolvedParams.org} />
           <SidebarInset>
             <div className="flex items-center justify-center h-64">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                <p className="text-gray-600">Loading organization data...</p>
+                <p className="text-gray-600">{t('loading')}</p>
               </div>
             </div>
           </SidebarInset>
         </SidebarProvider>
+        </RoleGuard>
       </AuthGuard>
     );
   }
 
   return (
     <AuthGuard orgSlug={resolvedParams.org}>
+      <RoleGuard allowedRoles={['admin', 'master']} orgSlug={resolvedParams.org}>
       <SidebarProvider>
         <AppSidebar org={resolvedParams.org} />
         <SidebarInset>
@@ -359,18 +349,18 @@ export default function OrgPage({
             <BreadcrumbList>
               <BreadcrumbItem className="hidden md:block">
                   <BreadcrumbLink href={`/${resolvedParams.org}/dashboard`}>
-                  Dashboard
+                  {t('breadcrumb.dashboard')}
                 </BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator className="hidden md:block" />
               <BreadcrumbItem>
                   <BreadcrumbLink href={`/${resolvedParams.org}/settings`}>
-                    Settings
+                    {t('breadcrumb.settings')}
                 </BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator className="hidden md:block" />
               <BreadcrumbItem>
-                  <BreadcrumbPage>Organization</BreadcrumbPage>
+                  <BreadcrumbPage>{t('breadcrumb.organization')}</BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
@@ -382,41 +372,41 @@ export default function OrgPage({
               {/* Basic Information */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Basic Information</CardTitle>
+                  <CardTitle>{t('basicInfo.title')}</CardTitle>
                   <CardDescription>
-                    Main data of your organization
+                    {t('basicInfo.description')}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Company Name *
+                        {t('basicInfo.nameLabel')}
                       </label>
                       <Input
                         value={organizationData.name}
                         onChange={(e) => handleInputChange('name', e.target.value)}
-                        placeholder="Company name"
+                        placeholder={t('basicInfo.namePlaceholder')}
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Company Slug *
+                        {t('basicInfo.slugLabel')}
                       </label>
                       <Input
                         value={organizationData.slug}
                         onChange={(e) => handleInputChange('slug', e.target.value)}
-                        placeholder="company-slug"
+                        placeholder={t('basicInfo.slugPlaceholder')}
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Phone
+                        {t('basicInfo.phoneLabel')}
                       </label>
                       <Input
                         value={organizationData.phone || ''}
                         onChange={(e) => handleInputChange('phone', e.target.value)}
-                        placeholder="(555) 123-4567"
+                        placeholder={t('basicInfo.phonePlaceholder')}
                       />
                     </div>
                   </div>
@@ -426,51 +416,51 @@ export default function OrgPage({
               {/* Address */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Address</CardTitle>
+                  <CardTitle>{t('address.title')}</CardTitle>
                   <CardDescription>
-                    Company location information
+                    {t('address.description')}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Address
+                      {t('address.addressLabel')}
                     </label>
                     <Input
                       value={organizationData.address || ''}
                       onChange={(e) => handleInputChange('address', e.target.value)}
-                      placeholder="Street, number, neighborhood"
+                      placeholder={t('address.addressPlaceholder')}
                     />
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        City
+                        {t('address.cityLabel')}
                       </label>
                       <Input
                         value={organizationData.city || ''}
                         onChange={(e) => handleInputChange('city', e.target.value)}
-                        placeholder="New York"
+                        placeholder={t('address.cityPlaceholder')}
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        State
+                        {t('address.stateLabel')}
                       </label>
                       <Input
                         value={organizationData.state || ''}
                         onChange={(e) => handleInputChange('state', e.target.value)}
-                        placeholder="NY"
+                        placeholder={t('address.statePlaceholder')}
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Country
+                        {t('address.countryLabel')}
                       </label>
                       <Input
                         value={organizationData.country || ''}
                         onChange={(e) => handleInputChange('country', e.target.value)}
-                        placeholder="United States"
+                        placeholder={t('address.countryPlaceholder')}
                       />
                     </div>
                   </div>
@@ -480,52 +470,52 @@ export default function OrgPage({
               {/* Legal Representative */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Legal Representative</CardTitle>
+                  <CardTitle>{t('legalRep.title')}</CardTitle>
                   <CardDescription>
-                    Legal representative information
+                    {t('legalRep.description')}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Full Name
+                        {t('legalRep.nameLabel')}
                       </label>
                       <Input
                         value={organizationData.legal_representative_name || ''}
                         onChange={(e) => handleInputChange('legal_representative_name', e.target.value)}
-                        placeholder="Full name of the representative"
+                        placeholder={t('legalRep.namePlaceholder')}
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        SSN/Tax ID
+                        {t('legalRep.ssnLabel')}
                       </label>
                       <Input
                         value={organizationData.legal_representative_ssn || ''}
                         onChange={(e) => handleInputChange('legal_representative_ssn', e.target.value)}
-                        placeholder="000-00-0000"
+                        placeholder={t('legalRep.ssnPlaceholder')}
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Email
+                        {t('legalRep.emailLabel')}
                       </label>
                       <Input
                         type="email"
                         value={organizationData.legal_representative_email || ''}
                         onChange={(e) => handleInputChange('legal_representative_email', e.target.value)}
-                        placeholder="representative@company.com"
+                        placeholder={t('legalRep.emailPlaceholder')}
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Phone
+                        {t('legalRep.phoneLabel')}
                       </label>
                       <Input
                         value={organizationData.legal_representative_phone || ''}
                         onChange={(e) => handleInputChange('legal_representative_phone', e.target.value)}
-                        placeholder="(555) 123-4567"
+                        placeholder={t('legalRep.phonePlaceholder')}
                       />
                     </div>
                   </div>
@@ -535,15 +525,15 @@ export default function OrgPage({
               {/* Branding */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Branding</CardTitle>
+                  <CardTitle>{t('branding.title')}</CardTitle>
                   <CardDescription>
-                    Logo and color customization
+                    {t('branding.description')}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Company Logo
+                      {t('branding.logoLabel')}
                     </label>
                     <div className="flex items-center gap-4">
                       <div className="relative">
@@ -577,11 +567,11 @@ export default function OrgPage({
                             variant="outline"
                             className="cursor-pointer"
                           >
-                            Upload Logo
+                            {t('branding.uploadButton')}
                           </Button>
                         </div>
                         <p className="text-xs text-gray-500 mt-1">
-                          JPG, PNG, GIF, WebP up to 5MB
+                          {t('branding.logoInfo')}
                         </p>
                       </div>
                     </div>
@@ -589,7 +579,7 @@ export default function OrgPage({
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Primary Color
+                        {t('branding.primaryColorLabel')}
                       </label>
                       <Input
                         type="color"
@@ -599,7 +589,7 @@ export default function OrgPage({
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Secondary Color
+                        {t('branding.secondaryColorLabel')}
                       </label>
                       <Input
                         type="color"
@@ -618,13 +608,14 @@ export default function OrgPage({
                   disabled={saving}
                   className="cursor-pointer"
                 >
-                  {saving ? 'Saving...' : 'Save Changes'}
+                  {saving ? t('saving') : t('saveButton')}
                 </Button>
             </div>
           </div>
         </div>
       </SidebarInset>
     </SidebarProvider>
+    </RoleGuard>
     </AuthGuard>
   );
 }

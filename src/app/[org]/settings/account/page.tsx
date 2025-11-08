@@ -2,8 +2,10 @@
 
 import React, { useState, useEffect } from 'react'
 import { use } from 'react'
+import { useTranslations, useLocale } from 'next-intl'
 import { AppSidebar } from "@/components/app-sidebar"
 import AuthGuard from "@/components/AuthGuard"
+import RoleGuard from "@/components/RoleGuard"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -24,7 +26,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { UserAvatar } from '@/components/ui/avatar'
-import { User, Lock, Save, Upload, X } from 'lucide-react'
+import { LanguageSwitcher } from '@/components/LanguageSwitcher'
+import { User, Lock, Save, Upload, X, Globe } from 'lucide-react'
 
 interface UserData {
   id: string
@@ -44,6 +47,8 @@ interface Notification {
 export default function AccountPage({ params }: { params: Promise<{ org: string }> }) {
   const resolvedParams = use(params)
   const { apiCall, isClient } = useApi()
+  const t = useTranslations('AccountSettings')
+  const locale = useLocale()
   
   const [userData, setUserData] = useState<UserData>({
     id: '',
@@ -89,7 +94,7 @@ export default function AccountPage({ params }: { params: Promise<{ org: string 
       setIsLoading(true)
       const token = localStorage.getItem('token')
       if (!token) {
-        addNotification('error', 'Authentication token not found')
+        addNotification('error', t('authTokenNotFound'))
         return
       }
 
@@ -108,11 +113,11 @@ export default function AccountPage({ params }: { params: Promise<{ org: string 
           ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}${response.user.profile_image}` 
           : '')
       } else {
-        addNotification('error', 'Failed to load user data')
+        addNotification('error', t('failedToLoadUserData'))
       }
     } catch (error) {
       console.error('Error loading user data:', error)
-      addNotification('error', 'Error loading user data')
+      addNotification('error', t('errorLoadingUserData'))
     } finally {
       setIsLoading(false)
     }
@@ -128,12 +133,12 @@ export default function AccountPage({ params }: { params: Promise<{ org: string 
     const file = event.target.files?.[0]
     if (file) {
       if (file.size > 5 * 1024 * 1024) { // 5MB limit
-        addNotification('error', 'File size must be less than 5MB')
+        addNotification('error', t('fileSizeTooLarge'))
         return
       }
       
       if (!file.type.startsWith('image/')) {
-        addNotification('error', 'Please select an image file')
+        addNotification('error', t('pleaseSelectImage'))
         return
       }
       
@@ -164,7 +169,7 @@ export default function AccountPage({ params }: { params: Promise<{ org: string 
       setIsLoading(true)
       const token = localStorage.getItem('token')
       if (!token) {
-        addNotification('error', 'Authentication token not found')
+        addNotification('error', t('authTokenNotFound'))
         return
       }
 
@@ -189,10 +194,10 @@ export default function AccountPage({ params }: { params: Promise<{ org: string 
           // Dispatch event to update sidebar
           window.dispatchEvent(new CustomEvent('userUpdated'))
           
-          addNotification('success', 'Profile image updated successfully')
+          addNotification('success', t('profileImageUpdated'))
           return
         } else {
-          addNotification('error', 'Failed to upload profile image')
+          addNotification('error', t('failedToUploadImage'))
           return
         }
       }
@@ -203,7 +208,7 @@ export default function AccountPage({ params }: { params: Promise<{ org: string 
       if (userData.profile_image !== originalData.profile_image) changedFields.profile_image = userData.profile_image
 
       if (Object.keys(changedFields).length === 0) {
-        addNotification('info', 'No changes to save')
+        addNotification('info', t('noChangesToSave'))
         return
       }
 
@@ -221,13 +226,13 @@ export default function AccountPage({ params }: { params: Promise<{ org: string 
         window.dispatchEvent(new CustomEvent('userUpdated'))
         
         const updatedFields = Object.keys(changedFields).join(', ')
-        addNotification('success', `User data updated successfully: ${updatedFields}`)
+        addNotification('success', t('userDataUpdated', { fields: updatedFields }))
       } else {
-        addNotification('error', response.error || 'Failed to update user data')
+        addNotification('error', response.error || t('failedToUpdateUserData'))
       }
     } catch (error) {
       console.error('Error updating user:', error)
-      addNotification('error', 'Error updating user data')
+      addNotification('error', t('errorUpdatingUserData'))
     } finally {
       setIsLoading(false)
     }
@@ -237,12 +242,12 @@ export default function AccountPage({ params }: { params: Promise<{ org: string 
     if (!isClient) return
     
     if (newPassword !== confirmPassword) {
-      addNotification('error', 'New passwords do not match')
+      addNotification('error', t('passwordsDoNotMatch'))
       return
     }
     
     if (newPassword.length < 6) {
-      addNotification('error', 'New password must be at least 6 characters')
+      addNotification('error', t('passwordMinLength'))
       return
     }
     
@@ -250,7 +255,7 @@ export default function AccountPage({ params }: { params: Promise<{ org: string 
       setIsLoading(true)
       const token = localStorage.getItem('token')
       if (!token) {
-        addNotification('error', 'Authentication token not found')
+        addNotification('error', t('authTokenNotFound'))
         return
       }
 
@@ -270,13 +275,13 @@ export default function AccountPage({ params }: { params: Promise<{ org: string 
         setCurrentPassword('')
         setNewPassword('')
         setConfirmPassword('')
-        addNotification('success', 'Password changed successfully')
+        addNotification('success', t('passwordChangedSuccess'))
       } else {
-        addNotification('error', response.error || 'Failed to change password')
+        addNotification('error', response.error || t('failedToChangePassword'))
       }
     } catch (error) {
       console.error('Error changing password:', error)
-      addNotification('error', 'Error changing password')
+      addNotification('error', t('errorChangingPassword'))
     } finally {
       setIsLoading(false)
     }
@@ -285,23 +290,26 @@ export default function AccountPage({ params }: { params: Promise<{ org: string 
   if (!isClient) {
     return (
       <AuthGuard orgSlug={resolvedParams.org}>
+        <RoleGuard allowedRoles={['admin', 'master', 'employee']} orgSlug={resolvedParams.org}>
         <SidebarProvider>
           <AppSidebar org={resolvedParams.org} />
           <SidebarInset>
             <div className="flex items-center justify-center h-64">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                <p className="text-gray-600">Loading account data...</p>
+                <p className="text-gray-600">{t('loadingAccountData')}</p>
               </div>
             </div>
           </SidebarInset>
         </SidebarProvider>
+        </RoleGuard>
       </AuthGuard>
     )
   }
 
   return (
     <AuthGuard orgSlug={resolvedParams.org}>
+      <RoleGuard allowedRoles={['admin', 'master', 'employee']} orgSlug={resolvedParams.org}>
       <SidebarProvider>
         <AppSidebar org={resolvedParams.org} />
         <SidebarInset>
@@ -342,18 +350,18 @@ export default function AccountPage({ params }: { params: Promise<{ org: string 
               <BreadcrumbList>
                 <BreadcrumbItem className="hidden md:block">
                     <BreadcrumbLink href={`/${resolvedParams.org}/dashboard`}>
-                    Dashboard
+                    {t('dashboard')}
                   </BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator className="hidden md:block" />
                 <BreadcrumbItem>
                     <BreadcrumbLink href={`/${resolvedParams.org}/settings`}>
-                      Settings
+                      {t('settings')}
                     </BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator className="hidden md:block" />
                 <BreadcrumbItem>
-                    <BreadcrumbPage>Account</BreadcrumbPage>
+                    <BreadcrumbPage>{t('account')}</BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
@@ -368,10 +376,10 @@ export default function AccountPage({ params }: { params: Promise<{ org: string 
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <User className="h-5 w-5" />
-              Profile Information
+              {t('profileInformation')}
             </CardTitle>
             <CardDescription>
-              Update your personal information and profile picture
+              {t('profileInformationDesc')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -410,11 +418,11 @@ export default function AccountPage({ params }: { params: Promise<{ org: string 
                     className="cursor-pointer"
                   >
                     <Upload className="h-4 w-4 mr-2" />
-                    Upload Photo
+                    {t('uploadPhoto')}
                   </Button>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  JPG, PNG or GIF. Max size 5MB.
+                  {t('photoFormats')}
                 </p>
               </div>
             </div>
@@ -425,19 +433,19 @@ export default function AccountPage({ params }: { params: Promise<{ org: string 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label htmlFor="name" className="text-sm font-medium">
-                  Full Name
+                  {t('fullName')}
                 </label>
                 <Input
                   id="name"
                   value={userData.name}
                   onChange={(e) => setUserData(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Enter your full name"
+                  placeholder={t('fullNamePlaceholder')}
                 />
               </div>
               
               <div className="space-y-2">
                 <label htmlFor="email" className="text-sm font-medium">
-                  Email Address
+                  {t('emailAddress')}
                 </label>
                 <Input
                   id="email"
@@ -446,13 +454,13 @@ export default function AccountPage({ params }: { params: Promise<{ org: string 
                   className="bg-muted"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Email cannot be changed
+                  {t('emailCannotBeChanged')}
                 </p>
               </div>
               
               <div className="space-y-2">
                 <label htmlFor="role" className="text-sm font-medium">
-                  Role
+                  {t('role')}
                 </label>
                 <Input
                   id="role"
@@ -464,11 +472,11 @@ export default function AccountPage({ params }: { params: Promise<{ org: string 
               
               <div className="space-y-2">
                 <label htmlFor="created" className="text-sm font-medium">
-                  Member Since
+                  {t('memberSince')}
                 </label>
                 <Input
                   id="created"
-                  value={new Date(userData.created_at).toLocaleDateString()}
+                  value={new Date(userData.created_at).toLocaleDateString(locale === 'pt-BR' ? 'pt-BR' : 'en-US')}
                   disabled
                   className="bg-muted"
                 />
@@ -482,8 +490,31 @@ export default function AccountPage({ params }: { params: Promise<{ org: string 
                 className="cursor-pointer"
               >
                 <Save className="h-4 w-4 mr-2" />
-                {isLoading ? 'Saving...' : 'Save Changes'}
+                {isLoading ? t('saving') : t('saveChanges')}
               </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Language & Region */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Globe className="h-5 w-5" />
+              {t('languageRegion')}
+            </CardTitle>
+            <CardDescription>
+              {t('languageRegionDesc')}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="space-y-3">
+                <label className="text-sm font-medium">
+                  {t('displayLanguage')}
+                </label>
+                <LanguageSwitcher variant="full" />
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -493,49 +524,49 @@ export default function AccountPage({ params }: { params: Promise<{ org: string 
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Lock className="h-5 w-5" />
-              Change Password
+              {t('changePassword')}
             </CardTitle>
             <CardDescription>
-              Update your password to keep your account secure
+              {t('changePasswordDesc')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <label htmlFor="current-password" className="text-sm font-medium">
-                Current Password
+                {t('currentPassword')}
               </label>
               <Input
                 id="current-password"
                 type="password"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
-                placeholder="Enter your current password"
+                placeholder={t('currentPasswordPlaceholder')}
               />
             </div>
             
             <div className="space-y-2">
               <label htmlFor="new-password" className="text-sm font-medium">
-                New Password
+                {t('newPassword')}
               </label>
               <Input
                 id="new-password"
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Enter your new password"
+                placeholder={t('newPasswordPlaceholder')}
               />
             </div>
             
             <div className="space-y-2">
               <label htmlFor="confirm-password" className="text-sm font-medium">
-                Confirm New Password
+                {t('confirmNewPassword')}
               </label>
               <Input
                 id="confirm-password"
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Confirm your new password"
+                placeholder={t('confirmPasswordPlaceholder')}
               />
             </div>
 
@@ -546,15 +577,16 @@ export default function AccountPage({ params }: { params: Promise<{ org: string 
                 className="cursor-pointer"
               >
                 <Lock className="h-4 w-4 mr-2" />
-                {isLoading ? 'Changing...' : 'Change Password'}
+                {isLoading ? t('changing') : t('changePassword')}
               </Button>
             </div>
           </CardContent>
-            </Card>
+        </Card>
             </div>
           </div>
         </SidebarInset>
       </SidebarProvider>
+      </RoleGuard>
     </AuthGuard>
   )
 }

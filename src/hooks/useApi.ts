@@ -72,11 +72,55 @@ export function useApi() {
         };
       }
 
-      const data = await response.json();
-      return {
-        success: true,
-        ...data
-      };
+      // Check if response has content before trying to parse JSON
+      const contentLength = response.headers.get('content-length');
+      
+      // If status is 204 (No Content) or content-length is 0, return success without data
+      if (response.status === 204 || contentLength === '0' || (!contentType?.includes('application/json'))) {
+        console.log('API response: No content (success)');
+        return {
+          success: true,
+          data: undefined
+        };
+      }
+      
+      // Check if the response body is empty
+      const text = await response.text();
+      if (!text || text.trim() === '') {
+        console.log('API response: Empty body (success)');
+        return {
+          success: true,
+          data: undefined
+        };
+      }
+      
+      // Try to parse JSON
+      try {
+        const data = JSON.parse(text);
+        // Removed generic API response log to reduce console pollution
+        // Use specific [API] logs in components for debugging instead
+        
+        // If data is an array, return it directly as data property
+        // to avoid spreading array as object properties
+        if (Array.isArray(data)) {
+          return {
+            success: true,
+            data: data
+          };
+        }
+        
+        return {
+          success: true,
+          ...data
+        };
+      } catch (error) {
+        console.error('Failed to parse JSON response:', error);
+        console.error('Response text:', text);
+        return {
+          success: false,
+          error: `Failed to parse response: ${text}`
+        };
+      }
     } catch (error) {
       console.error('API request failed:', error);
       return {
