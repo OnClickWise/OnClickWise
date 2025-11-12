@@ -190,6 +190,12 @@
       "qualified": "Qualificados",
       "lost": "Perdidos"
     },
+    "stage": {
+      "entry": "Entrada",
+      "progress": "Em Progresso",
+      "won": "Ganho",
+      "lost": "Perdido"
+    },
     "leadCard": {
       "leadSingular": "lead",
       "leadPlural": "leads",

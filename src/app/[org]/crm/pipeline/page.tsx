@@ -1326,9 +1326,10 @@ export default function PipelinePage({
 
   // Helper function to render stage badge with correct color
   const renderStageBadge = (stage: PipelineStage, className: string = "inline-flex items-center rounded-md border px-3 py-1.5 text-sm font-semibold") => {
-    // Always use stage.name - it will either be the custom name or the default name from database
-    // This allows users to edit even system stages
-    const stageName = stage.name
+    // Use translation_key if available (for default stages), otherwise use stage.name (for custom stages)
+    const stageName = stage.translation_key 
+      ? t(`stage.${stage.translation_key.replace('pipeline.stage.', '')}`)
+      : stage.name
     
     // Check if it's a JSON with bg and text colors
     try {
@@ -5262,7 +5263,7 @@ export default function PipelinePage({
                           .map(stage => (
                             <option key={stage.id} value={stage.id}>
                               {stage.translation_key 
-                                ? t(stage.translation_key.replace('Pipeline.', ''))
+                                ? t(`stage.${stage.translation_key.replace('pipeline.stage.', '')}`)
                                 : stage.name}
                             </option>
                           ))}
