@@ -61,7 +61,7 @@ export default function SettingsPage({
               <p className="text-gray-600 mb-8">
                 Gerencie as configurações da organização:{" "}
                 <span className="font-mono bg-gray-100 px-2 py-1 rounded">
-                  {params.org}
+                  {org}
                 </span>
               </p>
               

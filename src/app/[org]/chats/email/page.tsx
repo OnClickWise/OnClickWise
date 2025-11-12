@@ -174,159 +174,160 @@ export default function EmailPage({
 
           {/* MAIN CONTENT */}
           <div className="flex h-[calc(100vh-4rem)] bg-gray-50">
-      {/* Lista de Emails */}
-      <div className="w-1/3 bg-white border-r border-gray-200 flex flex-col">
-        {/* Header da Lista */}
-        <div className="p-4 border-b border-gray-200">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-xl font-semibold text-gray-800">Email</h1>
-            <Button onClick={() => setComposeOpen(true)} className="bg-blue-600 hover:bg-blue-700">
-              <Mail className="w-4 h-4 mr-2" />
-              Escrever
-            </Button>
-          </div>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <Input
-              placeholder="Pesquisar emails..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-        </div>
-
-        {/* Lista de Emails */}
-        <div className="flex-1 overflow-y-auto">
-          {filteredEmails.map((email) => (
-            <div
-              key={email.id}
-              onClick={() => setSelectedEmail(email.id)}
-              className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors ${
-                selectedEmail === email.id ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
-              }`}
-            >
-              <div className="flex items-start space-x-3">
-                <div className="flex-shrink-0">
-                  <Avatar className="w-10 h-10">
-                    <AvatarImage src={email.avatar} alt={email.from} />
-                    <AvatarFallback>{email.from.charAt(0)}</AvatarFallback>
-                  </Avatar>
+            {/* Lista de Emails */}
+            <div className="w-1/3 bg-white border-r border-gray-200 flex flex-col">
+              {/* Header da Lista */}
+              <div className="p-4 border-b border-gray-200">
+                <div className="flex items-center justify-between mb-4">
+                  <h1 className="text-xl font-semibold text-gray-800">Email</h1>
+                  <Button onClick={() => setComposeOpen(true)} className="bg-blue-600 hover:bg-blue-700">
+                    <Mail className="w-4 h-4 mr-2" />
+                    Escrever
+                  </Button>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center space-x-2">
-                      <h3 className={`text-sm font-medium truncate ${!email.isRead ? 'font-bold' : ''}`}>
-                        {email.from}
-                      </h3>
-                      {email.isStarred && <Star className="w-3 h-3 text-yellow-500 fill-current" />}
-                      {email.isImportant && <Flag className="w-3 h-3 text-red-500" />}
-                    </div>
-                    <span className="text-xs text-gray-500">{email.timestamp}</span>
-                  </div>
-                  <p className="text-sm font-medium text-gray-900 truncate mb-1">
-                    {email.subject}
-                  </p>
-                  <p className="text-sm text-gray-600 truncate">{email.preview}</p>
-                  {!email.isRead && (
-                    <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
-                  )}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    placeholder="Pesquisar emails..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-      </div>
 
-      {/* Área de Visualização do Email */}
-      <div className="flex-1 flex flex-col">
-        {currentEmail ? (
-          <>
-            {/* Header do Email */}
-            <div className="bg-white border-b border-gray-200 p-4">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-900">{currentEmail.subject}</h2>
-                <div className="flex items-center space-x-2">
-                  <Button variant="ghost" size="sm">
-                    <Reply className="w-4 h-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm">
-                    <Forward className="w-4 h-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm">
-                    <Archive className="w-4 h-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm">
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-              <div className="flex items-center space-x-3">
-                <Avatar className="w-10 h-10">
-                  <AvatarImage src={currentEmail.avatar} alt={currentEmail.from} />
-                  <AvatarFallback>{currentEmail.from.charAt(0)}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="text-sm font-medium text-gray-900">{currentEmail.from}</p>
-                  <p className="text-sm text-gray-500">{currentEmail.fromEmail}</p>
-                </div>
-                <span className="text-sm text-gray-500 ml-auto">{currentEmail.timestamp}</span>
-              </div>
-            </div>
-
-            {/* Conteúdo do Email */}
-            <div className="flex-1 overflow-y-auto p-6 bg-white">
-              <div 
-                className="prose max-w-none"
-                dangerouslySetInnerHTML={{ __html: mockSelectedEmail.content }}
-              />
-              
-              {/* Anexos */}
-              {mockSelectedEmail.attachments && mockSelectedEmail.attachments.length > 0 && (
-                <div className="mt-6 border-t border-gray-200 pt-4">
-                  <h4 className="text-sm font-medium text-gray-900 mb-3">Anexos</h4>
-                  <div className="space-y-2">
-                    {mockSelectedEmail.attachments.map((attachment, index) => (
-                      <div key={index} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                        <Paperclip className="w-4 h-4 text-gray-400" />
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-900">{attachment.name}</p>
-                          <p className="text-xs text-gray-500">{attachment.size}</p>
-                        </div>
-                        <Button variant="ghost" size="sm">Download</Button>
+              {/* Lista de Emails */}
+              <div className="flex-1 overflow-y-auto">
+                {filteredEmails.map((email) => (
+                  <div
+                    key={email.id}
+                    onClick={() => setSelectedEmail(email.id)}
+                    className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors ${
+                      selectedEmail === email.id ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
+                    }`}
+                  >
+                    <div className="flex items-start space-x-3">
+                      <div className="flex-shrink-0">
+                        <Avatar className="w-10 h-10">
+                          <AvatarImage src={email.avatar} alt={email.from} />
+                          <AvatarFallback>{email.from.charAt(0)}</AvatarFallback>
+                        </Avatar>
                       </div>
-                    ))}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center space-x-2">
+                            <h3 className={`text-sm font-medium truncate ${!email.isRead ? 'font-bold' : ''}`}>
+                              {email.from}
+                            </h3>
+                            {email.isStarred && <Star className="w-3 h-3 text-yellow-500 fill-current" />}
+                            {email.isImportant && <Flag className="w-3 h-3 text-red-500" />}
+                          </div>
+                          <span className="text-xs text-gray-500">{email.timestamp}</span>
+                        </div>
+                        <p className="text-sm font-medium text-gray-900 truncate mb-1">
+                          {email.subject}
+                        </p>
+                        <p className="text-sm text-gray-600 truncate">{email.preview}</p>
+                        {!email.isRead && (
+                          <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Área de Visualização do Email */}
+            <div className="flex-1 flex flex-col">
+              {currentEmail ? (
+                <>
+                  {/* Header do Email */}
+                  <div className="bg-white border-b border-gray-200 p-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <h2 className="text-lg font-semibold text-gray-900">{currentEmail.subject}</h2>
+                      <div className="flex items-center space-x-2">
+                        <Button variant="ghost" size="sm">
+                          <Reply className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm">
+                          <Forward className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm">
+                          <Archive className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <Avatar className="w-10 h-10">
+                        <AvatarImage src={currentEmail.avatar} alt={currentEmail.from} />
+                        <AvatarFallback>{currentEmail.from.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{currentEmail.from}</p>
+                        <p className="text-sm text-gray-500">{currentEmail.fromEmail}</p>
+                      </div>
+                      <span className="text-sm text-gray-500 ml-auto">{currentEmail.timestamp}</span>
+                    </div>
+                  </div>
+
+                  {/* Conteúdo do Email */}
+                  <div className="flex-1 overflow-y-auto p-6 bg-white">
+                    <div 
+                      className="prose max-w-none"
+                      dangerouslySetInnerHTML={{ __html: mockSelectedEmail.content }}
+                    />
+                    
+                    {/* Anexos */}
+                    {mockSelectedEmail.attachments && mockSelectedEmail.attachments.length > 0 && (
+                      <div className="mt-6 border-t border-gray-200 pt-4">
+                        <h4 className="text-sm font-medium text-gray-900 mb-3">Anexos</h4>
+                        <div className="space-y-2">
+                          {mockSelectedEmail.attachments.map((attachment, index) => (
+                            <div key={index} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                              <Paperclip className="w-4 h-4 text-gray-400" />
+                              <div className="flex-1">
+                                <p className="text-sm font-medium text-gray-900">{attachment.name}</p>
+                                <p className="text-xs text-gray-500">{attachment.size}</p>
+                              </div>
+                              <Button variant="ghost" size="sm">Download</Button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Área de Resposta */}
+                  <div className="bg-white border-t border-gray-200 p-4">
+                    <div className="flex items-center space-x-2">
+                      <Button variant="outline" className="flex-1">
+                        <Reply className="w-4 h-4 mr-2" />
+                        Responder
+                      </Button>
+                      <Button variant="outline" className="flex-1">
+                        <Forward className="w-4 h-4 mr-2" />
+                        Encaminhar
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="flex-1 flex items-center justify-center bg-gray-50">
+                  <div className="text-center">
+                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Mail className="w-8 h-8 text-blue-600" />
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Selecione um email</h3>
+                    <p className="text-gray-500">Escolha um email da lista para visualizar</p>
                   </div>
                 </div>
               )}
             </div>
-
-            {/* Área de Resposta */}
-            <div className="bg-white border-t border-gray-200 p-4">
-              <div className="flex items-center space-x-2">
-                <Button variant="outline" className="flex-1">
-                  <Reply className="w-4 h-4 mr-2" />
-                  Responder
-                </Button>
-                <Button variant="outline" className="flex-1">
-                  <Forward className="w-4 h-4 mr-2" />
-                  Encaminhar
-                </Button>
-              </div>
-            </div>
-          </>
-        ) : (
-          <div className="flex-1 flex items-center justify-center bg-gray-50">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Mail className="w-8 h-8 text-blue-600" />
-              </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Selecione um email</h3>
-              <p className="text-gray-500">Escolha um email da lista para visualizar</p>
-            </div>
           </div>
-        )}
-      </div>
         </SidebarInset>
       </SidebarProvider>
     </AuthGuard>
