@@ -326,7 +326,7 @@ export default function EmailPage({
             </div>
           </div>
         )}
-          </div>
+      </div>
         </SidebarInset>
       </SidebarProvider>
     </AuthGuard>

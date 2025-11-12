@@ -341,7 +341,7 @@ export default function WhatsAppPage({
             </div>
           </div>
         )}
-          </div>
+      </div>
         </SidebarInset>
       </SidebarProvider>
     </AuthGuard>
