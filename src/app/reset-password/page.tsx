@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Input } from '@/components/ui/input';
 import { Building2, Loader2, Lock, CheckCircle2, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const t = useTranslations('ResetPassword');
@@ -250,6 +250,23 @@ export default function ResetPasswordPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="auth-page-container flex items-center justify-center">
+          <div className="text-center relative z-10">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#3b82f6] border-t-transparent mx-auto mb-4"></div>
+            <p className="text-gray-600 font-medium">Carregando...</p>
+          </div>
+        </div>
+      }
+    >
+      <ResetPasswordForm />
+    </Suspense>
   );
 }
 
