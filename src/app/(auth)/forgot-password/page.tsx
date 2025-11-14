@@ -20,13 +20,6 @@ export default function ForgotPasswordPage() {
     setError('');
     setLoading(true);
 
-    // Validação básica de email
-    if (!email || !email.includes('@')) {
-      setError(t('invalidEmail') || 'Email inválido');
-      setLoading(false);
-      return;
-    }
-
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
       const response = await fetch(`${apiUrl}/auth/forgot-password`, {
@@ -40,42 +33,16 @@ export default function ForgotPasswordPage() {
         }),
       });
 
-      // Verificar se a resposta é JSON
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        const text = await response.text();
-        console.error('Non-JSON response:', text);
-        setError(t('connectionError') || 'Erro ao conectar com o servidor');
-        setLoading(false);
-        return;
-      }
-
-      // Verificar status HTTP
-      if (!response.ok) {
-        const result = await response.json();
-        setError(result.error || `Erro ${response.status}: ${response.statusText}`);
-        setLoading(false);
-        return;
-      }
-
       const result = await response.json();
-      
-      console.log('Forgot password response:', result);
 
       if (result.success) {
         setSuccess(true);
-        setError(''); // Limpar qualquer erro anterior
-        console.log('Password reset email sent successfully');
       } else {
-        const errorMessage = result.error || result.message || t('errorRequestFailed');
-        setError(errorMessage);
-        setSuccess(false);
-        console.error('Password reset failed:', errorMessage);
+        setError(result.error || t('errorRequestFailed'));
       }
     } catch (error) {
       console.error('Forgot password error:', error);
-      setError(t('connectionError') || 'Erro ao conectar com o servidor');
-      setSuccess(false);
+      setError(t('connectionError'));
     } finally {
       setLoading(false);
     }

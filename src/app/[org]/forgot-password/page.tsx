@@ -94,34 +94,19 @@ export default function CompanyForgotPasswordPage({ params }: { params: Promise<
       // Verificar se a resposta é JSON
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('application/json')) {
-        const text = await response.text();
-        console.error('Non-JSON response:', text);
         setError(t('connectionError') || 'Erro ao conectar com o servidor');
         setLoading(false);
         return;
       }
 
-      // Verificar status HTTP
-      if (!response.ok) {
-        const result = await response.json();
-        setError(result.error || `Erro ${response.status}: ${response.statusText}`);
-        setLoading(false);
-        return;
-      }
-
       const result = await response.json();
-      
-      console.log('Forgot password response:', result);
 
       if (result.success) {
         setSuccess(true);
         setError(''); // Limpar qualquer erro anterior
-        console.log('Password reset email sent successfully');
       } else {
-        const errorMessage = result.error || result.message || t('errorRequestFailed');
-        setError(errorMessage);
+        setError(result.error || t('errorRequestFailed'));
         setSuccess(false);
-        console.error('Password reset failed:', errorMessage);
       }
     } catch (error) {
       console.error('Forgot password error:', error);
