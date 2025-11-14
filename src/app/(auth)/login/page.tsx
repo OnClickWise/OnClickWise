@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Building2, Loader2 } from 'lucide-react';
+import { Building2, Loader2, Mail, Lock } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -46,12 +46,14 @@ export default function LoginPage() {
         // Salvar token no localStorage
         localStorage.setItem('token', result.token);
         localStorage.setItem('organization', JSON.stringify(result.organization));
+        localStorage.setItem('lastActivity', Date.now().toString());
         
         // Disparar evento para ClientLocaleProvider atualizar o locale do usuário
         window.dispatchEvent(new Event('userLoggedIn'));
         
-        // Redirecionar para o dashboard
-        router.push(`/${result.organization.slug}/dashboard`);
+        // Usar window.location.href para garantir redirecionamento completo
+        // Isso evita problemas com AuthGuard que pode verificar antes do router.push
+        window.location.href = `/${result.organization.slug}/dashboard`;
       } else {
         setError(result.error || t('loginFailed'));
       }
@@ -64,91 +66,108 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header similar ao dashboard */}
-      <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4">
+    <div className="auth-page-container">
+      {/* Header */}
+      <header className="auth-header flex h-16 shrink-0 items-center gap-2 px-4 md:px-8 sticky top-0 z-10">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-            <Building2 className="w-5 h-5 text-primary-foreground" />
+          <div className="w-10 h-10 bg-gradient-to-br from-[#3b82f6] to-[#2563eb] rounded-xl flex items-center justify-center shadow-lg">
+            <Building2 className="w-6 h-6 text-white" />
           </div>
-          <span className="text-lg font-semibold text-foreground">OnClickWise</span>
+          <span className="text-xl font-bold bg-gradient-to-r from-[#3b82f6] to-[#2563eb] bg-clip-text text-transparent">OnClickWise</span>
         </div>
       </header>
 
       {/* Main content */}
-      <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-        <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
+      <div className="flex flex-1 flex-col gap-4 p-4 pt-8 md:pt-12 pb-12">
+        <div className="flex items-center justify-center min-h-[calc(100vh-8rem)] relative z-10">
           <div className="max-w-md w-full">
             {/* Login Form */}
-            <div className="bg-card border rounded-xl p-8 shadow-sm">
+            <div className="auth-card p-8 md:p-10">
               <div className="text-center mb-8">
-                <h1 className="text-2xl font-bold text-card-foreground mb-2">{t('pageTitle')}</h1>
-                <p className="text-muted-foreground">{t('pageDescription')}</p>
+                <h1 className="auth-title text-3xl md:text-4xl mb-3">{t('pageTitle')}</h1>
+                {t('pageDescription') && (
+                  <p className="auth-subtitle text-base">{t('pageDescription')}</p>
+                )}
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-card-foreground mb-2">
+                  <label htmlFor="email" className="auth-label">
                     {t('companyEmail')}
                   </label>
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full"
-                    placeholder={t('emailPlaceholder')}
-                  />
+                  <div className="auth-input-wrapper">
+                    <Mail className="auth-input-icon" />
+                    <Input
+                      id="email"
+                      name="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      required
+                      className="auth-input has-icon"
+                      placeholder={t('emailPlaceholder')}
+                    />
+                  </div>
                 </div>
 
                 <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-card-foreground mb-2">
+                  <label htmlFor="password" className="auth-label">
                     {t('password')}
                   </label>
-                  <Input
-                    id="password"
-                    name="password"
-                    type="password"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full"
-                    placeholder={t('passwordPlaceholder')}
-                  />
+                  <div className="auth-input-wrapper">
+                    <Lock className="auth-input-icon" />
+                    <Input
+                      id="password"
+                      name="password"
+                      type="password"
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      required
+                      className="auth-input has-icon"
+                      placeholder={t('passwordPlaceholder')}
+                    />
+                  </div>
                 </div>
 
                 {error && (
-                  <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg">
+                  <div className="auth-error">
                     {error}
                   </div>
                 )}
 
-                <Button
+                <button
                   type="submit"
                   disabled={loading}
-                  className="w-full cursor-pointer"
+                  className="auth-button-primary w-full flex items-center justify-center"
                 >
                   {loading ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                       {t('signingIn')}
                     </>
                   ) : (
                     t('signIn')
                   )}
-                </Button>
+                </button>
 
-                <div className="text-center space-y-4">
-                  <p className="text-muted-foreground">
+                <div className="text-center space-y-4 pt-2">
+                  <p className="text-gray-600 text-sm">
                     {t('noAccount')}{' '}
                     <button
                       type="button"
                       onClick={() => router.push('/register')}
-                      className="text-primary hover:text-primary/80 font-medium cursor-pointer"
+                      className="text-[#3b82f6] hover:text-[#2563eb] font-semibold cursor-pointer transition-colors"
                     >
                       {t('signUp')}
+                    </button>
+                  </p>
+                  <p className="text-sm">
+                    <button
+                      type="button"
+                      onClick={() => router.push('/forgot-password')}
+                      className="text-[#3b82f6] hover:text-[#2563eb] font-semibold cursor-pointer transition-colors"
+                    >
+                      Esqueci minha senha
                     </button>
                   </p>
                 </div>

@@ -4,6 +4,7 @@ import * as React from "react"
 import { AppSidebar } from "@/components/app-sidebar"
 import AuthGuard from "@/components/AuthGuard"
 import { useTranslations, useLocale } from 'next-intl'
+import { FaTelegram } from "react-icons/fa"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -2701,7 +2702,10 @@ export default function TelegramPage({
                 </BreadcrumbItem>
                 <BreadcrumbSeparator className="hidden md:block" />
                 <BreadcrumbItem>
-                  <BreadcrumbPage>{t('breadcrumb.telegram')}</BreadcrumbPage>
+                  <BreadcrumbPage className="flex items-center gap-2">
+                    <FaTelegram className="w-4 h-4" />
+                    {t('breadcrumb.telegram')}
+                  </BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
@@ -2715,6 +2719,7 @@ export default function TelegramPage({
               <div className="p-4 border-b border-gray-200">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center space-x-3">
+                    <FaTelegram className="w-5 h-5 text-gray-800" />
                     <h1 className="text-xl font-semibold text-gray-800">{t('header.telegram')}</h1>
                     {/* Status indicator */}
                     {(chatType === 'bot' && bot) && (

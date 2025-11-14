@@ -170,10 +170,10 @@ export default function CompanyLoginPage({ params }: { params: Promise<{ org: st
 
   if (loadingCompany) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">{t('loadingCompanyInfo')}</p>
+      <div className="auth-page-container flex items-center justify-center">
+        <div className="text-center relative z-10">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#3b82f6] border-t-transparent mx-auto mb-4"></div>
+          <p className="text-gray-600 font-medium">{t('loadingCompanyInfo')}</p>
         </div>
       </div>
     );
@@ -181,34 +181,31 @@ export default function CompanyLoginPage({ params }: { params: Promise<{ org: st
 
   if (!companyInfo) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <Card className="max-w-md w-full">
-          <CardHeader className="text-center">
-            <div className="w-16 h-16 bg-destructive/10 rounded-xl flex items-center justify-center mx-auto mb-4">
-              <Building2 className="w-8 h-8 text-destructive" />
+      <div className="auth-page-container flex items-center justify-center p-4">
+        <div className="auth-card max-w-md w-full relative z-10">
+          <div className="p-8 text-center">
+            <div className="w-20 h-20 bg-gradient-to-br from-red-100 to-red-50 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+              <Building2 className="w-10 h-10 text-red-500" />
             </div>
-            <CardTitle className="text-xl text-destructive">{t('companyNotFound')}</CardTitle>
-            <CardDescription className="text-muted-foreground">
+            <h2 className="auth-title text-2xl mb-3 text-red-600">{t('companyNotFound')}</h2>
+            <p className="auth-subtitle mb-8">
               {t('companyNotFoundMessage')}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="text-center">
-            <Button
+            </p>
+            <button
               onClick={() => router.push('/login')}
-              variant="outline"
-              className="w-full cursor-pointer"
+              className="auth-button-outline w-full flex items-center justify-center"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               {t('backToMainLogin')}
-            </Button>
-          </CardContent>
-        </Card>
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="auth-page-container">
       {/* Notificação de inatividade */}
       <InactivityNotification 
         isVisible={showNotification} 
@@ -216,107 +213,111 @@ export default function CompanyLoginPage({ params }: { params: Promise<{ org: st
       />
 
       {/* Main content */}
-      <div className="flex items-center justify-center min-h-screen p-4">
+      <div className="flex items-center justify-center min-h-screen p-4 relative z-10">
         <div className="max-w-md w-full">
             {/* Company Info Card */}
-            <Card className="mb-6">
-              <CardContent className="p-6">
-                <div className="flex items-center space-x-4">
-                  <OrganizationAvatar 
-                    src={companyInfo.logo_url ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}${companyInfo.logo_url}` : undefined} 
-                    name={companyInfo.name} 
-                    size="xl"
-                  />
-                  <div>
-                    <h2 className="text-lg font-semibold text-card-foreground">{companyInfo.name}</h2>
-                    <p className="text-sm text-muted-foreground">{companyInfo.email}</p>
-                    <Badge variant="secondary" className="mt-1">
-                      <Shield className="w-3 h-3 mr-1" />
-                      {t('companyPortal')}
-                    </Badge>
-                  </div>
+            <div className="auth-card mb-6 p-6">
+              <div className="flex items-center space-x-4">
+                <OrganizationAvatar 
+                  src={companyInfo.logo_url ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}${companyInfo.logo_url}` : undefined} 
+                  name={companyInfo.name} 
+                  size="xl"
+                />
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">{companyInfo.name}</h2>
+                  <Badge className="mt-2 bg-gradient-to-r from-[#facc15] to-[#fbbf24] text-black border-none px-3 py-1">
+                    <Shield className="w-3 h-3 mr-1" />
+                    {t('companyPortal')}
+                  </Badge>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
             {/* Login Form */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-2xl text-center">{t('signIn')}</CardTitle>
-                <CardDescription className="text-center">
+            <div className="auth-card p-8 md:p-10">
+              <div className="text-center mb-8">
+                <h1 className="auth-title text-3xl md:text-4xl mb-3">{t('signIn')}</h1>
+                <p className="auth-subtitle text-base">
                   {t('accessAccount', { companyName: companyInfo.name })}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-card-foreground mb-2">
-                      {t('emailAddress')}
-                    </label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                      <Input
-                        id="email"
-                        name="email"
-                        type="email"
-                        value={formData.email}
-                        onChange={handleInputChange}
-                        required
-                        className="pl-10"
-                        placeholder={t('emailPlaceholder')}
-                      />
-                    </div>
+                </p>
+              </div>
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div>
+                  <label htmlFor="email" className="auth-label">
+                    {t('emailAddress')}
+                  </label>
+                  <div className="auth-input-wrapper">
+                    <Mail className="auth-input-icon" />
+                    <Input
+                      id="email"
+                      name="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      required
+                      className="auth-input has-icon"
+                      placeholder={t('emailPlaceholder')}
+                    />
                   </div>
+                </div>
 
-                  <div>
-                    <label htmlFor="password" className="block text-sm font-medium text-card-foreground mb-2">
-                      {t('password')}
-                    </label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                      <Input
-                        id="password"
-                        name="password"
-                        type="password"
-                        value={formData.password}
-                        onChange={handleInputChange}
-                        required
-                        className="pl-10"
-                        placeholder={t('passwordPlaceholder')}
-                      />
-                    </div>
+                <div>
+                  <label htmlFor="password" className="auth-label">
+                    {t('password')}
+                  </label>
+                  <div className="auth-input-wrapper">
+                    <Lock className="auth-input-icon" />
+                    <Input
+                      id="password"
+                      name="password"
+                      type="password"
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      required
+                      className="auth-input has-icon"
+                      placeholder={t('passwordPlaceholder')}
+                    />
                   </div>
+                </div>
 
-                  {error && (
-                    <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg">
-                      {error}
-                    </div>
+                {error && (
+                  <div className="auth-error">
+                    {error}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="auth-button-primary w-full flex items-center justify-center"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      {t('signingIn')}
+                    </>
+                  ) : (
+                    t('signIn')
                   )}
+                </button>
 
-                  <Button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full cursor-pointer"
-                  >
-                    {loading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        {t('signingIn')}
-                      </>
-                    ) : (
-                      t('signIn')
-                    )}
-                  </Button>
-
-                  <div className="text-center">
-                    <p className="text-sm text-muted-foreground">
-                      {t('noAccount')}{' '}
-                      {t('contactAdmin')}
-                    </p>
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
+                <div className="text-center space-y-3 pt-2">
+                  <p className="text-sm text-gray-600">
+                    {t('noAccount')}{' '}
+                    {t('contactAdmin')}
+                  </p>
+                  <p className="text-sm">
+                    <button
+                      type="button"
+                      onClick={() => router.push(`/${resolvedParams.org}/forgot-password`)}
+                      className="text-[#3b82f6] hover:text-[#2563eb] font-semibold cursor-pointer transition-colors"
+                    >
+                      Esqueci minha senha
+                    </button>
+                  </p>
+                </div>
+              </form>
+            </div>
         </div>
       </div>
 

@@ -2,6 +2,7 @@
 
 import { ChevronRight, type LucideIcon } from "lucide-react"
 import { usePathname } from "next/navigation"
+import { ReactNode } from "react"
 
 import {
   Collapsible,
@@ -31,6 +32,7 @@ export function NavMain({
     items?: {
       title: string
       url: string
+      icon?: ReactNode
     }[]
   }[]
 }) {
@@ -112,8 +114,9 @@ export function NavMain({
                           <SidebarMenuSubButton asChild>
                             <a 
                               href={subItem.url} 
-                              className={`cursor-pointer sidebar-submenu-item ${isSubItemActive(subItem.url) ? 'active' : ''}`}
+                              className={`cursor-pointer sidebar-submenu-item flex items-center gap-2 ${isSubItemActive(subItem.url) ? 'active' : ''}`}
                             >
+                              {subItem.icon && <span className="w-4 h-4 flex-shrink-0">{subItem.icon}</span>}
                               <span>{subItem.title}</span>
                             </a>
                           </SidebarMenuSubButton>

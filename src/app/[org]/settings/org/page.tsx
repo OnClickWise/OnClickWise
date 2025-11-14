@@ -33,6 +33,7 @@ interface OrganizationData {
   name: string;
   slug: string;
   email: string;
+  company_id?: string;
   phone?: string;
   address?: string;
   city?: string;
@@ -73,6 +74,7 @@ export default function OrgPage({
     name: '',
     slug: '',
     email: '',
+    company_id: '',
     phone: '',
     address: '',
     city: '',
@@ -91,6 +93,7 @@ export default function OrgPage({
     name: '',
     slug: '',
     email: '',
+    company_id: '',
     phone: '',
     address: '',
     city: '',
@@ -397,6 +400,27 @@ export default function OrgPage({
                         value={organizationData.slug}
                         onChange={(e) => handleInputChange('slug', e.target.value)}
                         placeholder={t('basicInfo.slugPlaceholder')}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        {t('basicInfo.emailLabel')}
+                      </label>
+                      <Input
+                        type="email"
+                        value={organizationData.email || ''}
+                        onChange={(e) => handleInputChange('email', e.target.value)}
+                        placeholder={t('basicInfo.emailPlaceholder')}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        {t('basicInfo.companyIdLabel')}
+                      </label>
+                      <Input
+                        value={organizationData.company_id || ''}
+                        onChange={(e) => handleInputChange('company_id', e.target.value)}
+                        placeholder={t('basicInfo.companyIdPlaceholder')}
                       />
                     </div>
                     <div>

@@ -28,18 +28,19 @@ export default function RoleGuard({
       }
 
       const payload = JSON.parse(atob(token.split('.')[1]));
+      // Verificar múltiplas possibilidades de onde o role pode estar no token
       const role = payload.role || payload.type || payload.userType || payload.user_type || 'employee';
       
-      if (!allowedRoles.includes(role)) {
+      // Verificar se o role está na lista de roles permitidos
+      if (allowedRoles.includes(role)) {
+        setIsAllowed(true);
+      } else {
         // Redirect to dashboard or custom redirect
         router.push(redirectTo || `/${orgSlug}/dashboard`);
-        return;
       }
-      
-      setIsAllowed(true);
     } catch (error) {
       console.error('Error checking user role:', error);
-      router.push(`/${orgSlug}/dashboard`);
+      router.push(redirectTo || `/${orgSlug}/dashboard`);
     }
   }, [orgSlug, router, allowedRoles, redirectTo]);
 

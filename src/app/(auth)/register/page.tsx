@@ -3,9 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Building2, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Building2, Eye, EyeOff, Loader2, Lock } from 'lucide-react';
 
 interface CompanyData {
   name: string;
@@ -129,10 +128,10 @@ export default function RegisterPage() {
             zipCode: '',
           },
           representative: {
-            name: formData.name, // Use company name as representative name
-            email: formData.email,
-            position: 'Owner',
-            ssn: '000-00-0000' // Default value
+            name: '', // Será preenchido depois nas configurações
+            email: '', // Será preenchido depois nas configurações
+            position: '', // Será preenchido depois nas configurações
+            ssn: '' // Será preenchido depois nas configurações
           }
         }),
       });
@@ -168,38 +167,40 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-            <Building2 className="w-5 h-5 text-primary-foreground" />
+    <>
+      <div className="auth-page-container">
+        {/* Header */}
+        <header className="auth-header flex h-14 shrink-0 items-center gap-2 px-3 sm:px-4 md:px-8 sticky top-0 z-10 w-full max-w-full overflow-x-hidden">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-9 h-9 bg-gradient-to-br from-[#3b82f6] to-[#2563eb] rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
+              <Building2 className="w-5 h-5 text-white" />
+            </div>
+            <span className="text-base sm:text-lg font-bold bg-gradient-to-r from-[#3b82f6] to-[#2563eb] bg-clip-text text-transparent truncate">OnClickWise</span>
           </div>
-          <span className="text-lg font-semibold text-foreground">OnClickWise</span>
-        </div>
-      </header>
+        </header>
 
-      {/* Main content */}
-      <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-        <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
-          <div className="max-w-2xl w-full">
+        {/* Main content */}
+        <div className="flex-1 flex flex-col px-2 sm:px-3 pt-2 pb-2 w-full max-w-full overflow-x-hidden min-h-0">
+          <div className="w-full max-w-2xl mx-auto relative z-10">
             {/* Header */}
-            <div className="text-center mb-6">
-              <h1 className="text-2xl font-bold text-foreground mb-1">{t('pageTitle')}</h1>
-              <p className="text-muted-foreground text-sm">{t('pageDescription')}</p>
+            <div className="text-center mb-4 w-full">
+              <h1 className="auth-title text-2xl sm:text-3xl break-words w-full">{t('pageTitle')}</h1>
             </div>
 
             {/* Registration Form */}
-            <div className="bg-card border rounded-xl p-6 shadow-sm">
-              <form onSubmit={handleSubmit} className="space-y-3">
+            <div className="auth-card p-4 sm:p-6 w-full">
+              <form onSubmit={handleSubmit} className="space-y-4 w-full">
                 {/* Company Information */}
-                <div className="bg-muted/50 p-4 rounded-lg">
-                  <h2 className="text-base font-semibold text-card-foreground mb-2">{t('companyInformation')}</h2>
+                <div className="auth-section w-full">
+                  <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2 break-words">
+                    <Building2 className="w-4 h-4 sm:w-5 sm:h-5 text-[#3b82f6] flex-shrink-0" />
+                    <span className="break-words">{t('companyInformation')}</span>
+                  </h2>
                   
                   <div className="grid grid-cols-1 gap-3">
-                    <div>
-                      <label htmlFor="name" className="block text-sm font-medium text-card-foreground mb-1">
-                        {t('companyName')} {t('required')}
+                    <div className="w-full">
+                      <label htmlFor="name" className="auth-label">
+                        {t('companyName')} <span className="text-red-500">*</span>
                       </label>
                       <Input
                         id="name"
@@ -208,13 +209,13 @@ export default function RegisterPage() {
                         value={formData.name}
                         onChange={handleNameChange}
                         required
-                        className="w-full"
+                        className="auth-input w-full max-w-full"
                         placeholder={t('companyNamePlaceholder')}
                       />
                     </div>
 
-                    <div>
-                      <label htmlFor="slug" className="block text-sm font-medium text-card-foreground mb-1">
+                    <div className="w-full">
+                      <label htmlFor="slug" className="auth-label">
                         {t('companyUrl')}
                       </label>
                       <Input
@@ -223,17 +224,20 @@ export default function RegisterPage() {
                         type="text"
                         value={formData.slug}
                         onChange={handleInputChange}
-                        className="w-full"
+                        className="auth-input w-full max-w-full"
                         placeholder={t('companyUrlPlaceholder')}
                       />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        onclickwise.com/{formData.slug}
+                      <p className="text-sm text-gray-500 mt-2 font-medium break-words">
+                        {formData.slug 
+                          ? <>onclickwise.com/<span className="text-[#3b82f6]">{formData.slug}</span></>
+                          : <>{t('companyUrlPreview').split('/')[0]}/<span className="text-[#3b82f6]">{t('companyUrlPreview').split('/')[1]}</span></>
+                        }
                       </p>
                     </div>
 
-                    <div>
-                      <label htmlFor="company_id" className="block text-sm font-medium text-card-foreground mb-1">
-                        {t('companyId')} {t('required')}
+                    <div className="w-full">
+                      <label htmlFor="company_id" className="auth-label">
+                        {t('companyId')} <span className="text-red-500">*</span>
                       </label>
                       <Input
                         id="company_id"
@@ -242,14 +246,14 @@ export default function RegisterPage() {
                         value={formData.company_id}
                         onChange={handleInputChange}
                         required
-                        className="w-full"
+                        className="auth-input w-full max-w-full"
                         placeholder={t('companyIdPlaceholder')}
                       />
                     </div>
 
-                    <div>
-                      <label htmlFor="email" className="block text-sm font-medium text-card-foreground mb-1">
-                        {t('companyEmail')} {t('required')}
+                    <div className="w-full">
+                      <label htmlFor="email" className="auth-label">
+                        {t('companyEmail')} <span className="text-red-500">*</span>
                       </label>
                       <Input
                         id="email"
@@ -258,13 +262,13 @@ export default function RegisterPage() {
                         value={formData.email}
                         onChange={handleInputChange}
                         required
-                        className="w-full"
+                        className="auth-input w-full max-w-full"
                         placeholder={t('companyEmailPlaceholder')}
                       />
                     </div>
 
-                    <div>
-                      <label htmlFor="phone" className="block text-sm font-medium text-card-foreground mb-1">
+                    <div className="w-full">
+                      <label htmlFor="phone" className="auth-label">
                         {t('phoneNumber')}
                       </label>
                       <Input
@@ -273,7 +277,7 @@ export default function RegisterPage() {
                         type="tel"
                         value={formData.phone}
                         onChange={handleInputChange}
-                        className="w-full"
+                        className="auth-input w-full max-w-full"
                         placeholder={t('phoneNumberPlaceholder')}
                       />
                     </div>
@@ -281,15 +285,18 @@ export default function RegisterPage() {
                 </div>
 
                 {/* Security */}
-                <div className="bg-muted/50 p-4 rounded-lg">
-                  <h2 className="text-base font-semibold text-card-foreground mb-2">{t('security')}</h2>
+                <div className="auth-section w-full">
+                  <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2 break-words">
+                    <Lock className="w-4 h-4 sm:w-5 sm:h-5 text-[#3b82f6] flex-shrink-0" />
+                    <span className="break-words">{t('security')}</span>
+                  </h2>
                 
                   <div className="grid grid-cols-1 gap-3">
-                    <div>
-                      <label htmlFor="password" className="block text-sm font-medium text-card-foreground mb-1">
-                        {t('password')} {t('required')}
+                    <div className="w-full">
+                      <label htmlFor="password" className="auth-label">
+                        {t('password')} <span className="text-red-500">*</span>
                       </label>
-                      <div className="relative">
+                      <div className="relative w-full">
                         <Input
                           id="password"
                           name="password"
@@ -297,24 +304,24 @@ export default function RegisterPage() {
                           value={formData.password}
                           onChange={handleInputChange}
                           required
-                          className="w-full pr-10"
+                          className="auth-input w-full max-w-full pr-10"
                           placeholder={t('passwordPlaceholder')}
                         />
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-[#3b82f6] transition-colors cursor-pointer"
                         >
                           {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
                       </div>
                     </div>
 
-                    <div>
-                      <label htmlFor="password_confirm" className="block text-sm font-medium text-card-foreground mb-1">
-                        {t('confirmPassword')} {t('required')}
+                    <div className="w-full">
+                      <label htmlFor="password_confirm" className="auth-label">
+                        {t('confirmPassword')} <span className="text-red-500">*</span>
                       </label>
-                      <div className="relative">
+                      <div className="relative w-full">
                         <Input
                           id="password_confirm"
                           name="password_confirm"
@@ -322,13 +329,13 @@ export default function RegisterPage() {
                           value={formData.password_confirm}
                           onChange={handleInputChange}
                           required
-                          className="w-full pr-10"
+                          className="auth-input w-full max-w-full pr-10"
                           placeholder={t('confirmPasswordPlaceholder')}
                         />
                         <button
                           type="button"
                           onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-[#3b82f6] transition-colors cursor-pointer"
                         >
                           {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
@@ -338,19 +345,19 @@ export default function RegisterPage() {
                 </div>
 
                 {/* Terms and Conditions */}
-                <div className="bg-muted/50 p-4 rounded-lg">
-                  <h2 className="text-base font-semibold text-card-foreground mb-2">{t('termsAndConditions')}</h2>
+                <div className="auth-section w-full">
+                  <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3">{t('termsAndConditions')}</h2>
                 
-                  <div className="flex items-start space-x-2">
+                  <div className="flex items-start space-x-3 w-full">
                     <input
                       type="checkbox"
                       id="terms"
                       checked={termsAccepted}
                       onChange={(e) => setTermsAccepted(e.target.checked)}
-                      className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer"
+                      className="mt-1 h-4 w-4 sm:h-5 sm:w-5 text-[#3b82f6] focus:ring-[#3b82f6] border-gray-300 rounded cursor-pointer flex-shrink-0"
                     />
-                    <div className="text-xs text-gray-700">
-                      <span>
+                    <div className="text-sm text-gray-700 leading-relaxed break-words flex-1 min-w-0">
+                      <span className="break-words">
                         {t('acceptTerms')}{' '}
                         <button
                           type="button"
@@ -358,7 +365,7 @@ export default function RegisterPage() {
                             setModalContent('terms');
                             setShowTermsModal(true);
                           }}
-                          className="text-blue-600 hover:text-blue-700 underline cursor-pointer"
+                          className="text-[#3b82f6] hover:text-[#2563eb] font-semibold underline cursor-pointer transition-colors break-words"
                         >
                           {t('termsOfUse')}
                         </button>
@@ -369,7 +376,7 @@ export default function RegisterPage() {
                             setModalContent('privacy');
                             setShowTermsModal(true);
                           }}
-                          className="text-blue-600 hover:text-blue-700 underline cursor-pointer"
+                          className="text-[#3b82f6] hover:text-[#2563eb] font-semibold underline cursor-pointer transition-colors break-words"
                         >
                           {t('privacyPolicy')}
                         </button>
@@ -380,16 +387,16 @@ export default function RegisterPage() {
                 </div>
 
                 {error && (
-                  <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg">
+                  <div className="auth-error mt-2">
                     {error}
                   </div>
                 )}
 
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <Button
+                <div className="flex flex-col sm:flex-row gap-3 pt-2 w-full">
+                  <button
                     type="submit"
                     disabled={loading}
-                    className="flex-1 cursor-pointer"
+                    className="auth-button-primary flex-1 flex items-center justify-center w-full py-3 text-sm sm:text-base font-semibold"
                   >
                     {loading ? (
                       <>
@@ -399,17 +406,16 @@ export default function RegisterPage() {
                     ) : (
                       t('createAccount')
                     )}
-                  </Button>
+                  </button>
                   
-                  <Button
+                  <button
                     type="button"
-                    variant="outline"
                     onClick={() => router.push('/login')}
-                    className="flex-1 cursor-pointer"
+                    className="auth-button-outline flex-1 w-full py-3 text-sm sm:text-base font-semibold"
                     disabled={loading}
                   >
                     {t('alreadyHaveAccount')}
-                  </Button>
+                  </button>
                 </div>
               </form>
             </div>
@@ -419,8 +425,8 @@ export default function RegisterPage() {
 
       {/* Terms Modal */}
       {showTermsModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-card border rounded-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-50 overflow-x-hidden">
+          <div className="auth-card w-full max-w-[calc(100vw-2rem)] sm:max-w-2xl max-h-[80vh] overflow-y-auto overflow-x-hidden">
             <div className="p-6">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-xl font-semibold text-card-foreground">
@@ -625,17 +631,17 @@ export default function RegisterPage() {
               </div>
               
               <div className="mt-6 flex justify-end">
-                <Button
+                <button
                   onClick={() => setShowTermsModal(false)}
-                  className="cursor-pointer"
+                  className="auth-button-primary cursor-pointer"
                 >
                   {t('closeModal')}
-                </Button>
+                </button>
               </div>
             </div>
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

@@ -132,7 +132,7 @@ export function LanguageSwitcher({ variant = 'compact' }: LanguageSwitcherProps)
           <Button 
             variant="ghost" 
             size="sm" 
-            className="gap-2"
+            className="gap-2 cursor-pointer"
           >
             <Globe className="w-4 h-4" />
             <span className="hidden sm:inline">{currentLanguage.flag} {currentLanguage.name}</span>
@@ -144,7 +144,7 @@ export function LanguageSwitcher({ variant = 'compact' }: LanguageSwitcherProps)
             <DropdownMenuItem
               key={lang.code}
               onClick={() => switchLanguage(lang.code as 'pt-BR' | 'en-US')}
-              className={locale === lang.code ? 'bg-accent' : ''}
+              className={`cursor-pointer ${locale === lang.code ? 'bg-accent' : ''}`}
             >
               <span className="mr-2">{lang.flag}</span>
               {lang.name}
@@ -168,7 +168,7 @@ export function LanguageSwitcher({ variant = 'compact' }: LanguageSwitcherProps)
             key={lang.code}
             onClick={() => switchLanguage(lang.code as 'pt-BR' | 'en-US')}
             className={`
-              w-full flex items-center gap-3 p-3 rounded-lg border transition-all
+              w-full flex items-center gap-3 p-3 rounded-lg border transition-all cursor-pointer
               ${isActive 
                 ? 'border-primary bg-primary/5 shadow-sm' 
                 : 'border-border hover:border-primary/30 hover:bg-accent'

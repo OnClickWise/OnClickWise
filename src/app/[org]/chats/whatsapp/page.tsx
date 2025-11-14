@@ -3,6 +3,7 @@
 import * as React from "react"
 import { AppSidebar } from "@/components/app-sidebar"
 import AuthGuard from "@/components/AuthGuard"
+import { FaWhatsapp } from "react-icons/fa"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -163,7 +164,10 @@ export default function WhatsAppPage({
                 </BreadcrumbItem>
                 <BreadcrumbSeparator className="hidden md:block" />
                 <BreadcrumbItem>
-                  <BreadcrumbPage>WhatsApp</BreadcrumbPage>
+                  <BreadcrumbPage className="flex items-center gap-2">
+                    <FaWhatsapp className="w-4 h-4" />
+                    WhatsApp
+                  </BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
@@ -176,7 +180,10 @@ export default function WhatsAppPage({
               {/* Header da Lista */}
               <div className="p-4 border-b border-gray-200 bg-green-600">
                 <div className="flex items-center justify-between mb-4">
-                  <h1 className="text-xl font-semibold text-white">WhatsApp</h1>
+                  <div className="flex items-center gap-2">
+                    <FaWhatsapp className="w-5 h-5 text-white" />
+                    <h1 className="text-xl font-semibold text-white">WhatsApp</h1>
+                  </div>
                   <Button variant="ghost" size="sm" className="text-white hover:bg-green-700">
                     <MoreVertical className="w-4 h-4" />
                   </Button>

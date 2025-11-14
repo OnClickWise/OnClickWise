@@ -11,6 +11,8 @@ import {
   BarChart3,
   LayoutDashboard,
 } from "lucide-react"
+import { FaWhatsapp, FaTelegram } from "react-icons/fa"
+import { SiGmail } from "react-icons/si"
 import { usePathname } from "next/navigation"
 import { useTranslations } from "next-intl"
 
@@ -303,9 +305,9 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
       url: `/${org}/chats`,
       icon: MessageSquare,
       items: [
-        { title: t('whatsapp'), url: `/${org}/chats/whatsapp` },
-        { title: t('telegram'), url: `/${org}/chats/telegram` },
-        { title: t('email'), url: `/${org}/chats/email` },
+        { title: t('whatsapp'), url: `/${org}/chats/whatsapp`, icon: <FaWhatsapp className="w-4 h-4" /> },
+        { title: t('telegram'), url: `/${org}/chats/telegram`, icon: <FaTelegram className="w-4 h-4" /> },
+        { title: t('email'), url: `/${org}/chats/email`, icon: <SiGmail className="w-4 h-4" /> },
       ],
     },
     {

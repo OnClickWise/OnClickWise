@@ -3,6 +3,7 @@
 import * as React from "react"
 import { AppSidebar } from "@/components/app-sidebar"
 import AuthGuard from "@/components/AuthGuard"
+import { SiGmail } from "react-icons/si"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -166,7 +167,10 @@ export default function EmailPage({
                 </BreadcrumbItem>
                 <BreadcrumbSeparator className="hidden md:block" />
                 <BreadcrumbItem>
-                  <BreadcrumbPage>Email</BreadcrumbPage>
+                  <BreadcrumbPage className="flex items-center gap-2">
+                    <SiGmail className="w-4 h-4" />
+                    Email
+                  </BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
@@ -179,7 +183,10 @@ export default function EmailPage({
               {/* Header da Lista */}
               <div className="p-4 border-b border-gray-200">
                 <div className="flex items-center justify-between mb-4">
-                  <h1 className="text-xl font-semibold text-gray-800">Email</h1>
+                  <div className="flex items-center gap-2">
+                    <SiGmail className="w-5 h-5 text-gray-800" />
+                    <h1 className="text-xl font-semibold text-gray-800">Email</h1>
+                  </div>
                   <Button onClick={() => setComposeOpen(true)} className="bg-blue-600 hover:bg-blue-700">
                     <Mail className="w-4 h-4 mr-2" />
                     Escrever
