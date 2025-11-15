@@ -1019,6 +1019,9 @@
       "inContact": "Em Contato",
     "qualified": "Qualificado",
       "lost": "Perdido",
+      "entry": "Entrada",
+      "progress": "Em Progresso",
+      "won": "Ganho",
       "custom": "Personalizado…"
     },
     

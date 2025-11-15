@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Building2, Loader2, Mail, Lock } from 'lucide-react';
+import { Logo } from '@/components/Logo';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -70,10 +71,7 @@ export default function LoginPage() {
       {/* Header */}
       <header className="auth-header flex h-16 shrink-0 items-center gap-2 px-4 md:px-8 sticky top-0 z-10">
         <div className="flex items-center gap-2">
-          <div className="w-10 h-10 bg-gradient-to-br from-[#3b82f6] to-[#2563eb] rounded-xl flex items-center justify-center shadow-lg">
-            <Building2 className="w-6 h-6 text-white" />
-          </div>
-          <span className="text-xl font-bold bg-gradient-to-r from-[#3b82f6] to-[#2563eb] bg-clip-text text-transparent">OnClickWise</span>
+          <Logo width={200} height={65} className="h-14 w-auto" />
         </div>
       </header>
 

@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { Input } from '@/components/ui/input';
 import { Building2, Mail, ArrowLeft, Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { Logo } from '@/components/Logo';
 
 interface CompanyInfo {
   id: number;
@@ -130,23 +131,34 @@ export default function CompanyForgotPasswordPage({ params }: { params: Promise<
 
   if (!companyInfo) {
     return (
-      <div className="auth-page-container flex items-center justify-center p-4">
-        <div className="auth-card max-w-md w-full relative z-10">
-          <div className="p-8 text-center">
-            <div className="w-20 h-20 bg-gradient-to-br from-red-100 to-red-50 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
-              <Building2 className="w-10 h-10 text-red-500" />
+      <div className="auth-page-container">
+        {/* Header */}
+        <header className="auth-header flex h-16 shrink-0 items-center gap-2 px-4 md:px-8 sticky top-0 z-10">
+          <div className="flex items-center gap-2">
+            <Logo width={200} height={65} className="h-14 w-auto" />
+          </div>
+        </header>
+        
+        <div className="flex items-center justify-center min-h-[calc(100vh-8rem)] relative z-10 p-4">
+          <div className="max-w-md w-full">
+            <div className="auth-card p-8 md:p-10">
+              <div className="text-center">
+                <div className="w-20 h-20 bg-gradient-to-br from-red-100 to-red-50 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+                  <Building2 className="w-10 h-10 text-red-500" />
+                </div>
+                <h2 className="auth-title text-2xl md:text-3xl mb-3 text-red-600">{t('companyNotFound')}</h2>
+                <p className="auth-subtitle mb-8">
+                  {t('companyNotFoundMessage')}
+                </p>
+                <button
+                  onClick={() => router.push('/login')}
+                  className="auth-button-outline w-full flex items-center justify-center"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  {t('backToMainLogin')}
+                </button>
+              </div>
             </div>
-            <h2 className="auth-title text-2xl mb-3 text-red-600">{t('companyNotFound')}</h2>
-            <p className="auth-subtitle mb-8">
-              {t('companyNotFoundMessage')}
-            </p>
-            <button
-              onClick={() => router.push('/login')}
-              className="auth-button-outline w-full flex items-center justify-center"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              {t('backToMainLogin')}
-            </button>
           </div>
         </div>
       </div>

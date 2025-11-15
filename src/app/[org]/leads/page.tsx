@@ -653,17 +653,17 @@ export default function LeadsPage({
     }
 
     const widthMap: Record<string, string> = {
-      name: 'min-w-[150px] w-[180px]',
-      email: 'min-w-[160px] w-[200px]',
-      phone: 'min-w-[120px] w-[130px]',
-      ssn: 'min-w-[110px] w-[120px]',
-      ein: 'min-w-[110px] w-[120px]',
-      source: 'min-w-[100px] w-[110px]',
-      status: 'min-w-[100px] w-[110px]',
-      value: 'min-w-[90px] w-[100px]',
-      estimatedCloseDate: 'min-w-[100px] w-[110px]',
-      location: 'min-w-[120px] w-[140px]',
-      interest: 'min-w-[100px] w-[110px]'
+      name: 'min-w-[120px] max-w-[140px] w-[140px]',
+      email: 'min-w-[130px] max-w-[160px] w-[160px]',
+      phone: 'min-w-[100px] max-w-[120px] w-[120px]',
+      ssn: 'min-w-[90px] max-w-[100px] w-[100px]',
+      ein: 'min-w-[90px] max-w-[100px] w-[100px]',
+      source: 'min-w-[100px] max-w-[140px] w-[140px]',
+      status: 'min-w-[80px] max-w-[90px] w-[90px]',
+      value: 'min-w-[80px] max-w-[90px] w-[90px]',
+      estimatedCloseDate: 'min-w-[90px] max-w-[100px] w-[100px]',
+      location: 'min-w-[100px] max-w-[130px] w-[130px]',
+      interest: 'min-w-[120px] max-w-[180px] w-[180px]'
     }
 
     const isSortable = sortableColumns.includes(columnId)
@@ -786,8 +786,8 @@ export default function LeadsPage({
         )
       case 'source':
         return (
-          <td key={columnId} className="py-2.5 px-2 border-r border-border/30">
-            <div className="truncate text-xs" title={lead.source}>
+          <td key={columnId} className="py-2.5 px-2 border-r border-border/30 max-w-[140px]">
+            <div className="truncate text-xs max-w-full" title={lead.source}>
               {lead.source || '-'}
             </div>
           </td>
@@ -818,16 +818,16 @@ export default function LeadsPage({
         )
       case 'location':
         return (
-          <td key={columnId} className="py-2.5 px-2 border-r border-border/30">
-            <div className="truncate text-xs" title={lead.location}>
+          <td key={columnId} className="py-2.5 px-2 border-r border-border/30 max-w-[130px]">
+            <div className="truncate text-xs max-w-full" title={lead.location}>
               {lead.location || '-'}
             </div>
           </td>
         )
       case 'interest':
         return (
-          <td key={columnId} className="py-2.5 px-2 border-r border-border/30">
-            <div className="truncate text-xs" title={lead.interest}>
+          <td key={columnId} className="py-2.5 px-2 border-r border-border/30 max-w-[180px]">
+            <div className="truncate text-xs max-w-full" title={lead.interest}>
               {lead.interest || '-'}
             </div>
           </td>
@@ -1434,6 +1434,12 @@ export default function LeadsPage({
         const newLeads = response.data.leads || []
         setLeads(newLeads)
         setFilteredLeads(newLeads)
+        // Atualizar o total de leads
+        if (response.data.total !== undefined) {
+          setTotalLeads(response.data.total)
+        } else {
+          setTotalLeads(newLeads.length)
+        }
       }
     } catch (error) {
       console.error('Error force refreshing leads:', error)
@@ -1443,7 +1449,12 @@ export default function LeadsPage({
   // Immediate sync function for after CRUD operations
   const syncAfterOperation = async () => {
     try {
-      await new Promise(resolve => setTimeout(resolve, 100))
+      // Aumentar o delay para garantir que o backend tenha processado completamente
+      // especialmente para operações em massa (importação/deleção)
+      await new Promise(resolve => setTimeout(resolve, 500))
+      await forceRefreshLeads()
+      // Aguardar um pouco mais e verificar novamente para garantir que o total está correto
+      await new Promise(resolve => setTimeout(resolve, 500))
       await forceRefreshLeads()
     } catch (error) {
       console.error('Error syncing after operation:', error)
@@ -4412,6 +4423,10 @@ export default function LeadsPage({
           setFilteredLeads(prev => prev.filter(lead => !importedIds.includes(lead.id)))
           setImportedLeads(prev => prev.filter(lead => !importedIds.includes(lead.id)))
           setCurrentImportLeads([])
+          // Atualizar o total de leads após cancelar importação
+          if (savedLeads.length > 0) {
+            setTotalLeads(prev => Math.max(0, prev - savedLeads.length))
+          }
         }
         setImportNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: true })
         setIsImportCancelled(false)
@@ -4473,6 +4488,10 @@ export default function LeadsPage({
           setFilteredLeads(prev => prev.filter(lead => !importedIds.includes(lead.id)))
           setImportedLeads(prev => prev.filter(lead => !importedIds.includes(lead.id)))
           setCurrentImportLeads([])
+          // Atualizar o total de leads após cancelar importação
+          if (savedLeads.length > 0) {
+            setTotalLeads(prev => Math.max(0, prev - savedLeads.length))
+          }
         }
         setImportNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: true })
         setIsImportCancelled(false)
@@ -4517,6 +4536,10 @@ export default function LeadsPage({
             setFilteredLeads(prev => prev.filter(lead => !importedIds.includes(lead.id)))
             setImportedLeads(prev => prev.filter(lead => !importedIds.includes(lead.id)))
             setCurrentImportLeads([])
+            // Atualizar o total de leads após cancelar importação
+            if (savedLeads.length > 0) {
+              setTotalLeads(prev => Math.max(0, prev - savedLeads.length))
+            }
           }
           setImportNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: true })
           setIsImportCancelled(false)
@@ -4792,6 +4815,11 @@ export default function LeadsPage({
               message += ` ${finalErrors} lead(s) failed even after retry.`
             }
             pushToast(message, finalErrors > 0 ? "warning" : "success")
+            
+            // Atualizar o total de leads imediatamente após importação bem-sucedida
+            if (savedLeads.length > 0) {
+              setTotalLeads(prev => prev + savedLeads.length)
+            }
           } else {
           // Show comprehensive results
           if (cancelled) {
@@ -4805,6 +4833,11 @@ export default function LeadsPage({
               message += ` ${errorCount} lead(s) failed to save.`
             }
             pushToast(message, errorCount > 0 ? "warning" : "success")
+            
+            // Atualizar o total de leads imediatamente após importação bem-sucedida
+            if (savedLeads.length > 0) {
+              setTotalLeads(prev => prev + savedLeads.length)
+            }
           }
           
           if (cancelled && savedLeads.length === 0 && duplicateCount === 0) {
@@ -5255,6 +5288,11 @@ export default function LeadsPage({
         }
       }
       
+      // Atualizar o total de leads imediatamente após deleção bem-sucedida
+      if (deletedCount > 0) {
+        setTotalLeads(prev => Math.max(0, prev - deletedCount))
+      }
+      
       // Clear selections
       setSelectedLeads(new Set())
       
@@ -5447,10 +5485,15 @@ export default function LeadsPage({
                     
                     // Remove from frontend state regardless of backend success
                     const importedIds = currentImportLeads.map(lead => lead.id)
+                    const importedCount = currentImportLeads.length
                     setLeads(prev => prev.filter(lead => !importedIds.includes(lead.id)))
                     setFilteredLeads(prev => prev.filter(lead => !importedIds.includes(lead.id)))
                     setImportedLeads(prev => prev.filter(lead => !importedIds.includes(lead.id)))
                     setCurrentImportLeads([])
+                    // Atualizar o total de leads após cancelar importação
+                    if (importedCount > 0) {
+                      setTotalLeads(prev => Math.max(0, prev - importedCount))
+                    }
                   }
                   
                   // Reset file input to allow reimporting the same file
@@ -6071,7 +6114,7 @@ export default function LeadsPage({
 
             <div ref={tableContainerRef} className="overflow-x-auto border rounded-lg" style={{ scrollBehavior: 'auto' }}>
 
-              <table className="w-full text-sm border-collapse">
+              <table className="w-full text-sm border-collapse table-fixed">
 
                 <thead>
 

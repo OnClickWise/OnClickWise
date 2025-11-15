@@ -35,6 +35,14 @@ const roboto = Roboto({
 export const metadata: Metadata = {
   title: "OnClickWise - CRM & Lead Management",
   description: "Plataforma completa de CRM e gestão de leads",
+  icons: {
+    icon: [
+      { url: '/logo-favicon.png', sizes: 'any' },
+      { url: '/logo-favicon.png', type: 'image/png' },
+    ],
+    apple: '/logo-favicon.png',
+    shortcut: '/logo-favicon.png',
+  },
 };
 
 export default async function RootLayout({

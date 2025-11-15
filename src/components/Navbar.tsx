@@ -4,6 +4,7 @@ import { motion } from "framer-motion"
 import { Menu, LogIn, UserPlus } from "lucide-react"
 import { useState } from "react"
 import Link from "next/link"
+import { Logo } from "@/components/Logo"
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
@@ -23,11 +24,13 @@ export default function Navbar() {
         
         {/* LOGO */}
         <motion.div
-          className="font-extrabold text-2xl tracking-tight bg-gradient-to-r from-blue-500 to-yellow-400 bg-clip-text text-transparent"
+          className="flex items-center"
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
         >
-          OnclickWise
+          <Link href="/">
+            <Logo width={240} height={80} className="h-12 w-auto" />
+          </Link>
         </motion.div>
 
         {/* MENU DESKTOP */}

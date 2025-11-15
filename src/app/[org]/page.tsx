@@ -2,7 +2,8 @@
 
 import { motion } from "framer-motion";
 import { Building2, CheckCircle2, HelpCircle, Mail, Phone } from "lucide-react";
-import React from "react";
+import React, { use } from "react";
+import { EducacaoSemLimiteLanding } from "@/components/EducacaoSemLimiteLanding";
 
 type OrgData = {
   name: string;
@@ -33,7 +34,16 @@ const faqs = [
   },
 ];
 
-export default function LandingPage() {
+export default function LandingPage({ params }: { params: Promise<{ org: string }> }) {
+  const resolvedParams = use(params);
+  const orgSlug = resolvedParams.org;
+
+  // Se for educacaosemlimites, mostrar landing page específica
+  if (orgSlug === 'educacaosemlimites' || orgSlug === 'educacaosemlimite') {
+    return <EducacaoSemLimiteLanding orgSlug={orgSlug} />;
+  }
+
+  // Para outras empresas, manter o comportamento padrão
   return (
     <div className="bg-background text-foreground">
       {/* Hero */}

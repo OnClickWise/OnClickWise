@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { Input } from '@/components/ui/input';
 import { Building2, Loader2, Lock, CheckCircle2, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
+import { Logo } from '@/components/Logo';
 
 function ResetPasswordForm() {
   const router = useRouter();
@@ -126,10 +127,7 @@ function ResetPasswordForm() {
       {/* Header */}
       <header className="auth-header flex h-14 shrink-0 items-center gap-2 px-3 sm:px-4 md:px-8 sticky top-0 z-10 w-full max-w-full overflow-x-hidden">
         <div className="flex items-center gap-2 min-w-0">
-          <div className="w-9 h-9 bg-gradient-to-br from-[#3b82f6] to-[#2563eb] rounded-xl flex items-center justify-center shadow-lg flex-shrink-0">
-            <Building2 className="w-5 h-5 text-white" />
-          </div>
-          <span className="text-base sm:text-lg font-bold bg-gradient-to-r from-[#3b82f6] to-[#2563eb] bg-clip-text text-transparent truncate">OnClickWise</span>
+          <Logo width={200} height={65} className="h-10 sm:h-14 w-auto" />
         </div>
       </header>
 

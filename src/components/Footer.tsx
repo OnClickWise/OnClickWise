@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Github, Twitter, Linkedin, Facebook, Instagram } from "lucide-react";
+import { Logo } from "@/components/Logo";
 
 export default function Footer() {
   return (
@@ -12,9 +13,7 @@ export default function Footer() {
           {/* Logo + Description */}
           <div>
             <a href="/" className="flex items-center space-x-2 mb-4">
-              <span className="text-2xl font-extrabold text-blue-500 dark:text-yellow-400">
-                OnclickWise
-              </span>
+              <Logo width={220} height={70} className="h-14 w-auto" />
             </a>
             <p className="text-gray-600 dark:text-gray-300 text-sm">
               Centralize your business operations in one platform. From leads to clients, all in one place.
@@ -110,7 +109,7 @@ export default function Footer() {
         {/* Bottom */}
         <div className="flex flex-col sm:flex-row items-center justify-between">
           <span className="text-sm text-gray-500 dark:text-gray-400">
-            © {new Date().getFullYear()} OnclickWise. All rights reserved.
+            © {new Date().getFullYear()} OnClickWise. All rights reserved.
           </span>
 
           {/* Social Links */}

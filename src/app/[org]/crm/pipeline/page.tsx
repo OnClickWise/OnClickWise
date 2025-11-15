@@ -3773,10 +3773,13 @@ export default function PipelinePage({
                                             'warning'
                                           )
                                         } else {
+                                          const translatedStageName = targetStage.translation_key 
+                                            ? t(`stage.${targetStage.translation_key.replace('pipeline.stage.', '')}`)
+                                            : targetStage.name
                                           pushToast(
                                             t('stageManagement.leadsMoved', {
                                               count: successCount,
-                                              stageName: targetStage.name
+                                              stageName: translatedStageName
                                             }),
                                             'success'
                                           )
@@ -3794,7 +3797,9 @@ export default function PipelinePage({
                                   >
                                     <div className="flex items-center gap-2">
                                       <div className="flex-1">
-                                        {targetStage.name}
+                                        {targetStage.translation_key 
+                                          ? t(`stage.${targetStage.translation_key.replace('pipeline.stage.', '')}`)
+                                          : targetStage.name}
                           </div>
                                     </div>
                                   </DropdownMenuItem>

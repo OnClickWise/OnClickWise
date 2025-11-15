@@ -126,6 +126,7 @@
     height: 100%;
     width: 100%;
     overflow-x: hidden;
+    scroll-behavior: smooth;
   }
   body {
     min-height: 100%;
@@ -1685,5 +1686,22 @@ div[data-slot="sidebar-inner"] {
 .pipeline-scroll-container {
   scrollbar-width: thin;
   scrollbar-color: rgba(59, 130, 246, 0.4) rgba(0, 0, 0, 0.05);
+}
+
+/* Educação Sem Limite Landing - Scroll Text Animation */
+.scroll-text {
+  display: inline-block;
+  white-space: nowrap;
+  padding-left: 100%;
+  animation: scroll-left 15s linear infinite;
+}
+
+@keyframes scroll-left {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
 }
  
