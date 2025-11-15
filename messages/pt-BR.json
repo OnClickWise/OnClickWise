@@ -48,6 +48,7 @@
     "signIn": "Entrar",
     "signingIn": "Entrando...",
     "loginFailed": "Falha no login",
+    "invalidEmailOrPassword": "E-mail ou senha inválidos",
     "connectionError": "Erro de conexão. Por favor, tente novamente.",
     "noAccount": "Não tem uma conta?",
     "signUp": "Cadastre-se"
@@ -561,6 +562,7 @@
     "noAccount": "Não tem uma conta?",
     "contactAdmin": "Entre em contato com seu administrador",
     "loginFailed": "Falha no login",
+    "invalidEmailOrPassword": "E-mail ou senha inválidos",
     "connectionError": "Erro de conexão. Tente novamente."
   },
   "InactivityNotification": {

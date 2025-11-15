@@ -48,6 +48,7 @@
     "signIn": "Sign In",
     "signingIn": "Signing in...",
     "loginFailed": "Login failed",
+    "invalidEmailOrPassword": "Invalid email or password",
     "connectionError": "Connection error. Please try again.",
     "noAccount": "Don't have an account?",
     "signUp": "Sign up"
@@ -561,6 +562,7 @@
     "noAccount": "Don't have an account?",
     "contactAdmin": "Contact your administrator",
     "loginFailed": "Login failed",
+    "invalidEmailOrPassword": "Invalid email or password",
     "connectionError": "Connection error. Please try again."
   },
   "InactivityNotification": {

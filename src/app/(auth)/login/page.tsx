@@ -56,7 +56,12 @@ export default function LoginPage() {
         // Isso evita problemas com AuthGuard que pode verificar antes do router.push
         window.location.href = `/${result.organization.slug}/dashboard`;
       } else {
-        setError(result.error || t('loginFailed'));
+        // Mapear mensagens de erro da API para chaves de tradução
+        let errorMessage = result.error || t('loginFailed');
+        if (result.error === 'Invalid email or password' || result.error?.toLowerCase().includes('invalid email or password')) {
+          errorMessage = t('invalidEmailOrPassword');
+        }
+        setError(errorMessage);
       }
     } catch (error) {
       console.error('Login error:', error);

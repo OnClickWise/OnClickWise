@@ -198,6 +198,12 @@ export function EducacaoSemLimiteLanding({ orgSlug }: EducacaoSemLimiteLandingPr
         cursos: [...prev.cursos, selectedCourse]
       }))
       
+      // Limpar validação personalizada quando um curso é selecionado
+      const selectElement = e.target
+      if (selectElement) {
+        selectElement.setCustomValidity('')
+      }
+      
       // Reset select após um pequeno delay para garantir que o React processou a mudança
       setTimeout(() => {
         const selectElement = document.getElementById('curso') as HTMLSelectElement
@@ -209,10 +215,21 @@ export function EducacaoSemLimiteLanding({ orgSlug }: EducacaoSemLimiteLandingPr
   }
 
   const removeCourse = (courseToRemove: string) => {
-    setFormData(prev => ({
-      ...prev,
-      cursos: prev.cursos.filter(c => c !== courseToRemove)
-    }))
+    setFormData(prev => {
+      const newCursos = prev.cursos.filter(c => c !== courseToRemove)
+      // Se após remover ficar sem cursos, limpar a validação personalizada
+      // (a validação será aplicada novamente no submit se necessário)
+      if (newCursos.length === 0) {
+        const cursoSelect = document.getElementById('curso') as HTMLSelectElement
+        if (cursoSelect) {
+          cursoSelect.setCustomValidity('')
+        }
+      }
+      return {
+        ...prev,
+        cursos: newCursos
+      }
+    })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -221,6 +238,23 @@ export function EducacaoSemLimiteLanding({ orgSlug }: EducacaoSemLimiteLandingPr
     setLoading(true)
 
     try {
+      // Validar cursos usando a API de validação do navegador
+      if (formData.cursos.length === 0) {
+        const cursoSelect = document.getElementById('curso') as HTMLSelectElement
+        if (cursoSelect) {
+          cursoSelect.setCustomValidity('Por favor, selecione pelo menos um curso.')
+          cursoSelect.reportValidity()
+        }
+        setLoading(false)
+        return
+      } else {
+        // Limpar validação personalizada se houver cursos
+        const cursoSelect = document.getElementById('curso') as HTMLSelectElement
+        if (cursoSelect) {
+          cursoSelect.setCustomValidity('')
+        }
+      }
+
       // Se não tiver organizationId ainda, tentar buscar novamente
       let orgId = organizationId
       if (!orgId) {
@@ -251,12 +285,6 @@ export function EducacaoSemLimiteLanding({ orgSlug }: EducacaoSemLimiteLandingPr
       // Preparar dados do lead
       // Formata o telefone para o banco (adiciona código do país +55)
       const phoneForDatabase = formatPhoneForDatabase(formData.whatsapp)
-      
-      if (formData.cursos.length === 0) {
-        setError('Por favor, selecione pelo menos um curso.')
-        setLoading(false)
-        return
-      }
 
       const cursosText = formData.cursos.join(',')
       const cursosDetalhados = formData.cursos.map((curso, index) => 
@@ -651,6 +679,7 @@ export function EducacaoSemLimiteLanding({ orgSlug }: EducacaoSemLimiteLandingPr
                   autoComplete="off"
                   value=""
                   onChange={handleCourseSelect}
+                  required
                   className="block w-full pl-14 pr-10 py-2.5 sm:py-3 text-sm sm:text-base text-white bg-gray-700 border-0 
             border-b-2 border-gray-600 rounded-sm appearance-none focus:outline-none focus:ring-0 focus:border-blue-500 peer cursor-pointer autofill:text-white autofill:bg-gray-700"
                   style={{ paddingLeft: '3.5rem', color: formData.cursos.length > 0 ? 'white' : 'rgba(156, 163, 175, 0.8)' }}

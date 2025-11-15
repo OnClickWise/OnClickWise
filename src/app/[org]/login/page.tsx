@@ -138,7 +138,12 @@ export default function CompanyLoginPage({ params }: { params: Promise<{ org: st
           }
         }
       } else {
-        setError(result.error || t('loginFailed'));
+        // Mapear mensagens de erro da API para chaves de tradução
+        let errorMessage = result.error || t('loginFailed');
+        if (result.error === 'Invalid email or password' || result.error?.toLowerCase().includes('invalid email or password')) {
+          errorMessage = t('invalidEmailOrPassword');
+        }
+        setError(errorMessage);
       }
     } catch (error) {
       console.error('Login error:', error);
