@@ -195,22 +195,26 @@ export function EducacaoSemLimiteLanding({ orgSlug }: EducacaoSemLimiteLandingPr
     if (selectedCourse && selectedCourse !== '' && selectedCourse !== 'Selecione um curso' && !formData.cursos.includes(selectedCourse)) {
       const newCursos = [...formData.cursos, selectedCourse]
       
+      // Limpar validação imediatamente antes de atualizar o estado
+      const selectElement = e.target
+      if (selectElement) {
+        selectElement.setCustomValidity('')
+        // Forçar o navegador a reconhecer que o campo agora é válido
+        selectElement.checkValidity()
+      }
+      
       setFormData(prev => ({
         ...prev,
         cursos: newCursos
       }))
-      
-      // Atualizar validação - agora há cursos selecionados
-      const selectElement = e.target
-      if (selectElement) {
-        selectElement.setCustomValidity('')
-      }
       
       // Reset select após um pequeno delay para garantir que o React processou a mudança
       setTimeout(() => {
         const selectElement = document.getElementById('curso') as HTMLSelectElement
         if (selectElement) {
           selectElement.value = ''
+          // Garantir que a validação permanece limpa após reset
+          selectElement.setCustomValidity('')
         }
       }, 0)
     }
@@ -240,9 +244,12 @@ export function EducacaoSemLimiteLanding({ orgSlug }: EducacaoSemLimiteLandingPr
     const cursoSelect = document.getElementById('curso') as HTMLSelectElement
     if (cursoSelect) {
       if (formData.cursos.length === 0) {
+        // Só definir validação se realmente não houver cursos
         cursoSelect.setCustomValidity('Por favor, selecione pelo menos um curso.')
       } else {
+        // Limpar validação e forçar reconhecimento de válido
         cursoSelect.setCustomValidity('')
+        cursoSelect.checkValidity()
       }
     }
   }, [formData.cursos])
@@ -250,20 +257,21 @@ export function EducacaoSemLimiteLanding({ orgSlug }: EducacaoSemLimiteLandingPr
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    
+    // Validar cursos usando a API de validação do navegador ANTES de setar loading
+    if (formData.cursos.length === 0) {
+      const cursoSelect = document.getElementById('curso') as HTMLSelectElement
+      if (cursoSelect) {
+        // Garantir que a validação personalizada está definida
+        cursoSelect.setCustomValidity('Por favor, selecione pelo menos um curso.')
+        cursoSelect.reportValidity()
+      }
+      return
+    }
+    
     setLoading(true)
 
     try {
-      // Validar cursos usando a API de validação do navegador
-      if (formData.cursos.length === 0) {
-        const cursoSelect = document.getElementById('curso') as HTMLSelectElement
-        if (cursoSelect) {
-          // Garantir que a validação personalizada está definida
-          cursoSelect.setCustomValidity('Por favor, selecione pelo menos um curso.')
-          cursoSelect.reportValidity()
-        }
-        setLoading(false)
-        return
-      }
 
       // Se não tiver organizationId ainda, tentar buscar novamente
       let orgId = organizationId
@@ -689,7 +697,6 @@ export function EducacaoSemLimiteLanding({ orgSlug }: EducacaoSemLimiteLandingPr
                   autoComplete="off"
                   value=""
                   onChange={handleCourseSelect}
-                  required
                   className="block w-full pl-14 pr-10 py-2.5 sm:py-3 text-sm sm:text-base text-white bg-gray-700 border-0 
             border-b-2 border-gray-600 rounded-sm appearance-none focus:outline-none focus:ring-0 focus:border-blue-500 peer cursor-pointer autofill:text-white autofill:bg-gray-700"
                   style={{ paddingLeft: '3.5rem', color: formData.cursos.length > 0 ? 'white' : 'rgba(156, 163, 175, 0.8)' }}
