@@ -305,9 +305,28 @@ export function EducacaoSemLimiteLanding({ orgSlug }: EducacaoSemLimiteLandingPr
       const phoneForDatabase = formatPhoneForDatabase(formData.whatsapp)
 
       const cursosText = formData.cursos.join(',')
-      const cursosDetalhados = formData.cursos.map((curso, index) => 
-        `  ${index + 1}. ${curso}`
-      ).join('\n')
+      
+      // Formatar data e hora atual
+      const agora = new Date()
+      const dia = String(agora.getDate()).padStart(2, '0')
+      const mes = String(agora.getMonth() + 1).padStart(2, '0')
+      const ano = agora.getFullYear()
+      const horas = String(agora.getHours()).padStart(2, '0')
+      const minutos = String(agora.getMinutes()).padStart(2, '0')
+      const dataFormatada = `${dia}/${mes}/${ano} às ${horas}:${minutos}`
+      
+      // Formatar descrição baseada no número de cursos
+      let descricaoCursos = ''
+      if (formData.cursos.length === 1) {
+        // Se for apenas 1 curso, usar formato simples
+        descricaoCursos = `Curso: ${formData.cursos[0]}`
+      } else {
+        // Se for mais de 1 curso, usar formato numerado
+        const cursosDetalhados = formData.cursos.map((curso, index) => 
+          `  ${index + 1}. ${curso}`
+        ).join('\n')
+        descricaoCursos = `Cursos selecionados nesta ordem:\n${cursosDetalhados}`
+      }
       
       const leadData: CreateLeadRequest = {
         name: formData.name.trim(),
@@ -317,7 +336,7 @@ export function EducacaoSemLimiteLanding({ orgSlug }: EducacaoSemLimiteLandingPr
         status: 'New',
         location: formData.unidade,
         interest: cursosText,
-        description: `Empresa: ${formData.company || 'Não informado'}\nUnidade: ${formData.unidade}\n\nCursos selecionados nesta ordem:\n${cursosDetalhados}`,
+        description: `Empresa: ${formData.company || 'Não informado'}${formData.cursos.length > 1 ? '\n\n' : '\n'}${descricaoCursos}\n\nEnviado em: ${dataFormatada}`,
         show_on_pipeline: false
       }
 
