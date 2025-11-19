@@ -30,7 +30,7 @@ export function Logo({ className = '', width, height, variant = 'full' }: LogoPr
     <Image
       src="/logo.png"
       alt="OnClickWise"
-      width={width || 180}
+      width={width ||200}
       height={height || 60}
       className={className}
       priority

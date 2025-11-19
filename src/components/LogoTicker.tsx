@@ -1,6 +1,3 @@
-
-
-
 "use client"
 
 import { motion } from "framer-motion"
@@ -9,23 +6,22 @@ import { Sparkles } from "lucide-react"
 
 export function LogoTicker() {
   const logos = [
+    { name: "Cofee", image: "/cofee1.png" },
+    { name: "MigWise", image: "/migwise.png" },
     { name: "Wise", image: "/wse.svg" },
-    { name: "Wise", image: "/wse.svg" },
-    { name: "Wise", image: "/wse.svg" },
-    { name: "Wise", image: "/wse.svg" },
-    { name: "Wise", image: "/wse.svg" },
-    { name: "Wise", image: "/wse.svg" },
-    { name: "Wise", image: "/wse.svg" },
-    { name: "Wise", image: "/wse.svg" },
+    { name: "Omniverse", image: "/omin.png" },
+    { name: "Space", image: "/xlog-trsp.png" },
+    { name: "Colde", image: "/logo2.png" },
+    { name: "MigWise", image: "/migwise.png" },
+    { name: "Cofee", image: "/cofee1.png" },
   ]
 
-  // duplicamos para dar efeito de loop contínuo
   const duplicatedLogos = [...logos, ...logos]
 
   return (
     <section className="relative py-16 bg-gray-50 dark:bg-gray-900 overflow-hidden">
       <div className="container mx-auto px-6 text-center">
-        
+
         {/* TAG */}
         <div className="inline-flex items-center gap-2 py-2 px-5 bg-gradient-to-r from-blue-500 to-yellow-400 text-black font-semibold rounded-full shadow-lg mb-10">
           <Sparkles className="w-4 h-4 text-black" />
@@ -58,7 +54,8 @@ export function LogoTicker() {
                   alt={logo.name}
                   width={120}
                   height={60}
-                  className="object-contain"
+                  className="object-contain pointer-events-none select-none"
+                  unoptimized
                 />
               </div>
             ))}

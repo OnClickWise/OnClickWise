@@ -1,137 +1,94 @@
 "use client";
 
-import React from "react";
 import { Github, Twitter, Linkedin, Facebook, Instagram } from "lucide-react";
 import { Logo } from "@/components/Logo";
+import Link from "next/link";
 
 export default function Footer() {
   return (
-    <footer className="relative bg-gradient-to-t from-gray-50 to-white dark:from-gray-900 dark:to-black border-t border-gray-200 dark:border-gray-800 py-16">
-      <div className="max-w-7xl mx-auto px-6 lg:px-16">
+    <footer className="border-t bg-background/40 backdrop-blur-xl dark:bg-background/60">
+      <div className="max-w-7xl mx-auto px-6 lg:px-16 py-16">
         {/* Top */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
           {/* Logo + Description */}
-          <div>
-            <a href="/" className="flex items-center space-x-2 mb-4">
-              <Logo width={220} height={70} className="h-14 w-auto" />
-            </a>
-            <p className="text-gray-600 dark:text-gray-300 text-sm">
-              Centralize your business operations in one platform. From leads to clients, all in one place.
+          <div className="space-y-4">
+            <Link href="/" className="inline-flex items-center">
+              <Logo width={200} height={60} className="h-12 w-auto opacity-90" />
+            </Link>
+
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              Centralize your operations, accelerate your workflow and grow
+              with a modern platform built for performance.
             </p>
           </div>
 
-          {/* Services */}
+          {/* Links */}
           <div>
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-white uppercase mb-4">
+            <h3 className="text-sm font-semibold text-foreground/90 uppercase tracking-wide mb-4">
               Services
             </h3>
-            <ul className="space-y-3 text-gray-600 dark:text-gray-400 text-sm">
-              <li>
-                <a href="#" className="hover:text-blue-500 dark:hover:text-yellow-400 transition">
-                  Lead Capture
-                </a>
-              </li>
-              <li>
-                <a href="#" className="hover:text-blue-500 dark:hover:text-yellow-400 transition">
-                  Client Management
-                </a>
-              </li>
-              <li>
-                <a href="#" className="hover:text-blue-500 dark:hover:text-yellow-400 transition">
-                  Automation
-                </a>
-              </li>
-              <li>
-                <a href="#" className="hover:text-blue-500 dark:hover:text-yellow-400 transition">
-                  Reports & Analytics
-                </a>
-              </li>
+            <ul className="space-y-3 text-sm text-muted-foreground">
+              <li><a className="hover:text-blue-500 transition">Lead Capture</a></li>
+              <li><a className="hover:text-blue-500 transition">Client Management</a></li>
+              <li><a className="hover:text-blue-500 transition">Automation</a></li>
+              <li><a className="hover:text-blue-500 transition">Reports & Analytics</a></li>
             </ul>
           </div>
 
-          {/* Company */}
           <div>
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-white uppercase mb-4">
+            <h3 className="text-sm font-semibold text-foreground/90 uppercase tracking-wide mb-4">
               Company
             </h3>
-            <ul className="space-y-3 text-gray-600 dark:text-gray-400 text-sm">
-              <li>
-                <a href="#" className="hover:text-blue-500 dark:hover:text-yellow-400 transition">
-                  About Us
-                </a>
-              </li>
-              <li>
-                <a href="#" className="hover:text-blue-500 dark:hover:text-yellow-400 transition">
-                  Careers
-                </a>
-              </li>
-              <li>
-                <a href="#" className="hover:text-blue-500 dark:hover:text-yellow-400 transition">
-                  Blog
-                </a>
-              </li>
-              <li>
-                <a href="#" className="hover:text-blue-500 dark:hover:text-yellow-400 transition">
-                  Contact
-                </a>
-              </li>
+            <ul className="space-y-3 text-sm text-muted-foreground">
+              <li><a className="hover:text-blue-500 transition">About Us</a></li>
+              <li><a className="hover:text-blue-500 transition">Careers</a></li>
+              <li><a className="hover:text-blue-500 transition">Blog</a></li>
+              <li><a className="hover:text-blue-500 transition">Contact</a></li>
             </ul>
           </div>
 
-          {/* Legal */}
           <div>
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-white uppercase mb-4">
+            <h3 className="text-sm font-semibold text-foreground/90 uppercase tracking-wide mb-4">
               Legal
             </h3>
-            <ul className="space-y-3 text-gray-600 dark:text-gray-400 text-sm">
-              <li>
-                <a href="#" className="hover:text-blue-500 dark:hover:text-yellow-400 transition">
-                  Privacy Policy
-                </a>
-              </li>
-              <li>
-                <a href="#" className="hover:text-blue-500 dark:hover:text-yellow-400 transition">
-                  Terms & Conditions
-                </a>
-              </li>
-              <li>
-                <a href="#" className="hover:text-blue-500 dark:hover:text-yellow-400 transition">
-                  Security
-                </a>
-              </li>
+            <ul className="space-y-3 text-sm text-muted-foreground">
+              <li><a className="hover:text-blue-500 transition">Privacy Policy</a></li>
+              <li><a className="hover:text-blue-500 transition">Terms & Conditions</a></li>
+              <li><a className="hover:text-blue-500 transition">Security</a></li>
             </ul>
           </div>
         </div>
 
         {/* Divider */}
-        <div className="border-t border-gray-200 dark:border-gray-800 my-8" />
+        <div className="border-t border-border my-10" />
 
         {/* Bottom */}
-        <div className="flex flex-col sm:flex-row items-center justify-between">
-          <span className="text-sm text-gray-500 dark:text-gray-400">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
+          <span className="text-sm text-muted-foreground">
             © {new Date().getFullYear()} OnClickWise. All rights reserved.
           </span>
 
-          {/* Social Links */}
-          <div className="flex space-x-5 mt-4 sm:mt-0">
-            <a href="#" className="text-gray-500 hover:text-blue-500 dark:hover:text-yellow-400 transition" aria-label="Github">
-              <Github size={20} />
-            </a>
-            <a href="#" className="text-gray-500 hover:text-blue-500 dark:hover:text-yellow-400 transition" aria-label="Twitter">
-              <Twitter size={20} />
-            </a>
-            <a href="#" className="text-gray-500 hover:text-blue-500 dark:hover:text-yellow-400 transition" aria-label="LinkedIn">
-              <Linkedin size={20} />
-            </a>
-            <a href="#" className="text-gray-500 hover:text-blue-500 dark:hover:text-yellow-400 transition" aria-label="Facebook">
-              <Facebook size={20} />
-            </a>
-            <a href="#" className="text-gray-500 hover:text-blue-500 dark:hover:text-yellow-400 transition" aria-label="Instagram">
-              <Instagram size={20} />
-            </a>
+          <div className="flex items-center space-x-6">
+            <FooterIcon href="#" icon={<Github size={20} />} />
+            <FooterIcon href="#" icon={<Twitter size={20} />} />
+            <FooterIcon href="#" icon={<Linkedin size={20} />} />
+            <FooterIcon href="#" icon={<Facebook size={20} />} />
+            <FooterIcon href="#" icon={<Instagram size={20} />} />
           </div>
         </div>
       </div>
     </footer>
+  );
+}
+
+function FooterIcon({ href, icon }: { href: string; icon: React.ReactNode }) {
+  return (
+    <a
+      href={href}
+      className="text-muted-foreground hover:text-blue-500 transition"
+      aria-label="Social Link"
+    >
+      {icon}
+    </a>
   );
 }
