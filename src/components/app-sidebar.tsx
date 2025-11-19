@@ -278,6 +278,7 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
       items: [
         { title: t('leadList'), url: `/${org}/leads` },
         { title: t('captureSources'), url: `/${org}/leads/sources` },
+        { title: t('landingBuilder'), url: `/${org}/leads/landing-builder` },
       ],
     },
     {

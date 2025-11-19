@@ -4,6 +4,7 @@
     "leads": "Leads",
     "leadList": "Lista de Leads",
     "captureSources": "Fontes de Captura",
+    "landingBuilder": "Criador de Landing Page",
     "marketing": "Marketing",
     "emailCampaigns": "Campanhas de E-mail",
     "socialMedia": "Redes Sociais",
@@ -935,7 +936,8 @@
     "delete": "Excluir",
     "view": "Visualizar",
       "viewDetails": "Ver detalhes",
-      "quickAssign": "Atribuição Rápida"
+      "quickAssign": "Atribuição Rápida",
+      "landingBuilder": "Criador de Landing Page"
     },
     
     "table": {
