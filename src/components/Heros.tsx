@@ -1,106 +1,149 @@
-"use client"
+"use client";
 
-import { motion } from "framer-motion"
-import { Rocket, ArrowRight, Sparkles } from "lucide-react"
+import { useState, useEffect } from "react";
+import { ArrowRight, Play, Lightbulb, Cog, Sliders, LineChart } from "lucide-react";
 
 export default function Hero() {
+  const words = ["OnclickWise"]; // pode adicionar mais palavras se quiser
+  const [text, setText] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [loop, setLoop] = useState(0);
+  const [speed, setSpeed] = useState(120);
+
+  useEffect(() => {
+    const word = words[loop % words.length];
+
+    const timeout = setTimeout(() => {
+      setText(prev => {
+        if (!isDeleting) {
+          const newText = word.substring(0, prev.length + 1);
+          if (newText === word) {
+            // Pausa antes de apagar
+            setTimeout(() => setIsDeleting(true), 1000);
+          }
+          return newText;
+        } else {
+          const newText = word.substring(0, prev.length - 1);
+          if (newText === "") {
+            setIsDeleting(false);
+            setLoop(loop + 1);
+          }
+          return newText;
+        }
+      });
+
+      setSpeed(isDeleting ? 60 : 120);
+    }, speed);
+
+    return () => clearTimeout(timeout);
+  }, [text, isDeleting, loop, speed]);
+
   return (
-    <section className="relative py-28 bg-gradient-to-b from-white via-gray-50 to-white dark:from-black dark:via-gray-900 dark:to-black text-black dark:text-white overflow-hidden">
-      <div className="container mx-auto px-6 lg:px-16 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-        
-        {/* COLUNA ESQUERDA (conteúdo principal) */}
-        <div className="flex flex-col items-center lg:items-start text-center lg:text-left">
-          {/* TAG */}
-          <motion.div
-            className="inline-flex items-center gap-2 py-2 px-5 bg-gradient-to-r from-blue-500 to-yellow-400 text-black font-semibold rounded-full shadow-lg mb-6"
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-          >
-            <Sparkles className="w-4 h-4 text-black" />
-            It has never been so simple. Take the opportunity!
-          </motion.div>
+    <section id="home" className="bg-white dark:bg-gray-900">
+      <div className="py-12 px-4 mx-auto max-w-screen-xl text-center lg:py-20 lg:px-12">
 
-          {/* TÍTULO */}
-          <motion.h1
-            className="text-4xl md:text-6xl font-extrabold leading-tight max-w-2xl bg-clip-text text-transparent bg-gradient-to-r from-blue-500 to-yellow-400"
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-          >
-            Simplify. Automate. <span className="text-black dark:text-white">OnclickWise</span> makes everything easier.
-          </motion.h1>
+        {/* ALERTA / TAG */}
+        <a
+          href="#"
+          className="inline-flex justify-between items-center py-1 px-1 pr-4 mb-7 text-sm 
+          text-gray-700 bg-gray-100 rounded-full dark:bg-gray-800 dark:text-white 
+          hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+        >
+          <span className="text-sm font-medium px-4 py-1 flex items-center gap-2">
+            <Lightbulb className="w-4 h-4" />
+            It has never been so simple!
+          </span>
 
-          {/* SUBTÍTULO */}
-          <motion.p
-            className="mt-6 text-lg md:text-xl text-gray-700 dark:text-gray-300 max-w-xl"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1 }}
-          >
-            Manage leads, contacts, companies, deals, tasks and teams — 
-            all in one powerful platform. Designed to streamline your sales 
-            process and help you close more deals effortlessly.
-          </motion.p>
+          <ArrowRight className="ml-2 w-5 h-5" />
+        </a>
 
-          {/* BOTÕES */}
-          <motion.div
-            className="mt-10 flex flex-col sm:flex-row gap-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 1.2, duration: 0.6 }}
+        {/* TÍTULO */}
+        <h1 className="mb-4 text-4xl font-extrabold tracking-tight leading-none text-gray-900 
+          md:text-5xl lg:text-6xl dark:text-white"
+        >
+          Simplify. Automate. <br />
+
+          {/* AQUI ESTÁ A ANIMAÇÃO */}
+          <span className="text-blue-600 dark:text-blue-400">
+            {text}
+            <span className="animate-pulse">|</span>
+          </span>{" "}
+          makes everything easier!
+        </h1>
+
+        {/* SUBTÍTULO */}
+        <p className="mb-8 text-lg font-normal text-gray-500 lg:text-xl sm:px-16 xl:px-48 
+          dark:text-gray-400"
+        >
+          Manage leads, contacts, companies, deals, tasks and teams — all in one powerful
+          platform. Designed to streamline your sales process and help you close more deals effortlessly.
+        </p>
+
+        {/* BOTÕES */}
+        <div className="flex flex-col mb-8 lg:mb-16 space-y-4 sm:flex-row sm:justify-center 
+          sm:space-y-0 sm:space-x-4"
+        >
+          <a
+            href="#"
+            className="inline-flex justify-center items-center py-3 px-5 text-base 
+            font-medium text-center dark:text-white rounded-lg hover:bg-primary-800 
+            focus:ring-4 focus:ring-primary-300 dark:hover:bg-blue-200 transition"
           >
-            <button className="flex items-center gap-2 px-6 py-3 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-lg shadow-md transition">
-              <Rocket className="w-5 h-5 text-yellow-400" />
-              Get Started Today
-            </button>
-            <button className="flex items-center gap-2 px-6 py-3 rounded-full border border-yellow-400 text-yellow-500 hover:bg-yellow-400 hover:text-black font-semibold text-lg shadow-md transition">
-              Learn More
-              <ArrowRight className="w-5 h-5" />
-            </button>
-          </motion.div>
+            Learn more
+            <ArrowRight className="ml-2 -mr-1 w-5 h-5" />
+          </a>
+
+          <a
+            href="#"
+            className="inline-flex justify-center items-center py-3 px-5 text-base 
+            font-medium text-center text-gray-900 rounded-lg border border-gray-300 
+            hover:bg-gray-100 focus:ring-4 focus:ring-gray-100 dark:text-white 
+            dark:border-gray-700 dark:hover:bg-gray-700 dark:focus:ring-gray-800 transition"
+          >
+            <Play className="mr-2 -ml-1 w-5 h-5" />
+            Watch video
+          </a>
         </div>
 
-        {/* COLUNA DIREITA (ilustração + decorações) */}
-        <motion.div
-          className="hidden lg:flex relative w-full h-[450px] items-center justify-center"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.8 }}
-        >
-          {/* ILUSTRAÇÃO MODERNA (SVG abstrato) */}
-          <motion.svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 400 400"
-            className="w-[90%] max-w-md"
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 1, ease: "easeOut" }}
-          >
-            <defs>
-              <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" style={{ stopColor: "#3b82f6", stopOpacity: 1 }} />
-                <stop offset="100%" style={{ stopColor: "#facc15", stopOpacity: 1 }} />
-              </linearGradient>
-            </defs>
-            <circle cx="200" cy="200" r="180" fill="url(#grad)" opacity="0.2" />
-            <rect x="80" y="80" width="240" height="240" rx="30" fill="url(#grad)" opacity="0.3" />
-            <circle cx="200" cy="200" r="100" fill="url(#grad)" />
-          </motion.svg>
+        {/* FEATURED IN */}
+        <div className="px-4 mx-auto text-center md:max-w-screen-md lg:max-w-screen-lg lg:px-12 pt-8">
+          <span className="font-semibold text-gray-400 uppercase">
+            FEATURED IN
+          </span>
 
-          {/* DECORAÇÕES FLUTUANTES */}
-          <motion.div
-            className="absolute top-10 left-0 w-28 h-28 bg-blue-600/30 rounded-full blur-3xl"
-            animate={{ x: [0, 20, 0], y: [0, 20, 0] }}
-            transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-          />
-          <motion.div
-            className="absolute bottom-10 right-0 w-40 h-40 bg-yellow-400/20 rounded-full blur-3xl"
-            animate={{ x: [0, -30, 0], y: [0, -15, 0] }}
-            transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-          />
-        </motion.div>
+          <div className="flex flex-wrap justify-center items-center mt-8 text-gray-500 sm:justify-between">
+
+            <a
+              href="#"
+              className="text-3xl font-bold mr-5 mb-5 lg:mb-0 
+              hover:text-gray-800 dark:hover:text-gray-400 transition flex items-center gap-2"
+            >
+              <Cog className="w-7 h-7" />
+              Automate
+            </a>
+
+            <a
+              href="#"
+              className="text-3xl font-bold mr-5 mb-5 lg:mb-0 
+              hover:text-gray-800 dark:hover:text-gray-400 transition flex items-center gap-2"
+            >
+              <Sliders className="w-7 h-7" />
+              SystIntegration
+            </a>
+
+            <a
+              href="#"
+              className="text-3xl font-bold mr-5 mb-5 lg:mb-0 
+              hover:text-gray-800 dark:hover:text-gray-400 transition flex items-center gap-2"
+            >
+              <LineChart className="w-7 h-7" />
+              DataAnalysis
+            </a>
+
+          </div>
+        </div>
+
       </div>
     </section>
-  )
+  );
 }
