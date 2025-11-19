@@ -3,31 +3,30 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Minus } from "lucide-react";
-
-const faqs = [
-  {
-    question: "What is OnclickWise?",
-    answer:
-      "OnclickWise is a cutting-edge SaaS platform that centralizes your business operations, from leads to sales and team management.",
-  },
-  {
-    question: "Is my data secure?",
-    answer:
-      "Yes! We use modern encryption and security protocols to ensure that your business data is always safe.",
-  },
-  {
-    question: "Can I integrate with other tools?",
-    answer:
-      "Absolutely. OnclickWise integrates with popular CRMs, email marketing tools, and project management platforms.",
-  },
-  {
-    question: "Do you offer customer support?",
-    answer:
-      "Yes, our support team is available 24/7 to help you with onboarding, troubleshooting, and best practices.",
-  },
-];
+import { useTranslations } from "next-intl";
 
 export default function Faqs() {
+  const t = useTranslations("HomePage.Faqs");
+  
+  const faqs = [
+    {
+      question: t("whatIs.question"),
+      answer: t("whatIs.answer"),
+    },
+    {
+      question: t("dataSecure.question"),
+      answer: t("dataSecure.answer"),
+    },
+    {
+      question: t("integrations.question"),
+      answer: t("integrations.answer"),
+    },
+    {
+      question: t("support.question"),
+      answer: t("support.answer"),
+    },
+  ];
+
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   const toggleFaq = (index: number) => {
@@ -48,7 +47,7 @@ export default function Faqs() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            FAQs
+            {t("tag")}
           </motion.div>
 
           <motion.h2
@@ -57,22 +56,22 @@ export default function Faqs() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7 }}
           >
-            Everything you need to know about{" "}
+            {t("title")}{" "}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-blue-500">
-              OnclickWise
+              {t("titleHighlight")}
             </span>
           </motion.h2>
 
           <motion.a
-            href="#"
+            href="mailto:support@onclickwise.com"
             className="inline-block mt-4 px-7 py-3.5 rounded-full font-semibold text-white
             bg-gradient-to-r from-blue-600 to-blue-500 shadow-lg shadow-blue-500/20
-            hover:scale-[1.03] transition-transform"
+            hover:scale-[1.03] transition-transform cursor-pointer"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
           >
-            Contact Support
+            {t("contactSupport")}
           </motion.a>
         </div>
 
@@ -91,7 +90,7 @@ export default function Faqs() {
             >
               {/* BUTTON */}
               <button
-                className="w-full flex justify-between items-center p-6 text-left"
+                className="w-full flex justify-between items-center p-6 text-left cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
                 onClick={() => toggleFaq(index)}
               >
                 <span className="text-lg md:text-xl font-semibold">
@@ -101,6 +100,7 @@ export default function Faqs() {
                 <motion.div
                   animate={{ rotate: openIndex === index ? 45 : 0 }}
                   transition={{ duration: 0.25 }}
+                  className="cursor-pointer"
                 >
                   {openIndex === index ? (
                     <Minus className="w-6 h-6 text-blue-600" />
@@ -129,13 +129,6 @@ export default function Faqs() {
         </div>
       </div>
 
-      {/* BACKGROUND BLOB SUAVE – mesmo estilo do Hero e Services */}
-      <motion.div
-        className="absolute -bottom-24 -left-32 w-[420px] h-[420px]
-        bg-blue-500/10 dark:bg-blue-600/10 rounded-full blur-3xl"
-        animate={{ x: [0, 20, 0], y: [0, 14, 0] }}
-        transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
-      />
     </section>
   );
 }

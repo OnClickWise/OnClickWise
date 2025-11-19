@@ -12,58 +12,61 @@ import {
   BarChart3, 
   ClipboardCheck 
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 export default function Feature() {
+  const t = useTranslations("HomePage.Features");
+  
   const features = [
     {
-      title: "Leads Capture",
-      description: "Automatically capture leads from multiple channels.",
+      title: t("leadsCapture.title"),
+      description: t("leadsCapture.description"),
       icon: Rocket,
     },
     {
-      title: "Leads Management",
-      description: "Manage all your leads in one place with organized pipelines.",
+      title: t("leadsManagement.title"),
+      description: t("leadsManagement.description"),
       icon: Briefcase,
     },
     {
-      title: "Client Management",
-      description: "Centralize customer information for personalized service.",
+      title: t("clientManagement.title"),
+      description: t("clientManagement.description"),
       icon: Users,
     },
     {
-      title: "Sales Pipeline",
-      description: "Track every stage of your sales process with clear dashboards.",
+      title: t("salesPipeline.title"),
+      description: t("salesPipeline.description"),
       icon: LineChart,
     },
     {
-      title: "Analytics and Reporting",
-      description: "Measure results and identify opportunities with insights and reports.",
+      title: t("analyticsReporting.title"),
+      description: t("analyticsReporting.description"),
       icon: BarChart3,
     },
     {
-      title: "Email Marketing Integration",
-      description: "Automate personalized campaigns through email integration.",
+      title: t("emailMarketing.title"),
+      description: t("emailMarketing.description"),
       icon: Mail,
     },
     {
-      title: "Task and Activity Management",
-      description: "Easily organize tasks, meetings, and follow-ups.",
+      title: t("taskManagement.title"),
+      description: t("taskManagement.description"),
       icon: CalendarCheck,
     },
     {
-      title: "Team Collaboration",
-      description: "Boost teamwork with centralized communication and shared goals.",
+      title: t("teamCollaboration.title"),
+      description: t("teamCollaboration.description"),
       icon: ClipboardCheck,
     },
     {
-      title: "Automation and Workflows",
-      description: "Save time by automating repetitive tasks and workflows.",
+      title: t("automationWorkflows.title"),
+      description: t("automationWorkflows.description"),
       icon: Workflow,
     },
   ];
 
   return (
-    <section className="relative py-24 bg-white dark:bg-gray-900 text-gray-900 dark:text-white overflow-hidden">
+    <section id="features" className="relative py-24 bg-white dark:bg-gray-900 text-gray-900 dark:text-white overflow-hidden">
       <div className="container mx-auto px-6 lg:px-12 max-w-6xl text-center">
 
         {/* TAG — mais premium, mais suave */}
@@ -76,7 +79,7 @@ export default function Feature() {
           bg-blue-100/60 dark:bg-blue-900/40 
           text-blue-600 dark:text-blue-300"
         >
-          Features
+          {t("tag")}
         </motion.div>
 
         {/* TITLE — clean e consistente com o Hero */}
@@ -86,7 +89,7 @@ export default function Feature() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
         >
-          Powerful tools made simple
+          {t("title")}
         </motion.h2>
 
         {/* SUBTEXT */}
@@ -96,7 +99,7 @@ export default function Feature() {
           animate={{ opacity: 1 }}
           transition={{ duration: 1, delay: 0.2 }}
         >
-          OnclickWise combines cutting-edge AI technology with a clean, intuitive experience — giving your business everything it needs in a single platform.
+          {t("subtitle")}
         </motion.p>
 
         {/* FEATURE GRID */}
@@ -134,21 +137,6 @@ export default function Feature() {
         </div>
       </div>
 
-      {/* DECORATIONS — mesmos tons e estilo do Hero */}
-      <motion.div
-        className="absolute -top-32 -left-32 w-96 h-96 
-        bg-blue-500/15 rounded-full blur-3xl"
-        animate={{ x: [0, 40, 0], y: [0, 25, 0] }}
-        transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
-      />
-
-      <motion.div
-        className="absolute -bottom-32 -right-32 w-96 h-96 
-        bg-purple-500/10 dark:bg-yellow-400/15 
-        rounded-full blur-3xl"
-        animate={{ x: [0, -40, 0], y: [0, -25, 0] }}
-        transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
-      />
     </section>
   );
 }

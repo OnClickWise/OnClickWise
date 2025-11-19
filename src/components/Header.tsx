@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 export default function Navbar() {
   const [isMegaMenuOpen, setIsMegaMenuOpen] = useState(false);
@@ -11,25 +12,86 @@ export default function Navbar() {
 
   // --- i18n ---
   const [langMenuOpen, setLangMenuOpen] = useState(false);
-  const [currentLang, setCurrentLang] = useState("pt");
+  const [currentLang, setCurrentLang] = useState<"pt-BR" | "en-US">("pt-BR");
+  const t = useTranslations("HomePage.Header");
 
   const router = useRouter();
   const pathname = usePathname();
 
   // Carrega idioma salvo
   useEffect(() => {
-    const stored = localStorage.getItem("lang");
-    if (stored) setCurrentLang(stored);
+    const getUserIdentifier = () => {
+      if (typeof window === "undefined") return null;
+      try {
+        const token = localStorage.getItem("token");
+        const organizationStr = localStorage.getItem("organization");
+        
+        if (!token || !organizationStr) return null;
+        
+        const organization = JSON.parse(organizationStr);
+        const parts = token.split(".");
+        if (parts.length !== 3) return null;
+        
+        const payload = JSON.parse(atob(parts[1]));
+        const userEmail = payload.email || payload.sub || "";
+        const identifier = `${organization.id}_${userEmail}`.replace(/[^a-zA-Z0-9_-]/g, "_");
+        
+        return identifier;
+      } catch (error) {
+        return null;
+      }
+    };
+
+    const userId = getUserIdentifier();
+    if (userId) {
+      const localeKey = `user_locale_${userId}`;
+      const savedLocale = localStorage.getItem(localeKey);
+      if (savedLocale && (savedLocale === "pt-BR" || savedLocale === "en-US")) {
+        setCurrentLang(savedLocale);
+      }
+    } else {
+      // Fallback para locale padrão
+      const defaultLocale = localStorage.getItem("locale") || "pt-BR";
+      setCurrentLang(defaultLocale as "pt-BR" | "en-US");
+    }
   }, []);
 
   // Troca idioma
-  const changeLanguage = (lang: string) => {
+  const changeLanguage = (lang: "pt-BR" | "en-US") => {
     setCurrentLang(lang);
-    localStorage.setItem("lang", lang);
+    
+    const getUserIdentifier = () => {
+      if (typeof window === "undefined") return null;
+      try {
+        const token = localStorage.getItem("token");
+        const organizationStr = localStorage.getItem("organization");
+        
+        if (!token || !organizationStr) return null;
+        
+        const organization = JSON.parse(organizationStr);
+        const parts = token.split(".");
+        if (parts.length !== 3) return null;
+        
+        const payload = JSON.parse(atob(parts[1]));
+        const userEmail = payload.email || payload.sub || "";
+        const identifier = `${organization.id}_${userEmail}`.replace(/[^a-zA-Z0-9_-]/g, "_");
+        
+        return identifier;
+      } catch (error) {
+        return null;
+      }
+    };
 
-    // Redireciona para rota do idioma (App Router)
-    const cleanPath = pathname.replace(/^\/(pt|en|es|fr)/, "");
-    router.push(`/${lang}${cleanPath}`);
+    const userId = getUserIdentifier();
+    if (userId) {
+      const localeKey = `user_locale_${userId}`;
+      localStorage.setItem(localeKey, lang);
+    } else {
+      localStorage.setItem("locale", lang);
+    }
+
+    // Dispara evento para atualizar o ClientLocaleProvider
+    window.dispatchEvent(new CustomEvent("localeChange", { detail: { locale: lang } }));
     setLangMenuOpen(false);
   };
 
@@ -46,7 +108,7 @@ export default function Navbar() {
         
         {/* LOGO + MENU ESQUERDA */}
         <div className="flex items-center space-x-6">
-          <a href="#home" className="flex items-center space-x-3 rtl:space-x-reverse">
+          <a href="#home" onClick={(e) => { e.preventDefault(); document.getElementById("home")?.scrollIntoView({ behavior: "smooth" }); }} className="flex items-center space-x-3 rtl:space-x-reverse cursor-pointer">
             <Image
               src="/light-logo.png"
               alt="Logo"
@@ -65,15 +127,15 @@ export default function Navbar() {
 
           {/* MENU DESKTOP */}
           <ul className="hidden md:flex space-x-6 text-gray-900 dark:text-white font-medium">
-            <li><a href="#" className="hover:text-blue-600">Home</a></li>
-            <li><a href="#docs" className="hover:text-blue-600">Docs</a></li>
-            <li><a href="#resources" className="hover:text-blue-600">Resources</a></li>
+            <li><a href="#home" onClick={(e) => { e.preventDefault(); document.getElementById("home")?.scrollIntoView({ behavior: "smooth" }); }} className="hover:text-blue-600 cursor-pointer">{t("home")}</a></li>
+            <li><a href="#docs" onClick={(e) => { e.preventDefault(); const docs = document.getElementById("docs") || document.getElementById("features"); docs?.scrollIntoView({ behavior: "smooth" }); }} className="hover:text-blue-600 cursor-pointer">{t("docs")}</a></li>
+            <li><a href="#resources" onClick={(e) => { e.preventDefault(); const resources = document.getElementById("resources") || document.getElementById("features"); resources?.scrollIntoView({ behavior: "smooth" }); }} className="hover:text-blue-600 cursor-pointer">{t("resources")}</a></li>
             <li>
               <button
                 onClick={() => setIsMegaMenuOpen(!isMegaMenuOpen)}
-                className="flex items-center hover:text-blue-600"
+                className="flex items-center hover:text-blue-600 cursor-pointer"
               >
-                Products
+                {t("products")}
                 <svg className="w-3 h-3 ml-1" fill="none" viewBox="0 0 10 6">
                   <path
                     stroke="currentColor"
@@ -97,22 +159,16 @@ export default function Navbar() {
               onClick={() => setLangMenuOpen(!langMenuOpen)}
               className="px-3 py-2 rounded-lg cursor-pointer bg-gray-200 dark:bg-gray-700 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600"
             >
-              🌐{currentLang.toUpperCase()}
+              🌐{currentLang === "pt-BR" ? "PT" : "EN"}
             </button>
 
             {langMenuOpen && (
               <div className="absolute right-0 mt-2 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg shadow-lg p-2 w-32 z-50">
-                <button onClick={() => changeLanguage("pt")} className="block w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700">
+                <button onClick={() => changeLanguage("pt-BR")} className="block w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer">
                   Português
                 </button>
-                <button onClick={() => changeLanguage("en")} className="block w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700">
+                <button onClick={() => changeLanguage("en-US")} className="block w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer">
                   English
-                </button>
-                <button onClick={() => changeLanguage("es")} className="block w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700">
-                  Español
-                </button>
-                <button onClick={() => changeLanguage("fr")} className="block w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700">
-                  Français
                 </button>
               </div>
             )}
@@ -120,10 +176,10 @@ export default function Navbar() {
 
           {/* BOTÃO GET STARTED */}
           <button
-            onClick={() => (window.location.href = "#login")}
+            onClick={() => router.push("/register")}
             className="text-white bg-blue-700 hover:bg-blue-800 rounded-lg cursor-pointer text-sm px-4 py-2"
           >
-            Get started
+            {t("getStarted")}
           </button>
 
           {/* TEMA */}
@@ -169,14 +225,14 @@ export default function Navbar() {
         <div className="border-t border-gray-200 bg-gray-50 dark:bg-gray-800 dark:border-gray-600">
           <div className="max-w-screen-xl mx-auto grid grid-cols-2 gap-6 p-5">
             <ul>
-              <li><a className="block p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">Online Stores</a></li>
-              <li><a className="block p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">Segmentation</a></li>
-              <li><a className="block p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">Marketing CRM</a></li>
+              <li><a className="block p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer">{t("onlineStores")}</a></li>
+              <li><a className="block p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer">{t("segmentation")}</a></li>
+              <li><a className="block p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer">{t("marketingCRM")}</a></li>
             </ul>
             <ul>
-              <li><a className="block p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">Analytics</a></li>
-              <li><a className="block p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">Automation</a></li>
-              <li><a className="block p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">Integrations</a></li>
+              <li><a className="block p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer">{t("analytics")}</a></li>
+              <li><a className="block p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer">{t("automation")}</a></li>
+              <li><a className="block p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer">{t("integrations")}</a></li>
             </ul>
           </div>
         </div>
@@ -186,10 +242,10 @@ export default function Navbar() {
       {isMobileMenuOpen && (
         <div className="md:hidden bg-gray-50 dark:bg-gray-800 border-t p-4">
           <ul className="space-y-2 text-gray-900 dark:text-white font-medium">
-            <li><a className="block hover:text-blue-600">Home</a></li>
-            <li><a className="block hover:text-blue-600">Docs</a></li>
-            <li><a className="block hover:text-blue-600">Resources</a></li>
-            <li><a className="block hover:text-blue-600">Products</a></li>
+            <li><a href="#home" onClick={(e) => { e.preventDefault(); document.getElementById("home")?.scrollIntoView({ behavior: "smooth" }); setIsMobileMenuOpen(false); }} className="block hover:text-blue-600 cursor-pointer">{t("home")}</a></li>
+            <li><a href="#docs" onClick={(e) => { e.preventDefault(); const docs = document.getElementById("docs") || document.getElementById("features"); docs?.scrollIntoView({ behavior: "smooth" }); setIsMobileMenuOpen(false); }} className="block hover:text-blue-600 cursor-pointer">{t("docs")}</a></li>
+            <li><a href="#resources" onClick={(e) => { e.preventDefault(); const resources = document.getElementById("resources") || document.getElementById("features"); resources?.scrollIntoView({ behavior: "smooth" }); setIsMobileMenuOpen(false); }} className="block hover:text-blue-600 cursor-pointer">{t("resources")}</a></li>
+            <li><a href="#features" onClick={(e) => { e.preventDefault(); document.getElementById("features")?.scrollIntoView({ behavior: "smooth" }); setIsMobileMenuOpen(false); }} className="block hover:text-blue-600 cursor-pointer">{t("products")}</a></li>
           </ul>
         </div>
       )}

@@ -1761,6 +1761,175 @@
     },
     "saveButton": "Salvar Alterações",
     "saving": "Salvando..."
+  },
+  "HomePage": {
+    "Header": {
+      "home": "Início",
+      "docs": "Documentação",
+      "resources": "Recursos",
+      "products": "Produtos",
+      "getStarted": "Começar",
+      "onlineStores": "Lojas Online",
+      "segmentation": "Segmentação",
+      "marketingCRM": "CRM de Marketing",
+      "analytics": "Análises",
+      "automation": "Automação",
+      "integrations": "Integrações"
+    },
+    "Hero": {
+      "tag": "Nunca foi tão simples!",
+      "title": "Simplifique. Automatize.",
+      "titleHighlight": "OnclickWise",
+      "titleEnd": "torna tudo mais fácil!",
+      "subtitle": "Gerencie leads, contatos, empresas, negócios, tarefas e equipes — tudo em uma plataforma poderosa. Projetado para simplificar seu processo de vendas e ajudá-lo a fechar mais negócios sem esforço.",
+      "learnMore": "Saiba mais",
+      "watchVideo": "Assistir vídeo",
+      "featuredIn": "DESTAQUE EM",
+      "automate": "Automatizar",
+      "systIntegration": "Integração de Sistemas",
+      "dataAnalysis": "Análise de Dados"
+    },
+    "About": {
+      "title": "Sobre o OnclickWise",
+      "description": "OnclickWise é uma plataforma SaaS de ponta onde você pode gerenciar todo o seu negócio em um só lugar. Otimize a captura de leads, o gerenciamento de clientes, a organização da equipe, o agendamento de tarefas e acompanhe o desempenho de vendas e marketing da sua empresa. Alimentado com tecnologias modernas e integração de IA, ele automatiza completamente seu fluxo de trabalho operacional e escala com seu crescimento.",
+      "footer": "Nossa inovação é dedicada a você."
+    },
+    "Features": {
+      "tag": "Recursos",
+      "title": "Ferramentas poderosas feitas de forma simples",
+      "subtitle": "OnclickWise combina tecnologia de IA de ponta com uma experiência limpa e intuitiva — dando ao seu negócio tudo o que precisa em uma única plataforma.",
+      "leadsCapture": {
+        "title": "Captura de Leads",
+        "description": "Capture leads automaticamente de múltiplos canais."
+      },
+      "leadsManagement": {
+        "title": "Gerenciamento de Leads",
+        "description": "Gerencie todos os seus leads em um só lugar com pipelines organizados."
+      },
+      "clientManagement": {
+        "title": "Gerenciamento de Clientes",
+        "description": "Centralize informações do cliente para um atendimento personalizado."
+      },
+      "salesPipeline": {
+        "title": "Pipeline de Vendas",
+        "description": "Acompanhe cada estágio do seu processo de vendas com dashboards claros."
+      },
+      "analyticsReporting": {
+        "title": "Análises e Relatórios",
+        "description": "Meça resultados e identifique oportunidades com insights e relatórios."
+      },
+      "emailMarketing": {
+        "title": "Integração de Email Marketing",
+        "description": "Automatize campanhas personalizadas através da integração de email."
+      },
+      "taskManagement": {
+        "title": "Gerenciamento de Tarefas e Atividades",
+        "description": "Organize facilmente tarefas, reuniões e acompanhamentos."
+      },
+      "teamCollaboration": {
+        "title": "Colaboração em Equipe",
+        "description": "Impulsione o trabalho em equipe com comunicação centralizada e objetivos compartilhados."
+      },
+      "automationWorkflows": {
+        "title": "Automação e Fluxos de Trabalho",
+        "description": "Economize tempo automatizando tarefas repetitivas e fluxos de trabalho."
+      }
+    },
+    "ServiceProduct": {
+      "tag": "Serviços e Produtos",
+      "title": "Ferramentas poderosas para",
+      "titleHighlight": "fazer seu negócio crescer",
+      "titleEnd": "sem esforço.",
+      "description": "Uma plataforma CRM completa e elegante projetada para simplificar seu fluxo de trabalho. Automatize ações, gerencie clientes, analise desempenho e impulsione resultados — tudo em um ecossistema inteligente.",
+      "getStartedToday": "Comece Hoje",
+      "leadsCapture": {
+        "name": "Captura de Leads",
+        "description": "Capture leads de várias fontes perfeitamente."
+      },
+      "leadManagement": {
+        "name": "Gerenciamento de Leads",
+        "description": "Organize e acompanhe seus leads com eficiência."
+      },
+      "clientManagement": {
+        "name": "Gerenciamento de Clientes",
+        "description": "Centralize clientes com uma interface simples e inteligente."
+      },
+      "marketingManagement": {
+        "name": "Gerenciamento de Marketing",
+        "description": "Planeje e execute campanhas de marketing multicanal."
+      },
+      "analyticsReporting": {
+        "name": "Análises e Relatórios",
+        "description": "Transforme insights em decisões mais inteligentes."
+      },
+      "integration": {
+        "name": "Integração",
+        "description": "Conecte-se com suas ferramentas favoritas instantaneamente."
+      },
+      "automation": {
+        "name": "Automação",
+        "description": "Automatize tarefas e escale suas operações sem esforço."
+      },
+      "teamManagement": {
+        "name": "Gerenciamento de Equipe",
+        "description": "Gerencie sua equipe com clareza e eficiência."
+      },
+      "taskManagement": {
+        "name": "Gerenciamento de Tarefas",
+        "description": "Acompanhe e organize o trabalho com precisão."
+      }
+    },
+    "Faqs": {
+      "tag": "Perguntas Frequentes",
+      "title": "Tudo o que você precisa saber sobre",
+      "titleHighlight": "OnclickWise",
+      "contactSupport": "Contatar Suporte",
+      "whatIs": {
+        "question": "O que é OnclickWise?",
+        "answer": "OnclickWise é uma plataforma SaaS de ponta que centraliza suas operações de negócios, desde leads até vendas e gerenciamento de equipes."
+      },
+      "dataSecure": {
+        "question": "Meus dados estão seguros?",
+        "answer": "Sim! Usamos criptografia moderna e protocolos de segurança para garantir que os dados do seu negócio estejam sempre seguros."
+      },
+      "integrations": {
+        "question": "Posso integrar com outras ferramentas?",
+        "answer": "Absolutamente. OnclickWise se integra com CRMs populares, ferramentas de email marketing e plataformas de gerenciamento de projetos."
+      },
+      "support": {
+        "question": "Vocês oferecem suporte ao cliente?",
+        "answer": "Sim, nossa equipe de suporte está disponível 24/7 para ajudá-lo com integração, solução de problemas e melhores práticas."
+      }
+    },
+    "CallToAction": {
+      "title": "Aumente sua produtividade hoje",
+      "description": "Comece seu teste gratuito e experimente o poder do gerenciamento simplificado com todas as ferramentas que sua equipe precisa.",
+      "getStartedFree": "Começar Grátis"
+    },
+    "Footer": {
+      "description": "Centralize suas operações, acelere seu fluxo de trabalho e cresça com uma plataforma moderna construída para desempenho.",
+      "services": "Serviços",
+      "leadCapture": "Captura de Leads",
+      "clientManagement": "Gerenciamento de Clientes",
+      "automation": "Automação",
+      "reportsAnalytics": "Relatórios e Análises",
+      "company": "Empresa",
+      "aboutUs": "Sobre Nós",
+      "careers": "Carreiras",
+      "blog": "Blog",
+      "contact": "Contato",
+      "legal": "Legal",
+      "privacyPolicy": "Política de Privacidade",
+      "termsConditions": "Termos e Condições",
+      "security": "Segurança",
+      "copyright": "© {year} OnClickWise. Todos os direitos reservados.",
+      "socialLink": "Link Social"
+    },
+    "LogoTicker": {
+      "tag": "Confiado por equipes líderes",
+      "title": "Empresas que já usam",
+      "titleHighlight": "OnclickWise"
+    }
   }
 }
 

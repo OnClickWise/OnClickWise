@@ -11,20 +11,25 @@ import {
   Rocket,
   BarChart3,
 } from "lucide-react";
-
-const services = [
-  { name: "Leads Capture", icon: Rocket, description: "Capture leads from various sources seamlessly." },
-  { name: "Lead Management", icon: Briefcase, description: "Organize and track your leads efficiently." },
-  { name: "Client Management", icon: Users, description: "Centralize clients with a simple and smart interface." },
-  { name: "Marketing Management", icon: Mail, description: "Plan and execute multi-channel marketing campaigns." },
-  { name: "Analytics & Reporting", icon: BarChart3, description: "Turn insights into smarter decisions." },
-  { name: "Integration", icon: Workflow, description: "Connect with your favorite tools instantly." },
-  { name: "Automation", icon: CalendarCheck, description: "Automate tasks and scale your operations effortlessly." },
-  { name: "Team Management", icon: Users, description: "Manage your team with clarity and efficiency." },
-  { name: "Task Management", icon: LineChart, description: "Track and organize work with precision." },
-];
+import { useTranslations } from "next-intl";
+import { useRouter } from "next/navigation";
 
 export default function ServiceProduct() {
+  const t = useTranslations("HomePage.ServiceProduct");
+  const router = useRouter();
+
+  const services = [
+    { name: t("leadsCapture.name"), icon: Rocket, description: t("leadsCapture.description") },
+    { name: t("leadManagement.name"), icon: Briefcase, description: t("leadManagement.description") },
+    { name: t("clientManagement.name"), icon: Users, description: t("clientManagement.description") },
+    { name: t("marketingManagement.name"), icon: Mail, description: t("marketingManagement.description") },
+    { name: t("analyticsReporting.name"), icon: BarChart3, description: t("analyticsReporting.description") },
+    { name: t("integration.name"), icon: Workflow, description: t("integration.description") },
+    { name: t("automation.name"), icon: CalendarCheck, description: t("automation.description") },
+    { name: t("teamManagement.name"), icon: Users, description: t("teamManagement.description") },
+    { name: t("taskManagement.name"), icon: LineChart, description: t("taskManagement.description") },
+  ];
+
   return (
     <section className="relative py-28 bg-white dark:bg-gray-950 text-gray-900 dark:text-white overflow-hidden">
       <div className="container mx-auto px-6 lg:px-12 max-w-7xl grid grid-cols-1 lg:grid-cols-2 gap-20 items-start">
@@ -41,35 +46,33 @@ export default function ServiceProduct() {
             bg-gray-100 dark:bg-gray-800
             text-gray-700 dark:text-gray-300
             rounded-full border border-gray-300 dark:border-gray-700">
-            Services & Products
+            {t("tag")}
           </div>
 
           {/* Título — alinhado ao Hero */}
           <h2 className="text-4xl md:text-5xl font-extrabold mb-8 leading-tight">
-            Powerful tools to{" "}
+            {t("title")}{" "}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-blue-400">
-              grow your business
+              {t("titleHighlight")}
             </span>{" "}
-            effortlessly.
+            {t("titleEnd")}
           </h2>
 
           {/* Texto — suave */}
           <p className="text-lg md:text-xl text-gray-600 dark:text-gray-300 mb-12 max-w-xl leading-relaxed">
-            A complete and elegant CRM platform designed to simplify your workflow.
-            Automate actions, manage customers, analyze performance and boost results —
-            all in one intelligent ecosystem.
+            {t("description")}
           </p>
 
           {/* Botão — premium minimalista */}
-          <motion.a
-            href="#"
+          <motion.button
+            onClick={() => router.push("/register")}
             whileHover={{ scale: 1.04 }}
             whileTap={{ scale: 0.97 }}
             className="inline-block px-7 py-3.5 rounded-full font-semibold text-white
-            bg-gradient-to-r from-blue-600 to-blue-500 shadow-lg shadow-blue-500/20"
+            bg-gradient-to-r from-blue-600 to-blue-500 shadow-lg shadow-blue-500/20 cursor-pointer"
           >
-            Get Started Today
-          </motion.a>
+            {t("getStartedToday")}
+          </motion.button>
         </motion.div>
 
         {/* RIGHT SIDE LIST */}
@@ -125,13 +128,6 @@ export default function ServiceProduct() {
         </motion.div>
       </div>
 
-      {/* Blob minimalista — igual ao Hero */}
-      <motion.div
-        className="absolute -bottom-28 -left-28 w-[420px] h-[420px]
-        bg-blue-500/10 dark:bg-blue-500/20 rounded-full blur-3xl"
-        animate={{ x: [0, 20, 0], y: [0, 15, 0] }}
-        transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
-      />
     </section>
   );
 }

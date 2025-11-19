@@ -1,17 +1,15 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useTranslations } from "next-intl";
 
 export default function About() {
-  const text = `OnclickWise is a cutting-edge SaaS platform where you can manage your entire business in one place. 
-  Optimize lead capture, customer management, team organization, task scheduling, and oversee your company’s 
-  sales and marketing performance. Powered with modern technologies and AI integration, it fully automates 
-  your operational workflow and scales with your growth.`;
-
+  const t = useTranslations("HomePage.About");
+  const text = t("description");
   const words = text.split(" ");
 
   return (
-    <section className="relative py-24 bg-white dark:bg-gray-900 text-gray-900 dark:text-white overflow-hidden">
+    <section id="about" className="relative py-24 bg-white dark:bg-gray-900 text-gray-900 dark:text-white overflow-hidden">
       <div className="container mx-auto px-6 lg:px-12 text-center max-w-4xl">
 
         {/* TÍTULO — clean, elegante e consistente com o Hero */}
@@ -22,7 +20,7 @@ export default function About() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          About OnclickWise
+          {t("title")}
         </motion.h2>
 
         {/* TEXTO PRINCIPAL — animações suaves, leve e elegante */}
@@ -65,25 +63,10 @@ export default function About() {
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.6, delay: 0.3 }}
         >
-          Our innovation is dedicated to you.
+          {t("footer")}
         </motion.div>
       </div>
 
-      {/* BLOB AZUL — suave e elegante */}
-      <motion.div
-        className="absolute -top-28 -left-28 w-[420px] h-[420px] 
-        bg-blue-500/15 rounded-full blur-3xl"
-        animate={{ x: [0, 25, 0], y: [0, 15, 0] }}
-        transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
-      />
-
-      {/* BLOB ROXO/AMARELO — discreto e clean */}
-      <motion.div
-        className="absolute -bottom-28 -right-28 w-[420px] h-[420px]
-        bg-purple-500/10 dark:bg-yellow-400/15 rounded-full blur-3xl"
-        animate={{ x: [0, -25, 0], y: [0, -15, 0] }}
-        transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}
-      />
     </section>
   );
 }

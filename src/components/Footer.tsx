@@ -1,10 +1,13 @@
 "use client";
 
-import { Github, Twitter, Linkedin, Facebook, Instagram } from "lucide-react";
+import { Twitter, Linkedin, Facebook, Instagram } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 export default function Footer() {
+  const t = useTranslations("HomePage.Footer");
+  
   return (
     <footer className="border-t bg-background/40 backdrop-blur-xl dark:bg-background/60">
       <div className="max-w-7xl mx-auto px-6 lg:px-16 py-16">
@@ -12,49 +15,48 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
           {/* Logo + Description */}
           <div className="space-y-4">
-            <Link href="/" className="inline-flex items-center">
+            <Link href="/" className="inline-flex items-center cursor-pointer">
               <Logo width={200} height={60} className="h-12 w-auto opacity-90" />
             </Link>
 
             <p className="text-muted-foreground text-sm leading-relaxed">
-              Centralize your operations, accelerate your workflow and grow
-              with a modern platform built for performance.
+              {t("description")}
             </p>
           </div>
 
           {/* Links */}
           <div>
             <h3 className="text-sm font-semibold text-foreground/90 uppercase tracking-wide mb-4">
-              Services
+              {t("services")}
             </h3>
             <ul className="space-y-3 text-sm text-muted-foreground">
-              <li><a className="hover:text-blue-500 transition">Lead Capture</a></li>
-              <li><a className="hover:text-blue-500 transition">Client Management</a></li>
-              <li><a className="hover:text-blue-500 transition">Automation</a></li>
-              <li><a className="hover:text-blue-500 transition">Reports & Analytics</a></li>
+              <li><a href="#features" onClick={(e) => { e.preventDefault(); document.getElementById("features")?.scrollIntoView({ behavior: "smooth" }); }} className="hover:text-blue-500 transition cursor-pointer">{t("leadCapture")}</a></li>
+              <li><a href="#features" onClick={(e) => { e.preventDefault(); document.getElementById("features")?.scrollIntoView({ behavior: "smooth" }); }} className="hover:text-blue-500 transition cursor-pointer">{t("clientManagement")}</a></li>
+              <li><a href="#features" onClick={(e) => { e.preventDefault(); document.getElementById("features")?.scrollIntoView({ behavior: "smooth" }); }} className="hover:text-blue-500 transition cursor-pointer">{t("automation")}</a></li>
+              <li><a href="#features" onClick={(e) => { e.preventDefault(); document.getElementById("features")?.scrollIntoView({ behavior: "smooth" }); }} className="hover:text-blue-500 transition cursor-pointer">{t("reportsAnalytics")}</a></li>
             </ul>
           </div>
 
           <div>
             <h3 className="text-sm font-semibold text-foreground/90 uppercase tracking-wide mb-4">
-              Company
+              {t("company")}
             </h3>
             <ul className="space-y-3 text-sm text-muted-foreground">
-              <li><a className="hover:text-blue-500 transition">About Us</a></li>
-              <li><a className="hover:text-blue-500 transition">Careers</a></li>
-              <li><a className="hover:text-blue-500 transition">Blog</a></li>
-              <li><a className="hover:text-blue-500 transition">Contact</a></li>
+              <li><a href="#about" onClick={(e) => { e.preventDefault(); const about = document.getElementById("about") || document.getElementById("home"); about?.scrollIntoView({ behavior: "smooth" }); }} className="hover:text-blue-500 transition cursor-pointer">{t("aboutUs")}</a></li>
+              <li><a href="mailto:careers@onclickwise.com" className="hover:text-blue-500 transition cursor-pointer">{t("careers")}</a></li>
+              <li><a href="#blog" onClick={(e) => { e.preventDefault(); }} className="hover:text-blue-500 transition cursor-pointer">{t("blog")}</a></li>
+              <li><a href="mailto:contact@onclickwise.com" className="hover:text-blue-500 transition cursor-pointer">{t("contact")}</a></li>
             </ul>
           </div>
 
           <div>
             <h3 className="text-sm font-semibold text-foreground/90 uppercase tracking-wide mb-4">
-              Legal
+              {t("legal")}
             </h3>
             <ul className="space-y-3 text-sm text-muted-foreground">
-              <li><a className="hover:text-blue-500 transition">Privacy Policy</a></li>
-              <li><a className="hover:text-blue-500 transition">Terms & Conditions</a></li>
-              <li><a className="hover:text-blue-500 transition">Security</a></li>
+              <li><a href="/privacy-policy" className="hover:text-blue-500 transition cursor-pointer">{t("privacyPolicy")}</a></li>
+              <li><a href="/terms" className="hover:text-blue-500 transition cursor-pointer">{t("termsConditions")}</a></li>
+              <li><a href="/security" className="hover:text-blue-500 transition cursor-pointer">{t("security")}</a></li>
             </ul>
           </div>
         </div>
@@ -65,15 +67,14 @@ export default function Footer() {
         {/* Bottom */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
           <span className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} OnClickWise. All rights reserved.
+            {t("copyright", { year: new Date().getFullYear() })}
           </span>
 
           <div className="flex items-center space-x-6">
-            <FooterIcon href="#" icon={<Github size={20} />} />
-            <FooterIcon href="#" icon={<Twitter size={20} />} />
-            <FooterIcon href="#" icon={<Linkedin size={20} />} />
-            <FooterIcon href="#" icon={<Facebook size={20} />} />
-            <FooterIcon href="#" icon={<Instagram size={20} />} />
+            <FooterIcon href="https://twitter.com/onclickwise" target="_blank" icon={<Twitter size={20} />} />
+            <FooterIcon href="https://www.linkedin.com/company/onclickwise/" target="_blank" icon={<Linkedin size={20} />} />
+            <FooterIcon href="https://facebook.com/onclickwise" target="_blank" icon={<Facebook size={20} />} />
+            <FooterIcon href="https://instagram.com/onclickwise" target="_blank" icon={<Instagram size={20} />} />
           </div>
         </div>
       </div>
@@ -81,12 +82,16 @@ export default function Footer() {
   );
 }
 
-function FooterIcon({ href, icon }: { href: string; icon: React.ReactNode }) {
+function FooterIcon({ href, icon, target }: { href: string; icon: React.ReactNode; target?: string }) {
+  const t = useTranslations("HomePage.Footer");
+  
   return (
     <a
       href={href}
-      className="text-muted-foreground hover:text-blue-500 transition"
-      aria-label="Social Link"
+      target={target || "_self"}
+      rel={target === "_blank" ? "noopener noreferrer" : undefined}
+      className="text-muted-foreground hover:text-blue-500 transition cursor-pointer"
+      aria-label={t("socialLink")}
     >
       {icon}
     </a>
