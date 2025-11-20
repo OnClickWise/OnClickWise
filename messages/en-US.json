@@ -4,7 +4,6 @@
     "leads": "Leads",
     "leadList": "Lead List",
     "captureSources": "Capture Sources",
-    "landingBuilder": "Landing Page Builder",
     "marketing": "Marketing",
     "emailCampaigns": "Email Campaigns",
     "socialMedia": "Social Media",
@@ -936,8 +935,7 @@
     "delete": "Delete",
     "view": "View",
       "viewDetails": "View details",
-      "quickAssign": "Quick Assign",
-      "landingBuilder": "Landing Page Builder"
+      "quickAssign": "Quick Assign"
     },
     
     "table": {

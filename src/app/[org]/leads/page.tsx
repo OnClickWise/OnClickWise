@@ -3,7 +3,6 @@
 
 
 import * as React from "react"
-import Link from "next/link"
 
 import { useSearchParams } from "next/navigation"
 
@@ -41,7 +40,7 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/s
 
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 
-import { Search, Plus, Download, Upload, Trash2, Edit, X, ChevronDown, CheckCircle2, AlertTriangle, AlertCircle, Check, Filter, XCircle, ArrowUp, ArrowDown, Copy, File, FileText, Image, FileImage, FileVideo, FileAudio, Archive, Loader2, Eye, Trash, UserPlus, Mail, Phone, Calendar, DollarSign, User, Hash, Clock, Info, Tag, Briefcase, CreditCard, FileDigit, MapPin, Columns, EyeOff, GripVertical, Sparkles } from "lucide-react"
+import { Search, Plus, Download, Upload, Trash2, Edit, X, ChevronDown, CheckCircle2, AlertTriangle, AlertCircle, Check, Filter, XCircle, ArrowUp, ArrowDown, Copy, File, FileText, Image, FileImage, FileVideo, FileAudio, Archive, Loader2, Eye, Trash, UserPlus, Mail, Phone, Calendar, DollarSign, User, Hash, Clock, Info, Tag, Briefcase, CreditCard, FileDigit, MapPin, Columns, EyeOff, GripVertical } from "lucide-react"
 
 import * as XLSX from "xlsx"
 
@@ -5951,13 +5950,6 @@ export default function LeadsPage({
                 </DropdownMenuContent>
 
               </DropdownMenu>
-
-              <Button asChild variant="secondary" className="cursor-pointer gap-2">
-                <Link href={`/${org}/leads/landing-builder`}>
-                  <Sparkles className="h-4 w-4" />
-                  {t('actions.landingBuilder')}
-                </Link>
-              </Button>
 
               {selectedLeads.size > 0 && (
                 <DropdownMenu>
