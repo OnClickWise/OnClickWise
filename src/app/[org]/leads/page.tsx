@@ -5387,41 +5387,41 @@ export default function LeadsPage({
 
           <div className="fixed top-4 right-2 sm:right-4 z-50 flex flex-col gap-2 w-[calc(100vw-1rem)] sm:max-w-sm">
 
-            {toasts.map((t) => {
+            {toasts.map((toast) => {
 
-              const styles = t.type === "success"
+              const styles = toast.type === "success"
 
                 ? "bg-green-50 border border-green-200 text-green-800"
 
-                : t.type === "error"
+                : toast.type === "error"
 
                 ? "bg-red-50 border border-red-200 text-red-800"
 
                 : "bg-yellow-50 border border-yellow-200 text-yellow-800"
 
-              const closeColor = t.type === "success" ? "text-green-600 hover:text-green-800" : t.type === "error" ? "text-red-600 hover:text-red-800" : "text-yellow-600 hover:text-yellow-800"
+              const closeColor = toast.type === "success" ? "text-green-600 hover:text-green-800" : toast.type === "error" ? "text-red-600 hover:text-red-800" : "text-yellow-600 hover:text-yellow-800"
 
               return (
 
-                <div key={t.id} className={`${styles} px-4 py-3 rounded-lg shadow-lg backdrop-blur-sm`}> 
+                <div key={toast.id} className={`${styles} px-4 py-3 rounded-lg shadow-lg backdrop-blur-sm`}> 
 
                   <div className="flex items-start gap-3">
 
                     <div className="mt-0.5">
 
-                      {t.type === "success" && <CheckCircle2 className="h-4 w-4" />}
+                      {toast.type === "success" && <CheckCircle2 className="h-4 w-4" />}
 
-                      {t.type === "warning" && <AlertTriangle className="h-4 w-4" />}
+                      {toast.type === "warning" && <AlertTriangle className="h-4 w-4" />}
 
-                      {t.type === "error" && <AlertCircle className="h-4 w-4" />}
+                      {toast.type === "error" && <AlertCircle className="h-4 w-4" />}
 
                     </div>
 
-                    <div className="flex-1 text-sm leading-5">{t.text}</div>
+                    <div className="flex-1 text-sm leading-5">{toast.text}</div>
 
                     <button
 
-                      onClick={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))}
+                      onClick={() => setToasts((prev) => prev.filter((x) => x.id !== toast.id))}
 
                       className={`${closeColor} ml-2`}
 
