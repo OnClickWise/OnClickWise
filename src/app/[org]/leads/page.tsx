@@ -176,6 +176,19 @@ export default function LeadsPage({
   }, [])
 
   const [userId, setUserId] = React.useState<string | null>(null)
+  const [isMobile, setIsMobile] = React.useState(false)
+
+  // Detectar se é mobile
+  React.useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640) // sm breakpoint do Tailwind
+    }
+    
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
 
   // Obter o userId quando o componente montar ou quando a organização mudar
   React.useEffect(() => {
@@ -1068,7 +1081,7 @@ export default function LeadsPage({
 
           console.error('Failed to load leads:', response.error)
 
-          pushToast('Erro ao carregar leads', 'error')
+          pushToast(t('notifications.errorLoadingLeads') || t('notifications.errorLoading'), 'error')
 
         }
 
@@ -1076,7 +1089,7 @@ export default function LeadsPage({
 
         console.error('Error loading leads:', error)
 
-        pushToast('Erro ao carregar leads', 'error')
+        pushToast(t('notifications.errorLoadingLeads'), 'error')
 
       }
 
@@ -1292,7 +1305,7 @@ export default function LeadsPage({
 
         console.error('Failed to search leads:', response.error)
 
-        pushToast('Erro ao buscar leads', 'error')
+        pushToast(t('notifications.errorSearching'), 'error')
 
         return []
 
@@ -1302,7 +1315,7 @@ export default function LeadsPage({
 
       console.error('Error searching leads:', error)
 
-      pushToast('Erro ao buscar leads', 'error')
+      pushToast(t('notifications.errorSearching'), 'error')
 
       return []
 
@@ -1986,7 +1999,7 @@ export default function LeadsPage({
 
         console.error('Error applying filters:', error)
 
-        pushToast('Erro ao aplicar filtros', 'error')
+        pushToast(t('notifications.errorApplyingFilters'), 'error')
 
       }
 
@@ -2175,7 +2188,7 @@ export default function LeadsPage({
 
     if (!isClient) {
 
-      pushToast('Aguarde o carregamento completo da página', 'warning')
+      pushToast(t('notifications.pleaseWaitLoading') || t('notifications.pleaseWait'), 'warning')
 
       return
 
@@ -2207,12 +2220,12 @@ export default function LeadsPage({
 
     // Validar valor máximo (9.999.999.999.999,99 com decimal(15,2))
     if (safeValue !== undefined && safeValue > 9999999999999.99) {
-      pushToast('Valor muito grande. O valor máximo permitido é R$ 9.999.999.999.999,99', 'error')
+      pushToast(t('notifications.valueTooLarge'), 'error')
       return
     }
 
     if (safeValue !== undefined && safeValue < 0) {
-      pushToast('Valor não pode ser negativo', 'error')
+      pushToast(t('notifications.valueNegative'), 'error')
       return
     }
 
@@ -2277,11 +2290,11 @@ export default function LeadsPage({
           // Process pending attachments after successful lead update
           await processPendingAttachments(editingId)
 
-          pushToast(`Lead "${safeName}" atualizado com sucesso.`, "success")
+          pushToast(t('notifications.leadUpdated', { name: safeName }), "success")
 
         } else {
 
-          pushToast(`Erro ao atualizar lead: ${response.error}`, "error")
+          pushToast(`${t('notifications.errorUpdating')}: ${response.error}`, "error")
 
         }
 
@@ -2325,11 +2338,11 @@ export default function LeadsPage({
 
           setLeads((prev) => [response.data!.lead, ...prev])
 
-          pushToast(`Lead "${safeName}" adicionado com sucesso.`, "success")
+          pushToast(t('notifications.leadAdded'), "success")
 
         } else {
 
-          pushToast(`Erro ao criar lead: ${response.error}`, "error")
+          pushToast(`${t('notifications.errorAdding')}: ${response.error}`, "error")
 
         }
 
@@ -2339,7 +2352,7 @@ export default function LeadsPage({
 
       console.error('Error saving lead:', error)
 
-      pushToast('Erro ao salvar lead', "error")
+      pushToast(t('notifications.errorSaving') || t('notifications.errorAdding'), "error")
 
     }
 
@@ -2436,12 +2449,12 @@ export default function LeadsPage({
       if (response.success && response.data) {
         setOrganizationUsers(response.data.employees)
       } else {
-        pushToast('Error loading users', 'error')
+        pushToast(t('notifications.errorLoadingUsers'), 'error')
         setQuickAssignLeadId(null)
       }
     } catch (error) {
       console.error('Error fetching users:', error)
-      pushToast('Error loading users', 'error')
+      pushToast(t('notifications.errorLoadingUsers'), 'error')
       setQuickAssignLeadId(null)
     } finally {
       setIsLoadingUsers(false)
@@ -2469,11 +2482,11 @@ export default function LeadsPage({
           )
         )
       } else {
-        pushToast('Error updating pipeline', 'error')
+        pushToast(t('notifications.errorUpdatingPipeline') || t('notifications.errorUpdating'), 'error')
       }
     } catch (error) {
       console.error('Error toggling pipeline:', error)
-      pushToast('Error updating pipeline', 'error')
+      pushToast(t('notifications.errorUpdatingPipeline'), 'error')
     }
   }
   async function applyQuickAssign() {
@@ -2499,15 +2512,15 @@ export default function LeadsPage({
         setLeads(prevLeads => prevLeads.map(l => l.id === lead.id ? updatedLead : l))
         setFilteredLeads(prevLeads => prevLeads.map(l => l.id === lead.id ? updatedLead : l))
         
-        pushToast('Lead assigned successfully', 'success')
+        pushToast(t('notifications.leadAssigned'), 'success')
         setQuickAssignLeadId(null)
         setQuickAssignUserId("")
       } else {
-        pushToast(response.error || 'Error assigning lead', 'error')
+        pushToast(response.error || t('notifications.errorAssigning'), 'error')
       }
     } catch (error) {
       console.error('Error assigning lead:', error)
-      pushToast('Error assigning lead', 'error')
+      pushToast(t('notifications.errorAssigning'), 'error')
     }
   }
 
@@ -2655,12 +2668,12 @@ export default function LeadsPage({
       if (response.success && response.data) {
         setOrganizationUsers(response.data.employees)
       } else {
-        pushToast('Error loading users', 'error')
+        pushToast(t('notifications.errorLoadingUsers'), 'error')
         return
       }
     } catch (error) {
       console.error('Error fetching users:', error)
-      pushToast('Error loading users', 'error')
+      pushToast(t('notifications.errorLoadingUsers'), 'error')
       return
     }
     
@@ -2692,18 +2705,20 @@ export default function LeadsPage({
         ))
         
         pushToast(
-          `${leadIds.length} leads ${showOnPipeline ? 'adicionados ao' : 'removidos do'} pipeline`,
+          showOnPipeline 
+            ? t('notifications.leadsAddedToPipeline', { count: leadIds.length })
+            : t('notifications.leadsRemovedFromPipeline', { count: leadIds.length }),
           'success'
         )
         
         // Clear selection
         setSelectedLeads(new Set())
       } else {
-        pushToast(`Erro: ${response.error}`, 'error')
+        pushToast(t('notifications.errorUpdating') + `: ${response.error}`, 'error')
       }
     } catch (error) {
       console.error('Pipeline bulk action error:', error)
-      pushToast('Erro ao atualizar pipeline', 'error')
+      pushToast(t('notifications.errorUpdatingPipeline') || t('notifications.errorUpdating'), 'error')
     }
     
     setIsPipelineModalOpen(false)
@@ -2757,7 +2772,7 @@ export default function LeadsPage({
 
     // Check confirmation input
     if (bulkEditConfirm.trim().toLowerCase() !== "edit") {
-      pushToast("Please type 'edit' to confirm bulk edit", "error")
+      pushToast(t('notifications.confirmEdit'), "error")
       return
     }
 
@@ -2826,7 +2841,7 @@ export default function LeadsPage({
           }))
           
           setEditNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
-          pushToast('Bulk edit cancelled and leads restored', 'success')
+          pushToast(t('notifications.bulkEditCancelled'), 'success')
           return
         }
         
@@ -2882,7 +2897,7 @@ export default function LeadsPage({
             }))
             
             setEditNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
-            pushToast('Bulk edit cancelled and leads restored', 'success')
+            pushToast(t('notifications.bulkEditCancelled'), 'success')
           return
         }
         
@@ -2930,7 +2945,7 @@ export default function LeadsPage({
               }
               updatedLeadsMap.set(result.lead.id, updatedLead)
             } else {
-              failedUpdates.push({ lead: result.lead, error: result.error || 'Unknown error' })
+              failedUpdates.push({ lead: result.lead, error: result.error || t('notifications.unknownError') })
             }
           })
 
@@ -2980,13 +2995,13 @@ export default function LeadsPage({
         }))
         
         setEditNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
-        pushToast('Bulk edit cancelled and leads restored', 'success')
+        pushToast(t('notifications.bulkEditCancelled'), 'success')
         return
       }
       
       // Retry failed updates if any
       if (failedUpdates.length > 0 && !isEditCancelledRef.current) {
-        pushToast(`Retrying ${failedUpdates.length} failed updates...`, "warning")
+        pushToast(t('notifications.retrying', { count: failedUpdates.length }), "warning")
         
         const retriedSuccessIds: string[] = []
         
@@ -3023,7 +3038,7 @@ export default function LeadsPage({
             }))
             
             setEditNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
-            pushToast('Bulk edit cancelled and leads restored', 'success')
+            pushToast(t('notifications.bulkEditCancelled'), 'success')
             return
           }
           
@@ -3061,16 +3076,16 @@ export default function LeadsPage({
         
         const finalErrors = failedUpdates.length - retriedSuccessIds.length
         if (finalErrors > 0) {
-          pushToast(`Updated ${successCount} leads, ${finalErrors} failed even after retry`, 'warning')
+          pushToast(t('notifications.bulkEditPartial', { success: successCount, failed: finalErrors }), 'warning')
       } else {
-        pushToast(`Successfully updated ${successCount} leads`, 'success')
+        pushToast(t('notifications.bulkEditSuccess', { count: successCount }), 'success')
         }
       } else {
         // Show success message
         if (failedUpdates.length > 0) {
-          pushToast(`Updated ${successCount} leads, ${failedUpdates.length} failed`, 'warning')
+          pushToast(t('notifications.bulkEditPartial', { success: successCount, failed: failedUpdates.length }), 'warning')
         } else {
-          pushToast(`Successfully updated ${successCount} leads`, 'success')
+          pushToast(t('notifications.bulkEditSuccess', { count: successCount }), 'success')
         }
       }
       
@@ -3082,7 +3097,7 @@ export default function LeadsPage({
 
     } catch (error) {
       console.error('Error updating leads:', error)
-      pushToast('Error updating leads', 'error')
+      pushToast(t('notifications.errorUpdatingLeads') || t('notifications.errorUpdating'), 'error')
     } finally {
       setEditNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
       setOriginalLeads([])
@@ -3188,7 +3203,7 @@ export default function LeadsPage({
               }
               updatedLeadsMap.set(result.lead.id, updatedLead)
             } else {
-              failedUpdates.push({ lead: result.lead, error: result.error || 'Unknown error' })
+              failedUpdates.push({ lead: result.lead, error: result.error || t('notifications.unknownError') })
             }
           })
 
@@ -3208,7 +3223,7 @@ export default function LeadsPage({
       
       // Retry failed updates if any
       if (failedUpdates.length > 0) {
-        pushToast(`Retrying ${failedUpdates.length} failed assignments...`, "warning")
+        pushToast(t('notifications.retryingAssignments', { count: failedUpdates.length }) || t('notifications.retrying', { count: failedUpdates.length }), "warning")
         
         const retriedSuccessIds: string[] = []
         
@@ -3244,16 +3259,16 @@ export default function LeadsPage({
         
         const finalErrors = failedUpdates.length - retriedSuccessIds.length
         if (finalErrors > 0) {
-          pushToast(`Assigned ${successCount} lead(s) to user. ${finalErrors} failed even after retry`, 'warning')
+          pushToast(t('notifications.leadsAssignedPartial', { success: successCount, failed: finalErrors }) || t('notifications.leadsAssigned', { count: successCount }), 'warning')
         } else {
-          pushToast(`Successfully assigned ${successCount} lead(s) to user`, 'success')
+          pushToast(t('notifications.leadsAssigned', { count: successCount }), 'success')
         }
       } else {
         // Show success message
         if (failedUpdates.length > 0) {
-          pushToast(`Assigned ${successCount} lead(s). ${failedUpdates.length} failed`, 'warning')
+          pushToast(t('notifications.leadsAssignedPartial', { success: successCount, failed: failedUpdates.length }) || t('notifications.leadsAssigned', { count: successCount }), 'warning')
         } else {
-          pushToast(`Successfully assigned ${successCount} lead(s) to user`, 'success')
+          pushToast(t('notifications.leadsAssigned', { count: successCount }), 'success')
         }
       }
       
@@ -3265,7 +3280,7 @@ export default function LeadsPage({
 
     } catch (error) {
       console.error('Error assigning leads:', error)
-      pushToast('Error assigning leads to user', 'error')
+      pushToast(t('notifications.errorAssigningLeads') || t('notifications.errorAssigning'), 'error')
     } finally {
       setAssignNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
       setSelectedUserId("")
@@ -3603,7 +3618,7 @@ export default function LeadsPage({
 
     // Show errors for invalid files
     if (invalidFiles.length > 0) {
-      pushToast(`Some files were invalid: ${invalidFiles.join(', ')}`, 'error')
+      pushToast(t('notifications.invalidFiles') + ` ${invalidFiles.join(', ')}`, 'error')
     }
 
     // Add valid files to pending attachments
@@ -3661,7 +3676,7 @@ export default function LeadsPage({
 
     // Show errors for invalid files
     if (invalidFiles.length > 0) {
-      pushToast(`Some files were invalid: ${invalidFiles.join(', ')}`, 'error')
+      pushToast(t('notifications.invalidFiles') + ` ${invalidFiles.join(', ')}`, 'error')
     }
 
     // Add valid files to pending attachments
@@ -3725,11 +3740,11 @@ export default function LeadsPage({
         // Refresh to ensure sync
         await syncAfterOperation()
       } else {
-        pushToast(response.error || 'Failed to upload file', 'error')
+        pushToast(response.error || t('notifications.errorUploadingFile'), 'error')
       }
     } catch (error) {
       console.error('Error uploading attachment:', error)
-      pushToast('Error uploading file', 'error')
+      pushToast(t('notifications.errorUploadingFile'), 'error')
     } finally {
       setUploadingAttachments(prev => ({ ...prev, [leadId]: false }))
       setAttachmentProgress(prev => ({ ...prev, [leadId]: 0 }))
@@ -3817,11 +3832,11 @@ export default function LeadsPage({
         // Refresh to ensure sync
         await syncAfterOperation()
       } else {
-        pushToast(response.error || 'Failed to delete file', 'error')
+        pushToast(response.error || t('notifications.errorDeletingFile'), 'error')
       }
     } catch (error) {
       console.error('Error deleting attachment:', error)
-      pushToast('Error deleting file', 'error')
+      pushToast(t('notifications.errorDeletingFile'), 'error')
     }
   }
 
@@ -3838,13 +3853,13 @@ export default function LeadsPage({
         a.click()
         window.URL.revokeObjectURL(url)
         document.body.removeChild(a)
-        pushToast('File downloaded successfully', 'success')
+        pushToast(t('notifications.fileDownloaded') || t('notifications.fileDownloadSuccess'), 'success')
       } else {
-        pushToast('Failed to download file', 'error')
+        pushToast(t('notifications.errorDownloadingFile') || t('notifications.fileDownloadFailed'), 'error')
       }
     } catch (error) {
       console.error('Error downloading attachment:', error)
-      pushToast('Error downloading file', 'error')
+      pushToast(t('notifications.errorDownloadingFile') || t('notifications.fileDownloadFailed'), 'error')
     }
   }
 
@@ -3856,11 +3871,11 @@ export default function LeadsPage({
         const url = window.URL.createObjectURL(blob)
         window.open(url, '_blank')
       } else {
-        pushToast('Failed to view file', 'error')
+        pushToast(t('notifications.errorViewingFile') || t('notifications.fileViewFailed'), 'error')
       }
     } catch (error) {
       console.error('Error viewing attachment:', error)
-      pushToast('Error viewing file', 'error')
+      pushToast(t('notifications.errorViewingFile') || t('notifications.fileViewFailed'), 'error')
     }
   }
 
@@ -3896,7 +3911,7 @@ export default function LeadsPage({
       
     } catch (error) {
       console.error('Error processing pending attachments:', error)
-      pushToast('Error saving attachment changes', 'error')
+      pushToast(t('notifications.errorSavingAttachments') || t('notifications.errorSaving'), 'error')
     } finally {
       setUploadingAttachments(prev => ({ ...prev, [leadId]: false }))
     }
@@ -4370,7 +4385,7 @@ export default function LeadsPage({
       }
     }
     
-    return { success: false, lead: null, type: 'error', error: 'Max retries exceeded' }
+    return { success: false, lead: null, type: 'error', error: t('notifications.maxRetriesExceeded') }
   }
 
   // Function to process leads in batches with controlled parallel processing and retry logic
@@ -4407,14 +4422,14 @@ export default function LeadsPage({
             }
             
             if (successfullyDeleted > 0) {
-              pushToast(`Import cancelled - ${successfullyDeleted} leads removed from backend`, 'success')
+              pushToast(t('notifications.importCancelledLeadsRemoved', { count: successfullyDeleted }) || t('notifications.importCancelled'), 'success')
             }
             if (errors > 0) {
-              pushToast(`Import cancelled - ${errors} leads were already removed or not found`, 'warning')
+              pushToast(t('notifications.importCancelledLeadsNotFound', { count: errors }) || t('notifications.importCancelled'), 'warning')
             }
           } catch (error) {
             console.error('Error during rollback:', error)
-            pushToast('Import cancelled - leads removed locally only', 'warning')
+            pushToast(t('notifications.importCancelledLocalOnly'), 'warning')
           }
           
           // Remove from frontend state regardless of backend success
@@ -4476,7 +4491,7 @@ export default function LeadsPage({
             }
             
             if (successfullyDeleted > 0) {
-              pushToast(`Import cancelled - ${successfullyDeleted} leads removed from backend`, 'success')
+              pushToast(t('notifications.importCancelledLeadsRemoved', { count: successfullyDeleted }) || t('notifications.importCancelled'), 'success')
             }
           } catch (error) {
             console.error('Error during rollback:', error)
@@ -4524,7 +4539,7 @@ export default function LeadsPage({
               }
               
               if (successfullyDeleted > 0) {
-                pushToast(`Import cancelled - ${successfullyDeleted} leads removed from backend`, 'success')
+                pushToast(t('notifications.importCancelledLeadsRemoved', { count: successfullyDeleted }) || t('notifications.importCancelled'), 'success')
           }
         } catch (error) {
               console.error('Error during rollback:', error)
@@ -4586,7 +4601,7 @@ export default function LeadsPage({
             // Extract lead from error - need to match back
             const leadData = chunk[chunkResults.indexOf(result)]
             if (leadData) {
-              failedLeads.push({ lead: leadData, error: result.error || 'Unknown error' })
+              failedLeads.push({ lead: leadData, error: result.error || t('notifications.unknownError') })
             }
         }
       })
@@ -4647,7 +4662,7 @@ export default function LeadsPage({
       setFilePreview(preview)
       setShowPreview(true)
     } catch (error) {
-      pushToast("Error processing file. Please check the file format.", "error")
+      pushToast(t('notifications.errorProcessingFile'), "error")
       console.error("File processing error:", error)
     } finally {
       setIsProcessingFile(false)
@@ -4785,7 +4800,7 @@ export default function LeadsPage({
           // Retry failed leads one more time if any failed
           if (failedLeads.length > 0 && !cancelled) {
             console.log(`Retrying ${failedLeads.length} failed leads...`)
-            pushToast(`Retrying ${failedLeads.length} failed leads...`, "warning")
+            pushToast(t('notifications.retryingLeads', { count: failedLeads.length }) || t('notifications.retrying', { count: failedLeads.length }), "warning")
             
             const retryLeads = failedLeads.map(f => f.lead)
             const { saved: retrySaved, errors: retryErrors, duplicates: retryDuplicates, failedLeads: stillFailed } = await processBatch(retryLeads, 500, 0, () => importCancelled, (newLeads) => {
@@ -4807,12 +4822,12 @@ export default function LeadsPage({
             }
             
             // Show comprehensive results
-            let message = `${savedLeads.length} lead(s) imported successfully.`
+            let message = t('notifications.leadsImported', { count: savedLeads.length })
             if (finalDuplicates > 0) {
-              message += ` ${finalDuplicates} duplicate(s) skipped.`
+              message += ` ${t('notifications.duplicatesSkipped', { count: finalDuplicates })}`
             }
             if (finalErrors > 0) {
-              message += ` ${finalErrors} lead(s) failed even after retry.`
+              message += ` ${t('notifications.leadsFailedAfterRetry', { count: finalErrors })}`
             }
             pushToast(message, finalErrors > 0 ? "warning" : "success")
             
@@ -4823,14 +4838,14 @@ export default function LeadsPage({
           } else {
           // Show comprehensive results
           if (cancelled) {
-            pushToast(`Import cancelled. ${savedLeads.length} lead(s) saved, ${duplicateCount} duplicate(s) skipped.`, "warning")
+            pushToast(t('notifications.importCancelledWithResults', { saved: savedLeads.length, duplicates: duplicateCount }) || t('notifications.importCancelled'), "warning")
           } else {
-            let message = `${savedLeads.length} lead(s) imported successfully.`
+            let message = t('notifications.leadsImported', { count: savedLeads.length })
             if (duplicateCount > 0) {
-              message += ` ${duplicateCount} duplicate(s) were skipped.`
+              message += ` ${t('notifications.duplicatesSkipped', { count: duplicateCount })}`
             }
           if (errorCount > 0) {
-              message += ` ${errorCount} lead(s) failed to save.`
+              message += ` ${t('notifications.leadsFailedToSave', { count: errorCount })}`
             }
             pushToast(message, errorCount > 0 ? "warning" : "success")
             
@@ -4841,13 +4856,13 @@ export default function LeadsPage({
           }
           
           if (cancelled && savedLeads.length === 0 && duplicateCount === 0) {
-            pushToast(`Import cancelled. No leads were processed.`, "warning")
+            pushToast(t('notifications.importCancelledNoLeads') || t('notifications.importCancelled'), "warning")
             }
           }
 
         } else {
 
-          pushToast(`0 lead(s) imported. No new records detected.`, "warning")
+          pushToast(t('notifications.noLeadsImported') || t('notifications.importCancelled'), "warning")
 
         }
 
@@ -4855,7 +4870,7 @@ export default function LeadsPage({
 
         if (duplicatesCount > 0) {
 
-          pushToast(`${duplicatesCount} duplicate lead(s) were skipped during import.`, "warning")
+          pushToast(t('notifications.duplicatesSkipped', { count: duplicatesCount }), "warning")
 
         }
 
@@ -4865,7 +4880,7 @@ export default function LeadsPage({
 
       console.error(err)
 
-      pushToast("Failed to import file. Please check the file format and content.", "error")
+      pushToast(t('notifications.errorImporting'), "error")
 
     } finally {
 
@@ -4944,9 +4959,9 @@ export default function LeadsPage({
       URL.revokeObjectURL(a.href)
 
         if (isTemplate) {
-          pushToast(`Template exported successfully as JSON`, "success")
+          pushToast(t('notifications.templateExported', { format: 'JSON' }), "success")
         } else {
-          pushToast(`${data.length} lead(s) exported as JSON`, "success")
+          pushToast(t('notifications.leadsExported', { count: data.length, format: 'JSON' }), "success")
         }
       return
     }
@@ -4958,13 +4973,13 @@ export default function LeadsPage({
     XLSX.writeFile(wb, `${base}.${format}`, { bookType: bookType as XLSX.BookType })
 
       if (isTemplate) {
-        pushToast(`Template exported successfully as ${format.toUpperCase()}`, "success")
+        pushToast(t('notifications.templateExported', { format: format.toUpperCase() }), "success")
       } else {
-        pushToast(`${data.length} lead(s) exported as ${format.toUpperCase()}`, "success")
+        pushToast(t('notifications.leadsExported', { count: data.length, format: format.toUpperCase() }), "success")
       }
     } catch (error) {
       console.error('Export error:', error)
-      pushToast('Error exporting data', 'error')
+      pushToast(t('notifications.errorExporting'), 'error')
     }
   }
 
@@ -5068,7 +5083,7 @@ export default function LeadsPage({
           setLeads(leadsBeforeDeletion)
           setFilteredLeads(leadsBeforeDeletion)
           setDeleteNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
-          pushToast('Deletion cancelled and leads restored', 'success')
+          pushToast(t('notifications.deletionCancelled'), 'success')
           return
         }
         
@@ -5109,7 +5124,7 @@ export default function LeadsPage({
             setLeads(leadsBeforeDeletion)
             setFilteredLeads(leadsBeforeDeletion)
             setDeleteNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
-            pushToast('Deletion cancelled and leads restored', 'success')
+            pushToast(t('notifications.deletionCancelled'), 'success')
             return
           }
           
@@ -5137,7 +5152,7 @@ export default function LeadsPage({
               deletedCount++
               batchSuccessIds.push(result.id)
             } else {
-              failedDeletions.push({ id: result.id, error: result.error || 'Unknown error' })
+              failedDeletions.push({ id: result.id, error: result.error || t('notifications.unknownError') })
             }
           })
 
@@ -5176,7 +5191,7 @@ export default function LeadsPage({
           
       // Retry failed deletions one more time if any failed
       if (failedDeletions.length > 0 && !isDeletionCancelledRef.current) {
-        pushToast(`Retrying ${failedDeletions.length} failed deletions...`, "warning")
+        pushToast(t('notifications.retryingDeletions', { count: failedDeletions.length }), "warning")
         
         const retryIds = failedDeletions.map(f => f.id)
         const retriedSuccessIds: string[] = []
@@ -5201,7 +5216,7 @@ export default function LeadsPage({
             setLeads(leadsBeforeDeletion)
             setFilteredLeads(leadsBeforeDeletion)
             setDeleteNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
-            pushToast('Deletion cancelled and leads restored', 'success')
+            pushToast(t('notifications.deletionCancelled'), 'success')
             return
           }
           
@@ -5232,7 +5247,7 @@ export default function LeadsPage({
         // Third retry phase for remaining failures (with more aggressive retries)
         const stillFailed = failedDeletions.filter(f => !retriedSuccessIds.includes(f.id))
         if (stillFailed.length > 0 && !isDeletionCancelledRef.current) {
-          pushToast(`Final retry for ${stillFailed.length} remaining deletions...`, "warning")
+          pushToast(t('notifications.finalRetryDeletions', { count: stillFailed.length }), "warning")
           
           const finalRetryIds = stillFailed.map(f => f.id)
           const finalSuccessIds: string[] = []
@@ -5267,24 +5282,24 @@ export default function LeadsPage({
           
           const absoluteFinalErrors = stillFailed.length - finalSuccessIds.length
           if (absoluteFinalErrors > 0) {
-            pushToast(`${deletedCount} lead(s) deleted. ${absoluteFinalErrors} lead(s) failed after all retries.`, 'warning')
+            pushToast(t('notifications.leadsDeletedAfterRetries', { count: deletedCount, failed: absoluteFinalErrors }), 'warning')
           } else {
-      pushToast(`Successfully deleted ${deletedCount} lead(s)`, 'success')
+      pushToast(t('notifications.leadsDeleted', { count: deletedCount }), 'success')
           }
         } else {
           const finalErrors = failedDeletions.length - retriedSuccessIds.length
           if (finalErrors > 0) {
-            pushToast(`${deletedCount} lead(s) deleted. ${finalErrors} lead(s) failed even after retry.`, 'warning')
+            pushToast(t('notifications.leadsDeletedAfterRetry', { count: deletedCount, failed: finalErrors }), 'warning')
           } else {
-            pushToast(`Successfully deleted ${deletedCount} lead(s)`, 'success')
+            pushToast(t('notifications.leadsDeleted', { count: deletedCount }), 'success')
           }
         }
       } else {
         // Show success message
         if (failedDeletions.length > 0) {
-          pushToast(`Deleted ${deletedCount} lead(s). ${failedDeletions.length} lead(s) failed.`, 'warning')
+          pushToast(t('notifications.leadsDeletedPartial', { count: deletedCount, failed: failedDeletions.length }), 'warning')
         } else {
-          pushToast(`Successfully deleted ${deletedCount} lead(s)`, 'success')
+          pushToast(t('notifications.leadsDeleted', { count: deletedCount }), 'success')
         }
       }
       
@@ -5301,7 +5316,7 @@ export default function LeadsPage({
       
     } catch (error) {
       console.error('Error deleting leads:', error)
-      pushToast('Error deleting leads', 'error')
+      pushToast(t('notifications.errorDeletingLeads') || t('notifications.errorDeleting'), 'error')
     } finally {
       setDeleteNotification({ show: false, progress: { current: 0, total: 0, batch: 0, totalBatches: 0 }, cancelled: false })
       setPendingDeletionIds([])
@@ -5324,7 +5339,7 @@ export default function LeadsPage({
 
         {/* HEADER */}
 
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4">
+        <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-background px-2 sm:px-4">
 
           <SidebarTrigger className="-ml-1" />
 
@@ -5332,7 +5347,7 @@ export default function LeadsPage({
 
             orientation="vertical"
 
-            className="mr-2 data-[orientation=vertical]:h-4"
+            className="mr-1 sm:mr-2 data-[orientation=vertical]:h-4"
 
           />
 
@@ -5354,7 +5369,7 @@ export default function LeadsPage({
 
               <BreadcrumbItem>
 
-                  <BreadcrumbPage>{t('breadcrumbLeads')}</BreadcrumbPage>
+                  <BreadcrumbPage className="text-sm sm:text-base">{t('breadcrumbLeads')}</BreadcrumbPage>
 
               </BreadcrumbItem>
 
@@ -5370,7 +5385,7 @@ export default function LeadsPage({
 
         {toasts.length > 0 && (
 
-          <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm">
+          <div className="fixed top-4 right-2 sm:right-4 z-50 flex flex-col gap-2 w-[calc(100vw-1rem)] sm:max-w-sm">
 
             {toasts.map((t) => {
 
@@ -5410,7 +5425,7 @@ export default function LeadsPage({
 
                       className={`${closeColor} ml-2`}
 
-                      aria-label="Dismiss notification"
+                      aria-label={t('notifications.dismissNotification')}
 
                     >
 
@@ -5473,14 +5488,14 @@ export default function LeadsPage({
                       }
                       
                       if (successfullyDeleted > 0) {
-                        pushToast(`Import cancelled - ${successfullyDeleted} leads removed from backend`, 'success')
+                        pushToast(t('notifications.importCancelledLeadsRemoved', { count: successfullyDeleted }) || t('notifications.importCancelled'), 'success')
                       }
                       if (errors > 0) {
-                        pushToast(`Import cancelled - ${errors} leads were already removed or not found`, 'warning')
+                        pushToast(t('notifications.importCancelledLeadsNotFound', { count: errors }) || t('notifications.importCancelled'), 'warning')
                       }
                     } catch (error) {
                       console.error('Error during rollback:', error)
-                      pushToast('Import cancelled - leads removed locally only', 'warning')
+                      pushToast(t('notifications.importCancelledLocalOnly'), 'warning')
                     }
                     
                     // Remove from frontend state regardless of backend success
@@ -5579,13 +5594,13 @@ export default function LeadsPage({
                       }
                       
                       if (successfullyRestored > 0) {
-                        pushToast(`Bulk edit cancelled - ${successfullyRestored} leads restored`, 'success')
+                        pushToast(t('notifications.bulkEditCancelledRestored', { count: successfullyRestored }), 'success')
                       }
                       if (errors > 0) {
-                        pushToast(`Bulk edit cancelled - ${errors} leads could not be restored`, 'warning')
+                        pushToast(t('notifications.bulkEditCancelledRestoreFailed', { count: errors }), 'warning')
                       }
                     } catch (error) {
-                      pushToast('Bulk edit cancelled - leads restored locally only', 'warning')
+                      pushToast(t('notifications.bulkEditCancelledLocalOnly'), 'warning')
                     }
                     
                     // Restore frontend state regardless of backend success
@@ -5729,13 +5744,13 @@ export default function LeadsPage({
                       }
                       
                       if (successfullyRestored > 0) {
-                        pushToast(`Deletion cancelled - ${successfullyRestored} leads restored`, 'success')
+                        pushToast(t('notifications.deletionCancelledRestored', { count: successfullyRestored }), 'success')
                       }
                       if (errors > 0) {
-                        pushToast(`Deletion cancelled - ${errors} leads could not be restored`, 'warning')
+                        pushToast(t('notifications.deletionCancelledRestoreFailed', { count: errors }), 'warning')
                       }
                     } catch (error) {
-                      pushToast('Deletion cancelled - leads restored locally only', 'warning')
+                      pushToast(t('notifications.deletionCancelledLocalOnly'), 'warning')
                     }
                     
                     // Restore frontend state regardless of backend success
@@ -5777,19 +5792,19 @@ export default function LeadsPage({
 
 
         {/* MAIN */}
-        <div data-main-container className="flex flex-1 flex-col gap-4 p-4 pt-0">
+        <div data-main-container className="flex flex-1 flex-col gap-2 sm:gap-4 p-2 sm:p-4 pt-0">
 
           {/* CONTROLS */}
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-col gap-2 sm:gap-4 md:flex-row md:items-center md:justify-between">
             {/* Search and Filters */}
-            <div className="flex items-center gap-3">
-              <div className="relative">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <div className="relative flex-1 sm:flex-none min-w-0">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   placeholder={t('search.placeholder')}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-64"
+                  className="pl-10 w-full sm:w-64"
                 />
               </div>
               
@@ -5797,10 +5812,11 @@ export default function LeadsPage({
                 onClick={() => setIsFilterOpen(true)}
                 variant="outline"
                 size="sm"
-                className="cursor-pointer"
+                className="cursor-pointer shrink-0"
               >
-                <Filter className="h-4 w-4 mr-2" />
-                {t('filters.filters')}
+                <Filter className="h-4 w-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">{t('filters.filters')}</span>
+                <span className="sm:hidden">Filtros</span>
                 {(searchTerm || Object.values(filters).some(f => f !== "") || valueRange.min || valueRange.max || dateRange.min || dateRange.max) && (
                   <span className="ml-1 bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 text-xs">
                     {[searchTerm, ...Object.values(filters), valueRange.min, valueRange.max, dateRange.min, dateRange.max].filter(f => f && f !== "").length}
@@ -5813,7 +5829,7 @@ export default function LeadsPage({
                   variant="ghost"
                   size="sm"
                   onClick={clearFilters}
-                  className="cursor-pointer text-muted-foreground hover:text-foreground"
+                  className="cursor-pointer text-muted-foreground hover:text-foreground shrink-0"
                 >
                   <XCircle className="h-4 w-4" />
                 </Button>
@@ -5822,10 +5838,10 @@ export default function LeadsPage({
               {/* Column Visibility Selector */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="cursor-pointer">
-                    <Columns className="h-4 w-4 mr-2" />
-                    {t('filters.columns')}
-                    <ChevronDown className="ml-2 h-4 w-4" />
+                  <Button variant="outline" size="sm" className="cursor-pointer shrink-0">
+                    <Columns className="h-4 w-4 sm:mr-2" />
+                    <span className="hidden sm:inline">{t('filters.columns')}</span>
+                    <ChevronDown className="ml-0 sm:ml-2 h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56 p-1">
@@ -5849,19 +5865,20 @@ export default function LeadsPage({
             </div>
 
             {/* Actions */}
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
 
               <DropdownMenu>
 
                 <DropdownMenuTrigger asChild>
 
-                  <Button className="cursor-pointer">
+                  <Button className="cursor-pointer w-full sm:w-auto">
 
-                    <Plus className="h-4 w-4 mr-2" />
+                    <Plus className="h-4 w-4 mr-1 sm:mr-2" />
 
-                    {t('actions.addLead')}
+                    <span className="hidden sm:inline">{t('actions.addLead')}</span>
+                    <span className="sm:hidden">Adicionar</span>
 
-                    <ChevronDown className="ml-2 h-4 w-4" />
+                    <ChevronDown className="ml-auto sm:ml-2 h-4 w-4" />
 
                   </Button>
 
@@ -5901,13 +5918,14 @@ export default function LeadsPage({
 
                 <DropdownMenuTrigger asChild>
 
-                  <Button variant="outline" className="cursor-pointer">
+                  <Button variant="outline" className="cursor-pointer w-full sm:w-auto">
 
-                    <Upload className="h-4 w-4 mr-2" />
+                    <Upload className="h-4 w-4 mr-1 sm:mr-2" />
 
-                    {selectedLeads.size > 0 ? t('actions.exportSelected') : t('actions.export')}
+                    <span className="hidden sm:inline">{selectedLeads.size > 0 ? t('actions.exportSelected') : t('actions.export')}</span>
+                    <span className="sm:hidden">Exportar</span>
 
-                    <ChevronDown className="ml-2 h-4 w-4" />
+                    <ChevronDown className="ml-auto sm:ml-2 h-4 w-4" />
 
                   </Button>
 
@@ -5954,10 +5972,11 @@ export default function LeadsPage({
               {selectedLeads.size > 0 && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="cursor-pointer">
-                      <Edit className="h-4 w-4 mr-2" />
-                      {t('actions.actionsWithCount', { count: selectedLeads.size })}
-                      <ChevronDown className="ml-2 h-4 w-4" />
+                    <Button variant="outline" className="cursor-pointer w-full sm:w-auto">
+                      <Edit className="h-4 w-4 mr-1 sm:mr-2" />
+                      <span className="hidden sm:inline">{t('actions.actionsWithCount', { count: selectedLeads.size })}</span>
+                      <span className="sm:hidden">{selectedLeads.size} selecionados</span>
+                      <ChevronDown className="ml-auto sm:ml-2 h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56">
@@ -5994,12 +6013,12 @@ export default function LeadsPage({
 
           {/* LEADS TABLE */}
 
-            <div className="bg-muted/50 rounded-xl p-4 flex-1 flex flex-col">
+            <div className="bg-muted/50 rounded-xl p-2 sm:p-4 flex-1 flex flex-col">
 
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
 
-              <div className="flex items-center gap-4">
-              <h2 className="text-lg font-semibold">{t('table.leadList')}</h2>
+              <div className="flex items-center gap-2 sm:gap-4">
+              <h2 className="text-base sm:text-lg font-semibold">{t('table.leadList')}</h2>
 
                 {selectedLeads.size > 0 && (
                   <Button
@@ -6014,28 +6033,29 @@ export default function LeadsPage({
                 )}
                 {/* TOP PAGINATION - Show when scrolling */}
                 {totalPages > 1 && showTopPagination && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-1 sm:gap-2">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => setCurrentPage(1)}
                       disabled={currentPage === 1}
-                      className="cursor-pointer"
+                      className="cursor-pointer text-xs sm:text-sm"
                     >
-                      {t('table.first')}
+                      <span className="hidden sm:inline">{t('table.first')}</span>
+                      <span className="sm:hidden">1ª</span>
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => setCurrentPage(currentPage - 1)}
                       disabled={currentPage === 1}
-                      className="cursor-pointer"
+                      className="cursor-pointer text-xs sm:text-sm"
                     >
                       {t('table.previous')}
                     </Button>
                     
-                    <div className="flex items-center gap-2 px-2">
-                      <span className="text-sm text-muted-foreground">
+                    <div className="flex items-center gap-2 px-1 sm:px-2">
+                      <span className="text-xs sm:text-sm text-muted-foreground">
                         {t('table.pageOf', { current: currentPage, total: totalPages })}
                       </span>
                     </div>
@@ -6045,7 +6065,7 @@ export default function LeadsPage({
                       size="sm"
                       onClick={() => setCurrentPage(currentPage + 1)}
                       disabled={currentPage === totalPages}
-                      className="cursor-pointer"
+                      className="cursor-pointer text-xs sm:text-sm"
                     >
                       {t('table.next')}
                     </Button>
@@ -6054,14 +6074,15 @@ export default function LeadsPage({
                       size="sm"
                       onClick={() => setCurrentPage(totalPages)}
                       disabled={currentPage === totalPages}
-                      className="cursor-pointer"
+                      className="cursor-pointer text-xs sm:text-sm"
                     >
-                      {t('table.last')}
+                      <span className="hidden sm:inline">{t('table.last')}</span>
+                      <span className="sm:hidden">Últ.</span>
                     </Button>
                   </div>
                 )}
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
 
                 {selectedLeads.size > 0 && (
 
@@ -6112,15 +6133,15 @@ export default function LeadsPage({
 
             </div>
 
-            <div ref={tableContainerRef} className="overflow-x-auto border rounded-lg" style={{ scrollBehavior: 'auto' }}>
+            <div ref={tableContainerRef} className="overflow-x-auto border rounded-lg -mx-2 sm:mx-0" style={{ scrollBehavior: 'auto' }}>
 
-              <table className="w-full text-sm border-collapse table-fixed">
+              <table className="w-full text-xs sm:text-sm border-collapse table-fixed min-w-[800px]">
 
                 <thead>
 
                   <tr className="text-left border-b-2 border-border bg-muted/60">
 
-                    <th className="py-2.5 px-2 w-10 border-r border-border/40">
+                    <th className="py-2.5 px-1 sm:px-2 w-10 border-r border-border/40">
                       {leads.length > 0 && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -6147,7 +6168,7 @@ export default function LeadsPage({
 
                     {columnOrder.filter(columnId => columnLabels[columnId]).map(columnId => renderColumnHeader(columnId))}
 
-                    <th className="py-2.5 px-2 text-center min-w-[110px] w-[120px] font-semibold text-xs">{t('columns.actions')}</th>
+                    <th className="py-2.5 px-1 sm:px-2 text-center min-w-[100px] sm:min-w-[110px] w-[100px] sm:w-[120px] font-semibold text-xs">{t('columns.actions')}</th>
 
                   </tr>
 
@@ -6165,7 +6186,7 @@ export default function LeadsPage({
                     
                     return (
                     <tr key={lead.id} className={`border-b last:border-b-0 transition-colors ${index % 2 === 0 ? 'bg-background hover:bg-muted/30' : 'bg-muted/20 hover:bg-muted/40'} ${borderColorClass}`}>
-                      <td className="py-2.5 px-2 border-r border-border/30">
+                      <td className="py-2.5 px-1 sm:px-2 border-r border-border/30">
 
                         <input
 
@@ -6185,17 +6206,17 @@ export default function LeadsPage({
 
                       {columnOrder.filter(columnId => columnLabels[columnId]).map(columnId => renderColumnCell(columnId, lead))}
 
-                      <td className="py-2.5 px-2">
+                      <td className="py-2.5 px-1 sm:px-2">
 
-                        <div className="flex justify-end gap-1">
+                        <div className="flex justify-end gap-0.5 sm:gap-1">
 
-                          <Button size="sm" variant="outline" onClick={() => handleEdit(lead)} className="cursor-pointer h-7 w-7 p-0" title="Edit lead">
+                          <Button size="sm" variant="outline" onClick={() => handleEdit(lead)} className="cursor-pointer h-6 w-6 sm:h-7 sm:w-7 p-0" title={t('notifications.editLead')}>
 
                             <Edit className="h-3 w-3" />
 
                           </Button>
 
-                          <Button size="sm" variant="outline" onClick={() => handleQuickAssign(lead.id)} className="cursor-pointer h-7 w-7 p-0" title="Assign to user">
+                          <Button size="sm" variant="outline" onClick={() => handleQuickAssign(lead.id)} className="cursor-pointer h-6 w-6 sm:h-7 sm:w-7 p-0" title={t('notifications.assignToUser')}>
 
                             <UserPlus className="h-3 w-3" />
 
@@ -6206,8 +6227,8 @@ export default function LeadsPage({
                               size="sm" 
                               variant="outline" 
                               onClick={() => handleTogglePipeline(lead.id, lead.show_on_pipeline)} 
-                              className="cursor-pointer h-7 w-7 p-0 border-orange-300 hover:bg-orange-50" 
-                              title="Remove from pipeline"
+                              className="cursor-pointer h-6 w-6 sm:h-7 sm:w-7 p-0 border-orange-300 hover:bg-orange-50" 
+                              title={t('notifications.removeFromPipeline')}
                             >
                               <X className="h-3 w-3 text-orange-600" />
                             </Button>
@@ -6216,14 +6237,14 @@ export default function LeadsPage({
                               size="sm" 
                               variant="outline" 
                               onClick={() => handleTogglePipeline(lead.id, lead.show_on_pipeline)} 
-                              className="cursor-pointer h-7 w-7 p-0 border-green-300 hover:bg-green-50" 
-                              title="Add to pipeline"
+                              className="cursor-pointer h-6 w-6 sm:h-7 sm:w-7 p-0 border-green-300 hover:bg-green-50" 
+                              title={t('notifications.addToPipeline')}
                             >
                               <CheckCircle2 className="h-3 w-3 text-green-600" />
                             </Button>
                           )}
 
-                          <Button size="sm" variant="destructive" onClick={() => handleDelete(lead.id)} className="cursor-pointer h-7 w-7 p-0" title="Delete lead">
+                          <Button size="sm" variant="destructive" onClick={() => handleDelete(lead.id)} className="cursor-pointer h-6 w-6 sm:h-7 sm:w-7 p-0" title={t('notifications.deleteLead')}>
 
                             <Trash2 className="h-3 w-3" />
 
@@ -6239,7 +6260,7 @@ export default function LeadsPage({
 
                   {currentLeads.length === 0 && (
                     <tr>
-                      <td colSpan={Object.values(visibleColumns).filter(Boolean).length + 2} className="py-6 text-center text-muted-foreground">
+                      <td colSpan={Object.values(visibleColumns).filter(Boolean).length + 2} className="py-6 px-4 text-center text-xs sm:text-sm text-muted-foreground">
                         {searchTerm ? "No leads found for this search." : "No leads yet. Add the first one above."}
                       </td>
                     </tr>
@@ -6270,50 +6291,51 @@ export default function LeadsPage({
                 <div 
                   ref={footerRef}
                   data-pagination-footer
-                  className="fixed bottom-0 z-[50] flex items-center justify-center pt-4 pb-4 border-t"
+                  className="fixed bottom-0 z-[50] flex items-center justify-center pt-2 pb-2 sm:pt-4 sm:pb-4 border-t bg-background/95"
                   style={{
                     left: `${footerLeft}px`,
                     width: footerWidth,
                     right: 'auto',
                     maxWidth: footerWidth,
-                    paddingLeft: '1rem',
-                    paddingRight: '1rem',
+                    paddingLeft: '0.5rem',
+                    paddingRight: '0.5rem',
 
-                    // Vidro
-                    background: 'rgba(255, 255, 255, 0)', // aumentamos a opacidade
-                    backdropFilter: 'blur(6px) contrast(1.1) saturate(1.3)',
-                    WebkitBackdropFilter: 'blur(14px) contrast(1.1) saturate(1.3)',
+                    // Vidro - apenas em desktop
+                    background: isMobile ? 'rgba(255, 255, 255, 0.95)' : 'rgba(255, 255, 255, 0)',
+                    backdropFilter: isMobile ? 'none' : 'blur(6px) contrast(1.1) saturate(1.3)',
+                    WebkitBackdropFilter: isMobile ? 'none' : 'blur(14px) contrast(1.1) saturate(1.3)',
 
                     // Borda e sombra
-                    borderColor: 'rgba(255, 255, 255, 0.3)',
-                    boxShadow: '0 -6px 30px rgba(0, 0, 0, 0.18)',
+                    borderColor: isMobile ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.3)',
+                    boxShadow: isMobile ? '0 -2px 10px rgba(0, 0, 0, 0.1)' : '0 -6px 30px rgba(0, 0, 0, 0.18)',
 
                     // Suaviza o efeito
                     transition: 'background 0.2s ease, backdrop-filter 0.2s ease'
                   }}
                 >
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center justify-center gap-1 sm:gap-2">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setCurrentPage(1)}
                     disabled={currentPage === 1}
-                    className="cursor-pointer"
+                    className="cursor-pointer text-xs sm:text-sm h-8 sm:h-9 px-2 sm:px-3"
                   >
-                    {t('table.first')}
+                    <span className="hidden sm:inline">{t('table.first')}</span>
+                    <span className="sm:hidden">1ª</span>
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setCurrentPage(currentPage - 1)}
                     disabled={currentPage === 1}
-                    className="cursor-pointer"
+                    className="cursor-pointer text-xs sm:text-sm h-8 sm:h-9 px-2 sm:px-3"
                   >
                     {t('table.previous')}
                   </Button>
                   
-                  <div className="flex items-center gap-2 px-4">
-                    <span className="text-sm text-muted-foreground">
+                  <div className="flex items-center gap-2 px-1 sm:px-4">
+                    <span className="text-xs sm:text-sm text-muted-foreground">
                       {t('table.pageOf', { current: currentPage, total: totalPages })}
                     </span>
                   </div>
@@ -6323,7 +6345,7 @@ export default function LeadsPage({
                     size="sm"
                     onClick={() => setCurrentPage(currentPage + 1)}
                     disabled={currentPage === totalPages}
-                    className="cursor-pointer"
+                    className="cursor-pointer text-xs sm:text-sm h-8 sm:h-9 px-2 sm:px-3"
                   >
                     {t('table.next')}
                   </Button>
@@ -6332,9 +6354,10 @@ export default function LeadsPage({
                     size="sm"
                     onClick={() => setCurrentPage(totalPages)}
                     disabled={currentPage === totalPages}
-                    className="cursor-pointer"
+                    className="cursor-pointer text-xs sm:text-sm h-8 sm:h-9 px-2 sm:px-3"
                   >
-                    {t('table.last')}
+                    <span className="hidden sm:inline">{t('table.last')}</span>
+                    <span className="sm:hidden">Últ.</span>
                   </Button>
                 </div>
               </div>
@@ -6357,7 +6380,7 @@ export default function LeadsPage({
         }}>
 
           <SheetContent 
-            className="w-full sm:max-w-2xl border-l border-border p-6 md:p-8 flex flex-col max-h-screen"
+            className="w-full sm:max-w-2xl border-l border-border p-4 sm:p-6 md:p-8 flex flex-col max-h-screen overflow-y-auto"
             onDragOver={handleAttachmentDragOver}
             onDragLeave={handleAttachmentDragLeave}
             onDrop={(e) => editingId && handleAttachmentDrop(e, editingId)}
@@ -6383,10 +6406,10 @@ export default function LeadsPage({
             <Separator className="my-4" />
             </div>
 
-            <div className="flex-1 overflow-y-auto pr-3 pb-6">
-            <form onSubmit={handleSubmit} className="space-y-8">
+            <div className="flex-1 overflow-y-auto pr-2 sm:pr-3 pb-4 sm:pb-6">
+            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-8">
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
 
           <div className="space-y-2">
 
@@ -6629,7 +6652,7 @@ export default function LeadsPage({
 
                 <h3 className="text-sm font-semibold text-muted-foreground">{t('form.commercialInformation')}</h3>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
 
                   <div className="space-y-2">
 
@@ -6838,7 +6861,7 @@ export default function LeadsPage({
                                 <FileIcon className="h-5 w-5 text-muted-foreground flex-shrink-0" />
                                 <div className="flex-1 min-w-0">
                                   <p className="text-sm font-medium truncate">
-                                    {attachment.originalName || 'Unknown file'}
+                                    {attachment.originalName || t('notifications.unknownFile')}
                                   </p>
                                   <p className="text-xs text-muted-foreground">
                                     {formatFileSize(attachment.size || 0)}
@@ -7427,7 +7450,7 @@ export default function LeadsPage({
                                   {attachment.originalName || 'Unknown file'}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
-                                  {formatFileSize(attachment.size || 0)} • {attachment.uploadedAt ? new Date(attachment.uploadedAt).toLocaleDateString('en-US') : 'Unknown date'}
+                                  {formatFileSize(attachment.size || 0)} • {attachment.uploadedAt ? new Date(attachment.uploadedAt).toLocaleDateString(locale === 'pt-BR' ? 'pt-BR' : 'en-US') : t('notifications.unknownDate')}
                                 </p>
                               </div>
                               <div className="flex gap-1">
@@ -7436,7 +7459,7 @@ export default function LeadsPage({
                                   variant="ghost"
                                   className="cursor-pointer"
                                   onClick={() => viewAttachment(l.id, attachment.id)}
-                                  title="View file"
+                                  title={t('notifications.viewFile')}
                                 >
                                   <Eye className="h-4 w-4" />
                                 </Button>
@@ -7445,7 +7468,7 @@ export default function LeadsPage({
                                   variant="ghost"
                                   className="cursor-pointer"
                                   onClick={() => downloadAttachment(l.id, attachment.id, attachment.originalName || 'file')}
-                                  title="Download file"
+                                  title={t('notifications.downloadFile')}
                                 >
                                   <Download className="h-4 w-4" />
                                 </Button>
@@ -8422,9 +8445,9 @@ export default function LeadsPage({
           </div>
         )}
 
-        {/* Fixed Bottom Pagination */}
-        {totalPages > 1 && (
-          <div className="sticky bottom-0 bg-background/1 backdrop-blur-md border-t border-border/50 p-4 z-10">
+        {/* Fixed Bottom Pagination - Hidden on mobile (duplicate, already have fixed footer pagination) */}
+        {totalPages > 1 && !isMobile && (
+          <div className="hidden md:block sticky bottom-0 bg-background/1 backdrop-blur-md border-t border-border/50 p-4 z-10">
             <div className="max-w-7xl mx-auto">
               <div className="flex items-center justify-center">
                 <div className="flex items-center gap-2">

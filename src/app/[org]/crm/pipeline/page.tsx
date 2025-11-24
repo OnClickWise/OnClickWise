@@ -228,16 +228,16 @@ const StageFormModal = React.memo(({
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent className="w-full sm:max-w-md border-l border-border p-6">
+      <SheetContent className="w-full sm:max-w-md border-l border-border p-3 sm:p-6">
         <SheetHeader>
-          <SheetTitle>
+          <SheetTitle className="text-base sm:text-lg">
             {editingStage ? t('stageManagement.editStage') : t('stageManagement.addStage')}
           </SheetTitle>
         </SheetHeader>
         
-        <Separator className="my-4" />
+        <Separator className="my-3 sm:my-4" />
         
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {/* Stage Name */}
           <div className="space-y-2">
             <label className="text-sm font-medium">{t('stageManagement.nameLabel')}</label>
@@ -431,7 +431,8 @@ const LeadCard = React.memo(({
   onEdit,
   onLinkLead,
   userRole,
-  locale
+  locale,
+  hasConversation
 }: { 
   lead: Lead, 
   onDragStart: (e: React.DragEvent, lead: Lead) => void,
@@ -440,7 +441,8 @@ const LeadCard = React.memo(({
   onEdit: (lead: Lead) => void,
   onLinkLead?: (lead: Lead) => void,
   userRole: string,
-  locale: string
+  locale: string,
+  hasConversation?: boolean
 }) => {
   const t = useTranslations('Pipeline')
   
@@ -460,20 +462,157 @@ const LeadCard = React.memo(({
     }).format(date)
   }, [locale])
   
+  // Touch drag state for mobile
+  const touchStartPosRef = React.useRef<{ x: number; y: number; leadId: string } | null>(null)
+  const isDraggingRef = React.useRef(false)
+  const cardRef = React.useRef<HTMLDivElement>(null)
+  
+  const handleTouchStart = React.useCallback((e: React.TouchEvent) => {
+    // Prevenir que toque em botões inicie drag
+    const target = e.target as HTMLElement
+    if (target.closest('button') || target.closest('[role="menuitem"]')) {
+      return
+    }
+    
+    if (e.touches.length === 1) {
+      const touch = e.touches[0]
+      touchStartPosRef.current = { x: touch.clientX, y: touch.clientY, leadId: lead.id }
+      isDraggingRef.current = false
+    }
+  }, [lead.id])
+  
+  // Registrar listener nativo para touchmove com passive: false para permitir preventDefault
+  React.useEffect(() => {
+    const element = cardRef.current
+    if (!element) return
+
+    const touchMoveHandler = (e: TouchEvent) => {
+      if (!touchStartPosRef.current || e.touches.length !== 1) return
+      
+      const touch = e.touches[0]
+      const deltaX = Math.abs(touch.clientX - touchStartPosRef.current.x)
+      const deltaY = Math.abs(touch.clientY - touchStartPosRef.current.y)
+      
+      // Iniciar drag se mover mais de 10px (evitar conflito com scroll vertical)
+      if (!isDraggingRef.current && (deltaX > 10 || deltaY > 10)) {
+        isDraggingRef.current = true
+        e.preventDefault() // Agora podemos prevenir porque o listener não é passivo
+        
+        // Disparar drag start via callback direto
+        const fakeEvent = {
+          preventDefault: () => {},
+          stopPropagation: () => {},
+          dataTransfer: {
+            effectAllowed: 'move' as const,
+            dropEffect: 'move' as const,
+            setData: () => {},
+            getData: () => lead.id
+          }
+        } as unknown as React.DragEvent
+        
+        onDragStart(fakeEvent, lead)
+        element.style.touchAction = 'none' // Bloquear todos os gestos durante drag
+      }
+      
+      if (isDraggingRef.current) {
+        e.preventDefault() // Prevenir scroll durante drag
+      }
+    }
+
+    // Registrar listener com passive: false para permitir preventDefault
+    element.addEventListener('touchmove', touchMoveHandler, { passive: false })
+
+    return () => {
+      element.removeEventListener('touchmove', touchMoveHandler)
+    }
+  }, [lead, onDragStart])
+  
+  const handleTouchMove = React.useCallback((e: React.TouchEvent) => {
+    // Handler vazio - o trabalho real é feito no listener nativo acima
+    // Mantido apenas para compatibilidade com o código existente
+  }, [])
+  
+  const handleTouchEnd = React.useCallback((e: React.TouchEvent) => {
+    // Se estava arrastando, tratar como drop
+    if (isDraggingRef.current && touchStartPosRef.current) {
+      // Encontrar elemento sob o toque
+      const touch = e.changedTouches[0]
+      const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY)
+      
+      // Procurar a coluna mais próxima
+      const stageElement = elementBelow?.closest('[data-stage-id]') as HTMLElement
+      if (stageElement) {
+        const stageId = stageElement.getAttribute('data-stage-id')
+        if (stageId) {
+          // Disparar evento customizado que o componente pai pode escutar
+          const dropEvent = new CustomEvent('leadTouchDrop', {
+            detail: {
+              leadId: lead.id,
+              stageId: stageId,
+              touch: { x: touch.clientX, y: touch.clientY }
+            },
+            bubbles: true,
+            cancelable: true
+          })
+          if (cardRef.current) {
+            cardRef.current.dispatchEvent(dropEvent)
+          }
+        }
+      }
+    }
+    
+    // Resetar estado
+    if (cardRef.current) {
+      cardRef.current.style.touchAction = 'pan-y'
+    }
+    touchStartPosRef.current = null
+    isDraggingRef.current = false
+  }, [lead.id])
+  
   return (
     <div
+      ref={cardRef}
       key={lead.id}
-      className="bg-background border rounded-lg p-2.5 cursor-move hover:shadow-md transition-shadow"
+      className="bg-background border rounded-lg p-2 sm:p-2.5 cursor-move hover:shadow-md transition-shadow select-none"
       draggable
       onDragStart={(e) => onDragStart(e, lead)}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
+      style={{
+        touchAction: 'pan-y', // Permitir scroll vertical por padrão (será alterado dinamicamente durante drag)
+        WebkitUserSelect: 'none',
+        userSelect: 'none'
+      }}
     >
       {/* Header com nome e menu de ações */}
-      <div className="flex items-start justify-between mb-2">
+      <div className="flex items-start justify-between mb-1.5 sm:mb-2 gap-1">
         <div className="flex-1 min-w-0">
-          <h4 className="font-semibold text-sm truncate" title={lead.name}>
-            {lead.name}
-          </h4>
-          <p className="text-xs text-muted-foreground truncate mt-0.5" title={lead.email}>
+          <div className="flex items-center gap-1">
+            <h4 className="font-semibold text-xs sm:text-sm truncate" title={lead.name}>
+              {lead.name}
+            </h4>
+            {/* Indicador visual de usuário vinculado (apenas para admin/master) */}
+            {(userRole === 'admin' || userRole === 'master') && lead.assigned_user_id && (
+              <span 
+                className="inline-flex items-center justify-center rounded-full bg-blue-100 p-0.5 flex-shrink-0" 
+                title={t('leadCard.assignedToUser')}
+              >
+                <UserPlus className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-blue-700" />
+              </span>
+            )}
+            {/* Indicador visual de conversa vinculada */}
+            {hasConversation && (
+              <span 
+                className="inline-flex items-center justify-center rounded-full bg-green-100 p-0.5 flex-shrink-0" 
+                title={t('leadCard.hasConversation')}
+              >
+                <MessageCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-green-700" />
+              </span>
+            )}
+          </div>
+          <p className="text-[10px] sm:text-xs text-muted-foreground truncate mt-0.5" title={lead.email}>
             {lead.email}
           </p>
         </div>
@@ -482,21 +621,21 @@ const LeadCard = React.memo(({
             <Button
               size="sm"
               variant="ghost"
-              className="h-6 w-6 p-0 cursor-pointer hover:bg-muted flex-shrink-0"
+              className="h-5 w-5 sm:h-6 sm:w-6 p-0 cursor-pointer hover:bg-muted flex-shrink-0"
               onClick={(e) => e.stopPropagation()}
             >
-              <MoreVertical className="h-4 w-4" />
+              <MoreVertical className="h-3 w-3 sm:h-4 sm:w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuContent align="end" className="w-40 sm:w-48">
             <DropdownMenuItem
               onClick={(e) => {
                 e.stopPropagation()
                 onPreview(lead)
               }}
-              className="cursor-pointer"
+              className="cursor-pointer text-xs sm:text-sm"
             >
-              <Eye className="h-4 w-4 mr-2" />
+              <Eye className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
               {t('leadCard.viewDetails')}
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -504,9 +643,9 @@ const LeadCard = React.memo(({
                 e.stopPropagation()
                 onEdit(lead)
               }}
-              className="cursor-pointer"
+              className="cursor-pointer text-xs sm:text-sm"
             >
-              <Edit className="h-4 w-4 mr-2" />
+              <Edit className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
               {t('leadCard.editLead')}
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -514,9 +653,9 @@ const LeadCard = React.memo(({
                 e.stopPropagation()
                 onContact(lead)
               }}
-              className="cursor-pointer"
+              className="cursor-pointer text-xs sm:text-sm"
             >
-              <MessageCircle className="h-4 w-4 mr-2" />
+              <MessageCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
               {t('leadCard.startConversation')}
             </DropdownMenuItem>
             {(userRole === 'admin' || userRole === 'master') && onLinkLead && (
@@ -525,9 +664,9 @@ const LeadCard = React.memo(({
                   e.stopPropagation()
                   onLinkLead(lead)
                 }}
-                className="cursor-pointer"
+                className="cursor-pointer text-xs sm:text-sm"
               >
-                <UserPlus className="h-4 w-4 mr-2" />
+                <UserPlus className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />
                 {t('leadCard.linkToUser')}
               </DropdownMenuItem>
             )}
@@ -537,35 +676,35 @@ const LeadCard = React.memo(({
       
       {/* Valor da venda */}
       {lead.value && (
-        <div className="mb-1.5">
-          <div className="text-sm font-bold text-green-600">
+        <div className="mb-1 sm:mb-1.5">
+          <div className="text-xs sm:text-sm font-bold text-green-600 truncate">
             {formatCurrency(lead.value)}
           </div>
         </div>
       )}
       
       {/* Informações adicionais */}
-      <div className="space-y-1">
+      <div className="space-y-0.5 sm:space-y-1">
         {/* Origem */}
         {lead.source && (
-          <div className="text-xs text-muted-foreground flex items-center">
-            <Building2 className="h-3 w-3 mr-1 flex-shrink-0" />
+          <div className="text-[10px] sm:text-xs text-muted-foreground flex items-center">
+            <Building2 className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1 flex-shrink-0" />
             <span className="truncate">{lead.source}</span>
           </div>
         )}
         
         {/* Data de fechamento */}
         {lead.estimated_close_date && (
-          <div className="text-xs text-muted-foreground flex items-center">
-            <Calendar className="h-3 w-3 mr-1 flex-shrink-0" />
-            <span>{formatDate(lead.estimated_close_date)}</span>
+          <div className="text-[10px] sm:text-xs text-muted-foreground flex items-center">
+            <Calendar className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1 flex-shrink-0" />
+            <span className="truncate">{formatDate(lead.estimated_close_date)}</span>
           </div>
         )}
       </div>
       
       {/* Notas (truncadas) */}
       {lead.description && (
-        <div className="mt-1.5 p-1.5 bg-muted/30 rounded text-xs text-muted-foreground">
+        <div className="mt-1 sm:mt-1.5 p-1 sm:p-1.5 bg-muted/30 rounded text-[10px] sm:text-xs text-muted-foreground">
           <div className="line-clamp-2" title={lead.description}>
             📝 {lead.description}
           </div>
@@ -586,6 +725,7 @@ const LeadCard = React.memo(({
     prevProps.lead.assigned_user_id === nextProps.lead.assigned_user_id &&
     prevProps.locale === nextProps.locale &&
     prevProps.userRole === nextProps.userRole &&
+    prevProps.hasConversation === nextProps.hasConversation &&
     prevProps.onDragStart === nextProps.onDragStart &&
     prevProps.onContact === nextProps.onContact &&
     prevProps.onPreview === nextProps.onPreview &&
@@ -667,6 +807,65 @@ export default function PipelinePage({
 
   const [leads, setLeads] = React.useState<Lead[]>([])
   const [pipelineStages, setPipelineStages] = React.useState<PipelineStage[]>([])
+  // Track leads with linked conversations (telegram, whatsapp, email)
+  const [leadsWithConversations, setLeadsWithConversations] = React.useState<Set<string>>(new Set())
+  
+  // Load linked conversations when leads are loaded
+  const loadLinkedConversations = React.useCallback(async (leadIds: string[]) => {
+    if (!isClient || leadIds.length === 0) return
+    
+    try {
+      const linkedLeadIds = new Set<string>()
+      
+      // Load Telegram conversations with lead_id
+      try {
+        const telegramResponse = await apiService.getTelegramConversations({ limit: 1000 })
+        if (telegramResponse.success && telegramResponse.data?.conversations) {
+          telegramResponse.data.conversations.forEach((conv: any) => {
+            if (conv.lead_id && leadIds.includes(conv.lead_id)) {
+              linkedLeadIds.add(conv.lead_id)
+            }
+          })
+        }
+      } catch (telegramError) {
+        console.error('Error loading Telegram conversations:', telegramError)
+      }
+      
+      // TODO: Add WhatsApp and Email conversations when APIs are available
+      // try {
+      //   const whatsappResponse = await apiService.getWhatsAppConversations({ limit: 1000 })
+      //   // Process WhatsApp conversations
+      // } catch (whatsappError) {
+      //   console.error('Error loading WhatsApp conversations:', whatsappError)
+      // }
+      
+      // Update state with all linked conversations
+      if (linkedLeadIds.size > 0) {
+        setLeadsWithConversations(prev => {
+          const updated = new Set(prev)
+          linkedLeadIds.forEach(id => updated.add(id))
+          // Remove lead IDs that are no longer in the current leads list
+          leadIds.forEach(id => {
+            if (!linkedLeadIds.has(id)) {
+              updated.delete(id)
+            }
+          })
+          return updated
+        })
+      } else {
+        // If no conversations found, remove all for these leads
+        setLeadsWithConversations(prev => {
+          const updated = new Set(prev)
+          leadIds.forEach(id => updated.delete(id))
+          return updated
+        })
+      }
+    } catch (error) {
+      console.error('Error loading linked conversations:', error)
+      // Don't show error to user, just fail silently
+    }
+  }, [isClient])
+  
   const [searchTerm, setSearchTerm] = React.useState("")
   const [filters, setFilters] = React.useState({
     name: '',
@@ -734,10 +933,11 @@ export default function PipelinePage({
   const [assignedUserName, setAssignedUserName] = React.useState<string>("")
   const [createdByUserName, setCreatedByUserName] = React.useState<string>("")
   
-  // Fetch assigned user and created by user names when preview opens
+  // Fetch assigned user and created by user names when preview opens (only for admin/master)
   React.useEffect(() => {
     async function fetchUsers() {
-      if (preview.open && preview.lead && (preview.lead.assigned_user_id || preview.lead.created_by)) {
+      // Only fetch for admin/master roles
+      if ((userRole === 'admin' || userRole === 'master') && preview.open && preview.lead && (preview.lead.assigned_user_id || preview.lead.created_by)) {
         try {
           const response = await apiService.getOrganizationUsers(true)
           if (response.success && response.data) {
@@ -773,7 +973,7 @@ export default function PipelinePage({
     }
     
     fetchUsers()
-  }, [preview.open, preview.lead?.assigned_user_id, preview.lead?.created_by])
+  }, [preview.open, preview.lead?.assigned_user_id, preview.lead?.created_by, userRole, t])
   
   // Contact method modal
   const [contactModal, setContactModal] = React.useState<{ open: boolean, lead: Lead | null }>({ open: false, lead: null })
@@ -1049,10 +1249,13 @@ export default function PipelinePage({
         console.log('Pipeline: Setting leads from search:', response.data.leads.length, 'leads')
         setLeads(response.data.leads)
         updatePipelineStages(response.data.leads)
+        // Load linked conversations for these leads
+        const leadIds = response.data.leads.map((l: Lead) => l.id)
+        loadLinkedConversations(leadIds)
         return response.data.leads
       } else {
         console.error('Failed to search leads:', response.error)
-        pushToast('Erro ao buscar leads', 'error')
+        pushToast(t('notifications.errorSearching'), 'error')
         return []
       }
     } catch (error) {
@@ -1060,7 +1263,7 @@ export default function PipelinePage({
       pushToast('Erro ao buscar leads', 'error')
       return []
     }
-  }, [])
+  }, [loadLinkedConversations, t])
 
   const clearFilters = () => {
     setSearchTerm('')
@@ -1092,6 +1295,9 @@ export default function PipelinePage({
         if (response.success && response.data) {
           setLeads(response.data.leads)
           updatePipelineStages(response.data.leads)
+          // Load linked conversations for these leads
+          const leadIds = response.data.leads.map((l: Lead) => l.id)
+          loadLinkedConversations(leadIds)
         }
       } catch (error) {
         console.error('Error loading all leads:', error)
@@ -1133,6 +1339,9 @@ export default function PipelinePage({
           if (response.success && response.data) {
             setLeads(response.data.leads)
             updatePipelineStages(response.data.leads)
+            // Load linked conversations for these leads
+            const leadIds = response.data.leads.map((l: Lead) => l.id)
+            loadLinkedConversations(leadIds)
           }
         } catch (error) {
           console.error('Error loading all leads:', error)
@@ -1179,6 +1388,9 @@ export default function PipelinePage({
           console.log('Pipeline: Found leads:', response.data.leads.length)
           setLeads(response.data.leads)
           updatePipelineStages(response.data.leads)
+          // Load linked conversations for these leads
+          const leadIds = response.data.leads.map((l: Lead) => l.id)
+          loadLinkedConversations(leadIds)
         }
         
       } catch (error) {
@@ -1194,6 +1406,9 @@ export default function PipelinePage({
           if (response.success && response.data) {
             setLeads(response.data.leads)
             updatePipelineStages(response.data.leads)
+            // Load linked conversations for these leads
+            const leadIds = response.data.leads.map((l: Lead) => l.id)
+            loadLinkedConversations(leadIds)
           }
         } catch (error) {
           console.error('Error loading all leads:', error)
@@ -1816,7 +2031,7 @@ export default function PipelinePage({
                 if (result.success) {
                   successCount++
                 } else {
-                  failedUpdates.push({ lead: result.lead, error: result.error || 'Unknown error' })
+                  failedUpdates.push({ lead: result.lead, error: result.error || t('notifications.unknownError') })
                 }
               })
               
@@ -1948,7 +2163,7 @@ export default function PipelinePage({
                 if (result.success) {
                   successCount++
                 } else {
-                  failedUpdates.push({ lead: result.lead, error: result.error || 'Unknown error' })
+                  failedUpdates.push({ lead: result.lead, error: result.error || t('notifications.unknownError') })
                 }
               })
               
@@ -2146,6 +2361,10 @@ export default function PipelinePage({
     }
   }
 
+  // Touch drag state for stage management
+  const [touchStartStage, setTouchStartStage] = React.useState<{ stage: PipelineStage; pos: { x: number; y: number } } | null>(null)
+  const [isStageDragging, setIsStageDragging] = React.useState(false)
+  
   const handleStageDragStart = (e: React.DragEvent, stage: PipelineStage) => {
     // Prevent dragging the virtual "Uncategorized" stage
     if (stage.id === '__uncategorized__') {
@@ -2155,6 +2374,188 @@ export default function PipelinePage({
     setDraggedStage(stage)
     e.dataTransfer.effectAllowed = 'move'
   }
+  
+  // Usar listener nativo para touchmove de stages (similar aos leads)
+  const stageDragTouchStartRef = React.useRef<{ x: number; y: number; stage: PipelineStage } | null>(null)
+  const stageDragElementsRef = React.useRef<Map<string, HTMLDivElement>>(new Map())
+  const handleStageDropRef = React.useRef<((e: React.DragEvent, targetStage: PipelineStage) => Promise<void>) | null>(null)
+  
+  const handleStageTouchStart = React.useCallback((e: React.TouchEvent, stage: PipelineStage) => {
+    // Prevent dragging the virtual "Uncategorized" stage
+    if (stage.id === '__uncategorized__') {
+      return
+    }
+    // Prevenir que toque em botões inicie drag
+    const target = e.target as HTMLElement
+    if (target.closest('button') || target.closest('[role="menuitem"]')) {
+      return
+    }
+    if (e.touches.length === 1) {
+      const touch = e.touches[0]
+      setTouchStartStage({ stage, pos: { x: touch.clientX, y: touch.clientY } })
+      stageDragTouchStartRef.current = { x: touch.clientX, y: touch.clientY, stage }
+      setIsStageDragging(false)
+    }
+  }, [])
+  
+  // Referência para pipelineStages para uso dentro dos listeners
+  const pipelineStagesRef = React.useRef(pipelineStages)
+  React.useEffect(() => {
+    pipelineStagesRef.current = pipelineStages
+  }, [pipelineStages])
+
+  // Função para adicionar listener nativo a um elemento de stage
+  const addStageTouchListener = React.useCallback((element: HTMLDivElement | null, stage: PipelineStage) => {
+    if (!element) return () => {}
+    
+    let touchStartPos: { x: number; y: number } | null = null
+    let isDragging = false
+    let draggedStageRef: PipelineStage | null = null
+    
+    const touchStartHandler = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return
+      
+      // Prevenir que toque em botões inicie drag
+      const target = e.target as HTMLElement
+      if (target.closest('button') || target.closest('[role="menuitem"]')) {
+        return
+      }
+      
+      const touch = e.touches[0]
+      touchStartPos = { x: touch.clientX, y: touch.clientY }
+      stageDragTouchStartRef.current = { x: touch.clientX, y: touch.clientY, stage }
+      isDragging = false
+      draggedStageRef = null
+    }
+    
+    const touchMoveHandler = (e: TouchEvent) => {
+      if (!touchStartPos || !stageDragTouchStartRef.current || e.touches.length !== 1) return
+      if (stageDragTouchStartRef.current.stage.id !== stage.id) return
+      
+      const touch = e.touches[0]
+      const deltaX = Math.abs(touch.clientX - touchStartPos.x)
+      const deltaY = Math.abs(touch.clientY - touchStartPos.y)
+      
+      // Iniciar drag se mover mais de 10px em qualquer direção
+      if (!isDragging && (deltaX > 10 || deltaY > 10)) {
+        isDragging = true
+        draggedStageRef = stage
+        setIsStageDragging(true)
+        setDraggedStage(stage)
+        
+        element.style.touchAction = 'none'
+        element.style.opacity = '0.5'
+        element.style.cursor = 'grabbing'
+        
+        // Adicionar classe visual de feedback
+        element.classList.add('dragging')
+      }
+      
+      if (isDragging) {
+        e.preventDefault()
+        e.stopPropagation()
+        
+        // Atualizar posição visual durante o drag - destacar área de drop
+        const allStages = Array.from(document.querySelectorAll('[data-stage-management-id]'))
+        allStages.forEach((el) => {
+          const elStage = el as HTMLElement
+          if (elStage.getAttribute('data-stage-management-id') === stage.id) return
+          
+          const rect = elStage.getBoundingClientRect()
+          const centerY = rect.top + rect.height / 2
+          
+          if (touch.clientY < centerY) {
+            elStage.classList.add('drag-over-top')
+            elStage.classList.remove('drag-over-bottom')
+          } else {
+            elStage.classList.add('drag-over-bottom')
+            elStage.classList.remove('drag-over-top')
+          }
+        })
+      }
+    }
+    
+    const touchEndHandler = (e: TouchEvent) => {
+      // Sempre limpar estados visuais
+      element.classList.remove('dragging')
+      element.style.opacity = ''
+      element.style.cursor = ''
+      document.querySelectorAll('[data-stage-management-id]').forEach((el) => {
+        (el as HTMLElement).classList.remove('drag-over-top', 'drag-over-bottom')
+      })
+      
+      if (isDragging && draggedStageRef && stageDragTouchStartRef.current && handleStageDropRef.current) {
+        e.preventDefault()
+        e.stopPropagation()
+        
+        // Encontrar elemento sob o toque
+        const touch = e.changedTouches[0]
+        const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY)
+        
+        // Procurar outro stage para fazer drop
+        const targetStageElement = elementBelow?.closest('[data-stage-management-id]') as HTMLElement
+        if (targetStageElement) {
+          const targetStageId = targetStageElement.getAttribute('data-stage-management-id')
+          if (targetStageId && targetStageId !== draggedStageRef.id && targetStageId !== '__uncategorized__') {
+            const targetStage = pipelineStagesRef.current.find(s => s.id === targetStageId)
+            if (targetStage && targetStage.id !== '__uncategorized__') {
+              const fakeEvent = {
+                preventDefault: () => {},
+                stopPropagation: () => {},
+                dataTransfer: {
+                  effectAllowed: 'move' as const,
+                  dropEffect: 'move' as const
+                }
+              } as React.DragEvent
+              handleStageDropRef.current(fakeEvent, targetStage)
+            }
+          }
+        }
+        
+        // Resetar estado do drag
+        setDraggedStage(null)
+        isDragging = false
+        setIsStageDragging(false)
+        draggedStageRef = null
+      }
+      
+      // Resetar touchAction em todos os elementos de stage
+      stageDragElementsRef.current.forEach((el) => {
+        el.style.touchAction = 'pan-y'
+      })
+      
+      setTouchStartStage(null)
+      stageDragTouchStartRef.current = null
+      touchStartPos = null
+      isDragging = false
+    }
+    
+    element.addEventListener('touchstart', touchStartHandler, { passive: true })
+    element.addEventListener('touchmove', touchMoveHandler, { passive: false })
+    element.addEventListener('touchend', touchEndHandler, { passive: false })
+    element.addEventListener('touchcancel', touchEndHandler, { passive: false })
+    
+    return () => {
+      element.removeEventListener('touchstart', touchStartHandler)
+      element.removeEventListener('touchmove', touchMoveHandler)
+      element.removeEventListener('touchend', touchEndHandler)
+      element.removeEventListener('touchcancel', touchEndHandler)
+    }
+  }, [])
+  
+  const handleStageTouchMoveForDrag = React.useCallback((e: React.TouchEvent, stage: PipelineStage) => {
+    // Handler vazio - o trabalho real é feito no listener nativo acima
+  }, [])
+  
+  const handleStageTouchEndForDrag = React.useCallback((e: React.TouchEvent) => {
+    // Handler vazio - o trabalho real é feito no listener nativo acima
+  }, [])
+  
+  const handleStageTouchEnd = React.useCallback(() => {
+    setTouchStartStage(null)
+    stageDragTouchStartRef.current = null
+    setIsStageDragging(false)
+  }, [])
 
   const handleStageDragOver = (e: React.DragEvent, stageId: string) => {
     e.preventDefault()
@@ -2216,6 +2617,11 @@ export default function PipelinePage({
       }
     }
   }
+
+  // Atualizar referência do handleStageDrop quando a função mudar
+  React.useEffect(() => {
+    handleStageDropRef.current = handleStageDrop
+  }, [handleStageDrop])
 
   // Attachment utility functions
   const getFileIcon = (mimeType: string) => {
@@ -2365,7 +2771,7 @@ export default function PipelinePage({
           }))
         }
       } else {
-        throw new Error(response.error || 'Failed to upload file')
+        throw new Error(response.error || t('notifications.errorUploadingFile'))
       }
     } catch (error) {
       console.error('Error uploading attachment silently:', error)
@@ -2399,7 +2805,7 @@ export default function PipelinePage({
           return lead
         }))
       } else {
-        pushToast(response.error || 'Failed to delete file', 'error')
+        pushToast(response.error || t('notifications.errorDeletingFile'), 'error')
       }
     } catch (error) {
       console.error('Error deleting attachment:', error)
@@ -2469,6 +2875,9 @@ export default function PipelinePage({
       if (response.success && response.data) {
         setLeads(response.data.leads)
         updatePipelineStages(response.data.leads)
+        // Load linked conversations for these leads
+        const leadIds = response.data.leads.map((l: Lead) => l.id)
+        loadLinkedConversations(leadIds)
       }
       
       // Clear pending changes
@@ -2648,6 +3057,7 @@ export default function PipelinePage({
 
   const handleDragStart = React.useCallback((e: React.DragEvent, lead: Lead) => {
     setDraggedLead(lead)
+    touchDraggedLeadRef.current = lead // Também para touch
     e.dataTransfer.effectAllowed = "move"
   }, [])
   
@@ -2749,6 +3159,52 @@ export default function PipelinePage({
     }
   }, [])
 
+  // Touch drop state for mobile - usar refs para evitar re-renders
+  const touchDraggedLeadRef = React.useRef<Lead | null>(null)
+  const touchOverStageRef = React.useRef<string | null>(null)
+  
+  // Atualizar refs quando drag muda
+  React.useEffect(() => {
+    touchDraggedLeadRef.current = draggedLead
+  }, [draggedLead])
+  
+  // Listener para eventos customizados de touch drop de leads
+  React.useEffect(() => {
+    const handleLeadTouchDrop = async (e: Event) => {
+      const customEvent = e as CustomEvent<{ leadId: string; stageId: string; touch: { x: number; y: number } }>
+      const { leadId, stageId } = customEvent.detail
+      
+      // Encontrar o lead que foi arrastado
+      const lead = leads.find(l => l.id === leadId)
+      if (!lead) return
+      
+      // Criar evento de drop sintético
+      const fakeEvent = {
+        preventDefault: () => {},
+        stopPropagation: () => {},
+        dataTransfer: {
+          effectAllowed: 'move' as const,
+          dropEffect: 'move' as const
+        }
+      } as React.DragEvent
+      
+      // Temporariamente definir o lead como draggedLead para o handleDrop funcionar
+      setDraggedLead(lead)
+      
+      // Aguardar um tick para garantir que o estado foi atualizado
+      await new Promise(resolve => setTimeout(resolve, 0))
+      
+      // Chamar handleDrop
+      await handleDrop(fakeEvent, stageId)
+    }
+    
+    document.addEventListener('leadTouchDrop', handleLeadTouchDrop as EventListener)
+    
+    return () => {
+      document.removeEventListener('leadTouchDrop', handleLeadTouchDrop as EventListener)
+    }
+  }, [leads])
+  
   function handleDragOver(e: React.DragEvent, stageId: string) {
     e.preventDefault()
     
@@ -2761,9 +3217,50 @@ export default function PipelinePage({
     
     setDraggedOverStage(stageId)
   }
+  
+  // Touch handlers para drop zones durante o movimento (para leads)
+  const handleStageTouchMoveForLeadDrop = React.useCallback((e: React.TouchEvent, stageId: string) => {
+    if (touchDraggedLeadRef.current && e.touches.length === 1) {
+      const touch = e.touches[0]
+      const element = document.elementFromPoint(touch.clientX, touch.clientY)
+      const isOverStage = element?.closest(`[data-stage-id="${stageId}"]`)
+      
+      if (isOverStage) {
+        touchOverStageRef.current = stageId
+        setDraggedOverStage(stageId)
+      } else {
+        touchOverStageRef.current = null
+      }
+    }
+  }, [])
+  
+  const handleStageTouchEndForLeadDrop = React.useCallback(async (e: React.TouchEvent, stageId: string) => {
+    if (touchDraggedLeadRef.current) {
+      const touch = e.changedTouches[0]
+      const element = document.elementFromPoint(touch.clientX, touch.clientY)
+      const isOverStage = element?.closest(`[data-stage-id="${stageId}"]`)
+      
+      if (isOverStage) {
+        // Criar evento de drop sintético
+        const fakeEvent = {
+          preventDefault: () => {},
+          stopPropagation: () => {},
+          dataTransfer: {
+            effectAllowed: 'move' as const,
+            dropEffect: 'move' as const
+          }
+        } as React.DragEvent
+        
+        await handleDrop(fakeEvent, stageId)
+        touchDraggedLeadRef.current = null
+        touchOverStageRef.current = null
+      }
+    }
+  }, [])
 
   function handleDragLeave() {
     setDraggedOverStage(null)
+    touchOverStageRef.current = null
   }
 
   async function handleDrop(e: React.DragEvent, targetStageId: string) {
@@ -2825,7 +3322,7 @@ export default function PipelinePage({
         })
       
       } else {
-        pushToast(t('notifications.errorMovingLead', { error: response.error || 'Unknown error' }), "error")
+        pushToast(t('notifications.errorMovingLead', { error: response.error || t('notifications.unknownError') }), "error")
       }
     } catch (error) {
       console.error('Error moving lead:', error)
@@ -2834,6 +3331,8 @@ export default function PipelinePage({
 
     setDraggedLead(null)
     setDraggedOverStage(null)
+    touchDraggedLeadRef.current = null
+    touchOverStageRef.current = null
   }
 
   function formatDate(dateString: string) {
@@ -3388,11 +3887,11 @@ export default function PipelinePage({
           }}
         >
         {/* HEADER */}
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4">
+        <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-background px-2 sm:px-4">
           <SidebarTrigger className="-ml-1" />
           <Separator
             orientation="vertical"
-            className="mr-2 data-[orientation=vertical]:h-4"
+            className="mr-1 sm:mr-2 data-[orientation=vertical]:h-4"
           />
           <Breadcrumb>
             <BreadcrumbList>
@@ -3403,13 +3902,13 @@ export default function PipelinePage({
               </BreadcrumbItem>
               <BreadcrumbSeparator className="hidden md:block" />
               <BreadcrumbItem>
-                <BreadcrumbLink href={`/${org}/crm`}>
+                <BreadcrumbLink href={`/${org}/crm`} className="text-sm sm:text-base">
                   CRM
                 </BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator className="hidden md:block" />
               <BreadcrumbItem>
-                <BreadcrumbPage>{t('pageTitle')} (Kanban)</BreadcrumbPage>
+                <BreadcrumbPage className="text-sm sm:text-base">{t('pageTitle')} <span className="hidden sm:inline">(Kanban)</span></BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
@@ -3417,29 +3916,29 @@ export default function PipelinePage({
 
         {/* NOTIFICATIONS STACK */}
         {toasts.length > 0 && (
-          <div className="fixed top-4 right-4 z-[9999] flex flex-col gap-2 max-w-sm">
-            {toasts.map((t) => {
-              const styles = t.type === "success"
+          <div className="fixed top-2 right-2 sm:top-4 sm:right-4 z-[9999] flex flex-col gap-2 w-[calc(100vw-1rem)] sm:w-auto sm:max-w-sm">
+            {toasts.map((toast) => {
+              const styles = toast.type === "success"
                 ? "bg-green-50 border border-green-200 text-green-800"
-                : t.type === "error"
+                : toast.type === "error"
                 ? "bg-red-50 border border-red-200 text-red-800"
                 : "bg-yellow-50 border border-yellow-200 text-yellow-800"
-              const closeColor = t.type === "success" ? "text-green-600 hover:text-green-800" : t.type === "error" ? "text-red-600 hover:text-red-800" : "text-yellow-600 hover:text-yellow-800"
+              const closeColor = toast.type === "success" ? "text-green-600 hover:text-green-800" : toast.type === "error" ? "text-red-600 hover:text-red-800" : "text-yellow-600 hover:text-yellow-800"
               return (
-                <div key={t.id} className={`${styles} px-4 py-3 rounded-lg shadow-lg backdrop-blur-sm`}> 
-                  <div className="flex items-start gap-3">
+                <div key={toast.id} className={`${styles} px-3 py-2 sm:px-4 sm:py-3 rounded-lg shadow-lg backdrop-blur-sm`}> 
+                  <div className="flex items-start gap-2 sm:gap-3">
                     <div className="mt-0.5">
-                      {t.type === "success" && <CheckCircle2 className="h-4 w-4" />}
-                      {t.type === "warning" && <AlertTriangle className="h-4 w-4" />}
-                      {t.type === "error" && <AlertCircle className="h-4 w-4" />}
+                      {toast.type === "success" && <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4" />}
+                      {toast.type === "warning" && <AlertTriangle className="h-3 w-3 sm:h-4 sm:w-4" />}
+                      {toast.type === "error" && <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4" />}
                     </div>
-                    <div className="flex-1 text-sm leading-5">{t.text}</div>
+                    <div className="flex-1 text-xs sm:text-sm leading-4 sm:leading-5">{toast.text}</div>
                     <button
-                      onClick={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))}
-                      className={`${closeColor} ml-2`}
-                      aria-label="Dismiss notification"
+                      onClick={() => setToasts((prev) => prev.filter((x) => x.id !== toast.id))}
+                      className={`${closeColor} ml-1 sm:ml-2 flex-shrink-0`}
+                      aria-label={t('notifications.dismissNotification')}
                     >
-                      <X className="h-4 w-4" />
+                      <X className="h-3 w-3 sm:h-4 sm:w-4" />
                     </button>
                   </div>
                 </div>
@@ -3450,7 +3949,7 @@ export default function PipelinePage({
 
         {/* MAIN */}
         <div 
-          className="flex flex-1 flex-col gap-4 p-4 pt-0 overflow-x-hidden"
+          className="flex flex-1 flex-col gap-2 sm:gap-4 p-2 sm:p-4 pt-0 overflow-x-hidden"
           onDragOver={(e) => {
             // Garantir dropEffect mesmo quando fora do container do pipeline
             if (draggedLead) {
@@ -3464,15 +3963,15 @@ export default function PipelinePage({
           }}
         >
           {/* CONTROLS */}
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <div className="flex flex-col gap-2 sm:gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="relative flex-1 sm:flex-none min-w-0">
+                <Search className="absolute left-2 sm:left-3 top-1/2 h-3 w-3 sm:h-4 sm:w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   placeholder={t('searchPlaceholder')}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-64"
+                  className="pl-7 sm:pl-10 w-full sm:w-64 text-sm sm:text-base"
                 />
               </div>
               
@@ -3482,12 +3981,12 @@ export default function PipelinePage({
                   onClick={() => setIsFilterOpen(true)}
                   variant="outline"
                   size="sm"
-                  className="cursor-pointer"
+                  className="cursor-pointer text-xs sm:text-sm h-8 sm:h-9"
                 >
-                  <Filter className="h-4 w-4 mr-2" />
-                  {t('filterButton')}
+                  <Filter className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                  <span className="hidden sm:inline">{t('filterButton')}</span>
                   {(searchTerm || Object.values(filters).some(f => f !== "") || valueRange.min || valueRange.max || dateRange.min || dateRange.max) && (
-                    <span className="ml-1 bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 text-xs">
+                    <span className="ml-1 bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 text-[10px] sm:text-xs">
                       {[searchTerm, ...Object.values(filters), valueRange.min, valueRange.max, dateRange.min, dateRange.max].filter(f => f && f !== "").length}
                     </span>
                   )}
@@ -3497,9 +3996,9 @@ export default function PipelinePage({
                     variant="ghost"
                     size="sm"
                     onClick={clearFilters}
-                    className="cursor-pointer text-muted-foreground hover:text-foreground"
+                    className="cursor-pointer text-muted-foreground hover:text-foreground h-8 w-8 sm:h-9 sm:w-auto p-0 sm:p-2"
                   >
-                    <XCircle className="h-4 w-4" />
+                    <XCircle className="h-3 w-3 sm:h-4 sm:w-4" />
                   </Button>
                 )}
               </div>
@@ -3507,31 +4006,31 @@ export default function PipelinePage({
           </div>
 
           {/* STATS */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-muted/50 rounded-xl p-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4">
+            <div className="bg-muted/50 rounded-xl p-3 sm:p-4">
               <div className="flex items-center gap-2">
-                <User className="h-5 w-5 text-blue-600" />
-                <div>
-                  <p className="text-sm text-muted-foreground">{t('stats.totalLeads')}</p>
-                  <p className="text-2xl font-bold">{totalLeads}</p>
+                <User className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 flex-shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-xs sm:text-sm text-muted-foreground">{t('stats.totalLeads')}</p>
+                  <p className="text-xl sm:text-2xl font-bold">{totalLeads}</p>
                 </div>
               </div>
             </div>
-            <div className="bg-muted/50 rounded-xl p-4">
+            <div className="bg-muted/50 rounded-xl p-3 sm:p-4">
               <div className="flex items-center gap-2">
-                <Building2 className="h-5 w-5 text-green-600" />
-                <div>
-                  <p className="text-sm text-muted-foreground">{t('stats.totalValue')}</p>
-                  <p className="text-2xl font-bold">{formatCurrency(totalValue)}</p>
+                <Building2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 flex-shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-xs sm:text-sm text-muted-foreground">{t('stats.totalValue')}</p>
+                  <p className="text-xl sm:text-2xl font-bold truncate">{formatCurrency(totalValue)}</p>
                 </div>
               </div>
             </div>
-            <div className="bg-muted/50 rounded-xl p-4">
+            <div className="bg-muted/50 rounded-xl p-3 sm:p-4">
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-5 w-5 text-purple-600" />
-                <div>
-                  <p className="text-sm text-muted-foreground">{t('stats.conversionRate')}</p>
-                  <p className="text-2xl font-bold">
+                <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600 flex-shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-xs sm:text-sm text-muted-foreground">{t('stats.conversionRate')}</p>
+                  <p className="text-xl sm:text-2xl font-bold">
                     {conversionRate}%
                   </p>
                 </div>
@@ -3540,18 +4039,18 @@ export default function PipelinePage({
           </div>
 
           {/* KANBAN BOARD */}
-          <div className="flex-1 bg-muted/50 rounded-xl p-4 flex flex-col max-h-[800px] overflow-hidden">
-            <div className="flex items-center justify-between mb-4 flex-shrink-0">
-              <h2 className="text-lg font-semibold">{t('salesPipeline')}</h2>
+          <div className="flex-1 bg-muted/50 rounded-xl p-2 sm:p-4 flex flex-col max-h-[600px] sm:max-h-[800px] overflow-hidden">
+            <div className="flex items-center justify-between mb-2 sm:mb-4 flex-shrink-0 gap-2">
+              <h2 className="text-base sm:text-lg font-semibold">{t('salesPipeline')}</h2>
               {canManageStages && (
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setIsStageManagementOpen(true)}
-                  className="cursor-pointer"
+                  className="cursor-pointer text-xs sm:text-sm h-7 sm:h-9 px-2 sm:px-3"
                 >
-                  <Settings2 className="h-4 w-4 mr-2" />
-                  {t('stageManagement.manageStages')}
+                  <Settings2 className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">{t('stageManagement.manageStages')}</span>
                 </Button>
               )}
             </div>
@@ -3564,7 +4063,7 @@ export default function PipelinePage({
             
             <div 
               ref={pipelineScrollRef}
-              className="pipeline-scroll-container flex gap-4 overflow-x-auto overflow-y-hidden pb-4 flex-1 min-h-0 w-full"
+              className="pipeline-scroll-container flex gap-2 sm:gap-4 overflow-x-auto overflow-y-hidden pb-4 flex-1 min-h-0 w-full"
               onDragOver={handlePipelineDragOver}
               onDragEnd={handlePipelineDragEnd}
               onDragLeave={(e) => {
@@ -3580,43 +4079,46 @@ export default function PipelinePage({
                 return (
                 <div
                   key={stage.id}
-                  className={`rounded-lg border-2 p-3 h-[600px] flex flex-col transition-colors ${
+                  className={`rounded-lg border-2 p-2 sm:p-3 h-[500px] sm:h-[600px] flex flex-col transition-colors ${
                     isUncategorized
                       ? "border-amber-400 bg-amber-50/50 dark:bg-amber-900/10"
-                      : draggedOverStage === stage.id 
+                      : draggedOverStage === stage.id || touchOverStageRef.current === stage.id
                       ? "border-primary bg-primary/5" 
                       : "border-border"
                   }`}
                   style={{
                     flex: pipelineStages.length <= 4 ? '1 1 0%' : '0 0 auto',
-                    minWidth: '280px',
-                    width: pipelineStages.length > 4 ? '320px' : 'auto'
+                    minWidth: '240px',
+                    width: pipelineStages.length > 4 ? '280px' : 'auto'
                   }}
+                  data-stage-id={stage.id}
                   onDragOver={(e) => handleDragOver(e, stage.id)}
                   onDragLeave={handleDragLeave}
                   onDrop={(e) => handleDrop(e, stage.id)}
+                  onTouchMove={(e) => handleStageTouchMoveForLeadDrop(e, stage.id)}
+                  onTouchEnd={(e) => handleStageTouchEndForLeadDrop(e, stage.id)}
                   title={isUncategorized ? t('stageManagement.uncategorizedTooltip') : ''}
                 >
-                  <div className="flex-shrink-0 mb-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 flex-1">
+                  <div className="flex-shrink-0 mb-2 sm:mb-3">
+                    <div className="flex items-center justify-between gap-1 sm:gap-2">
+                      <div className="flex items-center gap-1 sm:gap-2 flex-1 min-w-0">
                         {isUncategorized && (
-                          <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0" />
+                          <AlertTriangle className="h-3 w-3 sm:h-4 sm:w-4 text-amber-600 flex-shrink-0" />
                         )}
-                        {renderStageBadge(stage, "inline-flex items-center rounded-md border px-2 py-1 text-xs font-medium")}
+                        {renderStageBadge(stage, "inline-flex items-center rounded-md border px-1.5 sm:px-2 py-0.5 sm:py-1 text-[10px] sm:text-xs font-medium min-w-0")}
                         {isUncategorized && (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                             <Button
                               variant="ghost"
                               size="sm"
-                                className="h-6 w-6 p-0 cursor-pointer hover:bg-amber-100"
+                                className="h-5 w-5 sm:h-6 sm:w-6 p-0 cursor-pointer hover:bg-amber-100 flex-shrink-0"
                                 title={t('stageManagement.moveAllLeads')}
                               >
-                                <Send className="h-3.5 w-3.5 text-amber-600" />
+                                <Send className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-amber-600" />
                             </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="start" className="w-56">
+                            <DropdownMenuContent align="start" className="w-48 sm:w-56">
                               <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
                                 {t('stageManagement.moveAllLeadsTo')}
                           </div>
@@ -3709,7 +4211,7 @@ export default function PipelinePage({
                                               if (result.success) {
                                                 successCount++
                                               } else {
-                                                failedUpdates.push({ lead: result.lead, error: result.error || 'Unknown error' })
+                                                failedUpdates.push({ lead: result.lead, error: result.error || t('notifications.unknownError') })
                                               }
                                             })
                                             
@@ -3808,18 +4310,18 @@ export default function PipelinePage({
                           </DropdownMenu>
                         )}
                             </div>
-                      <div className="text-xs text-muted-foreground font-medium bg-muted px-2 py-1 rounded-md">
+                      <div className="text-[10px] sm:text-xs text-muted-foreground font-medium bg-muted px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md whitespace-nowrap">
                         {stage.leads.length}
                           </div>
                     </div>
                     {isUncategorized && (
-                      <p className="text-xs text-amber-700 dark:text-amber-400 mt-2 leading-tight">
+                      <p className="text-[10px] sm:text-xs text-amber-700 dark:text-amber-400 mt-1 sm:mt-2 leading-tight">
                         {t('stageManagement.uncategorizedTooltip')}
                       </p>
                         )}
                       </div>
                   
-                  <div className="flex-1 overflow-y-auto space-y-2 pr-2">
+                  <div className="flex-1 overflow-y-auto space-y-1.5 sm:space-y-2 pr-1 sm:pr-2">
                     {stage.filteredLeads.map((lead) => (
                       <LeadCard
                         key={lead.id}
@@ -3831,6 +4333,7 @@ export default function PipelinePage({
                         onLinkLead={canManageStages ? handleOpenLinkLead : undefined}
                         userRole={userRole}
                         locale={locale}
+                        hasConversation={leadsWithConversations.has(lead.id)}
                       />
                     ))}
                   </div>
@@ -3849,34 +4352,34 @@ export default function PipelinePage({
                 <SheetTitle className="sr-only">Lead Details: {preview.lead.name}</SheetTitle>
                 <SheetDescription className="sr-only">Complete information about the lead including contact details, business information, and metadata.</SheetDescription>
                 {/* Header */}
-                <div className="sticky top-0 z-10 bg-background border-b p-6">
-                  <div className="flex items-start justify-between">
+                <div className="sticky top-0 z-10 bg-background border-b p-3 sm:p-6">
+                  <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3 mb-2">
-                        <User className="h-6 w-6 flex-shrink-0" />
-                        <h2 className="text-2xl font-bold break-words">{preview.lead.name}</h2>
+                      <div className="flex items-center gap-2 sm:gap-3 mb-1 sm:mb-2">
+                        <User className="h-5 w-5 sm:h-6 sm:w-6 flex-shrink-0" />
+                        <h2 className="text-lg sm:text-xl md:text-2xl font-bold break-words">{preview.lead.name}</h2>
                       </div>
-                      <p className="text-muted-foreground text-sm">{t('preview.headerDescription')}</p>
+                      <p className="text-muted-foreground text-xs sm:text-sm">{t('preview.headerDescription')}</p>
                     </div>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 w-8 p-0 flex-shrink-0 cursor-pointer"
+                      className="h-7 w-7 sm:h-8 sm:w-8 p-0 flex-shrink-0 cursor-pointer"
                       onClick={() => setPreview({ open: false, lead: null })}
                     >
-                      <X className="h-4 w-4" />
+                      <X className="h-3 w-3 sm:h-4 sm:w-4" />
                     </Button>
                   </div>
                   
                   {/* Status Badge */}
-                  <div className="mt-4 flex items-center gap-2 flex-wrap">
-                    <div className="inline-flex items-center gap-2 bg-muted px-3 py-1.5 rounded-full">
-                      <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
-                      <span className="text-sm font-medium capitalize">{preview.lead.status}</span>
+                  <div className="mt-3 sm:mt-4 flex items-center gap-2 flex-wrap">
+                    <div className="inline-flex items-center gap-1.5 sm:gap-2 bg-muted px-2 sm:px-3 py-1 sm:py-1.5 rounded-full">
+                      <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                      <span className="text-xs sm:text-sm font-medium capitalize">{preview.lead.status}</span>
                     </div>
                     {preview.lead.value && (
-                      <div className="inline-flex items-center gap-2 bg-muted px-3 py-1.5 rounded-full">
-                        <span className="text-sm font-medium">
+                      <div className="inline-flex items-center gap-1.5 sm:gap-2 bg-muted px-2 sm:px-3 py-1 sm:py-1.5 rounded-full">
+                        <span className="text-xs sm:text-sm font-medium truncate">
                           {formatCurrency(preview.lead.value)}
                         </span>
                       </div>
@@ -3884,58 +4387,58 @@ export default function PipelinePage({
                   </div>
                 </div>
 
-                <div className="p-6 space-y-6">
+                <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
                   {/* Contact Information Card */}
-                  <div className="bg-muted/50 rounded-xl p-5 border">
-                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                      <Mail className="h-5 w-5 flex-shrink-0" />
+                  <div className="bg-muted/50 rounded-xl p-3 sm:p-5 border">
+                    <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 flex items-center gap-2">
+                      <Mail className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
                       {t('preview.contactInfo.title')}
                     </h3>
-                    <div className="grid gap-3">
+                    <div className="grid gap-2 sm:gap-3">
                       {preview.lead.email && (
-                        <div className="flex items-center justify-between bg-background rounded-lg p-3 border overflow-hidden">
-                          <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <div className="flex items-center justify-between bg-background rounded-lg p-2 sm:p-3 border overflow-hidden gap-2">
+                          <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                            <Mail className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
                             <div className="flex-1 min-w-0">
-                              <p className="text-xs text-muted-foreground">{t('preview.contactInfo.email')}</p>
-                              <p className="text-sm font-medium truncate">{preview.lead.email}</p>
+                              <p className="text-[10px] sm:text-xs text-muted-foreground">{t('preview.contactInfo.email')}</p>
+                              <p className="text-xs sm:text-sm font-medium truncate">{preview.lead.email}</p>
                             </div>
                           </div>
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-8 w-8 p-0 shrink-0 cursor-pointer"
+                            className="h-7 w-7 sm:h-8 sm:w-8 p-0 shrink-0 cursor-pointer"
                             onClick={() => {
                               navigator.clipboard.writeText(preview.lead?.email || '')
                               setCopiedKey('email')
                               setTimeout(() => setCopiedKey(null), 2000)
                             }}
                           >
-                            {copiedKey === 'email' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                            {copiedKey === 'email' ? <Check className="h-3 w-3 sm:h-4 sm:w-4 text-green-600" /> : <Copy className="h-3 w-3 sm:h-4 sm:w-4" />}
                           </Button>
                         </div>
                       )}
                       
                       {preview.lead.phone && (
-                        <div className="flex items-center justify-between bg-background rounded-lg p-3 border overflow-hidden">
-                          <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <div className="flex items-center justify-between bg-background rounded-lg p-2 sm:p-3 border overflow-hidden gap-2">
+                          <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                            <Phone className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
                             <div className="flex-1 min-w-0">
-                              <p className="text-xs text-muted-foreground">{t('preview.contactInfo.phone')}</p>
-                              <p className="text-sm font-medium truncate">{preview.lead.phone}</p>
+                              <p className="text-[10px] sm:text-xs text-muted-foreground">{t('preview.contactInfo.phone')}</p>
+                              <p className="text-xs sm:text-sm font-medium truncate">{preview.lead.phone}</p>
                             </div>
                           </div>
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-8 w-8 p-0 shrink-0 cursor-pointer"
+                            className="h-7 w-7 sm:h-8 sm:w-8 p-0 shrink-0 cursor-pointer"
                             onClick={() => {
                               navigator.clipboard.writeText(preview.lead?.phone || '')
                               setCopiedKey('phone')
                               setTimeout(() => setCopiedKey(null), 2000)
                             }}
                           >
-                            {copiedKey === 'phone' ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                            {copiedKey === 'phone' ? <Check className="h-3 w-3 sm:h-4 sm:w-4 text-green-600" /> : <Copy className="h-3 w-3 sm:h-4 sm:w-4" />}
                           </Button>
                         </div>
                       )}
@@ -4199,6 +4702,170 @@ export default function PipelinePage({
                     </div>
                   )}
 
+                  {/* Assignment Card - Only for admin/master */}
+                  {(userRole === 'admin' || userRole === 'master') && (
+                    <div className="bg-muted/50 rounded-xl p-3 sm:p-5 border">
+                      <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 flex items-center gap-2">
+                        <UserPlus className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+                        {t('preview.assignment')}
+                      </h3>
+                      <div className="grid gap-2 sm:gap-3">
+                        <div className="flex items-center justify-between bg-background rounded-lg p-2 sm:p-3 border overflow-hidden gap-2">
+                          <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                            <User className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[10px] sm:text-xs text-muted-foreground">{t('preview.assignedTo')}</p>
+                              <p className="text-xs sm:text-sm font-medium">
+                                {preview.lead.assigned_user_id ? (assignedUserName || t('preview.loading')) : t('preview.notAssigned')}
+                              </p>
+                            </div>
+                          </div>
+                          {preview.lead.assigned_user_id && assignedUserName && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 sm:h-8 sm:w-8 p-0 shrink-0 cursor-pointer"
+                              onClick={() => {
+                                navigator.clipboard.writeText(assignedUserName)
+                                setCopiedKey('assigned_user')
+                                setTimeout(() => setCopiedKey(null), 2000)
+                              }}
+                            >
+                              {copiedKey === 'assigned_user' ? <Check className="h-3 w-3 sm:h-4 sm:w-4 text-green-600" /> : <Copy className="h-3 w-3 sm:h-4 sm:w-4" />}
+                            </Button>
+                          )}
+                        </div>
+                        
+                        {preview.lead.assigned_user_id && (
+                          <div className="flex items-center justify-between bg-background rounded-lg p-2 sm:p-3 border overflow-hidden gap-2">
+                            <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                              <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[10px] sm:text-xs text-muted-foreground">{t('preview.assignedSince')}</p>
+                                <p className="text-xs sm:text-sm font-medium">{new Date(preview.lead.updated_at).toLocaleString()}</p>
+                              </div>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 sm:h-8 sm:w-8 p-0 shrink-0 cursor-pointer"
+                              onClick={() => {
+                                navigator.clipboard.writeText(new Date(preview.lead?.updated_at || '').toLocaleString())
+                                setCopiedKey('assigned_date')
+                                setTimeout(() => setCopiedKey(null), 2000)
+                              }}
+                            >
+                              {copiedKey === 'assigned_date' ? <Check className="h-3 w-3 sm:h-4 sm:w-4 text-green-600" /> : <Copy className="h-3 w-3 sm:h-4 sm:w-4" />}
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Metadata Card - Only for admin/master */}
+                  {(userRole === 'admin' || userRole === 'master') && (
+                    <div className="bg-muted/50 rounded-xl p-3 sm:p-5 border">
+                      <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 flex items-center gap-2">
+                        <Clock className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+                        {t('preview.metadata')}
+                      </h3>
+                      <div className="grid gap-2 sm:gap-3">
+                        <div className="flex items-center justify-between bg-background rounded-lg p-2 sm:p-3 border overflow-hidden gap-2">
+                          <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                            <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[10px] sm:text-xs text-muted-foreground">{t('preview.created')}</p>
+                              <p className="text-xs sm:text-sm font-medium">{new Date(preview.lead.created_at).toLocaleString()}</p>
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 sm:h-8 sm:w-8 p-0 shrink-0 cursor-pointer"
+                            onClick={() => {
+                              navigator.clipboard.writeText(new Date(preview.lead?.created_at || '').toLocaleString())
+                              setCopiedKey('created_at')
+                              setTimeout(() => setCopiedKey(null), 2000)
+                            }}
+                          >
+                            {copiedKey === 'created_at' ? <Check className="h-3 w-3 sm:h-4 sm:w-4 text-green-600" /> : <Copy className="h-3 w-3 sm:h-4 sm:w-4" />}
+                          </Button>
+                        </div>
+                        
+                        {preview.lead.created_by && (
+                          <div className="flex items-center justify-between bg-background rounded-lg p-2 sm:p-3 border overflow-hidden gap-2">
+                            <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                              <User className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[10px] sm:text-xs text-muted-foreground">{t('preview.createdBy')}</p>
+                                <p className="text-xs sm:text-sm font-medium">{createdByUserName || t('preview.loading')}</p>
+                              </div>
+                            </div>
+                            {createdByUserName && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 sm:h-8 sm:w-8 p-0 shrink-0 cursor-pointer"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(createdByUserName)
+                                  setCopiedKey('created_by')
+                                  setTimeout(() => setCopiedKey(null), 2000)
+                                }}
+                              >
+                                {copiedKey === 'created_by' ? <Check className="h-3 w-3 sm:h-4 sm:w-4 text-green-600" /> : <Copy className="h-3 w-3 sm:h-4 sm:w-4" />}
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                        
+                        <div className="flex items-center justify-between bg-background rounded-lg p-2 sm:p-3 border overflow-hidden gap-2">
+                          <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                            <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[10px] sm:text-xs text-muted-foreground">{t('preview.lastUpdated')}</p>
+                              <p className="text-xs sm:text-sm font-medium">{new Date(preview.lead.updated_at).toLocaleString()}</p>
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 sm:h-8 sm:w-8 p-0 shrink-0 cursor-pointer"
+                            onClick={() => {
+                              navigator.clipboard.writeText(new Date(preview.lead?.updated_at || '').toLocaleString())
+                              setCopiedKey('updated_at')
+                              setTimeout(() => setCopiedKey(null), 2000)
+                            }}
+                          >
+                            {copiedKey === 'updated_at' ? <Check className="h-3 w-3 sm:h-4 sm:w-4 text-green-600" /> : <Copy className="h-3 w-3 sm:h-4 sm:w-4" />}
+                          </Button>
+                        </div>
+                        
+                        <div className="flex items-center justify-between bg-background rounded-lg p-2 sm:p-3 border overflow-hidden gap-2">
+                          <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                            <Hash className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[10px] sm:text-xs text-muted-foreground">{t('preview.leadId')}</p>
+                              <p className="text-xs sm:text-sm font-medium font-mono truncate">{preview.lead.id}</p>
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 sm:h-8 sm:w-8 p-0 shrink-0 cursor-pointer"
+                            onClick={() => {
+                              navigator.clipboard.writeText(preview.lead?.id || '')
+                              setCopiedKey('id')
+                              setTimeout(() => setCopiedKey(null), 2000)
+                            }}
+                          >
+                            {copiedKey === 'id' ? <Check className="h-3 w-3 sm:h-4 sm:w-4 text-green-600" /> : <Copy className="h-3 w-3 sm:h-4 sm:w-4" />}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Action Buttons */}
                   <div className="flex gap-2">
                     <Button 
@@ -4241,31 +4908,31 @@ export default function PipelinePage({
           }
         }}>
           <SheetContent 
-            className="w-full sm:max-w-md border-l border-border p-6 md:p-8 flex flex-col max-h-screen"
+            className="w-full sm:max-w-md border-l border-border p-3 sm:p-6 flex flex-col max-h-screen"
             onDragOver={handleAttachmentDragOver}
             onDragLeave={handleAttachmentDragLeave}
             onDrop={(e) => editingId && handleAttachmentDrop(e, editingId)}
           >
             <div className="flex-shrink-0">
               <SheetHeader>
-                <SheetTitle>{t('editModal.title')}</SheetTitle>
-                <SheetDescription>
+                <SheetTitle className="text-base sm:text-lg">{t('editModal.title')}</SheetTitle>
+                <SheetDescription className="text-xs sm:text-sm">
                   {t('editModal.description')}
                 </SheetDescription>
               </SheetHeader>
-              <Separator className="my-4" />
+              <Separator className="my-3 sm:my-4" />
             </div>
             
-            <div className="flex-1 overflow-y-auto pr-2">
-            <form onSubmit={handleEditSubmit} className="space-y-6">
-              <div className="space-y-4">
+            <div className="flex-1 overflow-y-auto pr-1 sm:pr-2">
+            <form onSubmit={handleEditSubmit} className="space-y-4 sm:space-y-6">
+              <div className="space-y-3 sm:space-y-4">
                 <div>
                   <label className="mb-1 block text-sm font-medium">
                     {t('editModal.dealValue')} ({locale === 'pt-BR' ? 'R$' : '$'})
                   </label>
                   <Input
                     type="number"
-                    placeholder="0.00"
+                    placeholder={t('editModal.dealValuePlaceholder')}
                     value={editValue}
                     onChange={(e) => setEditValue(e.target.value)}
                     step="0.01"
@@ -4546,14 +5213,14 @@ export default function PipelinePage({
         {/* FILTER MODAL */}
         <Sheet open={isFilterOpen} onOpenChange={setIsFilterOpen}>
           <SheetContent className="w-full sm:max-w-md border-l border-border p-0 flex flex-col overflow-hidden">
-            <div className="p-6 md:p-8 border-b">
+            <div className="p-3 sm:p-6 border-b">
               <SheetHeader>
-                <SheetTitle>{t('filterModal.title')}</SheetTitle>
-                <SheetDescription>{t('filterModal.description')}</SheetDescription>
+                <SheetTitle className="text-base sm:text-lg">{t('filterModal.title')}</SheetTitle>
+                <SheetDescription className="text-xs sm:text-sm">{t('filterModal.description')}</SheetDescription>
               </SheetHeader>
             </div>
-            <div className="flex-1 overflow-y-auto p-6 md:p-8">
-              <div className="space-y-4">
+            <div className="flex-1 overflow-y-auto p-3 sm:p-6">
+              <div className="space-y-3 sm:space-y-4">
               <div className="space-y-2">
                 <label className="mb-1 block text-sm font-medium">{t('filterModal.name')}</label>
                 <Input
@@ -5078,16 +5745,30 @@ export default function PipelinePage({
                   .map((stage) => (
                   <div
                     key={stage.id}
-                    draggable
+                    ref={(el) => {
+                      if (el) {
+                        stageDragElementsRef.current.set(stage.id, el)
+                        addStageTouchListener(el, stage)
+                      } else {
+                        stageDragElementsRef.current.delete(stage.id)
+                      }
+                    }}
+                    data-stage-management-id={stage.id}
+                    draggable={!isStageDragging}
                     onDragStart={(e) => handleStageDragStart(e, stage)}
                     onDragOver={(e) => handleStageDragOver(e, stage.id)}
                     onDragLeave={handleStageDragLeave}
                     onDrop={(e) => handleStageDrop(e, stage)}
-                    className={`border rounded-lg p-4 cursor-move transition-all ${
+                    className={`border rounded-lg p-4 cursor-move transition-all select-none ${
                       draggedOverStageId === stage.id
                         ? 'border-primary bg-primary/5 scale-105'
                         : 'border-border hover:border-primary/50'
-                    }`}
+                    } ${isStageDragging && draggedStage?.id === stage.id ? 'opacity-50' : ''}`}
+                    style={{
+                      touchAction: 'pan-y', // Permitir scroll vertical por padrão
+                      WebkitUserSelect: 'none',
+                      userSelect: 'none'
+                    }}
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -5556,7 +6237,7 @@ export default function PipelinePage({
                           {conv.first_name} {conv.last_name}
                         </div>
                         <div className="text-xs text-gray-500">
-                          @{conv.telegram_username || 'sem username'}
+                          @{conv.telegram_username || t('linkLeadModal.noUsername')}
                         </div>
                       </div>
                     </div>

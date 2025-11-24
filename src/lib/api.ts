@@ -184,8 +184,6 @@ class ApiService {
 
     try {
       const fullUrl = `${API_BASE_URL}${endpoint}`;
-      console.log('Making API request to:', fullUrl);
-      console.log('Request config:', config);
       
       const response = await fetch(fullUrl, config);
       
@@ -267,7 +265,6 @@ class ApiService {
       // Try to parse JSON
       try {
         const data = JSON.parse(text);
-        console.log('API response:', data);
         return {
           success: true,
           data: data
@@ -1068,6 +1065,69 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify({ lead_id: leadId }),
     });
+  }
+
+  async getAppConfig(): Promise<ApiResponse<{ active: boolean; reason?: string; uiMode?: number }>> {
+    if (typeof window === 'undefined') {
+      return {
+        success: false,
+        error: 'API calls only available on client side'
+      };
+    }
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      return {
+        success: false,
+        error: 'Not authenticated'
+      };
+    }
+
+    try {
+      const response = await this.request<any>('/system-health/status'); // Endpoint genérico de configuração
+      
+      if (!response.success) {
+        return {
+          success: false,
+          error: response.error || 'Failed to check system health'
+        };
+      }
+
+      if (response.data) {
+        let healthData = response.data;
+        
+        if (healthData && typeof healthData === 'object') {
+          if (healthData.success && healthData.data) {
+            healthData = healthData.data;
+          } else if (healthData.data && typeof healthData.data === 'object' && 'active' in healthData.data) {
+            healthData = healthData.data;
+          }
+          
+          if ('active' in healthData) {
+            const isActive = healthData.active === true || healthData.active === 1 || healthData.active === 'true' || healthData.active === 't';
+            const uiMode = healthData.uiMode !== undefined ? (typeof healthData.uiMode === 'number' ? healthData.uiMode : parseInt(healthData.uiMode) || 0) : 0;
+            return {
+              success: true,
+              data: {
+                active: isActive,
+                reason: healthData.reason,
+                uiMode: uiMode
+              }
+            };
+          }
+        }
+      }
+
+      return {
+        success: false,
+        error: 'Invalid response format'
+      };
+    } catch {
+      return {
+        success: false,
+        error: 'Failed to get app config'
+      };
+    }
   }
 }
 

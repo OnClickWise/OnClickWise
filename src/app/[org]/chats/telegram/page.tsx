@@ -401,9 +401,19 @@ export default function TelegramPage({
     // Usar mensagens do estado ou cache como fallback
     const messagesToUse = messages.length > 0 ? messages : lastLoadedMessagesRef.current
     
+    // Ordenar por telegram_date (timestamp real do Telegram) como prioridade
     const sorted = [...messagesToUse].sort((a, b) => {
-      const aTime = new Date(a.telegram_date || a.created_at).getTime()
-      const bTime = new Date(b.telegram_date || b.created_at).getTime()
+      // Priorizar telegram_date sobre created_at (timestamp real do Telegram é mais confiável)
+      const aTime = a.telegram_date ? new Date(a.telegram_date).getTime() : new Date(a.created_at).getTime()
+      const bTime = b.telegram_date ? new Date(b.telegram_date).getTime() : new Date(b.created_at).getTime()
+      
+      // Se os timestamps forem iguais (mesmo segundo), usar telegram_message_id como desempate
+      if (aTime === bTime) {
+        const aMsgId = Number(a.telegram_message_id) || 0
+        const bMsgId = Number(b.telegram_message_id) || 0
+        return aMsgId - bMsgId
+      }
+      
       return aTime - bTime // Mais antigas primeiro
     })
     
@@ -859,17 +869,17 @@ export default function TelegramPage({
           if (response.success && response.data) {
             if (leadPreview.lead?.assigned_user_id) {
               const assignedUser = response.data.employees.find((u: any) => u.id === leadPreview.lead?.assigned_user_id)
-              setAssignedUserName(assignedUser?.name || "Unknown User")
+              setAssignedUserName(assignedUser?.name || t('unknownUser'))
             }
             if (leadPreview.lead?.created_by) {
               const createdByUser = response.data.employees.find((u: any) => u.id === leadPreview.lead?.created_by)
-              setCreatedByUserName(createdByUser?.name || "Unknown User")
+              setCreatedByUserName(createdByUser?.name || t('unknownUser'))
             }
           }
         } catch (error) {
           console.error('Error fetching users:', error)
-          if (leadPreview.lead?.assigned_user_id) setAssignedUserName("Unknown User")
-          if (leadPreview.lead?.created_by) setCreatedByUserName("Unknown User")
+          if (leadPreview.lead?.assigned_user_id) setAssignedUserName(t('unknownUser'))
+          if (leadPreview.lead?.created_by) setCreatedByUserName(t('unknownUser'))
         }
       } else {
         setAssignedUserName("")
@@ -993,9 +1003,19 @@ export default function TelegramPage({
                 )
                 
                 // CRITICAL: Always sort messages before setting state
+                // Ordenar por telegram_date (timestamp real do Telegram) como prioridade
                 const sortedMessages = [...uniqueMessages].sort((a, b) => {
-                  const aTime = new Date(a.telegram_date || a.created_at).getTime()
-                  const bTime = new Date(b.telegram_date || b.created_at).getTime()
+                  // Priorizar telegram_date sobre created_at
+                  const aTime = a.telegram_date ? new Date(a.telegram_date).getTime() : new Date(a.created_at).getTime()
+                  const bTime = b.telegram_date ? new Date(b.telegram_date).getTime() : new Date(b.created_at).getTime()
+                  
+                  // Se os timestamps forem iguais, usar telegram_message_id como desempate
+                  if (aTime === bTime) {
+                    const aMsgId = Number(a.telegram_message_id) || 0
+                    const bMsgId = Number(b.telegram_message_id) || 0
+                    return aMsgId - bMsgId
+                  }
+                  
                   return aTime - bTime // Mais antigas primeiro
                 })
               
@@ -1451,11 +1471,11 @@ export default function TelegramPage({
         // Selecionar a conversa imediatamente para abrir o chat
         setSelectedChat(response.conversation.id)
       } else {
-        alert(response.error || 'Falha ao iniciar chat')
+        alert(response.error || t('errors.startChatFailed'))
       }
     } catch (e) {
       console.error('Start chat error:', e)
-      alert('Falha ao iniciar chat')
+      alert(t('errors.startChatFailed'))
     } finally {
       setStartingChat(false)
     }
@@ -2141,7 +2161,7 @@ export default function TelegramPage({
       }, 1000)
     } catch (error) {
       console.error('Error starting audio recording:', error)
-      alert('Could not access microphone. Please grant permission.')
+      alert(t('errors.microphoneAccessDenied'))
     }
   }
 
@@ -2282,11 +2302,11 @@ export default function TelegramPage({
         setTimeout(() => scrollToBottom(true), 100)
       } else {
         console.error('Failed to send audio:', result.error)
-        alert('Failed to send voice message: ' + result.error)
+        alert(t('errors.sendVoiceMessageFailed') + ': ' + result.error)
       }
     } catch (error) {
       console.error('Error sending audio:', error)
-      alert('Error sending voice message. Please try again.')
+      alert(t('errors.sendVoiceMessageError'))
     }
   }
 
@@ -2681,11 +2701,11 @@ export default function TelegramPage({
         <AppSidebar org={org} />
         <SidebarInset>
           {/* HEADER */}
-          <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4">
+          <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-background px-2 sm:px-4">
             <SidebarTrigger className="-ml-1" />
             <Separator
               orientation="vertical"
-              className="mr-2 data-[orientation=vertical]:h-4"
+              className="mr-1 sm:mr-2 data-[orientation=vertical]:h-4"
             />
             <Breadcrumb>
               <BreadcrumbList>
@@ -2696,15 +2716,16 @@ export default function TelegramPage({
                 </BreadcrumbItem>
                 <BreadcrumbSeparator className="hidden md:block" />
                 <BreadcrumbItem>
-                  <BreadcrumbLink href={`/${org}/chats`}>
+                  <BreadcrumbLink href={`/${org}/chats`} className="text-sm sm:text-base">
                     {t('breadcrumb.chats')}
                   </BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator className="hidden md:block" />
                 <BreadcrumbItem>
-                  <BreadcrumbPage className="flex items-center gap-2">
+                  <BreadcrumbPage className="flex items-center gap-2 text-sm sm:text-base">
                     <FaTelegram className="w-4 h-4" />
-                    {t('breadcrumb.telegram')}
+                    <span className="hidden sm:inline">{t('breadcrumb.telegram')}</span>
+                    <span className="sm:hidden">TG</span>
                   </BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
@@ -2714,34 +2735,34 @@ export default function TelegramPage({
           {/* MAIN CONTENT */}
           <div className="flex h-[calc(100vh-4rem)] bg-gray-50 overflow-hidden w-full">
             {/* Lista de Conversas */}
-            <div className="w-1/3 bg-white border-r border-gray-200 flex flex-col min-w-0">
+            <div className={`${selectedChat ? 'hidden md:flex' : 'flex'} w-full md:w-1/3 bg-white border-r border-gray-200 flex-col min-w-0`}>
               {/* Header da Lista */}
-              <div className="p-4 border-b border-gray-200">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center space-x-3">
-                    <FaTelegram className="w-5 h-5 text-gray-800" />
-                    <h1 className="text-xl font-semibold text-gray-800">{t('header.telegram')}</h1>
+              <div className="p-2 sm:p-4 border-b border-gray-200">
+                <div className="flex items-center justify-between mb-2 sm:mb-4 gap-2">
+                  <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
+                    <FaTelegram className="w-4 h-4 sm:w-5 sm:h-5 text-gray-800 flex-shrink-0" />
+                    <h1 className="text-base sm:text-xl font-semibold text-gray-800 truncate">{t('header.telegram')}</h1>
                     {/* Status indicator */}
                     {(chatType === 'bot' && bot) && (
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
                         <div className={`w-2 h-2 rounded-full ${bot.is_online ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                        <span className={`text-sm font-medium ${bot.is_online ? 'text-green-600' : 'text-red-600'}`}>
+                        <span className={`text-xs sm:text-sm font-medium ${bot.is_online ? 'text-green-600' : 'text-red-600'} hidden sm:inline`}>
                           {bot.is_online ? t('header.online') : t('header.offline')}
                         </span>
                       </div>
                     )}
                     {(chatType === 'account' && account) && (
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
                         <div className={`w-2 h-2 rounded-full ${account.is_online ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                        <span className={`text-sm font-medium ${account.is_online ? 'text-green-600' : 'text-red-600'}`}>
+                        <span className={`text-xs sm:text-sm font-medium ${account.is_online ? 'text-green-600' : 'text-red-600'} hidden sm:inline`}>
                           {account.is_online ? t('header.online') : t('header.offline')}
                         </span>
                       </div>
                     )}
                   </div>
                   {userRole !== 'employee' && (
-                  <div className="flex items-center space-x-2">
-                      <Button variant="outline" size="sm" asChild className="cursor-pointer">
+                  <div className="flex items-center space-x-2 flex-shrink-0">
+                      <Button variant="outline" size="sm" asChild className="cursor-pointer h-8 w-8 sm:h-9 sm:w-auto sm:px-3">
                         <a href={`/${org}/settings/telegram`}>
                           <Settings className="w-4 h-4" />
                         </a>
@@ -2752,32 +2773,34 @@ export default function TelegramPage({
                 
                 {/* Chat Type Selector */}
                 {(hasBot && hasAccount) && (
-                  <div className="mb-4">
+                  <div className="mb-2 sm:mb-4">
                     <div className="flex bg-gray-100 rounded-lg p-1">
                       <button
                         onClick={() => saveChatType('bot')}
-                        className={`flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer ${
+                        className={`flex-1 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-md transition-colors cursor-pointer ${
                           chatType === 'bot'
                             ? 'bg-white text-gray-900 shadow-sm'
                             : 'text-gray-600 hover:text-gray-900'
                         }`}
                       >
-                        <div className="flex items-center justify-center space-x-2">
-                          <Bot className="w-4 h-4" />
-                          <span>{t('chatType.botChats')}</span>
+                        <div className="flex items-center justify-center space-x-1 sm:space-x-2">
+                          <Bot className="w-3 h-3 sm:w-4 sm:h-4" />
+                          <span className="hidden sm:inline">{t('chatType.botChats')}</span>
+                          <span className="sm:hidden">Bot</span>
                         </div>
                       </button>
                       <button
                         onClick={() => saveChatType('account')}
-                        className={`flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer ${
+                        className={`flex-1 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-md transition-colors cursor-pointer ${
                           chatType === 'account'
                             ? 'bg-white text-gray-900 shadow-sm'
                             : 'text-gray-600 hover:text-gray-900'
                         }`}
                       >
-                        <div className="flex items-center justify-center space-x-2">
-                          <MessageCircle className="w-4 h-4" />
-                          <span>{t('chatType.accountChats')}</span>
+                        <div className="flex items-center justify-center space-x-1 sm:space-x-2">
+                          <MessageCircle className="w-3 h-3 sm:w-4 sm:h-4" />
+                          <span className="hidden sm:inline">{t('chatType.accountChats')}</span>
+                          <span className="sm:hidden">Acc</span>
                         </div>
                       </button>
                     </div>
@@ -2786,16 +2809,16 @@ export default function TelegramPage({
                 
                 <div className="relative flex items-center gap-2">
                   <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Search className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-3 h-3 sm:w-4 sm:h-4" />
                     <Input
                       placeholder={t('search.placeholder')}
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10"
+                      className="pl-8 sm:pl-10 text-sm h-9 sm:h-10"
                     />
                   </div>
                   {chatType === 'account' && (
-                    <Button size="sm" onClick={() => setShowNewChatModal(true)} className="cursor-pointer">
+                    <Button size="sm" onClick={() => setShowNewChatModal(true)} className="cursor-pointer h-9 w-9 sm:h-10 sm:w-auto sm:px-3">
                       <Plus className="h-4 w-4" />
                     </Button>
                   )}
@@ -2889,37 +2912,37 @@ export default function TelegramPage({
                           }
                         }
                       }}
-                      className={`group relative p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-100 transition-colors ${
+                      className={`group relative p-2 sm:p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-100 transition-colors ${
                         selectedChat === conversation.id ? 'bg-gray-200' : ''
                       }`}
                     >
-                      <div className="flex items-center space-x-3">
-                        <div className="relative">
-                          <Avatar className="w-12 h-12">
-                            <AvatarFallback>
+                      <div className="flex items-center space-x-2 sm:space-x-3">
+                        <div className="relative flex-shrink-0">
+                          <Avatar className="w-10 h-10 sm:w-12 sm:h-12">
+                            <AvatarFallback className="text-xs sm:text-sm">
                               {getDisplayName(conversation).charAt(0).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
-                            <h3 className="text-sm font-medium text-gray-900 truncate">
+                          <div className="flex items-center justify-between gap-2">
+                            <h3 className="text-xs sm:text-sm font-medium text-gray-900 truncate">
                               {getDisplayName(conversation)}
                             </h3>
-                            <div className="flex items-center space-x-2">
+                            <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
                               {effectiveUnread(conversation.id) > 0 && (
-                                <div className="bg-blue-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-medium">
+                                <div className="bg-blue-500 text-white text-[10px] sm:text-xs rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center font-medium">
                                   {effectiveUnread(conversation.id) > 99 ? '99+' : effectiveUnread(conversation.id)}
                                 </div>
                               )}
-                              <span className="text-xs text-gray-500 whitespace-nowrap">
+                              <span className="text-[10px] sm:text-xs text-gray-500 whitespace-nowrap">
                                 {formatConversationTimestamp(conversation.last_message_at || conversation.updated_at || conversation.created_at)}
                               </span>
                             </div>
                           </div>
-                          <div className="flex items-center justify-between mt-1 gap-3">
-                            <div className="flex-1 min-w-0 mr-8">
-                              <p className="text-sm text-gray-600 truncate">
+                          <div className="flex items-center justify-between mt-1 gap-2">
+                            <div className="flex-1 min-w-0 sm:mr-8">
+                              <p className="text-xs sm:text-sm text-gray-600 truncate">
                                 {conversation.last_message_preview ? (
                                   <>
                                     {conversation.last_message_direction === 'outgoing' ? 'You: ' : ''}
@@ -2942,7 +2965,7 @@ export default function TelegramPage({
                                   <button
                                     className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-gray-200 cursor-pointer"
                                     onClick={(e) => e.stopPropagation()}
-                                    aria-label="More options"
+                                    aria-label={t('moreOptions')}
                                   >
                                     <ChevronDown className="w-4 h-4" />
                                   </button>
@@ -2971,24 +2994,30 @@ export default function TelegramPage({
             </div>
 
             {/* Área de Chat */}
-            <div className="flex-1 flex flex-col max-w-full min-w-0 overflow-hidden">
+            <div className={`${selectedChat ? 'flex' : 'hidden md:flex'} flex-1 flex-col max-w-full min-w-0 overflow-hidden`}>
               {selectedConversation ? (
                 <>
                   {/* Header do Chat */}
-                  <div className="bg-white border-b border-gray-200 p-4 flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <Avatar className="w-10 h-10">
-                        <AvatarFallback>
+                  <div className="bg-white border-b border-gray-200 p-2 sm:p-4 flex items-center justify-between gap-2">
+                    <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
+                      <button 
+                        onClick={() => setSelectedChat(null)}
+                        className="md:hidden mr-1 p-1 hover:bg-gray-100 rounded transition-colors"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                      <Avatar className="w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0">
+                        <AvatarFallback className="text-xs sm:text-sm">
                           {getDisplayName(selectedConversation).charAt(0).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
-                      <div>
-                        <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                      <div className="min-w-0 flex-1">
+                        <h2 className="text-sm sm:text-lg font-semibold text-gray-900 flex items-center gap-1 sm:gap-2 truncate">
                           {selectedConversation.lead_id && currentLinkedLead ? (
                             <button
                               onClick={openLeadPreview}
                               className="flex items-center gap-2 hover:text-blue-600 transition-colors cursor-pointer"
-                              title="Click to view lead details"
+                              title={t('conversation.viewLead')}
                             >
                               {getDisplayName(selectedConversation)}
                               <Badge 
@@ -3028,14 +3057,14 @@ export default function TelegramPage({
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
                       {selectedConversation?.lead_id && currentLinkedLead && (
                         <Button 
                           variant="ghost" 
                           size="sm" 
-                          className="cursor-pointer"
+                          className="cursor-pointer h-8 w-8 sm:h-9 sm:w-auto sm:px-3"
                           onClick={() => handleEdit(currentLinkedLead)}
-                          title="Edit Lead"
+                          title={t('conversation.editLead')}
                         >
                           <Edit className="w-4 h-4" />
                         </Button>
@@ -3043,9 +3072,9 @@ export default function TelegramPage({
                       <Button 
                         variant="ghost" 
                         size="sm" 
-                        className="cursor-pointer"
+                        className="cursor-pointer h-8 w-8 sm:h-9 sm:w-auto sm:px-3"
                         onClick={() => setIsLinkLeadModalOpen(true)}
-                        title="Link to Lead"
+                        title={t('conversation.linkToLead')}
                       >
                         <UserPlus className="w-4 h-4" />
                       </Button>
@@ -3054,7 +3083,7 @@ export default function TelegramPage({
 
                   {/* Mensagens */}
                           <div className="relative flex-1 overflow-hidden">
-                    <div id="messages-container" className={`h-full overflow-y-auto p-4 space-y-2 bg-gray-50 w-full ${selectedFile ? 'mb-20' : ''}`}>
+                    <div id="messages-container" className={`h-full overflow-y-auto p-2 sm:p-4 space-y-2 bg-gray-50 w-full ${selectedFile ? 'mb-20' : ''}`}>
                     {messages.length === 0 && messageQueue.length === 0 ? (
                       <div className="flex items-center justify-center h-32">
                         <div className="text-center">
@@ -3071,7 +3100,7 @@ export default function TelegramPage({
                               className={`flex ${message.direction === 'outgoing' ? 'justify-end' : 'justify-start'} mb-1`}
                             >
                             <div
-                              className={`max-w-[80%] px-3 py-2 rounded-2xl break-words overflow-hidden ${
+                              className={`max-w-[85%] sm:max-w-[80%] px-2 sm:px-3 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl break-words overflow-hidden text-sm sm:text-base ${
                                 message.direction === 'outgoing'
                                   ? 'bg-blue-500 text-white'
                                   : 'bg-white text-gray-900 border border-gray-200'
@@ -3101,7 +3130,7 @@ export default function TelegramPage({
                                                     handleDownloadFile(message.file_id!, `image_${message.file_id}.jpg`)
                                                   }}
                                                   className="absolute top-2 right-2 bg-black bg-opacity-50 hover:bg-opacity-70 text-white p-1 rounded-full transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
-                                                  title="Download image"
+                                                  title={t('downloadImage')}
                                                 >
                                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -3162,7 +3191,7 @@ export default function TelegramPage({
                                                    )
                                                  }}
                                                  className="absolute top-0 left-0 w-full h-full bg-black bg-opacity-50 hover:bg-opacity-70 text-white rounded-full transition-all opacity-0 group-hover:opacity-100 cursor-pointer flex items-center justify-center"
-                                                 title="Download video"
+                                                 title={t('downloadVideo')}
                                                >
                                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -3229,7 +3258,7 @@ export default function TelegramPage({
                                                    )
                                                  }}
                                                  className="absolute top-0 left-0 w-full h-full bg-black bg-opacity-50 hover:bg-opacity-70 text-white rounded-full transition-all opacity-0 group-hover:opacity-100 cursor-pointer flex items-center justify-center"
-                                                 title="Download document"
+                                                 title={t('downloadDocument')}
                                                >
                                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -3486,7 +3515,7 @@ export default function TelegramPage({
                   </div>
 
                   {/* Input de Mensagem */}
-                  <div className="bg-white border-t border-gray-200 p-4">
+                  <div className="bg-white border-t border-gray-200 p-2 sm:p-4">
                     {selectedFile && (
                       <div className="mb-3 p-3 bg-gray-50 rounded-lg">
                         <div className="flex items-start justify-between">
@@ -3561,7 +3590,7 @@ export default function TelegramPage({
                         </div>
                       )}
                     
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
                       {selectedChat && !currentConversationState.isRecording && !currentConversationState.audioBlob && (
                         <>
                           <div className="relative">
@@ -3576,7 +3605,7 @@ export default function TelegramPage({
                               variant="ghost"
                               size="sm"
                               onClick={() => document.getElementById('file-input')?.click()}
-                              className="cursor-pointer"
+                              className="cursor-pointer h-8 w-8 sm:h-9 sm:w-auto sm:px-3 p-0"
                             >
                               <Paperclip className="w-4 h-4" />
                             </Button>
@@ -3586,8 +3615,8 @@ export default function TelegramPage({
                             variant="ghost"
                             size="sm"
                             onClick={startRecording}
-                            className="cursor-pointer"
-                            title="Record voice message"
+                            className="cursor-pointer h-8 w-8 sm:h-9 sm:w-auto sm:px-3 p-0"
+                            title={t('recordVoice')}
                           >
                             <Mic className="w-4 h-4" />
                           </Button>
@@ -3595,51 +3624,51 @@ export default function TelegramPage({
                       )}
                       
                       {selectedChat && currentConversationState.isRecording && (
-                        <div className="flex items-center gap-2 px-3 py-2 bg-red-50 rounded-lg border border-red-200 flex-1">
-                          <div className="flex items-center gap-2 flex-1">
-                            <div className={`w-3 h-3 bg-red-500 rounded-full ${!currentConversationState.isPaused ? 'animate-pulse' : ''}`}></div>
-                            <span className="text-sm font-medium text-red-700">
+                        <div className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-red-50 rounded-lg border border-red-200 flex-1">
+                          <div className="flex items-center gap-1 sm:gap-2 flex-1 min-w-0">
+                            <div className={`w-2 h-2 sm:w-3 sm:h-3 bg-red-500 rounded-full flex-shrink-0 ${!currentConversationState.isPaused ? 'animate-pulse' : ''}`}></div>
+                            <span className="text-xs sm:text-sm font-medium text-red-700 truncate">
                               {currentConversationState.isPaused ? 'Paused' : 'Recording'} {Math.floor(currentConversationState.recordingTime / 60)}:{(currentConversationState.recordingTime % 60).toString().padStart(2, '0')}
                             </span>
                           </div>
-                          <div className="flex gap-1">
+                          <div className="flex gap-1 flex-shrink-0">
                             {!currentConversationState.isPaused ? (
                               <Button
                                 size="sm"
                                 variant="ghost"
                                 onClick={pauseRecording}
-                                className="cursor-pointer text-orange-600 hover:text-orange-700"
+                                className="cursor-pointer text-orange-600 hover:text-orange-700 h-7 w-7 sm:h-8 sm:w-8 p-0"
                                 title={t('input.pauseRecording')}
                               >
-                                <Pause className="w-4 h-4" />
+                                <Pause className="w-3 h-3 sm:w-4 sm:h-4" />
                               </Button>
                             ) : (
                               <Button
                                 size="sm"
                                 variant="ghost"
                                 onClick={resumeRecording}
-                                className="cursor-pointer text-green-600 hover:text-green-700"
+                                className="cursor-pointer text-green-600 hover:text-green-700 h-7 w-7 sm:h-8 sm:w-8 p-0"
                                 title={t('input.resumeRecording')}
                               >
-                                <Play className="w-4 h-4" />
+                                <Play className="w-3 h-3 sm:w-4 sm:h-4" />
                               </Button>
                             )}
                             <Button
                               size="sm"
                               onClick={stopRecording}
-                              className="cursor-pointer bg-red-600 hover:bg-red-700 text-white"
+                              className="cursor-pointer bg-red-600 hover:bg-red-700 text-white h-7 w-7 sm:h-8 sm:w-8 p-0"
                               title={t('input.stopRecording')}
                             >
-                              <Square className="w-4 h-4" />
+                              <Square className="w-3 h-3 sm:w-4 sm:h-4" />
                             </Button>
                             <Button
                               size="sm"
                               variant="ghost"
                               onClick={cancelRecording}
-                              className="cursor-pointer text-red-600"
+                              className="cursor-pointer text-red-600 h-7 w-7 sm:h-8 sm:w-8 p-0"
                               title={t('input.cancelRecording')}
                             >
-                              <X className="w-4 h-4" />
+                              <X className="w-3 h-3 sm:w-4 sm:h-4" />
                             </Button>
                           </div>
                         </div>
@@ -3659,12 +3688,12 @@ export default function TelegramPage({
                                   handleSendMessage()
                                 }
                               }}
-                              className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[40px] max-h-[120px] break-words overflow-wrap-anywhere"
+                              className="w-full px-2 sm:px-3 py-1.5 sm:py-2 pr-8 sm:pr-10 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[36px] sm:min-h-[40px] max-h-[100px] sm:max-h-[120px] break-words overflow-wrap-anywhere text-sm sm:text-base"
                               rows={1}
                               style={{
                                 height: 'auto',
-                                minHeight: '40px',
-                                maxHeight: '120px',
+                                minHeight: '36px',
+                                maxHeight: '100px',
                                 wordBreak: 'break-word',
                                 overflowWrap: 'break-word',
                                 overflow: 'hidden'
@@ -3672,11 +3701,12 @@ export default function TelegramPage({
                               onInput={(e) => {
                                 const target = e.target as HTMLTextAreaElement
                                 target.style.height = 'auto'
-                                const newHeight = Math.min(target.scrollHeight, 120)
+                                const maxH = window.innerWidth < 640 ? 100 : 120
+                                const newHeight = Math.min(target.scrollHeight, maxH)
                                 target.style.height = newHeight + 'px'
                                 
                                 // Mostrar scrollbar apenas quando necessário
-                                if (target.scrollHeight > 120) {
+                                if (target.scrollHeight > maxH) {
                                   target.style.overflow = 'auto'
                                 } else {
                                   target.style.overflow = 'hidden'
@@ -3687,17 +3717,17 @@ export default function TelegramPage({
                               variant="ghost"
                               size="sm"
                               onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                              className="absolute right-1 top-1/2 transform -translate-y-1/2 cursor-pointer"
+                              className="absolute right-1 top-1/2 transform -translate-y-1/2 cursor-pointer h-7 w-7 sm:h-8 sm:w-8 p-0"
                               data-emoji-button
                             >
-                              <Smile className="w-4 h-4" />
+                              <Smile className="w-3 h-3 sm:w-4 sm:h-4" />
                             </Button>
                           </div>
                           
                           <Button 
                             onClick={handleSendMessage} 
                             disabled={(!currentConversationState.messageText.trim() && !selectedFile)}
-                            className="cursor-pointer"
+                            className="cursor-pointer h-9 w-9 sm:h-10 sm:w-auto sm:px-3 flex-shrink-0"
                             title={t('input.sendMessage')}
                           >
                             <Send className="w-4 h-4" />
@@ -3711,7 +3741,7 @@ export default function TelegramPage({
                   {showEmojiPicker && (
                     <div 
                       id="emoji-picker" 
-                      className="absolute bottom-20 right-2 bg-white border border-gray-200 rounded-xl shadow-xl p-4 z-50 w-80 max-h-64 overflow-y-auto"
+                      className="absolute bottom-16 sm:bottom-20 right-1 sm:right-2 bg-white border border-gray-200 rounded-xl shadow-xl p-2 sm:p-4 z-50 w-[calc(100vw-1rem)] sm:w-80 max-w-sm max-h-64 overflow-y-auto"
                       style={{
                         boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
                       }}
@@ -3865,7 +3895,7 @@ export default function TelegramPage({
             >
               <img 
                 src={imageModal.src}
-                alt="Imagem ampliada"
+                alt={t('expandedImageAlt')}
                 className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
                 style={{
                   boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
@@ -3910,9 +3940,9 @@ export default function TelegramPage({
         >
           <div className="flex-shrink-0">
             <SheetHeader>
-              <SheetTitle>Edit Lead</SheetTitle>
+              <SheetTitle>{t('editLead.title')}</SheetTitle>
               <SheetDescription>
-                Edit the lead's negotiation fields.
+                {t('editLead.description')}
               </SheetDescription>
             </SheetHeader>
             <Separator className="my-4" />
@@ -3922,17 +3952,17 @@ export default function TelegramPage({
             <form onSubmit={handleEditSubmit} className="space-y-6">
               <div className="space-y-4">
                 <div>
-                  <label className="mb-1 block text-sm font-medium">Deal Value ($)</label>
+                  <label className="mb-1 block text-sm font-medium">{t('editLead.dealValue')}</label>
                   <Input
                     type="number"
-                    placeholder="0.00"
+                    placeholder={t('editLead.dealValuePlaceholder')}
                     value={editValue}
                     onChange={(e) => setEditValue(e.target.value)}
                     step="0.01"
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium">Expected Close Date</label>
+                  <label className="mb-1 block text-sm font-medium">{t('editLead.expectedCloseDate')}</label>
                   <Input
                     type="date"
                     value={editExpectedCloseDate}
@@ -3940,10 +3970,10 @@ export default function TelegramPage({
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium">Interest</label>
+                  <label className="mb-1 block text-sm font-medium">{t('editLead.interest')}</label>
                   <Input
                     type="text"
-                    placeholder="e.g., Product A, Service B"
+                    placeholder={t('editLead.interestPlaceholder')}
                     value={editInterest}
                     onChange={(e) => setEditInterest(e.target.value.slice(0, 100))}
                     maxLength={100}
@@ -3951,14 +3981,14 @@ export default function TelegramPage({
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium">
-                    Notes
+                    {t('editLead.notes')}
                     <span className="text-xs text-muted-foreground ml-2">
                       ({editNotes.length}/500)
                     </span>
                   </label>
                   <textarea
                     className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input w-full min-w-0 rounded-md border bg-transparent px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] resize-none min-h-[80px] max-h-[200px] overflow-y-auto"
-                    placeholder="Notes about the negotiation..."
+                    placeholder={t('editLead.notesPlaceholder')}
                     value={editNotes}
                     onChange={(e) => {
                       if (e.target.value.length <= 500) {
@@ -4041,7 +4071,7 @@ export default function TelegramPage({
                               {uploadingAttachments[editingId] ? (
                                 <>
                                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                                  <p className="text-sm text-muted-foreground">Uploading...</p>
+                                  <p className="text-sm text-muted-foreground">{t('editLead.uploading')}</p>
                                 </>
                               ) : (
                                 <>
@@ -4094,7 +4124,7 @@ export default function TelegramPage({
                                 <FileIcon className="h-5 w-5 text-muted-foreground flex-shrink-0" />
                                 <div className="flex-1 min-w-0">
                                   <p className="text-sm font-medium truncate">
-                                    {attachment.originalName || 'Unknown file'}
+                                    {attachment.originalName || t('editLead.unknownFile')}
                                   </p>
                                   <p className="text-xs text-muted-foreground">
                                     {formatFileSize(attachment.size || 0)}
@@ -4766,8 +4796,8 @@ export default function TelegramPage({
                         <div className="flex items-center gap-3 flex-1">
                           <User className="h-4 w-4 text-muted-foreground" />
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs text-muted-foreground">Created by</p>
-                            <p className="text-sm font-medium">{createdByUserName || "Loading..."}</p>
+                            <p className="text-xs text-muted-foreground">{t('createdBy')}</p>
+                            <p className="text-sm font-medium">{createdByUserName || t('loading')}</p>
                           </div>
                         </div>
                         {createdByUserName && (

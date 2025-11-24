@@ -412,24 +412,50 @@ input[class*="auth-input"][class*="has-icon"] {
 
 /* Responsive adjustments */
 @media (max-width: 640px) {
+  .auth-page-container::before {
+    width: 400px;
+    height: 400px;
+  }
+  
+  .auth-page-container::after {
+    width: 300px;
+    height: 300px;
+  }
+  
   .auth-card {
     border-radius: 16px;
     margin: 0;
     width: 100%;
     max-width: 100%;
+    padding: 16px !important;
   }
   
   .auth-input {
     font-size: 16px; /* Prevents zoom on iOS */
     width: 100%;
     max-width: 100%;
-    padding: 8px 10px !important;
+    padding: 10px 12px !important;
+    min-height: 44px; /* Better touch target */
+  }
+  
+  .auth-input.has-icon,
+  input.auth-input.has-icon,
+  input[class*="auth-input"][class*="has-icon"] {
+    padding-left: 2.5rem !important;
+    padding-right: 12px !important;
+  }
+  
+  .auth-input-icon {
+    left: 10px;
+    width: 18px;
+    height: 18px;
   }
   
   .auth-button-primary,
   .auth-button-outline {
-    padding: 8px 14px;
-    font-size: 13px;
+    padding: 12px 16px;
+    font-size: 14px;
+    min-height: 44px; /* Better touch target */
   }
   
   .auth-section {
@@ -438,8 +464,8 @@ input[class*="auth-input"][class*="has-icon"] {
   }
   
   .auth-label {
-    font-size: 11px;
-    margin-bottom: 3px;
+    font-size: 13px;
+    margin-bottom: 6px;
   }
   
   .auth-error {
@@ -447,12 +473,8 @@ input[class*="auth-input"][class*="has-icon"] {
     max-width: 100%;
     word-wrap: break-word;
     overflow-wrap: break-word;
-    padding: 6px 10px;
-    font-size: 11px;
-  }
-  
-  .auth-card {
-    padding: 8px !important;
+    padding: 8px 12px;
+    font-size: 13px;
   }
 }
 
@@ -566,6 +588,13 @@ button[aria-label="Close"] {
   overflow: visible !important;
 }
 
+/* MOBILE: Evitar overflow no menu */
+@media (max-width: 767px) {
+  .sidebar-curved-menu {
+    overflow: hidden !important;
+  }
+}
+
 /* ========================================
    SCROLLBAR CUSTOMIZADA - ESQUERDA
    ======================================== */
@@ -628,6 +657,22 @@ button[aria-label="Close"] {
   overflow: visible !important;
 }
 
+/* MOBILE: Impedir overflow dos elementos da sidebar */
+@media (max-width: 767px) {
+  [data-sidebar-group],
+  [data-sidebar-menu],
+  [data-sidebar-menu-item] {
+    overflow: hidden !important;
+  }
+  
+  /* Garantir que a sidebar container no mobile não permita overflow */
+  [data-sidebar="sidebar"],
+  [data-slot="sidebar"],
+  [data-slot="sidebar-inner"] {
+    overflow: hidden !important;
+  }
+}
+
 /* Collapsible elements com overflow e animação */
 [data-radix-collapsible-content],
 [data-radix-collapsible-trigger] {
@@ -683,6 +728,13 @@ li[data-sidebar-menu-item] {
   overflow: visible !important;
 }
 
+/* MOBILE: Impedir overflow nos list items */
+@media (max-width: 767px) {
+  li[data-sidebar-menu-item] {
+    overflow: hidden !important;
+  }
+}
+
 /* Active menu item with curved effect */
 .sidebar-menu-item {
   position: relative;
@@ -736,6 +788,36 @@ li[data-sidebar-menu-item] {
   gap: 0 !important; /* Gap controlado no filho */
 }
 
+/* MOBILE: Remover efeito de curva e overflow */
+@media (max-width: 767px) {
+  .sidebar-menu-item.active {
+    width: 100% !important; /* Não ultrapassar limites no mobile */
+    border-radius: 12px !important; /* Bordas arredondadas simples no mobile */
+    margin: 0 8px !important; /* Margem para não tocar nas bordas */
+  }
+  
+  /* Remover curvas no mobile */
+  .sidebar-menu-item.active::before,
+  .sidebar-menu-item.active::after {
+    display: none !important;
+  }
+  
+  /* Garantir que não haja overflow no mobile */
+  .sidebar-curved-menu,
+  [data-sidebar-content],
+  [data-sidebar-group],
+  [data-sidebar-menu],
+  [data-sidebar-menu-item],
+  li[data-sidebar-menu-item] {
+    overflow: hidden !important;
+  }
+  
+  /* Container da sidebar no mobile não deve permitir overflow */
+  [data-sidebar="sidebar"] {
+    overflow: hidden !important;
+  }
+}
+
 .sidebar-menu-item.active * {
   color: #000 !important; /* Black text for all elements */
 }
@@ -768,6 +850,16 @@ li[data-sidebar-menu-item] {
   box-shadow: 10px -10px 0 10px #fff;
   z-index: 5 !important; /* Menor que a página mas suficiente para curvas */
   pointer-events: none;
+}
+
+/* MOBILE: Remover completamente as curvas brancas que saem da sidebar */
+@media (max-width: 767px) {
+  .sidebar-menu-item.active::before,
+  .sidebar-menu-item.active::after {
+    display: none !important;
+    content: none !important;
+    visibility: hidden !important;
+  }
 }
 
 /* Hover effect for non-active items */

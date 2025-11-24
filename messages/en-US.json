@@ -217,12 +217,15 @@
       "linkToUser": "Link to user",
       "viewDetails": "View details",
       "editLead": "Edit",
-      "deleteLead": "Delete Lead"
+      "deleteLead": "Delete Lead",
+      "assignedToUser": "Assigned to user",
+      "hasConversation": "Has linked conversation"
     },
     "editModal": {
       "title": "Edit Lead",
       "description": "Edit the lead's negotiation fields.",
       "dealValue": "Deal Value",
+      "dealValuePlaceholder": "0.00",
       "expectedCloseDate": "Expected Close Date",
       "notes": "Notes",
       "notesPlaceholder": "Notes about the negotiation...",
@@ -237,7 +240,8 @@
       "unknownFile": "Unknown file",
       "pendingSave": "pending, save to upload",
       "save": "Save",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "unsavedChanges": "You have unsaved changes. Click outside again to discard them."
     },
     "previewModal": {
       "title": "Lead Details",
@@ -401,7 +405,8 @@
       "success": "Lead {leadName} linked to {userName} successfully",
       "error": "Error linking lead",
       "errorLoadingUsers": "Error loading users",
-      "selectUserWarning": "Please select a user"
+      "selectUserWarning": "Please select a user",
+      "noUsername": "no username"
     },
     "filterModal": {
       "title": "Filter Leads",
@@ -502,7 +507,8 @@
       "errorMovingLead": "Error moving lead: {error}",
       "errorMovingLeadGeneric": "Error moving lead",
       "bulkMoveProgress": "Moving leads in bulk",
-      "batchProgress": "Batch {current} of {total}"
+      "batchProgress": "Batch {current} of {total}",
+      "dismissNotification": "Dismiss notification"
     },
     "emptyState": {
       "noLeads": "No leads found",
@@ -540,6 +546,16 @@
         "viewFile": "View file",
         "downloadFile": "Download file"
       },
+      "assignment": "Assignment",
+      "assignedTo": "Assigned To",
+      "assignedSince": "Assigned Since",
+      "notAssigned": "Not Assigned",
+      "loading": "Loading...",
+      "metadata": "Metadata",
+      "created": "Created",
+      "createdBy": "Created By",
+      "lastUpdated": "Last Updated",
+      "leadId": "Lead ID",
       "actions": {
         "viewCompleteList": "View in Complete List",
         "close": "Close"
@@ -1187,17 +1203,71 @@
       "leadsExported": "{count} lead(s) exported as {format}",
       "errorAdding": "Error adding lead",
       "errorUpdating": "Error updating lead",
+      "errorUpdatingPipeline": "Error updating pipeline",
       "errorDeleting": "Error deleting lead",
       "errorImporting": "Failed to import file. Please check the file format and content.",
       "errorExporting": "Error exporting data",
       "errorLoadingUsers": "Error loading users",
       "errorSearching": "Error searching leads",
+      "errorLoadingLeads": "Error loading leads",
+      "errorSaving": "Error saving lead",
+      "errorUpdatingLeads": "Error updating leads",
+      "errorAssigning": "Error assigning lead",
+      "errorAssigningLeads": "Error assigning leads to user",
+      "pleaseWait": "Please wait for the page to fully load",
+      "valueTooLarge": "Value too large. The maximum allowed value is $9,999,999,999,999.99",
+      "valueNegative": "Value cannot be negative",
+      "retryingAssignments": "Retrying {count} failed assignments...",
+      "leadsAssignedPartial": "{success} lead(s) assigned, {failed} failed",
+      "fileDownloaded": "File downloaded successfully",
+      "fileDownloadSuccess": "File downloaded successfully",
+      "errorDownloadingFile": "Error downloading file",
+      "fileDownloadFailed": "Failed to download file",
+      "errorViewingFile": "Error viewing file",
+      "fileViewFailed": "Failed to view file",
+      "errorSavingAttachments": "Error saving attachment changes",
+      "importCancelledLeadsRemoved": "Import cancelled - {count} leads removed from backend",
+      "importCancelledLeadsNotFound": "Import cancelled - {count} leads were already removed or not found",
+      "importCancelledLocalOnly": "Import cancelled - leads removed locally only",
+      "retryingLeads": "Retrying {count} failed leads...",
+      "leadsImported": "{count} lead(s) imported successfully",
+      "duplicatesSkipped": "{count} duplicate(s) skipped",
+      "leadsFailedAfterRetry": "{count} lead(s) failed even after retry",
+      "importCancelledWithResults": "Import cancelled. {saved} lead(s) saved, {duplicates} duplicate(s) skipped",
+      "leadsFailedToSave": "{count} lead(s) failed to save",
+      "importCancelledNoLeads": "Import cancelled. No leads were processed",
+      "noLeadsImported": "0 lead(s) imported. No new records detected",
       "selectUser": "Please select a user",
       "confirmAssign": "Please type 'assign' to confirm",
       "confirmEdit": "Please type 'edit' to confirm",
       "unsavedChanges": "You have unsaved changes. Click outside again to discard them.",
       "deletionCancelled": "Deletion cancelled and leads restored",
+      "deletionCancelledRestored": "Deletion cancelled - {count} lead(s) restored",
+      "deletionCancelledRestoreFailed": "Deletion cancelled - {count} lead(s) could not be restored",
+      "deletionCancelledLocalOnly": "Deletion cancelled - leads restored locally only",
       "bulkEditCancelled": "Bulk edit cancelled and leads restored",
+      "bulkEditCancelledRestored": "Bulk edit cancelled - {count} lead(s) restored",
+      "bulkEditCancelledRestoreFailed": "Bulk edit cancelled - {count} lead(s) could not be restored",
+      "bulkEditCancelledLocalOnly": "Bulk edit cancelled - leads restored locally only",
+      "retryingDeletions": "Retrying {count} failed deletions...",
+      "finalRetryDeletions": "Final retry for {count} remaining deletions...",
+      "leadsDeletedPartial": "{count} lead(s) deleted. {failed} failed",
+      "leadsDeletedAfterRetries": "{count} lead(s) deleted. {failed} failed after all retries",
+      "leadsDeletedAfterRetry": "{count} lead(s) deleted. {failed} failed even after retry",
+      "errorProcessingFile": "Error processing file. Please check the file format.",
+      "errorDeletingLeads": "Error deleting leads",
+      "unknownError": "Unknown error",
+      "maxRetriesExceeded": "Max retries exceeded",
+      "editLead": "Edit lead",
+      "deleteLead": "Delete lead",
+      "assignToUser": "Assign to user",
+      "addToPipeline": "Add to pipeline",
+      "removeFromPipeline": "Remove from pipeline",
+      "viewFile": "View file",
+      "downloadFile": "Download file",
+      "unknownFile": "Unknown file",
+      "unknownDate": "Unknown date",
+      "dismissNotification": "Dismiss notification",
       "importCancelled": "Import cancelled",
       "retrying": "Retrying {count} failed updates...",
       "importProgress": "Importing {current} of {total} leads (Batch {batch}/{totalBatches})",
@@ -1501,6 +1571,21 @@
     },
     "imageLoading": "Image not loaded",
     "unknownUser": "Unknown User",
+    "expandedImageAlt": "Expanded image",
+    "recordVoice": "Record voice message",
+    "moreOptions": "More options",
+    "downloadImage": "Download image",
+    "downloadVideo": "Download video",
+    "downloadDocument": "Download document",
+    "createdBy": "Created By",
+    "loading": "Loading...",
+    "uploading": "Uploading...",
+    "errors": {
+      "startChatFailed": "Failed to start chat",
+      "microphoneAccessDenied": "Could not access microphone. Please grant permission.",
+      "sendVoiceMessageFailed": "Failed to send voice message",
+      "sendVoiceMessageError": "Error sending voice message. Please try again."
+    },
     "linkLeadModal": {
       "titles": {
         "unlink": "Unlink Lead",
@@ -1556,6 +1641,7 @@
       "description": "Information about your Telegram bot",
       "active": "Bot Active",
       "inactive": "Bot Inactive",
+      "notOnline": "Bot active but offline - Check the token and webhook configuration",
       "name": "Name",
       "username": "Username",
       "created": "Created"
@@ -1568,6 +1654,10 @@
       "awaitingSms": "Awaiting SMS code",
       "twoFaRequired": "2FA required",
       "apiNotRunning": "API not running, authenticate",
+      "needsAuthentication": "Authentication required - Click 'Authenticate Account' to start",
+      "needsAuthenticationSms": "SMS code required - Click 'Authenticate Account' to receive the code",
+      "needsAuthentication2FA": "2FA password required - Complete authentication with your two-factor password",
+      "notOnline": "Account authenticated but offline - Check your connection",
       "phone": "Phone",
       "apiId": "API ID",
       "created": "Created"
@@ -1673,6 +1763,21 @@
         "step6": "Account will be configured",
         "step6Detail": "and ready to send messages"
       }
+    },
+    "errors": {
+      "authenticationError": "Authentication error"
+    },
+    "authFeedback": {
+      "requestingSms": "Requesting SMS code...",
+      "smsSent": "SMS sent. Enter the code received in Telegram.",
+      "verifyingSms": "Verifying SMS code...",
+      "verifying2FA": "Verifying 2FA password...",
+      "twoFactorRequired": "Two-factor authentication required.",
+      "invalid2FAPassword": "Invalid 2FA password, try again...",
+      "wrong2FAPassword": "Wrong 2FA password. Please check and try again.",
+      "invalidSmsCode": "Invalid SMS code, try again...",
+      "invalidSmsCodeRetry": "Invalid SMS code. Please re-check the code.",
+      "networkError": "Network error during verification. Please try again."
     }
   },
   "OrgSettings": {

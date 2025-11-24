@@ -410,20 +410,20 @@ const AdminDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardStat
 
 
   return (
-  <div className="space-y-6">
+  <div className="space-y-4 sm:space-y-6">
       {/* Main Statistics Cards - Admin */}
-    <div className="grid auto-rows-min gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid auto-rows-min gap-2 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="hover:shadow-md transition-shadow">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">{t('mainCards.totalLeads')}</CardTitle>
-            <Users className="h-4 w-4 text-blue-500" />
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6">
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">{t('mainCards.totalLeads')}</CardTitle>
+            <Users className="h-3 w-3 sm:h-4 sm:w-4 text-blue-500 flex-shrink-0" />
         </CardHeader>
-        <CardContent>
-            <div className="text-3xl font-semibold">{stats.totalLeads}</div>
-            <p className="text-xs text-muted-foreground mt-2">
+        <CardContent className="p-3 sm:p-6 pt-0">
+            <div className="text-2xl sm:text-3xl font-semibold">{stats.totalLeads}</div>
+            <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">
               {t('mainCards.acrossCompany')}
             </p>
-            <div className="mt-3 flex items-center gap-3 text-xs">
+            <div className="mt-2 sm:mt-3 flex items-center gap-2 sm:gap-3 text-[10px] sm:text-xs">
               <span className="text-emerald-600 font-medium">{wonLeads} {t('mainCards.won')}</span>
               <span className="text-muted-foreground">•</span>
               <span className="text-rose-600 font-medium">{lostLeads} {t('mainCards.lost')}</span>
@@ -643,10 +643,10 @@ const AdminDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardStat
             </div>
           </div>
           
-          <ResponsiveContainer width="100%" height={300} style={{ userSelect: 'none' }}>
+          <ResponsiveContainer width="100%" height={250} className="sm:h-[300px]" style={{ userSelect: 'none' }}>
               <LineChart 
                 data={filteredMonthlyTrend}
-                margin={{ top: 5, right: 30, left: 0, bottom: 5 }}
+                margin={{ top: 5, right: 10, left: -10, bottom: 5 }}
                 style={{ userSelect: 'none' }}
                 onMouseDown={(e: any) => {
                   if (e && e.activeTooltipIndex !== undefined) {
@@ -913,19 +913,19 @@ const AdminDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardStat
           className="hover:shadow-lg transition-all duration-300 border-slate-200"
           style={{ overflow: 'visible' }}
         >
-          <CardHeader className="pb-4">
+          <CardHeader className="pb-3 sm:pb-4 p-3 sm:p-6">
             <div className="space-y-1">
-              <CardTitle className="text-xl font-semibold text-slate-900">{t('charts.leadSources')}</CardTitle>
-              <CardDescription className="text-sm text-slate-500">
+              <CardTitle className="text-base sm:text-xl font-semibold text-slate-900">{t('charts.leadSources')}</CardTitle>
+              <CardDescription className="text-xs sm:text-sm text-slate-500">
                 {t('charts.distributionAcrossChannels')}
           </CardDescription>
             </div>
         </CardHeader>
-          <CardContent className="pt-2" style={{ overflow: 'visible', position: 'relative', zIndex: 1 }}>
-            <div className="flex flex-col space-y-6">
+          <CardContent className="pt-2 p-3 sm:p-6" style={{ overflow: 'visible', position: 'relative', zIndex: 1 }}>
+            <div className="flex flex-col space-y-4 sm:space-y-6">
               {/* Donut Chart */}
               <div className="relative" style={{ outline: 'none', overflow: 'visible', zIndex: 2 }} ref={leadSourcesChartRef}>
-                <ResponsiveContainer width="100%" height={200}>
+                <ResponsiveContainer width="100%" height={180} className="sm:h-[200px]">
                   <PieChart style={{ outline: 'none' }}>
                     <defs>
                       {COLORS.map((color, index) => (
@@ -996,15 +996,15 @@ const AdminDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardStat
                     {selectedSourceData ? (
                       <div className="animate-in fade-in duration-300">
                         <p className="text-sm font-medium text-slate-500 mb-1">{selectedSourceData.source}</p>
-                        <p className="text-3xl font-bold text-slate-900">{selectedSourceData.count}</p>
-                        <p className="text-xs font-medium text-slate-500 mt-1">
+                        <p className="text-2xl sm:text-3xl font-bold text-slate-900">{selectedSourceData.count}</p>
+                        <p className="text-[10px] sm:text-xs font-medium text-slate-500 mt-1">
                           {((selectedSourceData.count / stats.totalLeads) * 100).toFixed(1)}% {t('charts.ofTotal')}
                         </p>
                       </div>
                     ) : (
                       <div className="animate-in fade-in duration-300">
-                        <p className="text-3xl font-bold text-slate-900">{stats.totalLeads}</p>
-                        <p className="text-xs font-medium text-slate-500 mt-1">{t('charts.totalLeads')}</p>
+                        <p className="text-2xl sm:text-3xl font-bold text-slate-900">{stats.totalLeads}</p>
+                        <p className="text-[10px] sm:text-xs font-medium text-slate-500 mt-1">{t('charts.totalLeads')}</p>
                       </div>
                     )}
                   </div>
@@ -1012,7 +1012,7 @@ const AdminDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardStat
               </div>
               
               {/* Custom Legend */}
-              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 pt-2 border-t border-slate-100">
                 {stats.leadsBySource.slice(0, 6).map((source, index) => {
                   const percentage = ((source.count / stats.totalLeads) * 100).toFixed(1)
                   const isSelected = selectedSource === source.source;
@@ -1023,14 +1023,14 @@ const AdminDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardStat
                         e.stopPropagation();
                         handleSourceClick(source.source, index);
                       }}
-                      className={`legend-item flex items-center space-x-2 p-2 rounded-lg transition-all duration-300 cursor-pointer group ${
+                      className={`legend-item flex items-center space-x-1.5 sm:space-x-2 p-1.5 sm:p-2 rounded-lg transition-all duration-300 cursor-pointer group ${
                         isSelected 
                           ? 'bg-blue-50 ring-2 ring-blue-400 shadow-sm' 
                           : 'hover:bg-slate-50'
                       }`}
                     >
                       <div 
-                        className={`w-3 h-3 rounded-full flex-shrink-0 shadow-sm transition-all duration-300 ${
+                        className={`w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full flex-shrink-0 shadow-sm transition-all duration-300 ${
                           isSelected ? 'scale-125 ring-2 ring-white' : 'group-hover:scale-110'
                         }`}
                         style={{ 
@@ -1038,18 +1038,18 @@ const AdminDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardStat
                         }}
                       />
                       <div className="flex-1 min-w-0">
-                        <p className={`text-xs font-semibold truncate transition-colors duration-300 ${
+                        <p className={`text-[10px] sm:text-xs font-semibold truncate transition-colors duration-300 ${
                           isSelected ? 'text-blue-700' : 'text-slate-700'
                         }`}>
                           {source.source}
                         </p>
                         <div className="flex items-baseline space-x-1">
-                          <span className={`text-xs font-bold transition-colors duration-300 ${
+                          <span className={`text-[10px] sm:text-xs font-bold transition-colors duration-300 ${
                             isSelected ? 'text-blue-900' : 'text-slate-900'
                           }`}>
                             {source.count}
                           </span>
-                          <span className="text-[10px] text-slate-500">({percentage}%)</span>
+                          <span className="text-[9px] sm:text-[10px] text-slate-500">({percentage}%)</span>
                         </div>
                       </div>
                     </div>
@@ -1072,29 +1072,29 @@ const AdminDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardStat
                         }
                       </button>
                     </DialogTrigger>
-                    <DialogContent className="max-w-md">
+                    <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-md p-4 sm:p-6">
                       <DialogHeader>
-                        <DialogTitle className="text-lg font-semibold">{t('charts.additionalLeadSources')}</DialogTitle>
-                        <DialogDescription className="text-sm text-slate-500">
+                        <DialogTitle className="text-base sm:text-lg font-semibold">{t('charts.additionalLeadSources')}</DialogTitle>
+                        <DialogDescription className="text-xs sm:text-sm text-slate-500">
                           {t('charts.otherSourcesNotShown')}
                         </DialogDescription>
                       </DialogHeader>
-                      <div className="mt-4 space-y-2 max-h-[400px] overflow-y-auto">
+                      <div className="mt-3 sm:mt-4 space-y-2 max-h-[400px] overflow-y-auto">
                         {stats.leadsBySource.slice(6).map((source, index) => {
                           const percentage = ((source.count / stats.totalLeads) * 100).toFixed(1);
                           const colorIndex = (index + 6) % COLORS.length;
                           return (
                             <div 
                               key={source.source}
-                              className="flex items-center justify-between p-3 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors duration-200"
+                              className="flex items-center justify-between p-2 sm:p-3 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors duration-200"
                             >
-                              <div className="flex items-center gap-3 flex-1 min-w-0">
+                              <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
                                 <div 
-                                  className="w-3 h-3 rounded-full flex-shrink-0"
+                                  className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full flex-shrink-0"
                                   style={{ backgroundColor: COLORS[colorIndex] }}
                                 />
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-semibold text-slate-900 truncate">
+                                  <p className="text-xs sm:text-sm font-semibold text-slate-900 truncate">
                                     {source.source}
                                   </p>
                                   <p className="text-xs text-slate-500">
@@ -1102,11 +1102,11 @@ const AdminDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardStat
                                   </p>
                                 </div>
                               </div>
-                              <div className="text-right ml-3">
-                                <p className="text-sm font-bold text-slate-900">
+                              <div className="text-right ml-2 sm:ml-3 flex-shrink-0">
+                                <p className="text-xs sm:text-sm font-bold text-slate-900">
                                   {source.count}
                                 </p>
-                                <p className="text-xs text-slate-500">
+                                <p className="text-[10px] sm:text-xs text-slate-500">
                                   {source.count === 1 ? t('charts.lead') : t('charts.leadsPlural')}
                                 </p>
                               </div>
@@ -1124,21 +1124,21 @@ const AdminDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardStat
     </div>
 
       {/* Pipeline Charts Group */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-2 sm:gap-4 grid-cols-1 md:grid-cols-2">
         <Card className="hover:shadow-lg transition-all duration-300 border-slate-200">
-        <CardHeader className="pb-4">
+        <CardHeader className="pb-3 sm:pb-4 p-3 sm:p-6">
           <div className="space-y-1">
-              <CardTitle className="text-xl font-semibold text-slate-900">{t('charts.salesPipeline')}</CardTitle>
-              <CardDescription className="text-sm text-slate-500">
+              <CardTitle className="text-base sm:text-xl font-semibold text-slate-900">{t('charts.salesPipeline')}</CardTitle>
+              <CardDescription className="text-xs sm:text-sm text-slate-500">
                 {t('charts.leadDistributionByStage')}
             </CardDescription>
           </div>
         </CardHeader>
-        <CardContent className="pt-2">
-            <ResponsiveContainer width="100%" height={550}>
+        <CardContent className="pt-2 p-3 sm:p-6">
+            <ResponsiveContainer width="100%" height={400} className="sm:h-[550px]">
               <BarChart 
                 data={pipelineData} 
-                margin={{ top: 25, right: 20, bottom: 100, left: 10 }}
+                margin={{ top: 10, right: 10, bottom: 60, left: -10 }}
                 barGap={8}
               >
                 <defs>
@@ -1160,17 +1160,19 @@ const AdminDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardStat
                 />
                 <XAxis 
                   dataKey="status" 
-                  tick={{ fontSize: 13, fill: '#475569', fontWeight: 500 }}
+                  tick={{ fontSize: 10, fill: '#475569', fontWeight: 500 }}
                   angle={-35}
                   textAnchor="end"
-                  height={100}
+                  height={80}
                   axisLine={{ stroke: '#cbd5e1', strokeWidth: 1 }}
                   tickLine={{ stroke: '#cbd5e1' }}
+                  className="sm:text-[13px]"
                 />
                 <YAxis 
-                  tick={{ fontSize: 12, fill: '#475569' }}
+                  tick={{ fontSize: 10, fill: '#475569' }}
                   axisLine={{ stroke: '#cbd5e1', strokeWidth: 1 }}
                   tickLine={{ stroke: '#cbd5e1' }}
+                  className="sm:text-[12px]"
                 />
                 <Tooltip 
                   contentStyle={{ 
@@ -1208,22 +1210,22 @@ const AdminDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardStat
             </ResponsiveContainer>
             
             {/* Summary Statistics */}
-            <div className="mt-8 grid grid-cols-3 gap-4 pt-6 border-t border-slate-200">
+            <div className="mt-4 sm:mt-8 grid grid-cols-3 gap-2 sm:gap-4 pt-4 sm:pt-6 border-t border-slate-200">
               <div className="text-center">
-                <p className="text-xs text-slate-500 font-medium mb-1">{t('charts.totalLeads')}</p>
-                <p className="text-lg font-bold text-slate-900">
+                <p className="text-[10px] sm:text-xs text-slate-500 font-medium mb-1">{t('charts.totalLeads')}</p>
+                <p className="text-base sm:text-lg font-bold text-slate-900">
                   {pipelineData.reduce((sum, item) => sum + item.count, 0)}
                 </p>
               </div>
               <div className="text-center">
-                <p className="text-xs text-slate-500 font-medium mb-1">{t('charts.activeStages')}</p>
-                <p className="text-lg font-bold text-emerald-600">
+                <p className="text-[10px] sm:text-xs text-slate-500 font-medium mb-1">{t('charts.activeStages')}</p>
+                <p className="text-base sm:text-lg font-bold text-emerald-600">
                   {pipelineData.filter(item => item.count > 0).length}
                 </p>
               </div>
               <div className="text-center">
-                <p className="text-xs text-slate-500 font-medium mb-1">{t('charts.avgPerStage')}</p>
-                <p className="text-lg font-bold text-blue-600">
+                <p className="text-[10px] sm:text-xs text-slate-500 font-medium mb-1">{t('charts.avgPerStage')}</p>
+                <p className="text-base sm:text-lg font-bold text-blue-600">
                   {(pipelineData.reduce((sum, item) => sum + item.count, 0) / pipelineData.length).toFixed(1)}
                 </p>
               </div>
@@ -1240,12 +1242,12 @@ const AdminDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardStat
               </CardDescription>
             </div>
           </CardHeader>
-          <CardContent className="pt-2">
-            <ResponsiveContainer width="100%" height={550}>
+          <CardContent className="pt-2 p-3 sm:p-6">
+            <ResponsiveContainer width="100%" height={400} className="sm:h-[550px]">
               <BarChart 
                 data={pipelineData} 
-                margin={{ top: 25, right: 20, bottom: 100, left: 40 }}
-                barGap={8}
+                margin={{ top: 10, right: 10, bottom: 50, left: 5 }}
+                barGap={6}
               >
                 <defs>
                   {pipelineData.map((entry, index) => {
@@ -1266,18 +1268,20 @@ const AdminDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardStat
                 />
                 <XAxis 
                   dataKey="status" 
-                  tick={{ fontSize: 13, fill: '#475569', fontWeight: 500 }}
+                  tick={{ fontSize: 10, fill: '#475569', fontWeight: 500 }}
                   angle={-35}
                   textAnchor="end"
-                  height={100}
+                  height={80}
                   axisLine={{ stroke: '#cbd5e1', strokeWidth: 1 }}
                   tickLine={{ stroke: '#cbd5e1' }}
+                  className="sm:text-[13px]"
                 />
                 <YAxis 
-                  tick={{ fontSize: 12, fill: '#475569' }}
+                  tick={{ fontSize: 10, fill: '#475569' }}
                   axisLine={{ stroke: '#cbd5e1', strokeWidth: 1 }}
                   tickLine={{ stroke: '#cbd5e1' }}
                   tickFormatter={(value) => `${getCurrencySymbol(locale)}${(value / 1000).toFixed(0)}k`}
+                  className="sm:text-[12px]"
                 />
                 <Tooltip 
                   contentStyle={{ 
@@ -1345,17 +1349,17 @@ const AdminDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardStat
                   </div>
                 </div>
                    <div className="flex items-center justify-between">
-                     <span className="text-sm font-medium text-muted-foreground">{t('charts.activeConversations')}</span>
+                     <span className="text-[10px] sm:text-sm font-medium text-muted-foreground">{t('charts.activeConversations')}</span>
                      <div className="text-right">
-                       <div className="text-2xl font-semibold text-emerald-600">{stat.active}</div>
+                       <div className="text-xl sm:text-2xl font-semibold text-emerald-600">{stat.active}</div>
                      </div>
                    </div>
-                   <div className="pt-4 border-t">
+                   <div className="pt-3 sm:pt-4 border-t">
                      <div className="flex justify-between items-center">
-                       <span className="text-xs text-muted-foreground">{t('charts.activityRate')}</span>
-                       <span className="text-xs font-medium">{stat.count > 0 ? ((stat.active / stat.count) * 100).toFixed(0) : 0}%</span>
+                       <span className="text-[10px] sm:text-xs text-muted-foreground">{t('charts.activityRate')}</span>
+                       <span className="text-[10px] sm:text-xs font-medium">{stat.count > 0 ? ((stat.active / stat.count) * 100).toFixed(0) : 0}%</span>
                      </div>
-                     <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
+                     <div className="mt-1.5 sm:mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
                        <div 
                          className="h-full transition-all duration-500"
                          style={{ 
@@ -1366,7 +1370,7 @@ const AdminDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardStat
                      </div>
                    </div>
                    {index < stats.conversationStats.length - 1 && (
-                     <div className="pt-4 border-b border-slate-100" />
+                     <div className="pt-3 sm:pt-4 border-b border-slate-100" />
                    )}
               </div>
             ))}
@@ -1375,25 +1379,25 @@ const AdminDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardStat
       </Card>
 
       {/* Summary Statistics */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-2 sm:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
         <Card className="hover:shadow-md transition-shadow">
-          <CardHeader>
-            <CardTitle className="text-base font-semibold">{t('performance.overallPerformance')}</CardTitle>
+          <CardHeader className="p-3 sm:p-6">
+            <CardTitle className="text-sm sm:text-base font-semibold">{t('performance.overallPerformance')}</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-6 pt-0">
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">{t('performance.conversionRate')}</span>
-              <span className="text-base font-semibold">{stats.conversionRate.toFixed(1)}%</span>
+              <span className="text-xs sm:text-sm text-muted-foreground">{t('performance.conversionRate')}</span>
+              <span className="text-sm sm:text-base font-semibold">{stats.conversionRate.toFixed(1)}%</span>
     </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">{t('performance.averageTicket')}</span>
-              <span className="text-base font-semibold">
+              <span className="text-xs sm:text-sm text-muted-foreground">{t('performance.averageTicket')}</span>
+              <span className="text-sm sm:text-base font-semibold">
                 {formatCurrency(averageLeadValue, locale)}
               </span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">{t('performance.totalSales')}</span>
-              <span className="text-base font-semibold text-emerald-600">
+              <span className="text-xs sm:text-sm text-muted-foreground">{t('performance.totalSales')}</span>
+              <span className="text-sm sm:text-base font-semibold text-emerald-600 truncate">
                 {formatCurrency(wonValue, locale)}
               </span>
             </div>
@@ -1401,23 +1405,23 @@ const AdminDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardStat
         </Card>
 
          <Card className="hover:shadow-md transition-shadow">
-      <CardHeader>
-             <CardTitle className="text-base font-semibold">{t('employeeStats.conversationActivity')}</CardTitle>
+      <CardHeader className="p-3 sm:p-6">
+             <CardTitle className="text-sm sm:text-base font-semibold">{t('employeeStats.conversationActivity')}</CardTitle>
            </CardHeader>
-           <CardContent className="space-y-4">
+           <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-6 pt-0">
              <div className="flex justify-between items-center">
-               <span className="text-sm text-muted-foreground">{t('performance.totalConversations')}</span>
-               <span className="text-base font-semibold">{stats.conversationStats[0]?.count || 0}</span>
+               <span className="text-xs sm:text-sm text-muted-foreground">{t('performance.totalConversations')}</span>
+               <span className="text-sm sm:text-base font-semibold">{stats.conversationStats[0]?.count || 0}</span>
              </div>
              <div className="flex justify-between items-center">
-               <span className="text-sm text-muted-foreground">{t('performance.activeConversations')}</span>
-               <span className="text-base font-semibold">
+               <span className="text-xs sm:text-sm text-muted-foreground">{t('performance.activeConversations')}</span>
+               <span className="text-sm sm:text-base font-semibold">
                  {stats.conversationStats[0]?.active || 0}
                </span>
              </div>
              <div className="flex justify-between items-center">
-               <span className="text-sm text-muted-foreground">{t('performance.activityRate')}</span>
-               <span className="text-base font-semibold">
+               <span className="text-xs sm:text-sm text-muted-foreground">{t('performance.activityRate')}</span>
+               <span className="text-sm sm:text-base font-semibold">
                  {stats.conversationStats[0] && stats.conversationStats[0].count > 0
                    ? ((stats.conversationStats[0].active / stats.conversationStats[0].count) * 100).toFixed(1)
                    : '0.0'}%
@@ -1427,23 +1431,23 @@ const AdminDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardStat
          </Card>
 
         <Card className="hover:shadow-md transition-shadow">
-          <CardHeader>
-            <CardTitle className="text-base font-semibold">{t('performance.funnelAnalysis')}</CardTitle>
+          <CardHeader className="p-3 sm:p-6">
+            <CardTitle className="text-sm sm:text-base font-semibold">{t('performance.funnelAnalysis')}</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-6 pt-0">
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">{t('performance.inPipeline')}</span>
-              <span className="text-base font-semibold">
+              <span className="text-xs sm:text-sm text-muted-foreground">{t('performance.inPipeline')}</span>
+              <span className="text-sm sm:text-base font-semibold">
                 {stats.totalLeads - wonLeads - lostLeads}
               </span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">{t('performance.winRate')}</span>
-              <span className="text-base font-semibold text-emerald-600">{winRate.toFixed(1)}%</span>
+              <span className="text-xs sm:text-sm text-muted-foreground">{t('performance.winRate')}</span>
+              <span className="text-sm sm:text-base font-semibold text-emerald-600">{winRate.toFixed(1)}%</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">{t('performance.inNegotiation')}</span>
-              <span className="text-base font-semibold">
+              <span className="text-xs sm:text-sm text-muted-foreground">{t('performance.inNegotiation')}</span>
+              <span className="text-sm sm:text-base font-semibold">
                 {stats.leadsByStatus.find(s => s.status === 'Negotiation')?.count || 0}
               </span>
             </div>
@@ -1504,21 +1508,21 @@ const AdminDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardStat
             </div>
             
             {/* Team statistics */}
-            <div className="mt-8 pt-6 border-t grid grid-cols-3 gap-4">
-              <div className="text-center">
-                <p className="text-3xl font-semibold text-slate-900">
+            <div className="mt-8 pt-6 border-t grid grid-cols-3 gap-2 sm:gap-4">
+              <div className="text-center min-w-0">
+                <p className="text-xl sm:text-2xl md:text-3xl font-semibold text-slate-900 truncate overflow-hidden break-words">
                   {stats.leadsByUser.length}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">{t('teamPerformance.activeSalesReps')}</p>
               </div>
-              <div className="text-center">
-                <p className="text-3xl font-semibold text-slate-900">
+              <div className="text-center min-w-0">
+                <p className="text-xl sm:text-2xl md:text-3xl font-semibold text-slate-900 truncate overflow-hidden break-words">
                   {Math.round(stats.totalLeads / stats.leadsByUser.length)}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">{t('teamPerformance.leadsPerRep')}</p>
               </div>
-              <div className="text-center">
-                <p className="text-3xl font-semibold text-slate-900">
+              <div className="text-center min-w-0">
+                <p className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-semibold text-slate-900 truncate overflow-hidden break-words px-1">
                   {formatCurrency(stats.totalValue / stats.leadsByUser.length, locale, { minimumFractionDigits: 0 })}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">{t('teamPerformance.valuePerRep')}</p>
@@ -1696,20 +1700,20 @@ const MasterDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardSta
 
 
   return (
-  <div className="space-y-6">
+  <div className="space-y-4 sm:space-y-6">
       {/* Main Statistics Cards - Master */}
-    <div className="grid auto-rows-min gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid auto-rows-min gap-2 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="hover:shadow-md transition-shadow">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">{t('mainCards.totalLeads')}</CardTitle>
-            <Users className="h-4 w-4 text-blue-500" />
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6">
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">{t('mainCards.totalLeads')}</CardTitle>
+            <Users className="h-3 w-3 sm:h-4 sm:w-4 text-blue-500 flex-shrink-0" />
         </CardHeader>
-        <CardContent>
-            <div className="text-3xl font-semibold">{stats.totalLeads}</div>
-            <p className="text-xs text-muted-foreground mt-2">
+        <CardContent className="p-3 sm:p-6 pt-0">
+            <div className="text-2xl sm:text-3xl font-semibold">{stats.totalLeads}</div>
+            <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">
               {t('mainCards.acrossCompany')}
             </p>
-            <div className="mt-3 flex items-center gap-3 text-xs">
+            <div className="mt-2 sm:mt-3 flex items-center gap-2 sm:gap-3 text-[10px] sm:text-xs">
               <span className="text-emerald-600 font-medium">{wonLeads} {t('mainCards.won')}</span>
               <span className="text-muted-foreground">•</span>
               <span className="text-rose-600 font-medium">{lostLeads} {t('mainCards.lost')}</span>
@@ -1718,19 +1722,19 @@ const MasterDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardSta
       </Card>
 
         <Card className="hover:shadow-md transition-shadow">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">{t('mainCards.totalPipelineValue')}</CardTitle>
-            <DollarSign className="h-4 w-4 text-emerald-500" />
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6">
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">{t('mainCards.totalPipelineValue')}</CardTitle>
+            <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 text-emerald-500 flex-shrink-0" />
         </CardHeader>
-        <CardContent>
-            <div className="text-3xl font-semibold">
+        <CardContent className="p-3 sm:p-6 pt-0">
+            <div className="text-2xl sm:text-3xl font-semibold truncate">
               {formatCurrency(stats.totalValue, locale)}
             </div>
-            <p className="text-xs text-muted-foreground mt-2">
+            <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">
               {t('mainCards.averageValue')}: {formatCurrency(averageLeadValue, locale)}
             </p>
-            <div className="mt-3 text-xs">
-              <span className="text-emerald-600 font-medium">
+            <div className="mt-2 sm:mt-3 text-[10px] sm:text-xs">
+              <span className="text-emerald-600 font-medium truncate">
                 {formatCurrency(wonValue, locale)} {t('mainCards.inSales')}
               </span>
             </div>
@@ -1738,12 +1742,12 @@ const MasterDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardSta
       </Card>
 
          <Card className="hover:shadow-md transition-shadow">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-             <CardTitle className="text-sm font-medium text-muted-foreground">{t('mainCards.activeConversations')}</CardTitle>
-             <MessageSquare className="h-4 w-4 text-blue-500" />
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6">
+             <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">{t('mainCards.activeConversations')}</CardTitle>
+             <MessageSquare className="h-3 w-3 sm:h-4 sm:w-4 text-blue-500 flex-shrink-0" />
         </CardHeader>
-        <CardContent>
-             <div className="text-3xl font-semibold">{stats.totalConversations}</div>
+        <CardContent className="p-3 sm:p-6 pt-0">
+             <div className="text-2xl sm:text-3xl font-semibold">{stats.totalConversations}</div>
              <p className="text-xs text-muted-foreground mt-2">
                {t('mainCards.totalConversations')}
              </p>
@@ -1929,10 +1933,10 @@ const MasterDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardSta
             </div>
           </div>
           
-          <ResponsiveContainer width="100%" height={300} style={{ userSelect: 'none' }}>
+          <ResponsiveContainer width="100%" height={250} className="sm:h-[300px]" style={{ userSelect: 'none' }}>
               <LineChart 
                 data={filteredMonthlyTrend}
-                margin={{ top: 5, right: 30, left: 0, bottom: 5 }}
+                margin={{ top: 5, right: 10, left: -10, bottom: 5 }}
                 style={{ userSelect: 'none' }}
                 onMouseDown={(e: any) => {
                   if (e && e.activeTooltipIndex !== undefined) {
@@ -2199,19 +2203,19 @@ const MasterDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardSta
           className="hover:shadow-lg transition-all duration-300 border-slate-200"
           style={{ overflow: 'visible' }}
         >
-          <CardHeader className="pb-4">
+          <CardHeader className="pb-3 sm:pb-4 p-3 sm:p-6">
             <div className="space-y-1">
-              <CardTitle className="text-xl font-semibold text-slate-900">{t('charts.leadSources')}</CardTitle>
-              <CardDescription className="text-sm text-slate-500">
+              <CardTitle className="text-base sm:text-xl font-semibold text-slate-900">{t('charts.leadSources')}</CardTitle>
+              <CardDescription className="text-xs sm:text-sm text-slate-500">
                 {t('charts.distributionAcrossChannels')}
           </CardDescription>
             </div>
         </CardHeader>
-          <CardContent className="pt-2" style={{ overflow: 'visible', position: 'relative', zIndex: 1 }}>
-            <div className="flex flex-col space-y-6">
+          <CardContent className="pt-2 p-3 sm:p-6" style={{ overflow: 'visible', position: 'relative', zIndex: 1 }}>
+            <div className="flex flex-col space-y-4 sm:space-y-6">
               {/* Donut Chart */}
               <div className="relative" style={{ outline: 'none', overflow: 'visible', zIndex: 2 }} ref={leadSourcesChartRef}>
-                <ResponsiveContainer width="100%" height={200}>
+                <ResponsiveContainer width="100%" height={180} className="sm:h-[200px]">
                   <PieChart style={{ outline: 'none' }}>
                     <defs>
                       {COLORS.map((color, index) => (
@@ -2302,15 +2306,15 @@ const MasterDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardSta
                     {selectedSourceData ? (
                       <div className="animate-in fade-in duration-300">
                         <p className="text-sm font-medium text-slate-500 mb-1">{selectedSourceData.source}</p>
-                        <p className="text-3xl font-bold text-slate-900">{selectedSourceData.count}</p>
-                        <p className="text-xs font-medium text-slate-500 mt-1">
+                        <p className="text-2xl sm:text-3xl font-bold text-slate-900">{selectedSourceData.count}</p>
+                        <p className="text-[10px] sm:text-xs font-medium text-slate-500 mt-1">
                           {((selectedSourceData.count / stats.totalLeads) * 100).toFixed(1)}% {t('charts.ofTotal')}
                         </p>
                       </div>
                     ) : (
                       <div className="animate-in fade-in duration-300">
-                        <p className="text-3xl font-bold text-slate-900">{stats.totalLeads}</p>
-                        <p className="text-xs font-medium text-slate-500 mt-1">{t('charts.totalLeads')}</p>
+                        <p className="text-2xl sm:text-3xl font-bold text-slate-900">{stats.totalLeads}</p>
+                        <p className="text-[10px] sm:text-xs font-medium text-slate-500 mt-1">{t('charts.totalLeads')}</p>
                       </div>
                     )}
                   </div>
@@ -2318,7 +2322,7 @@ const MasterDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardSta
               </div>
               
               {/* Custom Legend */}
-              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 pt-2 border-t border-slate-100">
                 {stats.leadsBySource.slice(0, 6).map((source, index) => {
                   const percentage = ((source.count / stats.totalLeads) * 100).toFixed(1)
                   const isSelected = selectedSource === source.source;
@@ -2329,14 +2333,14 @@ const MasterDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardSta
                         e.stopPropagation();
                         handleSourceClick(source.source, index);
                       }}
-                      className={`legend-item flex items-center space-x-2 p-2 rounded-lg transition-all duration-300 cursor-pointer group ${
+                      className={`legend-item flex items-center space-x-1.5 sm:space-x-2 p-1.5 sm:p-2 rounded-lg transition-all duration-300 cursor-pointer group ${
                         isSelected 
                           ? 'bg-blue-50 ring-2 ring-blue-400 shadow-sm' 
                           : 'hover:bg-slate-50'
                       }`}
                     >
                       <div 
-                        className={`w-3 h-3 rounded-full flex-shrink-0 shadow-sm transition-all duration-300 ${
+                        className={`w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full flex-shrink-0 shadow-sm transition-all duration-300 ${
                           isSelected ? 'scale-125 ring-2 ring-white' : 'group-hover:scale-110'
                         }`}
                         style={{ 
@@ -2344,18 +2348,18 @@ const MasterDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardSta
                         }}
                       />
                       <div className="flex-1 min-w-0">
-                        <p className={`text-xs font-semibold truncate transition-colors duration-300 ${
+                        <p className={`text-[10px] sm:text-xs font-semibold truncate transition-colors duration-300 ${
                           isSelected ? 'text-blue-700' : 'text-slate-700'
                         }`}>
                           {source.source}
                         </p>
                         <div className="flex items-baseline space-x-1">
-                          <span className={`text-xs font-bold transition-colors duration-300 ${
+                          <span className={`text-[10px] sm:text-xs font-bold transition-colors duration-300 ${
                             isSelected ? 'text-blue-900' : 'text-slate-900'
                           }`}>
                             {source.count}
                           </span>
-                          <span className="text-[10px] text-slate-500">({percentage}%)</span>
+                          <span className="text-[9px] sm:text-[10px] text-slate-500">({percentage}%)</span>
                         </div>
                       </div>
                     </div>
@@ -2378,29 +2382,29 @@ const MasterDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardSta
                         }
                       </button>
                     </DialogTrigger>
-                    <DialogContent className="max-w-md">
+                    <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-md p-4 sm:p-6">
                       <DialogHeader>
-                        <DialogTitle className="text-lg font-semibold">{t('charts.additionalLeadSources')}</DialogTitle>
-                        <DialogDescription className="text-sm text-slate-500">
+                        <DialogTitle className="text-base sm:text-lg font-semibold">{t('charts.additionalLeadSources')}</DialogTitle>
+                        <DialogDescription className="text-xs sm:text-sm text-slate-500">
                           {t('charts.otherSourcesNotShown')}
                         </DialogDescription>
                       </DialogHeader>
-                      <div className="mt-4 space-y-2 max-h-[400px] overflow-y-auto">
+                      <div className="mt-3 sm:mt-4 space-y-2 max-h-[400px] overflow-y-auto">
                         {stats.leadsBySource.slice(6).map((source, index) => {
                           const percentage = ((source.count / stats.totalLeads) * 100).toFixed(1);
                           const colorIndex = (index + 6) % COLORS.length;
                           return (
                             <div 
                               key={source.source}
-                              className="flex items-center justify-between p-3 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors duration-200"
+                              className="flex items-center justify-between p-2 sm:p-3 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors duration-200"
                             >
-                              <div className="flex items-center gap-3 flex-1 min-w-0">
+                              <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
                                 <div 
-                                  className="w-3 h-3 rounded-full flex-shrink-0"
+                                  className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full flex-shrink-0"
                                   style={{ backgroundColor: COLORS[colorIndex] }}
                                 />
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-semibold text-slate-900 truncate">
+                                  <p className="text-xs sm:text-sm font-semibold text-slate-900 truncate">
                                     {source.source}
                                   </p>
                                   <p className="text-xs text-slate-500">
@@ -2408,11 +2412,11 @@ const MasterDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardSta
                                   </p>
                                 </div>
                               </div>
-                              <div className="text-right ml-3">
-                                <p className="text-sm font-bold text-slate-900">
+                              <div className="text-right ml-2 sm:ml-3 flex-shrink-0">
+                                <p className="text-xs sm:text-sm font-bold text-slate-900">
                                   {source.count}
                                 </p>
-                                <p className="text-xs text-slate-500">
+                                <p className="text-[10px] sm:text-xs text-slate-500">
                                   {source.count === 1 ? t('charts.lead') : t('charts.leadsPlural')}
                                 </p>
                               </div>
@@ -2430,26 +2434,27 @@ const MasterDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardSta
     </div>
 
       {/* Pipeline Charts Group */}
-    <div className="grid gap-4 md:grid-cols-2">
+    <div className="grid gap-2 sm:gap-4 grid-cols-1 md:grid-cols-2">
         <Card className="hover:shadow-md transition-shadow">
-        <CardHeader>
-            <CardTitle className="text-lg">{t('charts.salesPipeline')}</CardTitle>
-          <CardDescription>
+        <CardHeader className="p-3 sm:p-6">
+            <CardTitle className="text-base sm:text-lg">{t('charts.salesPipeline')}</CardTitle>
+          <CardDescription className="text-xs sm:text-sm">
               {t('charts.leadDistributionByStage')}
           </CardDescription>
         </CardHeader>
-        <CardContent>
-            <ResponsiveContainer width="100%" height={550}>
-              <BarChart data={pipelineData} margin={{ top: 25, right: 20, bottom: 100, left: 10 }}>
+        <CardContent className="p-3 sm:p-6 pt-0">
+            <ResponsiveContainer width="100%" height={400} className="sm:h-[550px]">
+              <BarChart data={pipelineData} margin={{ top: 10, right: 10, bottom: 50, left: -10 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis 
                   dataKey="status" 
-                  tick={{ fontSize: 11, fill: '#64748b' }}
-                  angle={-45}
+                  tick={{ fontSize: 10, fill: '#64748b' }}
+                  angle={-35}
                   textAnchor="end"
-                  height={100}
+                  height={80}
+                  className="sm:text-[11px]"
                 />
-                <YAxis tick={{ fontSize: 11, fill: '#64748b' }} />
+                <YAxis tick={{ fontSize: 10, fill: '#64748b' }} className="sm:text-[11px]" />
                 <Tooltip 
                   contentStyle={{ 
                     backgroundColor: 'rgba(255, 255, 255, 0.98)',
@@ -2484,19 +2489,19 @@ const MasterDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardSta
       </Card>
 
         <Card className="hover:shadow-lg transition-all duration-300 border-slate-200">
-          <CardHeader className="pb-4">
+          <CardHeader className="pb-3 sm:pb-4 p-3 sm:p-6">
             <div className="space-y-1">
-              <CardTitle className="text-xl font-semibold text-slate-900">{t('charts.valueByPipelineStage')}</CardTitle>
-              <CardDescription className="text-sm text-slate-500">
+              <CardTitle className="text-base sm:text-xl font-semibold text-slate-900">{t('charts.valueByPipelineStage')}</CardTitle>
+              <CardDescription className="text-xs sm:text-sm text-slate-500">
                 {t('charts.financialDistribution')}
               </CardDescription>
             </div>
           </CardHeader>
-          <CardContent className="pt-2">
-            <ResponsiveContainer width="100%" height={550}>
+          <CardContent className="pt-2 p-3 sm:p-6">
+            <ResponsiveContainer width="100%" height={400} className="sm:h-[550px]">
               <BarChart 
                 data={pipelineData} 
-                margin={{ top: 25, right: 20, bottom: 100, left: 40 }}
+                margin={{ top: 10, right: 10, bottom: 60, left: 5 }}
                 barGap={8}
               >
                 <defs>
@@ -2518,18 +2523,20 @@ const MasterDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardSta
                 />
                 <XAxis 
                   dataKey="status" 
-                  tick={{ fontSize: 13, fill: '#475569', fontWeight: 500 }}
+                  tick={{ fontSize: 10, fill: '#475569', fontWeight: 500 }}
                   angle={-35}
                   textAnchor="end"
-                  height={100}
+                  height={80}
                   axisLine={{ stroke: '#cbd5e1', strokeWidth: 1 }}
                   tickLine={{ stroke: '#cbd5e1' }}
+                  className="sm:text-[13px]"
                 />
                 <YAxis 
-                  tick={{ fontSize: 12, fill: '#475569' }}
+                  tick={{ fontSize: 10, fill: '#475569' }}
                   axisLine={{ stroke: '#cbd5e1', strokeWidth: 1 }}
                   tickLine={{ stroke: '#cbd5e1' }}
                   tickFormatter={(value) => `${getCurrencySymbol(locale)}${(value / 1000).toFixed(0)}k`}
+                  className="sm:text-[12px]"
                 />
                 <Tooltip 
                   contentStyle={{ 
@@ -2597,17 +2604,17 @@ const MasterDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardSta
                   </div>
                 </div>
                    <div className="flex items-center justify-between">
-                     <span className="text-sm font-medium text-muted-foreground">{t('charts.activeConversations')}</span>
+                     <span className="text-[10px] sm:text-sm font-medium text-muted-foreground">{t('charts.activeConversations')}</span>
                      <div className="text-right">
-                       <div className="text-2xl font-semibold text-emerald-600">{stat.active}</div>
+                       <div className="text-xl sm:text-2xl font-semibold text-emerald-600">{stat.active}</div>
                      </div>
                    </div>
-                   <div className="pt-4 border-t">
+                   <div className="pt-3 sm:pt-4 border-t">
                      <div className="flex justify-between items-center">
-                       <span className="text-xs text-muted-foreground">{t('charts.activityRate')}</span>
-                       <span className="text-xs font-medium">{stat.count > 0 ? ((stat.active / stat.count) * 100).toFixed(0) : 0}%</span>
+                       <span className="text-[10px] sm:text-xs text-muted-foreground">{t('charts.activityRate')}</span>
+                       <span className="text-[10px] sm:text-xs font-medium">{stat.count > 0 ? ((stat.active / stat.count) * 100).toFixed(0) : 0}%</span>
                      </div>
-                     <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
+                     <div className="mt-1.5 sm:mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
                        <div 
                          className="h-full transition-all duration-500"
                          style={{ 
@@ -2618,7 +2625,7 @@ const MasterDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardSta
                      </div>
                    </div>
                    {index < stats.conversationStats.length - 1 && (
-                     <div className="pt-4 border-b border-slate-100" />
+                     <div className="pt-3 sm:pt-4 border-b border-slate-100" />
                    )}
               </div>
             ))}
@@ -2627,25 +2634,25 @@ const MasterDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardSta
       </Card>
 
       {/* Summary Statistics */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-2 sm:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
         <Card className="hover:shadow-md transition-shadow">
-          <CardHeader>
-            <CardTitle className="text-base font-semibold">{t('performance.overallPerformance')}</CardTitle>
+          <CardHeader className="p-3 sm:p-6">
+            <CardTitle className="text-sm sm:text-base font-semibold">{t('performance.overallPerformance')}</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-6 pt-0">
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">{t('performance.conversionRate')}</span>
-              <span className="text-base font-semibold">{stats.conversionRate.toFixed(1)}%</span>
+              <span className="text-xs sm:text-sm text-muted-foreground">{t('performance.conversionRate')}</span>
+              <span className="text-sm sm:text-base font-semibold">{stats.conversionRate.toFixed(1)}%</span>
     </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">{t('performance.averageTicket')}</span>
-              <span className="text-base font-semibold">
+              <span className="text-xs sm:text-sm text-muted-foreground">{t('performance.averageTicket')}</span>
+              <span className="text-sm sm:text-base font-semibold">
                 {formatCurrency(averageLeadValue, locale)}
               </span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">{t('performance.totalSales')}</span>
-              <span className="text-base font-semibold text-emerald-600">
+              <span className="text-xs sm:text-sm text-muted-foreground">{t('performance.totalSales')}</span>
+              <span className="text-sm sm:text-base font-semibold text-emerald-600 truncate">
                 {formatCurrency(wonValue, locale)}
               </span>
             </div>
@@ -2653,23 +2660,23 @@ const MasterDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardSta
         </Card>
 
          <Card className="hover:shadow-md transition-shadow">
-      <CardHeader>
-             <CardTitle className="text-base font-semibold">{t('employeeStats.conversationActivity')}</CardTitle>
+      <CardHeader className="p-3 sm:p-6">
+             <CardTitle className="text-sm sm:text-base font-semibold">{t('employeeStats.conversationActivity')}</CardTitle>
            </CardHeader>
-           <CardContent className="space-y-4">
+           <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-6 pt-0">
              <div className="flex justify-between items-center">
-               <span className="text-sm text-muted-foreground">{t('performance.totalConversations')}</span>
-               <span className="text-base font-semibold">{stats.conversationStats[0]?.count || 0}</span>
+               <span className="text-xs sm:text-sm text-muted-foreground">{t('performance.totalConversations')}</span>
+               <span className="text-sm sm:text-base font-semibold">{stats.conversationStats[0]?.count || 0}</span>
              </div>
              <div className="flex justify-between items-center">
-               <span className="text-sm text-muted-foreground">{t('performance.activeConversations')}</span>
-               <span className="text-base font-semibold">
+               <span className="text-xs sm:text-sm text-muted-foreground">{t('performance.activeConversations')}</span>
+               <span className="text-sm sm:text-base font-semibold">
                  {stats.conversationStats[0]?.active || 0}
                </span>
              </div>
              <div className="flex justify-between items-center">
-               <span className="text-sm text-muted-foreground">{t('performance.activityRate')}</span>
-               <span className="text-base font-semibold">
+               <span className="text-xs sm:text-sm text-muted-foreground">{t('performance.activityRate')}</span>
+               <span className="text-sm sm:text-base font-semibold">
                  {stats.conversationStats[0] && stats.conversationStats[0].count > 0
                    ? ((stats.conversationStats[0].active / stats.conversationStats[0].count) * 100).toFixed(1)
                    : '0.0'}%
@@ -2679,23 +2686,23 @@ const MasterDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardSta
          </Card>
 
         <Card className="hover:shadow-md transition-shadow">
-          <CardHeader>
-            <CardTitle className="text-base font-semibold">{t('performance.funnelAnalysis')}</CardTitle>
+          <CardHeader className="p-3 sm:p-6">
+            <CardTitle className="text-sm sm:text-base font-semibold">{t('performance.funnelAnalysis')}</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-6 pt-0">
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">{t('performance.inPipeline')}</span>
-              <span className="text-base font-semibold">
+              <span className="text-xs sm:text-sm text-muted-foreground">{t('performance.inPipeline')}</span>
+              <span className="text-sm sm:text-base font-semibold">
                 {stats.totalLeads - wonLeads - lostLeads}
               </span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">{t('performance.winRate')}</span>
-              <span className="text-base font-semibold text-emerald-600">{winRate.toFixed(1)}%</span>
+              <span className="text-xs sm:text-sm text-muted-foreground">{t('performance.winRate')}</span>
+              <span className="text-sm sm:text-base font-semibold text-emerald-600">{winRate.toFixed(1)}%</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-muted-foreground">{t('performance.inNegotiation')}</span>
-              <span className="text-base font-semibold">
+              <span className="text-xs sm:text-sm text-muted-foreground">{t('performance.inNegotiation')}</span>
+              <span className="text-sm sm:text-base font-semibold">
                 {stats.leadsByStatus.find(s => s.status === 'Negotiation')?.count || 0}
               </span>
             </div>
@@ -2756,21 +2763,21 @@ const MasterDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardSta
             </div>
             
             {/* Team statistics */}
-            <div className="mt-8 pt-6 border-t grid grid-cols-3 gap-4">
-              <div className="text-center">
-                <p className="text-3xl font-semibold text-slate-900">
+            <div className="mt-8 pt-6 border-t grid grid-cols-3 gap-2 sm:gap-4">
+              <div className="text-center min-w-0">
+                <p className="text-xl sm:text-2xl md:text-3xl font-semibold text-slate-900 truncate overflow-hidden break-words">
                   {stats.leadsByUser.length}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">{t('teamPerformance.activeSalesReps')}</p>
               </div>
-              <div className="text-center">
-                <p className="text-3xl font-semibold text-slate-900">
+              <div className="text-center min-w-0">
+                <p className="text-xl sm:text-2xl md:text-3xl font-semibold text-slate-900 truncate overflow-hidden break-words">
                   {Math.round(stats.totalLeads / stats.leadsByUser.length)}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">{t('teamPerformance.leadsPerRep')}</p>
               </div>
-              <div className="text-center">
-                <p className="text-3xl font-semibold text-slate-900">
+              <div className="text-center min-w-0">
+                <p className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-semibold text-slate-900 truncate overflow-hidden break-words px-1">
                   {formatCurrency(stats.totalValue / stats.leadsByUser.length, locale, { minimumFractionDigits: 0 })}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">{t('teamPerformance.valuePerRep')}</p>
@@ -3156,25 +3163,25 @@ const EmployeeDashboard = ({ stats, pipelineStages }: { stats: DashboardStats; p
   }
   
   return (
-    <div className="space-y-6 p-1">
+    <div className="space-y-4 sm:space-y-6 p-1">
       {/* Header com título */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-black">{t('title')}</h1>
-        <p className="text-muted-foreground mt-1">{t('employeeStats.overviewDescription')}</p>
+      <div className="mb-4 sm:mb-6">
+        <h1 className="text-2xl sm:text-3xl font-bold text-black">{t('title')}</h1>
+        <p className="text-xs sm:text-sm text-muted-foreground mt-1">{t('employeeStats.overviewDescription')}</p>
       </div>
 
       {/* Cards de Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
         {/* Card Meus Leads */}
         <Card className="border-2 border-gray-100 shadow-lg hover:shadow-xl transition-shadow duration-300">
-          <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-6">
             <div className="flex items-center justify-between">
               <div className="flex-1">
-                <p className="text-sm font-medium text-gray-600 uppercase tracking-wide mb-2">
+                <p className="text-xs sm:text-sm font-medium text-gray-600 uppercase tracking-wide mb-1 sm:mb-2">
                   {t('employeeStats.myLeads')}
                 </p>
                 <div className="flex items-baseline gap-2">
-                  <h3 className="text-4xl font-bold text-black">{stats.totalLeads}</h3>
+                  <h3 className="text-3xl sm:text-4xl font-bold text-black">{stats.totalLeads}</h3>
                 </div>
               </div>
             </div>
@@ -3183,14 +3190,14 @@ const EmployeeDashboard = ({ stats, pipelineStages }: { stats: DashboardStats; p
 
         {/* Card Conversas Ativas */}
         <Card className="border-2 border-gray-100 shadow-lg hover:shadow-xl transition-shadow duration-300">
-          <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-6">
             <div className="flex items-center justify-between">
               <div className="flex-1">
-                <p className="text-sm font-medium text-gray-600 uppercase tracking-wide mb-2">
+                <p className="text-xs sm:text-sm font-medium text-gray-600 uppercase tracking-wide mb-1 sm:mb-2">
                   {t('employeeStats.activeConversations')}
                 </p>
                 <div className="flex items-baseline gap-2">
-                  <h3 className="text-4xl font-bold text-black">{stats.totalConversations}</h3>
+                  <h3 className="text-3xl sm:text-4xl font-bold text-black">{stats.totalConversations}</h3>
                 </div>
               </div>
             </div>
@@ -3199,27 +3206,32 @@ const EmployeeDashboard = ({ stats, pipelineStages }: { stats: DashboardStats; p
       </div>
 
       {/* Gráfico e Notas lado a lado */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 md:gap-6">
         {/* Gráfico de Leads por Status */}
         <Card className="border-2 border-gray-100 shadow-lg">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-xl font-semibold text-black">{t('charts.leadsByStatus')}</CardTitle>
+          <CardHeader className="pb-3 sm:pb-4 p-3 sm:p-6">
+            <CardTitle className="text-base sm:text-xl font-semibold text-black">{t('charts.leadsByStatus')}</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-3 sm:p-6 pt-0">
             {chartDataWithColors.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={chartDataWithColors}>
+              <ResponsiveContainer width="100%" height={250} className="sm:h-[300px]">
+                <BarChart data={chartDataWithColors} margin={{ top: 5, right: 5, bottom: 40, left: -5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis 
                     dataKey="status" 
                     stroke="#6b7280"
-                    fontSize={12}
+                    fontSize={10}
                     tickLine={false}
+                    angle={-35}
+                    textAnchor="end"
+                    height={60}
+                    className="sm:text-[12px]"
                   />
                   <YAxis 
                     stroke="#6b7280"
-                    fontSize={12}
+                    fontSize={10}
                     tickLine={false}
+                    className="sm:text-[12px]"
                   />
                   <Tooltip 
                     contentStyle={{
@@ -3252,10 +3264,10 @@ const EmployeeDashboard = ({ stats, pipelineStages }: { stats: DashboardStats; p
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex items-center justify-center h-[300px] text-gray-500">
+              <div className="flex items-center justify-center h-[250px] sm:h-[300px] text-gray-500">
                 <div className="text-center">
-                  <MessageSquare className="h-12 w-12 mx-auto mb-2 text-gray-300" />
-                  <p>{t('employeeStats.noLeadsInPipeline')}</p>
+                  <MessageSquare className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-2 text-gray-300" />
+                  <p className="text-xs sm:text-sm">{t('employeeStats.noLeadsInPipeline')}</p>
                 </div>
               </div>
             )}
@@ -3264,18 +3276,18 @@ const EmployeeDashboard = ({ stats, pipelineStages }: { stats: DashboardStats; p
 
         {/* Bloco de Notas */}
         <Card className="border-2 border-gray-100 shadow-lg">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-xl font-semibold text-black">{t('employeeStats.notesTitle')}</CardTitle>
+          <CardHeader className="pb-3 sm:pb-4 p-3 sm:p-6">
+            <CardTitle className="text-base sm:text-xl font-semibold text-black">{t('employeeStats.notesTitle')}</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-3 sm:p-6 pt-0">
             {notesLoading ? (
-              <div className="flex items-center justify-center h-[300px]">
-                <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#3b82f6] border-t-transparent"></div>
+              <div className="flex items-center justify-center h-[250px] sm:h-[300px]">
+                <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-2 border-[#3b82f6] border-t-transparent"></div>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 <textarea
-                  className="w-full h-[250px] p-4 border-2 border-gray-200 rounded-lg resize-none overflow-y-auto focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-[#3b82f6] transition-all text-gray-900 placeholder:text-gray-400"
+                  className="w-full h-[200px] sm:h-[250px] p-3 sm:p-4 border-2 border-gray-200 rounded-lg resize-none overflow-y-auto focus:outline-none focus:ring-2 focus:ring-[#3b82f6] focus:border-[#3b82f6] transition-all text-sm sm:text-base text-gray-900 placeholder:text-gray-400"
                   value={notes || ''}
                   onChange={handleNotesChange}
                   placeholder={t('employeeStats.notesPlaceholder')}
@@ -3284,7 +3296,7 @@ const EmployeeDashboard = ({ stats, pipelineStages }: { stats: DashboardStats; p
                   <Button 
                     onClick={handleSaveNotes} 
                     disabled={notesSaving || saveStatus === 'saving'}
-                    className={`font-medium px-6 shadow-md hover:shadow-lg transition-all ${
+                    className={`font-medium px-4 sm:px-6 text-xs sm:text-sm shadow-md hover:shadow-lg transition-all ${
                       saveStatus === 'saved' 
                         ? 'bg-green-600 hover:bg-green-700 text-white cursor-pointer' 
                         : 'bg-[#3b82f6] hover:bg-[#2563eb] text-white cursor-pointer'
@@ -3692,9 +3704,9 @@ export default function DashboardPage({
         <AppSidebar org={org} />
         <SidebarInset>
           <header className="flex h-16 shrink-0 items-center gap-2 transition-all">
-            <div className="flex items-center gap-2 px-4">
+            <div className="flex items-center gap-2 px-2 sm:px-4">
               <SidebarTrigger className="-ml-1" />
-              <Separator orientation="vertical" className="mr-2 h-4" />
+              <Separator orientation="vertical" className="mr-1 sm:mr-2 h-4" />
               <Breadcrumb>
                 <BreadcrumbList>
                   <BreadcrumbItem className="hidden md:block">
@@ -3704,17 +3716,17 @@ export default function DashboardPage({
                   </BreadcrumbItem>
                   <BreadcrumbSeparator className="hidden md:block" />
                   <BreadcrumbItem>
-                    <BreadcrumbPage>
-                      {t('title')} {userRole === 'admin' && `(${t('roles.admin')})`}
+                    <BreadcrumbPage className="text-sm sm:text-base">
+                      {t('title')} <span className="hidden sm:inline">{userRole === 'admin' && `(${t('roles.admin')})`}
                       {userRole === 'master' && `(${t('roles.master')})`}
-                      {userRole === 'employee' && `(${t('roles.employee')})`}
+                      {userRole === 'employee' && `(${t('roles.employee')})`}</span>
                     </BreadcrumbPage>
                   </BreadcrumbItem>
                 </BreadcrumbList>
               </Breadcrumb>
             </div>
           </header>
-          <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+          <div className="flex flex-1 flex-col gap-2 sm:gap-4 p-2 sm:p-4 pt-0">
             <div className="max-w-[1600px] mx-auto w-full">
             {renderDashboard()}
             </div>

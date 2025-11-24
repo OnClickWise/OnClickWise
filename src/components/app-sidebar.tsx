@@ -84,15 +84,15 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
         if (!token || !organizationStr) {
           // Set fallback data
           setUserData({
-            name: "User",
+            name: t('account') || "User",
             email: "user@example.com",
-            avatar: generateAvatar("User"),
+            avatar: generateAvatar(t('account') || "User"),
             role: "Member",
           });
           setOrgData({
-            name: "Organization",
+            name: tOrg('name') || "Organization",
             logo_url: null,
-            plan: "Enterprise",
+            plan: tOrg('enterprise') || "Enterprise",
           });
           setDataLoaded(true);
           return;
@@ -110,20 +110,20 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
           
           if (userResponse.success && userResponse.user) {
             setUserData({
-              name: userResponse.user.name || "User",
+              name: userResponse.user.name || t('account') || "User",
               email: userResponse.user.email || "user@example.com",
               avatar: userResponse.user.profile_image 
                 ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}${userResponse.user.profile_image}` 
-                : generateAvatar(userResponse.user.name || "User"),
+                : generateAvatar(userResponse.user.name || t('account') || "User"),
               role: userResponse.user.role || "employee",
             })
           }
         } catch (error) {
           // Fallback data when API is not available
           setUserData({
-            name: "User",
+            name: t('account') || "User",
             email: "user@example.com",
-            avatar: generateAvatar("User"),
+            avatar: generateAvatar(t('account') || "User"),
             role: "employee",
           })
         }
@@ -140,9 +140,9 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
           
           if (orgResponse.success && orgResponse.organization) {
             setOrgData({
-              name: orgResponse.organization.name || "Organization",
+              name: orgResponse.organization.name || tOrg('name') || "Organization",
               logo_url: orgResponse.organization.logo_url,
-              plan: "Enterprise",
+              plan: tOrg('enterprise') || "Enterprise",
             })
           }
         } catch (error) {
@@ -150,15 +150,15 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
           try {
             const organization = JSON.parse(organizationStr);
             setOrgData({
-              name: organization.name || "Organization",
+              name: organization.name || tOrg('name') || "Organization",
               logo_url: organization.logo_url,
-              plan: "Enterprise",
+              plan: tOrg('enterprise') || "Enterprise",
             })
           } catch (parseError) {
             setOrgData({
-              name: "Organization",
+              name: tOrg('name') || "Organization",
               logo_url: null,
-              plan: "Enterprise",
+              plan: tOrg('enterprise') || "Enterprise",
             })
           }
         }
@@ -196,9 +196,9 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
           
           if (orgResponse.success && orgResponse.organization) {
             setOrgData({
-              name: orgResponse.organization.name || "Organization",
+              name: orgResponse.organization.name || tOrg('name') || "Organization",
               logo_url: orgResponse.organization.logo_url,
-              plan: "Enterprise",
+              plan: tOrg('enterprise') || "Enterprise",
             })
             setDataLoaded(true)
           }
@@ -233,11 +233,11 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
           
           if (userResponse.success && userResponse.user) {
             setUserData({
-              name: userResponse.user.name || "User",
+              name: userResponse.user.name || t('account') || "User",
               email: userResponse.user.email || "user@example.com",
               avatar: userResponse.user.profile_image 
               ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}${userResponse.user.profile_image}` 
-              : generateAvatar(userResponse.user.name || "User"),
+              : generateAvatar(userResponse.user.name || t('account') || "User"),
               role: userResponse.user.role || "employee",
             })
             setDataLoaded(true)
@@ -377,7 +377,7 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
       ...userData,
       name: dataLoaded ? userData.name : tOrg('loading'),
       email: dataLoaded ? userData.email : "loading@example.com",
-      avatar: dataLoaded ? userData.avatar : generateAvatar("Loading"),
+      avatar: dataLoaded ? userData.avatar : generateAvatar(tOrg('loading') || "Loading"),
     },
     organization: organizationData,
     navMain,

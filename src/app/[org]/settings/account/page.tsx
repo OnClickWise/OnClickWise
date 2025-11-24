@@ -314,11 +314,11 @@ export default function AccountPage({ params }: { params: Promise<{ org: string 
         <AppSidebar org={resolvedParams.org} />
         <SidebarInset>
           {/* Notifications */}
-          <div className="fixed top-4 right-4 z-50 space-y-2">
+          <div className="fixed top-2 right-2 sm:top-4 sm:right-4 z-50 space-y-2 w-[calc(100vw-1rem)] sm:w-auto sm:max-w-sm">
             {notifications.map((notification) => (
               <div
                 key={notification.id}
-                className={`p-4 rounded-lg shadow-lg max-w-sm ${
+                className={`p-3 sm:p-4 rounded-lg shadow-lg ${
                   notification.type === 'success' 
                     ? 'bg-green-50 border border-green-200 text-green-800' 
                     : notification.type === 'error'
@@ -326,11 +326,11 @@ export default function AccountPage({ params }: { params: Promise<{ org: string 
                     : 'bg-blue-50 border border-blue-200 text-blue-800'
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">{notification.message}</span>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs sm:text-sm font-medium flex-1">{notification.message}</span>
                   <button
                     onClick={() => setNotifications(prev => prev.filter(n => n.id !== notification.id))}
-                    className="ml-2 text-gray-400 hover:text-gray-600"
+                    className="text-gray-400 hover:text-gray-600 flex-shrink-0 text-lg sm:text-xl leading-none"
                   >
                     ×
                   </button>
@@ -340,11 +340,11 @@ export default function AccountPage({ params }: { params: Promise<{ org: string 
           </div>
 
           {/* HEADER */}
-          <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4">
+          <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-background px-2 sm:px-4">
             <SidebarTrigger className="-ml-1" />
             <Separator
               orientation="vertical"
-              className="mr-2 data-[orientation=vertical]:h-4"
+              className="mr-1 sm:mr-2 data-[orientation=vertical]:h-4"
             />
             <Breadcrumb>
               <BreadcrumbList>
@@ -355,36 +355,36 @@ export default function AccountPage({ params }: { params: Promise<{ org: string 
                 </BreadcrumbItem>
                 <BreadcrumbSeparator className="hidden md:block" />
                 <BreadcrumbItem>
-                    <BreadcrumbLink href={`/${resolvedParams.org}/settings`}>
+                    <BreadcrumbLink href={`/${resolvedParams.org}/settings`} className="text-sm sm:text-base">
                       {t('settings')}
                     </BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator className="hidden md:block" />
                 <BreadcrumbItem>
-                    <BreadcrumbPage>{t('account')}</BreadcrumbPage>
+                    <BreadcrumbPage className="text-sm sm:text-base">{t('account')}</BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
           </header>
 
           {/* MAIN */}
-          <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-            <div className="max-w-4xl mx-auto w-full space-y-6">
+          <div className="flex flex-1 flex-col gap-2 sm:gap-4 p-2 sm:p-4 pt-0">
+            <div className="max-w-4xl mx-auto w-full space-y-4 sm:space-y-6">
 
         {/* Profile Information */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <User className="h-5 w-5" />
+          <CardHeader className="p-3 sm:p-6">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <User className="h-4 w-4 sm:h-5 sm:w-5" />
               {t('profileInformation')}
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-xs sm:text-sm">
               {t('profileInformationDesc')}
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-4 sm:space-y-6 p-3 sm:p-6 pt-0">
             {/* Profile Picture */}
-            <div className="flex items-center gap-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6">
               <div className="relative">
                 <UserAvatar 
                   src={profilePreview || (userData.profile_image ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}${userData.profile_image}` : undefined)} 
@@ -395,14 +395,14 @@ export default function AccountPage({ params }: { params: Promise<{ org: string 
                   <Button
                     size="sm"
                     variant="destructive"
-                    className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0"
+                    className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 h-5 w-5 sm:h-6 sm:w-6 rounded-full p-0"
                     onClick={handleRemoveProfile}
                   >
-                    <X className="h-3 w-3" />
+                    <X className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                   </Button>
                 )}
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 flex-1 min-w-0">
                 <div className="flex gap-2">
                   <input
                     type="file"
@@ -415,13 +415,13 @@ export default function AccountPage({ params }: { params: Promise<{ org: string 
                     variant="outline"
                     size="sm"
                     onClick={() => document.getElementById('profile-upload')?.click()}
-                    className="cursor-pointer"
+                    className="cursor-pointer text-xs sm:text-sm h-8 sm:h-9"
                   >
-                    <Upload className="h-4 w-4 mr-2" />
+                    <Upload className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                     {t('uploadPhoto')}
                   </Button>
                 </div>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   {t('photoFormats')}
                 </p>
               </div>
@@ -430,9 +430,9 @@ export default function AccountPage({ params }: { params: Promise<{ org: string 
             <Separator />
 
             {/* User Information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
               <div className="space-y-2">
-                <label htmlFor="name" className="text-sm font-medium">
+                <label htmlFor="name" className="text-xs sm:text-sm font-medium">
                   {t('fullName')}
                 </label>
                 <Input
@@ -440,45 +440,46 @@ export default function AccountPage({ params }: { params: Promise<{ org: string 
                   value={userData.name}
                   onChange={(e) => setUserData(prev => ({ ...prev, name: e.target.value }))}
                   placeholder={t('fullNamePlaceholder')}
+                  className="text-sm sm:text-base"
                 />
               </div>
               
               <div className="space-y-2">
-                <label htmlFor="email" className="text-sm font-medium">
+                <label htmlFor="email" className="text-xs sm:text-sm font-medium">
                   {t('emailAddress')}
                 </label>
                 <Input
                   id="email"
                   value={userData.email}
                   disabled
-                  className="bg-muted"
+                  className="bg-muted text-sm sm:text-base"
                 />
-                <p className="text-xs text-muted-foreground">
+                <p className="text-[10px] sm:text-xs text-muted-foreground">
                   {t('emailCannotBeChanged')}
                 </p>
               </div>
               
               <div className="space-y-2">
-                <label htmlFor="role" className="text-sm font-medium">
+                <label htmlFor="role" className="text-xs sm:text-sm font-medium">
                   {t('role')}
                 </label>
                 <Input
                   id="role"
                   value={userData.role}
                   disabled
-                  className="bg-muted"
+                  className="bg-muted text-sm sm:text-base"
                 />
               </div>
               
               <div className="space-y-2">
-                <label htmlFor="created" className="text-sm font-medium">
+                <label htmlFor="created" className="text-xs sm:text-sm font-medium">
                   {t('memberSince')}
                 </label>
                 <Input
                   id="created"
                   value={new Date(userData.created_at).toLocaleDateString(locale === 'pt-BR' ? 'pt-BR' : 'en-US')}
                   disabled
-                  className="bg-muted"
+                  className="bg-muted text-sm sm:text-base"
                 />
               </div>
             </div>
@@ -487,9 +488,9 @@ export default function AccountPage({ params }: { params: Promise<{ org: string 
               <Button 
                 onClick={handleSave} 
                 disabled={isLoading}
-                className="cursor-pointer"
+                className="cursor-pointer w-full sm:w-auto text-sm sm:text-base"
               >
-                <Save className="h-4 w-4 mr-2" />
+                <Save className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                 {isLoading ? t('saving') : t('saveChanges')}
               </Button>
             </div>
@@ -498,19 +499,19 @@ export default function AccountPage({ params }: { params: Promise<{ org: string 
 
         {/* Language & Region */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Globe className="h-5 w-5" />
+          <CardHeader className="p-3 sm:p-6">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Globe className="h-4 w-4 sm:h-5 sm:w-5" />
               {t('languageRegion')}
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-xs sm:text-sm">
               {t('languageRegionDesc')}
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="space-y-3">
-                <label className="text-sm font-medium">
+          <CardContent className="p-3 sm:p-6 pt-0">
+            <div className="space-y-3 sm:space-y-4">
+              <div className="space-y-2 sm:space-y-3">
+                <label className="text-xs sm:text-sm font-medium">
                   {t('displayLanguage')}
                 </label>
                 <LanguageSwitcher variant="full" />
@@ -521,18 +522,18 @@ export default function AccountPage({ params }: { params: Promise<{ org: string 
 
         {/* Password Change */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Lock className="h-5 w-5" />
+          <CardHeader className="p-3 sm:p-6">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Lock className="h-4 w-4 sm:h-5 sm:w-5" />
               {t('changePassword')}
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-xs sm:text-sm">
               {t('changePasswordDesc')}
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-6 pt-0">
             <div className="space-y-2">
-              <label htmlFor="current-password" className="text-sm font-medium">
+              <label htmlFor="current-password" className="text-xs sm:text-sm font-medium">
                 {t('currentPassword')}
               </label>
               <Input
@@ -541,11 +542,12 @@ export default function AccountPage({ params }: { params: Promise<{ org: string 
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
                 placeholder={t('currentPasswordPlaceholder')}
+                className="text-sm sm:text-base"
               />
             </div>
             
             <div className="space-y-2">
-              <label htmlFor="new-password" className="text-sm font-medium">
+              <label htmlFor="new-password" className="text-xs sm:text-sm font-medium">
                 {t('newPassword')}
               </label>
               <Input
@@ -554,11 +556,12 @@ export default function AccountPage({ params }: { params: Promise<{ org: string 
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 placeholder={t('newPasswordPlaceholder')}
+                className="text-sm sm:text-base"
               />
             </div>
             
             <div className="space-y-2">
-              <label htmlFor="confirm-password" className="text-sm font-medium">
+              <label htmlFor="confirm-password" className="text-xs sm:text-sm font-medium">
                 {t('confirmNewPassword')}
               </label>
               <Input
@@ -567,6 +570,7 @@ export default function AccountPage({ params }: { params: Promise<{ org: string 
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder={t('confirmPasswordPlaceholder')}
+                className="text-sm sm:text-base"
               />
             </div>
 
@@ -574,9 +578,9 @@ export default function AccountPage({ params }: { params: Promise<{ org: string 
               <Button 
                 onClick={handlePasswordChange} 
                 disabled={isLoading || !currentPassword || !newPassword || !confirmPassword}
-                className="cursor-pointer"
+                className="cursor-pointer w-full sm:w-auto text-sm sm:text-base"
               >
-                <Lock className="h-4 w-4 mr-2" />
+                <Lock className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                 {isLoading ? t('changing') : t('changePassword')}
               </Button>
             </div>

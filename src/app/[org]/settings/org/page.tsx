@@ -316,11 +316,11 @@ export default function OrgPage({
         <AppSidebar org={resolvedParams.org} />
         <SidebarInset>
           {/* Notifications */}
-          <div className="fixed top-4 right-4 z-50 space-y-2">
+          <div className="fixed top-2 right-2 sm:top-4 sm:right-4 z-50 space-y-2 w-[calc(100vw-1rem)] sm:w-auto sm:max-w-sm">
             {notifications.map((notification) => (
               <div
                 key={notification.id}
-                className={`p-4 rounded-lg shadow-lg max-w-sm ${
+                className={`p-3 sm:p-4 rounded-lg shadow-lg ${
                   notification.type === 'success' 
                     ? 'bg-green-50 border border-green-200 text-green-800' 
                     : notification.type === 'error'
@@ -328,11 +328,11 @@ export default function OrgPage({
                     : 'bg-blue-50 border border-blue-200 text-blue-800'
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">{notification.message}</span>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs sm:text-sm font-medium flex-1">{notification.message}</span>
                   <button
                     onClick={() => setNotifications(prev => prev.filter(n => n.id !== notification.id))}
-                    className="ml-2 text-gray-400 hover:text-gray-600"
+                    className="text-gray-400 hover:text-gray-600 flex-shrink-0 text-lg sm:text-xl leading-none"
                   >
                     ×
                   </button>
@@ -342,11 +342,11 @@ export default function OrgPage({
           </div>
 
         {/* HEADER */}
-        <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4">
+        <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-background px-2 sm:px-4">
           <SidebarTrigger className="-ml-1" />
           <Separator
             orientation="vertical"
-            className="mr-2 data-[orientation=vertical]:h-4"
+            className="mr-1 sm:mr-2 data-[orientation=vertical]:h-4"
           />
           <Breadcrumb>
             <BreadcrumbList>
@@ -357,53 +357,55 @@ export default function OrgPage({
               </BreadcrumbItem>
               <BreadcrumbSeparator className="hidden md:block" />
               <BreadcrumbItem>
-                  <BreadcrumbLink href={`/${resolvedParams.org}/settings`}>
+                  <BreadcrumbLink href={`/${resolvedParams.org}/settings`} className="text-sm sm:text-base">
                     {t('breadcrumb.settings')}
                 </BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator className="hidden md:block" />
               <BreadcrumbItem>
-                  <BreadcrumbPage>{t('breadcrumb.organization')}</BreadcrumbPage>
+                  <BreadcrumbPage className="text-sm sm:text-base">{t('breadcrumb.organization')}</BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
         </header>
 
         {/* MAIN */}
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-            <div className="max-w-4xl mx-auto w-full space-y-6">
+        <div className="flex flex-1 flex-col gap-2 sm:gap-4 p-2 sm:p-4 pt-0">
+            <div className="max-w-4xl mx-auto w-full space-y-4 sm:space-y-6">
               {/* Basic Information */}
               <Card>
-                <CardHeader>
-                  <CardTitle>{t('basicInfo.title')}</CardTitle>
-                  <CardDescription>
+                <CardHeader className="p-3 sm:p-6">
+                  <CardTitle className="text-base sm:text-lg">{t('basicInfo.title')}</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">
                     {t('basicInfo.description')}
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-6 pt-0">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                         {t('basicInfo.nameLabel')}
                       </label>
                       <Input
                         value={organizationData.name}
                         onChange={(e) => handleInputChange('name', e.target.value)}
                         placeholder={t('basicInfo.namePlaceholder')}
+                        className="text-sm sm:text-base"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                         {t('basicInfo.slugLabel')}
                       </label>
                       <Input
                         value={organizationData.slug}
                         onChange={(e) => handleInputChange('slug', e.target.value)}
                         placeholder={t('basicInfo.slugPlaceholder')}
+                        className="text-sm sm:text-base"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                         {t('basicInfo.emailLabel')}
                       </label>
                       <Input
@@ -411,26 +413,29 @@ export default function OrgPage({
                         value={organizationData.email || ''}
                         onChange={(e) => handleInputChange('email', e.target.value)}
                         placeholder={t('basicInfo.emailPlaceholder')}
+                        className="text-sm sm:text-base"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                         {t('basicInfo.companyIdLabel')}
                       </label>
                       <Input
                         value={organizationData.company_id || ''}
                         onChange={(e) => handleInputChange('company_id', e.target.value)}
                         placeholder={t('basicInfo.companyIdPlaceholder')}
+                        className="text-sm sm:text-base"
                       />
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <div className="md:col-span-2">
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                         {t('basicInfo.phoneLabel')}
                       </label>
                       <Input
                         value={organizationData.phone || ''}
                         onChange={(e) => handleInputChange('phone', e.target.value)}
                         placeholder={t('basicInfo.phonePlaceholder')}
+                        className="text-sm sm:text-base"
                       />
                     </div>
                   </div>
@@ -439,52 +444,56 @@ export default function OrgPage({
 
               {/* Address */}
               <Card>
-                <CardHeader>
-                  <CardTitle>{t('address.title')}</CardTitle>
-                  <CardDescription>
+                <CardHeader className="p-3 sm:p-6">
+                  <CardTitle className="text-base sm:text-lg">{t('address.title')}</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">
                     {t('address.description')}
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-6 pt-0">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                       {t('address.addressLabel')}
                     </label>
                     <Input
                       value={organizationData.address || ''}
                       onChange={(e) => handleInputChange('address', e.target.value)}
                       placeholder={t('address.addressPlaceholder')}
+                      className="text-sm sm:text-base"
                     />
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                         {t('address.cityLabel')}
                       </label>
                       <Input
                         value={organizationData.city || ''}
                         onChange={(e) => handleInputChange('city', e.target.value)}
                         placeholder={t('address.cityPlaceholder')}
+                        className="text-sm sm:text-base"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                         {t('address.stateLabel')}
                       </label>
                       <Input
                         value={organizationData.state || ''}
                         onChange={(e) => handleInputChange('state', e.target.value)}
                         placeholder={t('address.statePlaceholder')}
+                        className="text-sm sm:text-base"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                         {t('address.countryLabel')}
                       </label>
                       <Input
                         value={organizationData.country || ''}
                         onChange={(e) => handleInputChange('country', e.target.value)}
                         placeholder={t('address.countryPlaceholder')}
+                        className="text-sm sm:text-base"
                       />
                     </div>
                   </div>
@@ -493,36 +502,38 @@ export default function OrgPage({
 
               {/* Legal Representative */}
               <Card>
-                <CardHeader>
-                  <CardTitle>{t('legalRep.title')}</CardTitle>
-                  <CardDescription>
+                <CardHeader className="p-3 sm:p-6">
+                  <CardTitle className="text-base sm:text-lg">{t('legalRep.title')}</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">
                     {t('legalRep.description')}
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-6 pt-0">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                         {t('legalRep.nameLabel')}
                       </label>
                       <Input
                         value={organizationData.legal_representative_name || ''}
                         onChange={(e) => handleInputChange('legal_representative_name', e.target.value)}
                         placeholder={t('legalRep.namePlaceholder')}
+                        className="text-sm sm:text-base"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                         {t('legalRep.ssnLabel')}
                       </label>
                       <Input
                         value={organizationData.legal_representative_ssn || ''}
                         onChange={(e) => handleInputChange('legal_representative_ssn', e.target.value)}
                         placeholder={t('legalRep.ssnPlaceholder')}
+                        className="text-sm sm:text-base"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                         {t('legalRep.emailLabel')}
                       </label>
                       <Input
@@ -530,16 +541,18 @@ export default function OrgPage({
                         value={organizationData.legal_representative_email || ''}
                         onChange={(e) => handleInputChange('legal_representative_email', e.target.value)}
                         placeholder={t('legalRep.emailPlaceholder')}
+                        className="text-sm sm:text-base"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                         {t('legalRep.phoneLabel')}
                       </label>
                       <Input
                         value={organizationData.legal_representative_phone || ''}
                         onChange={(e) => handleInputChange('legal_representative_phone', e.target.value)}
                         placeholder={t('legalRep.phonePlaceholder')}
+                        className="text-sm sm:text-base"
                       />
                     </div>
                   </div>
@@ -548,18 +561,18 @@ export default function OrgPage({
 
               {/* Branding */}
               <Card>
-                <CardHeader>
-                  <CardTitle>{t('branding.title')}</CardTitle>
-                  <CardDescription>
+                <CardHeader className="p-3 sm:p-6">
+                  <CardTitle className="text-base sm:text-lg">{t('branding.title')}</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">
                     {t('branding.description')}
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-6 pt-0">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                       {t('branding.logoLabel')}
                     </label>
-                    <div className="flex items-center gap-4">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
                       <div className="relative">
                         <OrganizationAvatar 
                           src={logoPreview || (organizationData.logo_url ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}${organizationData.logo_url}` : undefined)} 
@@ -570,14 +583,14 @@ export default function OrgPage({
                           <Button
                             size="sm"
                             variant="destructive"
-                            className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0"
+                            className="absolute -top-1 -right-1 sm:-top-2 sm:-right-2 h-5 w-5 sm:h-6 sm:w-6 rounded-full p-0"
                             onClick={handleRemoveLogo}
                           >
-                            <X className="h-3 w-3" />
+                            <X className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                           </Button>
                         )}
                       </div>
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-0">
                         <input
                           ref={fileInputRef}
                           type="file"
@@ -589,36 +602,38 @@ export default function OrgPage({
                           <Button
                             onClick={() => fileInputRef.current?.click()}
                             variant="outline"
-                            className="cursor-pointer"
+                            className="cursor-pointer text-xs sm:text-sm h-8 sm:h-9"
                           >
                             {t('branding.uploadButton')}
                           </Button>
                         </div>
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="text-[10px] sm:text-xs text-gray-500 mt-1">
                           {t('branding.logoInfo')}
                         </p>
                       </div>
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                         {t('branding.primaryColorLabel')}
                       </label>
                       <Input
                         type="color"
                         value={organizationData.primary_color || '#3B82F6'}
                         onChange={(e) => handleInputChange('primary_color', e.target.value)}
+                        className="h-10 sm:h-11 w-full"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
                         {t('branding.secondaryColorLabel')}
                       </label>
                       <Input
                         type="color"
                         value={organizationData.secondary_color || '#1E40AF'}
                         onChange={(e) => handleInputChange('secondary_color', e.target.value)}
+                        className="h-10 sm:h-11 w-full"
                       />
                     </div>
                   </div>
@@ -630,7 +645,7 @@ export default function OrgPage({
                 <Button 
                   onClick={handleSave}
                   disabled={saving}
-                  className="cursor-pointer"
+                  className="cursor-pointer w-full sm:w-auto text-sm sm:text-base"
                 >
                   {saving ? t('saving') : t('saveButton')}
                 </Button>

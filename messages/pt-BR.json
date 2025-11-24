@@ -217,12 +217,15 @@
       "linkToUser": "Vincular a usuário",
       "viewDetails": "Ver detalhes",
       "editLead": "Editar",
-      "deleteLead": "Excluir Lead"
+      "deleteLead": "Excluir Lead",
+      "assignedToUser": "Atribuído a usuário",
+      "hasConversation": "Tem conversa vinculada"
     },
     "editModal": {
       "title": "Editar Lead",
       "description": "Edite os campos de negociação do lead.",
       "dealValue": "Valor do Negócio",
+      "dealValuePlaceholder": "0,00",
       "expectedCloseDate": "Data Prevista de Fechamento",
       "notes": "Observações",
       "notesPlaceholder": "Observações sobre a negociação...",
@@ -237,7 +240,8 @@
       "unknownFile": "Arquivo desconhecido",
       "pendingSave": "pendente, salve para enviar",
       "save": "Salvar",
-      "cancel": "Cancelar"
+      "cancel": "Cancelar",
+      "unsavedChanges": "Você tem alterações não salvas. Clique fora novamente para descartá-las."
     },
     "previewModal": {
       "title": "Detalhes do Lead",
@@ -278,6 +282,9 @@
       "noPhone": "Nenhum telefone disponível",
       "setupRequired": "(Configuração Necessária)",
       "cancel": "Cancelar"
+    },
+    "linkLeadModal": {
+      "noUsername": "sem username"
     },
     "sendMessageModal": {
       "title": "Enviar Mensagem",
@@ -401,7 +408,8 @@
       "success": "Lead {leadName} vinculado a {userName} com sucesso",
       "error": "Erro ao vincular lead",
       "errorLoadingUsers": "Erro ao carregar usuários",
-      "selectUserWarning": "Por favor, selecione um usuário"
+      "selectUserWarning": "Por favor, selecione um usuário",
+      "noUsername": "sem username"
     },
     "filterModal": {
       "title": "Filtrar Leads",
@@ -502,7 +510,8 @@
       "errorMovingLead": "Erro ao mover lead: {error}",
       "errorMovingLeadGeneric": "Erro ao mover lead",
       "bulkMoveProgress": "Movendo leads em massa",
-      "batchProgress": "Lote {current} de {total}"
+      "batchProgress": "Lote {current} de {total}",
+      "dismissNotification": "Descartar notificação"
     },
     "emptyState": {
       "noLeads": "Nenhum lead encontrado",
@@ -540,6 +549,16 @@
         "viewFile": "Visualizar arquivo",
         "downloadFile": "Baixar arquivo"
       },
+      "assignment": "Atribuição",
+      "assignedTo": "Atribuído a",
+      "assignedSince": "Atribuído desde",
+      "notAssigned": "Não atribuído",
+      "loading": "Carregando...",
+      "metadata": "Metadados",
+      "created": "Criado em",
+      "createdBy": "Criado por",
+      "lastUpdated": "Última atualização",
+      "leadId": "ID do Lead",
       "actions": {
         "viewCompleteList": "Ver na Lista Completa",
         "close": "Fechar"
@@ -1190,17 +1209,71 @@
       "leadsExported": "{count} lead(s) exportado(s) como {format}",
       "errorAdding": "Erro ao adicionar lead",
       "errorUpdating": "Erro ao atualizar lead",
+      "errorUpdatingPipeline": "Erro ao atualizar pipeline",
       "errorDeleting": "Erro ao excluir lead",
       "errorImporting": "Falha ao importar arquivo. Verifique o formato e conteúdo do arquivo.",
       "errorExporting": "Erro ao exportar dados",
       "errorLoadingUsers": "Erro ao carregar usuários",
       "errorSearching": "Erro ao buscar leads",
+      "errorLoadingLeads": "Erro ao carregar leads",
+      "errorSaving": "Erro ao salvar lead",
+      "errorUpdatingLeads": "Erro ao atualizar leads",
+      "errorAssigning": "Erro ao atribuir lead",
+      "errorAssigningLeads": "Erro ao atribuir leads ao usuário",
+      "pleaseWait": "Aguarde o carregamento completo da página",
+      "valueTooLarge": "Valor muito grande. O valor máximo permitido é R$ 9.999.999.999.999,99",
+      "valueNegative": "Valor não pode ser negativo",
+      "retryingAssignments": "Tentando novamente {count} atribuições falhadas...",
+      "leadsAssignedPartial": "{success} lead(s) atribuído(s), {failed} falharam",
+      "fileDownloaded": "Arquivo baixado com sucesso",
+      "fileDownloadSuccess": "Arquivo baixado com sucesso",
+      "errorDownloadingFile": "Erro ao baixar arquivo",
+      "fileDownloadFailed": "Falha ao baixar arquivo",
+      "errorViewingFile": "Erro ao visualizar arquivo",
+      "fileViewFailed": "Falha ao visualizar arquivo",
+      "errorSavingAttachments": "Erro ao salvar alterações de anexos",
+      "importCancelledLeadsRemoved": "Importação cancelada - {count} lead(s) removido(s) do backend",
+      "importCancelledLeadsNotFound": "Importação cancelada - {count} lead(s) já foram removidos ou não encontrados",
+      "importCancelledLocalOnly": "Importação cancelada - leads removidos apenas localmente",
+      "retryingLeads": "Tentando novamente {count} leads falhados...",
+      "leadsImported": "{count} lead(s) importado(s) com sucesso",
+      "duplicatesSkipped": "{count} duplicata(s) ignorada(s)",
+      "leadsFailedAfterRetry": "{count} lead(s) falharam mesmo após nova tentativa",
+      "importCancelledWithResults": "Importação cancelada. {saved} lead(s) salvos, {duplicates} duplicata(s) ignorados",
+      "leadsFailedToSave": "{count} lead(s) falharam ao salvar",
+      "importCancelledNoLeads": "Importação cancelada. Nenhum lead foi processado",
+      "noLeadsImported": "0 lead(s) importado(s). Nenhum novo registro detectado",
       "selectUser": "Por favor, selecione um usuário",
       "confirmAssign": "Por favor, digite 'assign' para confirmar",
       "confirmEdit": "Por favor, digite 'edit' para confirmar",
       "unsavedChanges": "Você tem alterações não salvas. Clique fora novamente para descartá-las.",
       "deletionCancelled": "Exclusão cancelada e leads restaurados",
+      "deletionCancelledRestored": "Exclusão cancelada - {count} lead(s) restaurado(s)",
+      "deletionCancelledRestoreFailed": "Exclusão cancelada - {count} lead(s) não puderam ser restaurados",
+      "deletionCancelledLocalOnly": "Exclusão cancelada - leads restaurados apenas localmente",
       "bulkEditCancelled": "Edição em massa cancelada e leads restaurados",
+      "bulkEditCancelledRestored": "Edição em massa cancelada - {count} lead(s) restaurado(s)",
+      "bulkEditCancelledRestoreFailed": "Edição em massa cancelada - {count} lead(s) não puderam ser restaurados",
+      "bulkEditCancelledLocalOnly": "Edição em massa cancelada - leads restaurados apenas localmente",
+      "retryingDeletions": "Tentando novamente {count} exclusões falhadas...",
+      "finalRetryDeletions": "Tentativa final para {count} exclusões restantes...",
+      "leadsDeletedPartial": "{count} lead(s) excluído(s). {failed} falharam",
+      "leadsDeletedAfterRetries": "{count} lead(s) excluído(s). {failed} falharam mesmo após todas as tentativas",
+      "leadsDeletedAfterRetry": "{count} lead(s) excluído(s). {failed} falharam mesmo após nova tentativa",
+      "errorProcessingFile": "Erro ao processar arquivo. Por favor, verifique o formato do arquivo.",
+      "errorDeletingLeads": "Erro ao excluir leads",
+      "unknownError": "Erro desconhecido",
+      "maxRetriesExceeded": "Máximo de tentativas excedido",
+      "editLead": "Editar lead",
+      "deleteLead": "Excluir lead",
+      "assignToUser": "Atribuir a usuário",
+      "addToPipeline": "Adicionar ao pipeline",
+      "removeFromPipeline": "Remover do pipeline",
+      "viewFile": "Visualizar arquivo",
+      "downloadFile": "Baixar arquivo",
+      "unknownFile": "Arquivo desconhecido",
+      "unknownDate": "Data desconhecida",
+      "dismissNotification": "Descartar notificação",
       "importCancelled": "Importação cancelada",
       "retrying": "Tentando novamente {count} atualizações falhadas...",
       "importProgress": "Importando {current} de {total} leads (Lote {batch}/{totalBatches})",
@@ -1504,6 +1577,21 @@
     },
     "imageLoading": "Imagem não carregada",
     "unknownUser": "Usuário Desconhecido",
+    "expandedImageAlt": "Imagem ampliada",
+    "recordVoice": "Gravar mensagem de voz",
+    "moreOptions": "Mais opções",
+    "downloadImage": "Baixar imagem",
+    "downloadVideo": "Baixar vídeo",
+    "downloadDocument": "Baixar documento",
+    "createdBy": "Criado Por",
+    "loading": "Carregando...",
+    "uploading": "Enviando...",
+    "errors": {
+      "startChatFailed": "Falha ao iniciar chat",
+      "microphoneAccessDenied": "Não foi possível acessar o microfone. Por favor, conceda permissão.",
+      "sendVoiceMessageFailed": "Falha ao enviar mensagem de voz",
+      "sendVoiceMessageError": "Erro ao enviar mensagem de voz. Por favor, tente novamente."
+    },
     "linkLeadModal": {
       "titles": {
         "unlink": "Desvincular Lead",
@@ -1559,6 +1647,7 @@
       "description": "Informações sobre seu bot do Telegram",
       "active": "Bot Ativo",
       "inactive": "Bot Inativo",
+      "notOnline": "Bot ativo mas offline - Verifique o token e a configuração do webhook",
       "name": "Nome",
       "username": "Nome de Usuário",
       "created": "Criado"
@@ -1571,6 +1660,10 @@
       "awaitingSms": "Aguardando código SMS",
       "twoFaRequired": "2FA necessário",
       "apiNotRunning": "API não está rodando, autentique",
+      "needsAuthentication": "Autenticação necessária - Clique em 'Autenticar Conta' para iniciar",
+      "needsAuthenticationSms": "Código SMS necessário - Clique em 'Autenticar Conta' para receber o código",
+      "needsAuthentication2FA": "Senha 2FA necessária - Complete a autenticação com sua senha de dois fatores",
+      "notOnline": "Conta autenticada mas offline - Verifique sua conexão",
       "phone": "Telefone",
       "apiId": "API ID",
       "created": "Criado"
@@ -1676,6 +1769,21 @@
         "step6": "Conta será configurada",
         "step6Detail": "e estará pronta para enviar mensagens"
       }
+    },
+    "errors": {
+      "authenticationError": "Erro na autenticação"
+    },
+    "authFeedback": {
+      "requestingSms": "Solicitando código SMS...",
+      "smsSent": "SMS enviado. Digite o código recebido no Telegram.",
+      "verifyingSms": "Verificando código SMS...",
+      "verifying2FA": "Verificando senha 2FA...",
+      "twoFactorRequired": "Autenticação de dois fatores necessária.",
+      "invalid2FAPassword": "Senha 2FA inválida, tente novamente...",
+      "wrong2FAPassword": "Senha 2FA incorreta. Por favor, verifique e tente novamente.",
+      "invalidSmsCode": "Código SMS inválido, tente novamente...",
+      "invalidSmsCodeRetry": "Código SMS inválido. Por favor, verifique o código novamente.",
+      "networkError": "Erro de rede durante a verificação. Por favor, tente novamente."
     }
   },
   "OrgSettings": {

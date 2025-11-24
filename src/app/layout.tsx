@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Inter, Poppins, Roboto } from "next/font/google";
 import { getLocale } from 'next-intl/server';
 import { ClientLocaleProvider } from '@/components/ClientLocaleProvider';
+import { AppGuard } from '@/components/AppGuard';
 import "./globals.css";
 
 const geistSans = Geist({
@@ -58,7 +59,9 @@ export default async function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${poppins.variable} ${roboto.variable} antialiased`}
       >
         <ClientLocaleProvider defaultLocale={locale}>
-          {children}
+          <AppGuard>
+            {children}
+          </AppGuard>
         </ClientLocaleProvider>
       </body>
     </html>

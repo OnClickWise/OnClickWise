@@ -41,6 +41,7 @@ interface TelegramBot {
   bot_name: string;
   bot_username: string;
   is_active: boolean;
+  is_online?: boolean;
   created_at: string;
 }
 
@@ -51,6 +52,9 @@ interface TelegramAccount {
   phone_number: string;
   is_active: boolean;
   is_online?: boolean;
+  is_authenticated?: boolean;
+  needs_sms_code?: boolean;
+  needs_2fa?: boolean;
   created_at: string;
 }
 
@@ -257,7 +261,7 @@ export default function TelegramSettingsPage({
     if (!acc) return
     
     setAuthenticating(true)
-    setAuthFeedback('Requesting SMS code...')
+    setAuthFeedback(t('authFeedback.requestingSms'))
     try {
       const response = await apiCall(`/telegram/accounts/${acc.id}/authenticate`, {
         method: 'POST'
@@ -268,7 +272,7 @@ export default function TelegramSettingsPage({
           setShowSmsDialog(true)
           setSetupStatus('awaiting_sms')
           try { localStorage.setItem(setupStatusKey, JSON.stringify('awaiting_sms')) } catch {}
-          setAuthFeedback('SMS sent. Enter the code received in Telegram.')
+          setAuthFeedback(t('authFeedback.smsSent'))
         } else {
           setSetupStatus(null)
           try { localStorage.removeItem(setupStatusKey) } catch {}
@@ -277,11 +281,11 @@ export default function TelegramSettingsPage({
           if (accResp.success && accResp.accounts?.length) setAccount(accResp.accounts[0])
         }
       } else {
-        alert(`Erro na autenticação: ${response.error}`)
+        alert(`${t('errors.authenticationError')}: ${response.error}`)
       }
     } catch (error) {
       console.error('Erro na autenticação:', error)
-      alert('Erro na autenticação')
+      alert(t('errors.authenticationError'))
     } finally {
       setAuthenticating(false)
     }
@@ -292,7 +296,7 @@ export default function TelegramSettingsPage({
     if (!account || !smsCode) return
     
     setAuthenticating(true)
-    setAuthFeedback(twoFactorPassword ? 'Verifying 2FA password...' : 'Verifying SMS code...')
+    setAuthFeedback(twoFactorPassword ? t('authFeedback.verifying2FA') : t('authFeedback.verifyingSms'))
     try {
       const response = await apiCall(`/telegram/accounts/${account.id}/verify-sms`, {
         method: 'POST',
@@ -322,22 +326,22 @@ export default function TelegramSettingsPage({
           setShowTwoFactorDialog(true)
           setSetupStatus('2fa_required')
           try { localStorage.setItem(setupStatusKey, JSON.stringify('2fa_required')) } catch {}
-          setAuthFeedback('Two-factor authentication required.')
+          setAuthFeedback(t('authFeedback.twoFactorRequired'))
         } else {
           if (twoFactorPassword) {
             const next = twoFactorAttempts + 1
             setTwoFactorAttempts(next)
-            setAuthFeedback(next >= 3 ? 'Wrong 2FA password. Please check and try again.' : 'Invalid 2FA password, try again...')
+            setAuthFeedback(next >= 3 ? t('authFeedback.wrong2FAPassword') : t('authFeedback.invalid2FAPassword'))
           } else {
             const nextSms = smsAttempts + 1
             setSmsAttempts(nextSms)
-            setAuthFeedback(nextSms >= 2 ? 'Invalid SMS code. Please re-check the code.' : 'Invalid SMS code, try again...')
+            setAuthFeedback(nextSms >= 2 ? t('authFeedback.invalidSmsCodeRetry') : t('authFeedback.invalidSmsCode'))
           }
         }
       }
     } catch (error) {
       console.error('Erro na verificação:', error)
-      setAuthFeedback('Network error during verification. Please try again.')
+      setAuthFeedback(t('authFeedback.networkError'))
     } finally {
       setAuthenticating(false)
     }
@@ -505,11 +509,11 @@ export default function TelegramSettingsPage({
         <AppSidebar org={org} />
         <SidebarInset>
           {/* HEADER */}
-          <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-background px-4">
+          <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-background px-2 sm:px-4">
             <SidebarTrigger className="-ml-1" />
             <Separator
               orientation="vertical"
-              className="mr-2 data-[orientation=vertical]:h-4"
+              className="mr-1 sm:mr-2 data-[orientation=vertical]:h-4"
             />
             <Breadcrumb>
               <BreadcrumbList>
@@ -520,24 +524,24 @@ export default function TelegramSettingsPage({
                 </BreadcrumbItem>
                 <BreadcrumbSeparator className="hidden md:block" />
                 <BreadcrumbItem>
-                  <BreadcrumbLink href={`/${org}/settings`}>
+                  <BreadcrumbLink href={`/${org}/settings`} className="text-sm sm:text-base">
                     {t('breadcrumb.settings')}
                   </BreadcrumbLink>
                 </BreadcrumbItem>
                 <BreadcrumbSeparator className="hidden md:block" />
                 <BreadcrumbItem>
-                  <BreadcrumbPage>{t('breadcrumb.telegram')}</BreadcrumbPage>
+                  <BreadcrumbPage className="text-sm sm:text-base">{t('breadcrumb.telegram')}</BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
           </header>
 
           {/* MAIN CONTENT */}
-          <div className="flex-1 space-y-4 p-4 pt-6">
+          <div className="flex-1 space-y-2 sm:space-y-4 p-2 sm:p-4 pt-4 sm:pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-3xl font-bold tracking-tight">{t('pageTitle')}</h2>
-                <p className="text-muted-foreground">
+                <h2 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight">{t('pageTitle')}</h2>
+                <p className="text-sm sm:text-base text-muted-foreground">
                   {t('pageDescription')}
                 </p>
               </div>
@@ -545,27 +549,27 @@ export default function TelegramSettingsPage({
 
             {/* API Type Selector */}
             <Card>
-              <CardHeader>
-                <CardTitle>{t('integrationTypeTitle')}</CardTitle>
-                <CardDescription>
+              <CardHeader className="p-3 sm:p-6">
+                <CardTitle className="text-base sm:text-lg">{t('integrationTypeTitle')}</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">
                   {t('integrationTypeDescription')}
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <CardContent className="p-3 sm:p-6 pt-0">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-4">
                   <div 
-                    className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                    className={`p-3 sm:p-4 border-2 rounded-lg cursor-pointer transition-all ${
                       apiType === 'bot' 
                         ? 'border-blue-500 bg-blue-50' 
                         : 'border-gray-200 hover:border-gray-300'
                     }`}
                     onClick={() => setApiType('bot')}
                   >
-                    <div className="flex items-center space-x-3">
-                      <Bot className="w-6 h-6 text-blue-600" />
-                      <div>
-                        <h3 className="font-semibold">{t('botApi.title')}</h3>
-                        <p className="text-sm text-gray-600">
+                    <div className="flex items-center space-x-2 sm:space-x-3">
+                      <Bot className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600 flex-shrink-0" />
+                      <div className="min-w-0">
+                        <h3 className="text-sm sm:text-base font-semibold">{t('botApi.title')}</h3>
+                        <p className="text-xs sm:text-sm text-gray-600">
                           {t('botApi.description')}
                         </p>
                       </div>
@@ -573,18 +577,18 @@ export default function TelegramSettingsPage({
                   </div>
                   
                   <div 
-                    className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                    className={`p-3 sm:p-4 border-2 rounded-lg cursor-pointer transition-all ${
                       apiType === 'account' 
                         ? 'border-blue-500 bg-blue-50' 
                         : 'border-gray-200 hover:border-gray-300'
                     }`}
                     onClick={() => setApiType('account')}
                   >
-                    <div className="flex items-center space-x-3">
-                      <User className="w-6 h-6 text-blue-600" />
-                      <div>
-                        <h3 className="font-semibold">{t('accountApi.title')}</h3>
-                        <p className="text-sm text-gray-600">
+                    <div className="flex items-center space-x-2 sm:space-x-3">
+                      <User className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600 flex-shrink-0" />
+                      <div className="min-w-0">
+                        <h3 className="text-sm sm:text-base font-semibold">{t('accountApi.title')}</h3>
+                        <p className="text-xs sm:text-sm text-gray-600">
                           {t('accountApi.description')}
                         </p>
                       </div>
@@ -594,31 +598,58 @@ export default function TelegramSettingsPage({
               </CardContent>
             </Card>
 
-            <div className="grid gap-6">
+            <div className="grid gap-3 sm:gap-6">
               {/* Status Cards */}
               {apiType === 'bot' && bot && (
                 <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Bot className="w-5 h-5" />
+                  <CardHeader className="p-3 sm:p-6">
+                    <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                      <Bot className="w-4 h-4 sm:w-5 sm:h-5" />
                       {t('botStatus.title')}
                     </CardTitle>
-                    <CardDescription>
+                    <CardDescription className="text-xs sm:text-sm">
                       {t('botStatus.description')}
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center gap-2 mb-4">
-                      {bot.is_active ? (
-                        <CheckCircle className="w-5 h-5 text-green-500" />
-                      ) : (
-                        <AlertCircle className="w-5 h-5 text-red-500" />
-                      )}
-                      <span className={`font-medium ${bot.is_active ? 'text-green-700' : 'text-red-700'}`}>
-                        {bot.is_active ? t('botStatus.active') : t('botStatus.inactive')}
-                      </span>
+                  <CardContent className="p-3 sm:p-6 pt-0">
+                    <div className="flex items-center gap-2 mb-3 sm:mb-4">
+                      {(() => {
+                        // Bot inativo
+                        if (!bot.is_active) {
+                          return (
+                            <>
+                              <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-500" />
+                              <span className="text-sm sm:text-base font-medium text-red-700">
+                                {t('botStatus.inactive')}
+                              </span>
+                            </>
+                          )
+                        }
+                        
+                        // Bot ativo mas não online
+                        if (bot.is_active && bot.is_online === false) {
+                          return (
+                            <>
+                              <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-500" />
+                              <span className="text-sm sm:text-base font-medium text-yellow-700">
+                                {t('botStatus.notOnline')}
+                              </span>
+                            </>
+                          )
+                        }
+                        
+                        // Bot ativo e online
+                        return (
+                          <>
+                            <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-500" />
+                            <span className="text-sm sm:text-base font-medium text-green-700">
+                              {t('botStatus.active')}
+                            </span>
+                          </>
+                        )
+                      })()}
                     </div>
-                    <div className="space-y-2 text-sm">
+                    <div className="space-y-2 text-xs sm:text-sm">
                       <div><strong>{t('botStatus.name')}:</strong> {bot.bot_name}</div>
                       <div><strong>{t('botStatus.username')}:</strong> @{bot.bot_username}</div>
                       <div><strong>{t('botStatus.created')}:</strong> {new Date(bot.created_at).toLocaleDateString(locale === 'pt-BR' ? 'pt-BR' : 'en-US')}</div>
@@ -629,51 +660,111 @@ export default function TelegramSettingsPage({
 
               {apiType === 'account' && account && (
                 <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <User className="w-5 h-5" />
+                  <CardHeader className="p-3 sm:p-6">
+                    <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                      <User className="w-4 h-4 sm:w-5 sm:h-5" />
                       {t('accountStatus.title')}
                     </CardTitle>
-                    <CardDescription>
+                    <CardDescription className="text-xs sm:text-sm">
                       {t('accountStatus.description')}
                     </CardDescription>
                   </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center gap-2 mb-4">
+                  <CardContent className="p-3 sm:p-6 pt-0">
+                    <div className="flex items-center gap-2 mb-3 sm:mb-4">
                       {(() => {
-                        if (setupStatus && !account.is_active) {
+                        // Prioridade 1: Status de setup pendente (SMS ou 2FA)
+                        if (setupStatus) {
+                          if (setupStatus === 'awaiting_sms') {
+                            return (
+                              <>
+                                <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500" />
+                                <span className="text-sm sm:text-base font-medium text-orange-700">
+                                  {t('accountStatus.awaitingSms')}
+                                </span>
+                              </>
+                            )
+                          }
+                          if (setupStatus === '2fa_required') {
+                            return (
+                              <>
+                                <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500" />
+                                <span className="text-sm sm:text-base font-medium text-orange-700">
+                                  {t('accountStatus.twoFaRequired')}
+                                </span>
+                              </>
+                            )
+                          }
+                        }
+                        
+                        // Prioridade 2: Verificar se a conta não está autenticada
+                        if (!account.is_authenticated) {
+                          if (account.needs_sms_code) {
+                            return (
+                              <>
+                                <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-500" />
+                                <span className="text-sm sm:text-base font-medium text-red-700">
+                                  {t('accountStatus.needsAuthenticationSms')}
+                                </span>
+                              </>
+                            )
+                          }
+                          if (account.needs_2fa) {
+                            return (
+                              <>
+                                <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-500" />
+                                <span className="text-sm sm:text-base font-medium text-red-700">
+                                  {t('accountStatus.needsAuthentication2FA')}
+                                </span>
+                              </>
+                            )
+                          }
+                          // Não autenticado, mas sem informação específica
                           return (
                             <>
-                              <AlertCircle className="w-5 h-5 text-orange-500" />
-                              <span className="font-medium text-orange-700">
-                                {setupStatus === 'awaiting_sms' ? t('accountStatus.awaitingSms') : t('accountStatus.twoFaRequired')}
+                              <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-500" />
+                              <span className="text-sm sm:text-base font-medium text-red-700">
+                                {t('accountStatus.needsAuthentication')}
                               </span>
                             </>
                           )
                         }
+                        
+                        // Prioridade 3: Verificar se está online
                         if (account.is_active && account.is_online === false) {
                           return (
                             <>
-                              <AlertCircle className="w-5 h-5 text-red-500" />
-                              <span className="font-medium text-red-700">{t('accountStatus.apiNotRunning')}</span>
+                              <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-500" />
+                              <span className="text-sm sm:text-base font-medium text-yellow-700">
+                                {t('accountStatus.notOnline')}
+                              </span>
                             </>
                           )
                         }
+                        
+                        // Prioridade 4: Status normal (ativo/inativo)
+                        if (account.is_active && account.is_authenticated) {
+                          return (
+                            <>
+                              <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-500" />
+                              <span className="text-sm sm:text-base font-medium text-green-700">
+                                {t('accountStatus.active')}
+                              </span>
+                            </>
+                          )
+                        }
+                        
+                        // Conta inativa
                         return (
                           <>
-                            {account.is_active ? (
-                              <CheckCircle className="w-5 h-5 text-green-500" />
-                            ) : (
-                              <AlertCircle className="w-5 h-5 text-red-500" />
-                            )}
-                            <span className={`font-medium ${account.is_active ? 'text-green-700' : 'text-red-700'}`}>
-                              {account.is_active ? t('accountStatus.active') : t('accountStatus.inactive')}
+                            <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-500" />
+                            <span className="text-sm sm:text-base font-medium text-red-700">
+                              {t('accountStatus.inactive')}
                             </span>
                           </>
                         )
                       })()}
                     </div>
-                    <div className="space-y-2 text-sm">
+                    <div className="space-y-2 text-xs sm:text-sm">
                       <div><strong>{t('accountStatus.phone')}:</strong> {account.phone_number}</div>
                       <div><strong>{t('accountStatus.apiId')}:</strong> {account.api_id}</div>
                       <div><strong>{t('accountStatus.created')}:</strong> {new Date(account.created_at).toLocaleDateString(locale === 'pt-BR' ? 'pt-BR' : 'en-US')}</div>
@@ -684,15 +775,15 @@ export default function TelegramSettingsPage({
 
               {/* Configuration Form */}
               <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Settings className="w-5 h-5" />
+                <CardHeader className="p-3 sm:p-6">
+                  <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                    <Settings className="w-4 h-4 sm:w-5 sm:h-5" />
                     {apiType === 'bot' 
                       ? (bot ? t('botConfig.editTitle') : t('botConfig.configureTitle'))
                       : (account ? t('accountConfig.editTitle') : t('accountConfig.configureTitle'))
                     }
                   </CardTitle>
-                  <CardDescription>
+                  <CardDescription className="text-xs sm:text-sm">
                     {apiType === 'bot' 
                       ? (bot 
                           ? t('botConfig.editDescription')
@@ -705,12 +796,12 @@ export default function TelegramSettingsPage({
                     }
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-3 sm:space-y-4 p-3 sm:p-6 pt-0">
                   {apiType === 'bot' ? (
                     // Bot API Configuration
                     <>
                       <div className="space-y-2">
-                        <Label htmlFor="botToken">{t('botConfig.tokenLabel')}</Label>
+                        <Label htmlFor="botToken" className="text-sm sm:text-base">{t('botConfig.tokenLabel')}</Label>
                         <div className="relative">
                           <Input
                             id="botToken"
@@ -719,7 +810,7 @@ export default function TelegramSettingsPage({
                             value={botToken}
                             onChange={(e) => setBotToken(e.target.value)}
                             disabled={botToken === '***CONFIGURED***'}
-                            className={botToken === '***CONFIGURED***' ? 'bg-green-50 border-green-200' : ''}
+                            className={`text-sm sm:text-base ${botToken === '***CONFIGURED***' ? 'bg-green-50 border-green-200' : ''}`}
                           />
                           <Button
                             type="button"
@@ -737,8 +828,8 @@ export default function TelegramSettingsPage({
                         </div>
                         {botToken === '***CONFIGURED***' ? (
                           <div className="space-y-2">
-                            <div className="flex items-center gap-2 text-sm text-green-600">
-                              <CheckCircle className="h-4 w-4" />
+                            <div className="flex items-center gap-2 text-xs sm:text-sm text-green-600">
+                              <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4" />
                               {t('botConfig.tokenConfigured')}
                             </div>
                             <Button
@@ -749,35 +840,35 @@ export default function TelegramSettingsPage({
                                 setBotToken('')
                                 setTokenValidated(false)
                               }}
-                              className="text-xs"
+                              className="text-xs h-7 sm:h-9"
                             >
                               {t('botConfig.changeToken')}
                             </Button>
                           </div>
                         ) : (
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-xs sm:text-sm text-muted-foreground">
                             {t('botConfig.getTokenFrom')} <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">@BotFather</a>
                           </p>
                         )}
                         
                         {/* Status da validação do token */}
                         {validatingToken && (
-                          <div className="flex items-center gap-2 text-sm text-blue-600">
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                          <div className="flex items-center gap-2 text-xs sm:text-sm text-blue-600">
+                            <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-blue-600"></div>
                             {t('botConfig.validatingToken')}
                           </div>
                         )}
                         
                         {tokenValidated && (
-                          <div className="flex items-center gap-2 text-sm text-green-600">
-                            <CheckCircle className="h-4 w-4" />
+                          <div className="flex items-center gap-2 text-xs sm:text-sm text-green-600">
+                            <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4" />
                             {t('botConfig.tokenValid')}
                           </div>
                         )}
                         
                         {botToken && botToken.length > 10 && !validatingToken && !tokenValidated && botToken !== '***CONFIGURED***' && (
-                          <div className="flex items-center gap-2 text-sm text-red-600">
-                            <AlertCircle className="h-4 w-4" />
+                          <div className="flex items-center gap-2 text-xs sm:text-sm text-red-600">
+                            <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4" />
                             {t('botConfig.invalidToken')}
                           </div>
                         )}
@@ -785,29 +876,31 @@ export default function TelegramSettingsPage({
 
                       {/* Campos do bot - só aparecem após validação do token */}
                       {tokenValidated && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                           <div className="space-y-2">
-                            <Label htmlFor="botName">{t('botConfig.nameLabel')}</Label>
+                            <Label htmlFor="botName" className="text-sm sm:text-base">{t('botConfig.nameLabel')}</Label>
                             <Input
                               id="botName"
                               placeholder={t('botConfig.namePlaceholder')}
                               value={botName}
                               onChange={(e) => setBotName(e.target.value)}
+                              className="text-sm sm:text-base"
                             />
-                            <p className="text-sm text-muted-foreground">
+                            <p className="text-xs sm:text-sm text-muted-foreground">
                               {t('botConfig.nameAutoFilled')}
                             </p>
                           </div>
                           
                           <div className="space-y-2">
-                            <Label htmlFor="botUsername">{t('botConfig.usernameLabel')}</Label>
+                            <Label htmlFor="botUsername" className="text-sm sm:text-base">{t('botConfig.usernameLabel')}</Label>
                             <Input
                               id="botUsername"
                               placeholder={t('botConfig.usernamePlaceholder')}
                               value={botUsername}
                               onChange={(e) => setBotUsername(e.target.value)}
+                              className="text-sm sm:text-base"
                             />
-                            <p className="text-sm text-muted-foreground">
+                            <p className="text-xs sm:text-sm text-muted-foreground">
                               {t('botConfig.usernameAutoFilled')}
                             </p>
                           </div>
@@ -817,38 +910,51 @@ export default function TelegramSettingsPage({
                   ) : (
                     // Account API Configuration
                     <>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="apiId">{t('accountConfig.apiIdLabel')}</Label>
+                          <Label htmlFor="apiId" className="text-sm sm:text-base">{t('accountConfig.apiIdLabel')}</Label>
                           <Input
                             id="apiId"
                             placeholder={t('accountConfig.apiIdPlaceholder')}
                             value={apiId}
                             onChange={(e) => setApiId(e.target.value)}
                             disabled={!!(apiId && account)}
+                            className="text-sm sm:text-base"
                           />
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-xs sm:text-sm text-muted-foreground">
                             {t('accountConfig.apiIdInfo')} <a href="https://my.telegram.org/apps" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">my.telegram.org</a>
                           </p>
                         </div>
                         
                         <div className="space-y-2">
-                          <Label htmlFor="phoneNumber">{t('accountConfig.phoneLabel')}</Label>
+                          <Label htmlFor="phoneNumber" className="text-sm sm:text-base">{t('accountConfig.phoneLabel')}</Label>
                           <Input
                             id="phoneNumber"
                             placeholder={t('accountConfig.phonePlaceholder')}
                             value={phoneNumber}
-                            onChange={(e) => setPhoneNumber(e.target.value)}
+                            onChange={(e) => {
+                              const value = e.target.value
+                              // Permite apenas números e opcionalmente um + no início
+                              if (value.startsWith('+')) {
+                                // Se começar com +, mantém apenas + seguido de números
+                                const numbers = value.slice(1).replace(/\D/g, '')
+                                setPhoneNumber('+' + numbers)
+                              } else {
+                                // Se não começar com +, permite apenas números
+                                setPhoneNumber(value.replace(/\D/g, ''))
+                              }
+                            }}
                             disabled={!!(phoneNumber && account)}
+                            className="text-sm sm:text-base"
                           />
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-xs sm:text-sm text-muted-foreground">
                             {t('accountConfig.phoneInfo')}
                           </p>
                         </div>
                       </div>
                       
-                      <div className="space-y-2 md:w-1/2">
-                        <Label htmlFor="apiHash">{t('accountConfig.apiHashLabel')}</Label>
+                      <div className="space-y-2 w-full md:w-1/2">
+                        <Label htmlFor="apiHash" className="text-sm sm:text-base">{t('accountConfig.apiHashLabel')}</Label>
                         <div className="relative">
                           <Input
                             id="apiHash"
@@ -857,7 +963,7 @@ export default function TelegramSettingsPage({
                             value={apiHash}
                             onChange={(e) => setApiHash(e.target.value)}
                             disabled={apiHash === '***CONFIGURED***'}
-                            className={apiHash === '***CONFIGURED***' ? 'bg-green-50 border-green-200' : ''}
+                            className={`text-sm sm:text-base ${apiHash === '***CONFIGURED***' ? 'bg-green-50 border-green-200' : ''}`}
                           />
                           <Button
                             type="button"
@@ -875,8 +981,8 @@ export default function TelegramSettingsPage({
                         </div>
                         {apiHash === '***CONFIGURED***' ? (
                           <div className="space-y-2">
-                            <div className="flex items-center gap-2 text-sm text-green-600">
-                              <CheckCircle className="h-4 w-4" />
+                            <div className="flex items-center gap-2 text-xs sm:text-sm text-green-600">
+                              <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4" />
                               {t('accountConfig.apiHashConfigured')}
                             </div>
                             <Button
@@ -887,35 +993,35 @@ export default function TelegramSettingsPage({
                                 setApiHash('')
                                 setAccountValidated(false)
                               }}
-                              className="text-xs"
+                              className="text-xs h-7 sm:h-9"
                             >
                               {t('accountConfig.changeApiHash')}
                             </Button>
                           </div>
                         ) : (
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-xs sm:text-sm text-muted-foreground">
                             {t('accountConfig.apiHashInfo')} <a href="https://my.telegram.org/apps" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">my.telegram.org</a>
                           </p>
                         )}
                         
                         {/* Status da validação da conta */}
                         {validatingAccount && (
-                          <div className="flex items-center gap-2 text-sm text-blue-600">
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                          <div className="flex items-center gap-2 text-xs sm:text-sm text-blue-600">
+                            <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-blue-600"></div>
                             {t('botConfig.validatingToken')}
                           </div>
                         )}
                         
                         {accountValidated && (
-                          <div className="flex items-center gap-2 text-sm text-green-600">
-                            <CheckCircle className="h-4 w-4" />
+                          <div className="flex items-center gap-2 text-xs sm:text-sm text-green-600">
+                            <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4" />
                             {t('botConfig.tokenValid')}
                           </div>
                         )}
                         
                         {apiId && apiHash && apiHash !== '***CONFIGURED***' && !validatingAccount && !accountValidated && apiId.length > 0 && apiHash.length > 0 && (
-                          <div className="flex items-center gap-2 text-sm text-red-600">
-                            <AlertCircle className="h-4 w-4" />
+                          <div className="flex items-center gap-2 text-xs sm:text-sm text-red-600">
+                            <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4" />
                             {t('accountConfig.invalidCredentials')}
                           </div>
                         )}
@@ -925,7 +1031,7 @@ export default function TelegramSettingsPage({
 
                   <Separator />
 
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <Button 
                       onClick={handleSave} 
                       disabled={
@@ -933,14 +1039,16 @@ export default function TelegramSettingsPage({
                         (apiType === 'bot' && (!tokenValidated || !botName || !botUsername || !botToken)) ||
                         (apiType === 'account' && (!accountValidated || !apiId || !apiHash || !phoneNumber))
                       }
-                      className="flex items-center gap-2 cursor-pointer"
+                      className="flex items-center gap-2 cursor-pointer w-full sm:w-auto"
                     >
                       <Save className="w-4 h-4" />
-                      {saving ? t('saving') : (
-                        apiType === 'bot' 
-                          ? (bot ? t('botConfig.updateButton') : t('botConfig.createButton'))
-                          : (account ? t('accountConfig.updateButton') : t('accountConfig.createButton'))
-                      )}
+                      <span className="text-sm sm:text-base">
+                        {saving ? t('saving') : (
+                          apiType === 'bot' 
+                            ? (bot ? t('botConfig.updateButton') : t('botConfig.createButton'))
+                            : (account ? t('accountConfig.updateButton') : t('accountConfig.createButton'))
+                        )}
+                      </span>
                     </Button>
                     
                     {((apiType === 'bot' && bot) || (apiType === 'account' && account)) && (
@@ -948,7 +1056,7 @@ export default function TelegramSettingsPage({
                         variant="destructive" 
                         onClick={handleDelete}
                         disabled={saving}
-                        className="cursor-pointer"
+                        className="cursor-pointer w-full sm:w-auto text-sm sm:text-base"
                       >
                         {apiType === 'bot' ? t('botConfig.deleteButton') : t('accountConfig.deleteButton')}
                       </Button>
@@ -960,7 +1068,7 @@ export default function TelegramSettingsPage({
                         variant="outline" 
                         onClick={() => authenticateAccount()}
                         disabled={authenticating}
-                        className="cursor-pointer"
+                        className="cursor-pointer w-full sm:w-auto text-sm sm:text-base"
                       >
                         {authenticating ? t('accountConfig.authenticating') : t('accountConfig.reAuthenticateButton')}
                       </Button>
@@ -971,10 +1079,10 @@ export default function TelegramSettingsPage({
 
               {/* SMS Dialog */}
               <Dialog open={showSmsDialog} onOpenChange={setShowSmsDialog}>
-                <DialogContent>
+                <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-lg p-4 sm:p-6">
                   <DialogHeader>
-                    <DialogTitle>{t('smsModal.title')}</DialogTitle>
-                    <DialogDescription>{t('smsModal.description')}</DialogDescription>
+                    <DialogTitle className="text-base sm:text-lg">{t('smsModal.title')}</DialogTitle>
+                    <DialogDescription className="text-xs sm:text-sm">{t('smsModal.description')}</DialogDescription>
                   </DialogHeader>
                   <div className="space-y-3">
                     <Input
@@ -982,29 +1090,30 @@ export default function TelegramSettingsPage({
                       value={smsCode}
                       onChange={(e) => setSmsCode(e.target.value)}
                       disabled={authenticating}
+                      className="text-sm sm:text-base"
                     />
                     {authFeedback && (
-                      <div className="flex items-center gap-2 text-sm">
-                        {authenticating && (<div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>)}
+                      <div className="flex items-center gap-2 text-xs sm:text-sm">
+                        {authenticating && (<div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-blue-600"></div>)}
                         <span className="text-gray-600">{authFeedback}</span>
                       </div>
                     )}
                   </div>
-                  <DialogFooter>
-                    <Button onClick={verifySmsCode} disabled={!smsCode || authenticating} className="cursor-pointer">
+                  <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
+                    <Button onClick={verifySmsCode} disabled={!smsCode || authenticating} className="cursor-pointer w-full sm:w-auto text-sm sm:text-base">
                       {authenticating ? t('smsModal.verifying') : t('smsModal.verifyButton')}
                     </Button>
-                    <Button variant="outline" onClick={() => setShowSmsDialog(false)} disabled={authenticating}>{t('smsModal.cancelButton')}</Button>
+                    <Button variant="outline" onClick={() => setShowSmsDialog(false)} disabled={authenticating} className="w-full sm:w-auto text-sm sm:text-base">{t('smsModal.cancelButton')}</Button>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
 
               {/* 2FA Dialog */}
               <Dialog open={showTwoFactorDialog} onOpenChange={(open)=>{setShowTwoFactorDialog(open); if(!open){setTwoFactorPassword(''); setTwoFactorAttempts(0); setAuthFeedback('')}}}>
-                <DialogContent>
+                <DialogContent className="w-[calc(100vw-1rem)] sm:max-w-lg p-4 sm:p-6">
                   <DialogHeader>
-                    <DialogTitle>{t('twoFaModal.title')}</DialogTitle>
-                    <DialogDescription>{t('twoFaModal.description')}</DialogDescription>
+                    <DialogTitle className="text-base sm:text-lg">{t('twoFaModal.title')}</DialogTitle>
+                    <DialogDescription className="text-xs sm:text-sm">{t('twoFaModal.description')}</DialogDescription>
                   </DialogHeader>
                   <div className="space-y-3">
                     <Input
@@ -1013,6 +1122,7 @@ export default function TelegramSettingsPage({
                       value={twoFactorPassword}
                       onChange={(e) => setTwoFactorPassword(e.target.value)}
                       disabled={authenticating}
+                      className="text-sm sm:text-base"
                     />
                     <div className="flex items-center space-x-2">
                       <input
@@ -1023,20 +1133,20 @@ export default function TelegramSettingsPage({
                         disabled={authenticating}
                         className="rounded"
                       />
-                      <Label htmlFor="rememberTwoFactor" className="text-sm">{t('twoFaModal.rememberLabel')}</Label>
+                      <Label htmlFor="rememberTwoFactor" className="text-xs sm:text-sm">{t('twoFaModal.rememberLabel')}</Label>
                     </div>
                     {authFeedback && (
-                      <div className="flex items-center gap-2 text-sm">
-                        {authenticating && (<div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>)}
+                      <div className="flex items-center gap-2 text-xs sm:text-sm">
+                        {authenticating && (<div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-blue-600"></div>)}
                         <span className={twoFactorAttempts>=3 ? 'text-red-600' : 'text-gray-600'}>{authFeedback}</span>
                       </div>
                     )}
                   </div>
-                  <DialogFooter>
-                    <Button onClick={verifySmsCode} disabled={!twoFactorPassword || authenticating} className="cursor-pointer">
+                  <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
+                    <Button onClick={verifySmsCode} disabled={!twoFactorPassword || authenticating} className="cursor-pointer w-full sm:w-auto text-sm sm:text-base">
                       {authenticating ? t('twoFaModal.verifying') : t('twoFaModal.verifyButton')}
                     </Button>
-                    <Button variant="outline" onClick={() => setShowTwoFactorDialog(false)} disabled={authenticating}>{t('twoFaModal.cancelButton')}</Button>
+                    <Button variant="outline" onClick={() => setShowTwoFactorDialog(false)} disabled={authenticating} className="w-full sm:w-auto text-sm sm:text-base">{t('twoFaModal.cancelButton')}</Button>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
@@ -1059,79 +1169,79 @@ export default function TelegramSettingsPage({
                 </CardHeader>
                 <CardContent>
                   {apiType === 'bot' ? (
-                    <ol className="space-y-3 text-sm">
-                      <li className="flex gap-3">
-                        <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">1</span>
-                        <div>
+                    <ol className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
+                      <li className="flex gap-2 sm:gap-3">
+                        <span className="flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-medium">1</span>
+                        <div className="min-w-0">
                           <strong>{t('instructions.bot.step1')} <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">@BotFather</a></strong> {t('instructions.bot.step1Detail')}
                         </div>
                       </li>
-                      <li className="flex gap-3">
-                        <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">2</span>
-                        <div>
+                      <li className="flex gap-2 sm:gap-3">
+                        <span className="flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-medium">2</span>
+                        <div className="min-w-0">
                           <strong>{t('instructions.bot.step2')}</strong> {t('instructions.bot.step2Detail')}
                         </div>
                       </li>
-                      <li className="flex gap-3">
-                        <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">3</span>
-                        <div>
+                      <li className="flex gap-2 sm:gap-3">
+                        <span className="flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-medium">3</span>
+                        <div className="min-w-0">
                           <strong>{t('instructions.bot.step3')}</strong> {t('instructions.bot.step3Detail')}
                         </div>
                       </li>
-                      <li className="flex gap-3">
-                        <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">4</span>
-                        <div>
+                      <li className="flex gap-2 sm:gap-3">
+                        <span className="flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-medium">4</span>
+                        <div className="min-w-0">
                           <strong>{t('instructions.bot.step4')}</strong> {t('instructions.bot.step4Detail')}
                         </div>
                       </li>
-                      <li className="flex gap-3">
-                        <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">5</span>
-                        <div>
+                      <li className="flex gap-2 sm:gap-3">
+                        <span className="flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-medium">5</span>
+                        <div className="min-w-0">
                           <strong>{t('instructions.bot.step5')}</strong> {t('instructions.bot.step5Detail')}
                         </div>
                       </li>
-                      <li className="flex gap-3">
-                        <span className="flex-shrink-0 w-6 h-6 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-xs font-medium">✓</span>
-                        <div>
+                      <li className="flex gap-2 sm:gap-3">
+                        <span className="flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-medium">✓</span>
+                        <div className="min-w-0">
                           <strong>{t('instructions.bot.step6')}</strong> {t('instructions.bot.step6Detail')}
                         </div>
                       </li>
                     </ol>
                   ) : (
-                    <ol className="space-y-3 text-sm">
-                      <li className="flex gap-3">
-                        <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">1</span>
-                        <div>
+                    <ol className="space-y-2 sm:space-y-3 text-xs sm:text-sm">
+                      <li className="flex gap-2 sm:gap-3">
+                        <span className="flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-medium">1</span>
+                        <div className="min-w-0">
                           <strong>{t('instructions.account.step1')}</strong> <a href="https://my.telegram.org/apps" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">my.telegram.org/apps</a>
                         </div>
                       </li>
-                      <li className="flex gap-3">
-                        <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">2</span>
-                        <div>
+                      <li className="flex gap-2 sm:gap-3">
+                        <span className="flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-medium">2</span>
+                        <div className="min-w-0">
                           <strong>{t('instructions.account.step2')}</strong> {t('instructions.account.step2Detail')}
                         </div>
                       </li>
-                      <li className="flex gap-3">
-                        <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">3</span>
-                        <div>
+                      <li className="flex gap-2 sm:gap-3">
+                        <span className="flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-medium">3</span>
+                        <div className="min-w-0">
                           <strong>{t('instructions.account.step3')}</strong> {t('instructions.account.step3Detail')}
                         </div>
                       </li>
-                      <li className="flex gap-3">
-                        <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">4</span>
-                        <div>
+                      <li className="flex gap-2 sm:gap-3">
+                        <span className="flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-medium">4</span>
+                        <div className="min-w-0">
                           <strong>{t('instructions.account.step4')}</strong> {t('instructions.account.step4Detail')}
                         </div>
                       </li>
-                      <li className="flex gap-3">
-                        <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">5</span>
-                        <div>
+                      <li className="flex gap-2 sm:gap-3">
+                        <span className="flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-medium">5</span>
+                        <div className="min-w-0">
                           <strong>{t('instructions.account.step5')}</strong> {t('instructions.account.step5Detail')}
                         </div>
                       </li>
-                      <li className="flex gap-3">
-                        <span className="flex-shrink-0 w-6 h-6 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-xs font-medium">✓</span>
-                        <div>
+                      <li className="flex gap-2 sm:gap-3">
+                        <span className="flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-medium">✓</span>
+                        <div className="min-w-0">
                           <strong>{t('instructions.account.step6')}</strong> {t('instructions.account.step6Detail')}
                         </div>
                       </li>

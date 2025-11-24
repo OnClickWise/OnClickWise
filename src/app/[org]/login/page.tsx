@@ -175,10 +175,10 @@ export default function CompanyLoginPage({ params }: { params: Promise<{ org: st
 
   if (loadingCompany) {
     return (
-      <div className="auth-page-container flex items-center justify-center">
+      <div className="auth-page-container flex items-center justify-center p-4">
         <div className="text-center relative z-10">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#3b82f6] border-t-transparent mx-auto mb-4"></div>
-          <p className="text-gray-600 font-medium">{t('loadingCompanyInfo')}</p>
+          <div className="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-4 border-[#3b82f6] border-t-transparent mx-auto mb-3 sm:mb-4"></div>
+          <p className="text-gray-600 font-medium text-sm sm:text-base">{t('loadingCompanyInfo')}</p>
         </div>
       </div>
     );
@@ -186,21 +186,21 @@ export default function CompanyLoginPage({ params }: { params: Promise<{ org: st
 
   if (!companyInfo) {
     return (
-      <div className="auth-page-container flex items-center justify-center p-4">
+      <div className="auth-page-container flex items-center justify-center p-3 sm:p-4">
         <div className="auth-card max-w-md w-full relative z-10">
-          <div className="p-8 text-center">
-            <div className="w-20 h-20 bg-gradient-to-br from-red-100 to-red-50 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg">
-              <Building2 className="w-10 h-10 text-red-500" />
+          <div className="p-5 sm:p-8 text-center">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-red-100 to-red-50 rounded-2xl flex items-center justify-center mx-auto mb-4 sm:mb-6 shadow-lg">
+              <Building2 className="w-8 h-8 sm:w-10 sm:h-10 text-red-500" />
             </div>
-            <h2 className="auth-title text-2xl mb-3 text-red-600">{t('companyNotFound')}</h2>
-            <p className="auth-subtitle mb-8">
+            <h2 className="auth-title text-xl sm:text-2xl mb-2 sm:mb-3 text-red-600">{t('companyNotFound')}</h2>
+            <p className="auth-subtitle text-sm sm:text-base mb-6 sm:mb-8">
               {t('companyNotFoundMessage')}
             </p>
             <button
               onClick={() => router.push('/login')}
-              className="auth-button-outline w-full flex items-center justify-center"
+              className="auth-button-outline w-full flex items-center justify-center text-sm sm:text-base py-2 sm:py-2.5 px-4"
             >
-              <ArrowLeft className="w-4 h-4 mr-2" />
+              <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" />
               {t('backToMainLogin')}
             </button>
           </div>
@@ -218,20 +218,20 @@ export default function CompanyLoginPage({ params }: { params: Promise<{ org: st
       />
 
       {/* Main content */}
-      <div className="flex items-center justify-center min-h-screen p-4 relative z-10">
+      <div className="flex items-center justify-center min-h-screen p-3 sm:p-4 relative z-10">
         <div className="max-w-md w-full">
             {/* Company Info Card */}
-            <div className="auth-card mb-6 p-6">
-              <div className="flex items-center space-x-4">
+            <div className="auth-card mb-4 sm:mb-6 p-4 sm:p-6">
+              <div className="flex items-center space-x-3 sm:space-x-4">
                 <OrganizationAvatar 
                   src={companyInfo.logo_url ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}${companyInfo.logo_url}` : undefined} 
                   name={companyInfo.name} 
                   size="xl"
                 />
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900">{companyInfo.name}</h2>
-                  <Badge className="mt-2 bg-gradient-to-r from-[#facc15] to-[#fbbf24] text-black border-none px-3 py-1">
-                    <Shield className="w-3 h-3 mr-1" />
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-lg sm:text-xl font-bold text-gray-900 truncate">{companyInfo.name}</h2>
+                  <Badge className="mt-1.5 sm:mt-2 bg-gradient-to-r from-[#facc15] to-[#fbbf24] text-black border-none px-2 sm:px-3 py-0.5 sm:py-1 text-xs sm:text-sm">
+                    <Shield className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-1" />
                     {t('companyPortal')}
                   </Badge>
                 </div>
@@ -239,14 +239,14 @@ export default function CompanyLoginPage({ params }: { params: Promise<{ org: st
             </div>
 
             {/* Login Form */}
-            <div className="auth-card p-8 md:p-10">
-              <div className="text-center mb-8">
-                <h1 className="auth-title text-3xl md:text-4xl mb-3">{t('signIn')}</h1>
-                <p className="auth-subtitle text-base">
+            <div className="auth-card p-5 sm:p-8 md:p-10">
+              <div className="text-center mb-6 sm:mb-8">
+                <h1 className="auth-title text-2xl sm:text-3xl md:text-4xl mb-2 sm:mb-3">{t('signIn')}</h1>
+                <p className="auth-subtitle text-sm sm:text-base">
                   {t('accessAccount', { companyName: companyInfo.name })}
                 </p>
               </div>
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
                 <div>
                   <label htmlFor="email" className="auth-label">
                     {t('emailAddress')}
@@ -306,12 +306,12 @@ export default function CompanyLoginPage({ params }: { params: Promise<{ org: st
                   )}
                 </button>
 
-                <div className="text-center space-y-3 pt-2">
-                  <p className="text-sm text-gray-600">
+                <div className="text-center space-y-2 sm:space-y-3 pt-2">
+                  <p className="text-xs sm:text-sm text-gray-600">
                     {t('noAccount')}{' '}
                     {t('contactAdmin')}
                   </p>
-                  <p className="text-sm">
+                  <p className="text-xs sm:text-sm">
                     <button
                       type="button"
                       onClick={() => router.push(`/${resolvedParams.org}/forgot-password`)}

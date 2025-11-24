@@ -74,26 +74,26 @@ export default function LoginPage() {
   return (
     <div className="auth-page-container">
       {/* Header */}
-      <header className="auth-header flex h-16 shrink-0 items-center gap-2 px-4 md:px-8 sticky top-0 z-10">
+      <header className="auth-header flex h-14 sm:h-16 shrink-0 items-center gap-2 px-3 sm:px-4 md:px-8 sticky top-0 z-10">
         <div className="flex items-center gap-2">
-          <Logo width={200} height={65} className="h-14 w-auto" />
+          <Logo width={170} height={0} className="w-[170px] h-auto" />
         </div>
       </header>
 
       {/* Main content */}
-      <div className="flex flex-1 flex-col gap-4 p-4 pt-8 md:pt-12 pb-12">
-        <div className="flex items-center justify-center min-h-[calc(100vh-8rem)] relative z-10">
-          <div className="max-w-md w-full">
+      <div className="flex flex-1 flex-col gap-3 sm:gap-4 p-3 sm:p-4 pt-6 sm:pt-8 md:pt-12 pb-8 sm:pb-12">
+        <div className="flex items-center justify-center min-h-[calc(100vh-7rem)] sm:min-h-[calc(100vh-8rem)] relative z-10">
+          <div className="max-w-md w-full px-2 sm:px-0">
             {/* Login Form */}
-            <div className="auth-card p-8 md:p-10">
-              <div className="text-center mb-8">
-                <h1 className="auth-title text-3xl md:text-4xl mb-3">{t('pageTitle')}</h1>
+            <div className="auth-card p-5 sm:p-8 md:p-10">
+              <div className="text-center mb-6 sm:mb-8">
+                <h1 className="auth-title text-2xl sm:text-3xl md:text-4xl mb-2 sm:mb-3">{t('pageTitle')}</h1>
                 {t('pageDescription') && (
-                  <p className="auth-subtitle text-base">{t('pageDescription')}</p>
+                  <p className="auth-subtitle text-sm sm:text-base">{t('pageDescription')}</p>
                 )}
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
                 <div>
                   <label htmlFor="email" className="auth-label">
                     {t('companyEmail')}
@@ -153,18 +153,18 @@ export default function LoginPage() {
                   )}
                 </button>
 
-                <div className="text-center space-y-4 pt-2">
-                  <p className="text-gray-600 text-sm">
+                <div className="text-center space-y-3 sm:space-y-4 pt-2">
+                  <p className="text-gray-600 text-xs sm:text-sm">
                     {t('noAccount')}{' '}
                     <button
                       type="button"
                       onClick={() => router.push('/register')}
-                      className="text-[#3b82f6] hover:text-[#2563eb] font-semibold cursor-pointer transition-colors"
+                      className="text-[#3b82f6] hover:text-[#2563eb] font-semibold cursor-pointer transition-colors text-xs sm:text-sm"
                     >
                       {t('signUp')}
                     </button>
                   </p>
-                  <p className="text-sm">
+                  <p className="text-xs sm:text-sm">
                     <button
                       type="button"
                       onClick={() => router.push('/forgot-password')}

@@ -173,29 +173,29 @@ export default function RegisterPage() {
         {/* Header */}
         <header className="auth-header flex h-14 shrink-0 items-center gap-2 px-3 sm:px-4 md:px-8 sticky top-0 z-10 w-full max-w-full overflow-x-hidden">
           <div className="flex items-center gap-2 min-w-0">
-            <Logo width={200} height={65} className="h-10 sm:h-14 w-auto" />
+            <Logo width={170} height={0} className="w-[170px] h-auto" />
           </div>
         </header>
 
         {/* Main content */}
-        <div className="flex-1 flex flex-col px-2 sm:px-3 pt-2 pb-2 w-full max-w-full overflow-x-hidden min-h-0">
+        <div className="flex-1 flex flex-col px-2 sm:px-3 pt-4 sm:pt-6 pb-4 sm:pb-6 w-full max-w-full overflow-x-hidden min-h-0">
           <div className="w-full max-w-2xl mx-auto relative z-10">
             {/* Header */}
-            <div className="text-center mb-4 w-full">
-              <h1 className="auth-title text-2xl sm:text-3xl break-words w-full">{t('pageTitle')}</h1>
+            <div className="text-center mb-4 sm:mb-6 w-full px-2 sm:px-0">
+              <h1 className="auth-title text-xl sm:text-2xl md:text-3xl break-words w-full">{t('pageTitle')}</h1>
             </div>
 
             {/* Registration Form */}
-            <div className="auth-card p-4 sm:p-6 w-full">
-              <form onSubmit={handleSubmit} className="space-y-4 w-full">
+            <div className="auth-card p-4 sm:p-6 md:p-8 w-full">
+              <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6 w-full">
                 {/* Company Information */}
                 <div className="auth-section w-full">
-                  <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2 break-words">
+                  <h2 className="text-sm sm:text-base md:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center gap-2 break-words">
                     <Building2 className="w-4 h-4 sm:w-5 sm:h-5 text-[#3b82f6] flex-shrink-0" />
                     <span className="break-words">{t('companyInformation')}</span>
                   </h2>
                   
-                  <div className="grid grid-cols-1 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:gap-4">
                     <div className="w-full">
                       <label htmlFor="name" className="auth-label">
                         {t('companyName')} <span className="text-red-500">*</span>
@@ -225,7 +225,7 @@ export default function RegisterPage() {
                         className="auth-input w-full max-w-full"
                         placeholder={t('companyUrlPlaceholder')}
                       />
-                      <p className="text-sm text-gray-500 mt-2 font-medium break-words">
+                      <p className="text-xs sm:text-sm text-gray-500 mt-1 sm:mt-2 font-medium break-words">
                         {formData.slug 
                           ? <>onclickwise.com/<span className="text-[#3b82f6]">{formData.slug}</span></>
                           : <>{t('companyUrlPreview').split('/')[0]}/<span className="text-[#3b82f6]">{t('companyUrlPreview').split('/')[1]}</span></>
@@ -284,12 +284,12 @@ export default function RegisterPage() {
 
                 {/* Security */}
                 <div className="auth-section w-full">
-                  <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2 break-words">
+                  <h2 className="text-sm sm:text-base md:text-lg font-semibold text-gray-900 mb-3 sm:mb-4 flex items-center gap-2 break-words">
                     <Lock className="w-4 h-4 sm:w-5 sm:h-5 text-[#3b82f6] flex-shrink-0" />
                     <span className="break-words">{t('security')}</span>
                   </h2>
                 
-                  <div className="grid grid-cols-1 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:gap-4">
                     <div className="w-full">
                       <label htmlFor="password" className="auth-label">
                         {t('password')} <span className="text-red-500">*</span>
@@ -308,9 +308,10 @@ export default function RegisterPage() {
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-[#3b82f6] transition-colors cursor-pointer"
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-[#3b82f6] transition-colors cursor-pointer p-1"
+                          aria-label={showPassword ? 'Hide password' : 'Show password'}
                         >
-                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          {showPassword ? <EyeOff className="w-4 h-4 sm:w-5 sm:h-5" /> : <Eye className="w-4 h-4 sm:w-5 sm:h-5" />}
                         </button>
                       </div>
                     </div>
@@ -344,17 +345,17 @@ export default function RegisterPage() {
 
                 {/* Terms and Conditions */}
                 <div className="auth-section w-full">
-                  <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3">{t('termsAndConditions')}</h2>
+                  <h2 className="text-sm sm:text-base md:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">{t('termsAndConditions')}</h2>
                 
-                  <div className="flex items-start space-x-3 w-full">
+                  <div className="flex items-start space-x-2 sm:space-x-3 w-full">
                     <input
                       type="checkbox"
                       id="terms"
                       checked={termsAccepted}
                       onChange={(e) => setTermsAccepted(e.target.checked)}
-                      className="mt-1 h-4 w-4 sm:h-5 sm:w-5 text-[#3b82f6] focus:ring-[#3b82f6] border-gray-300 rounded cursor-pointer flex-shrink-0"
+                      className="mt-0.5 sm:mt-1 h-4 w-4 sm:h-5 sm:w-5 text-[#3b82f6] focus:ring-[#3b82f6] border-gray-300 rounded cursor-pointer flex-shrink-0"
                     />
-                    <div className="text-sm text-gray-700 leading-relaxed break-words flex-1 min-w-0">
+                    <div className="text-xs sm:text-sm text-gray-700 leading-relaxed break-words flex-1 min-w-0">
                       <span className="break-words">
                         {t('acceptTerms')}{' '}
                         <button
@@ -363,7 +364,7 @@ export default function RegisterPage() {
                             setModalContent('terms');
                             setShowTermsModal(true);
                           }}
-                          className="text-[#3b82f6] hover:text-[#2563eb] font-semibold underline cursor-pointer transition-colors break-words"
+                          className="text-[#3b82f6] hover:text-[#2563eb] font-semibold underline cursor-pointer transition-colors break-words text-xs sm:text-sm"
                         >
                           {t('termsOfUse')}
                         </button>
@@ -374,7 +375,7 @@ export default function RegisterPage() {
                             setModalContent('privacy');
                             setShowTermsModal(true);
                           }}
-                          className="text-[#3b82f6] hover:text-[#2563eb] font-semibold underline cursor-pointer transition-colors break-words"
+                          className="text-[#3b82f6] hover:text-[#2563eb] font-semibold underline cursor-pointer transition-colors break-words text-xs sm:text-sm"
                         >
                           {t('privacyPolicy')}
                         </button>
@@ -390,26 +391,26 @@ export default function RegisterPage() {
                   </div>
                 )}
 
-                <div className="flex flex-col sm:flex-row gap-3 pt-2 w-full">
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-2 w-full">
                   <button
                     type="submit"
                     disabled={loading}
-                    className="auth-button-primary flex-1 flex items-center justify-center w-full py-3 text-sm sm:text-base font-semibold"
+                    className="auth-button-primary flex-1 flex items-center justify-center w-full py-3 sm:py-3.5 text-sm sm:text-base font-semibold min-h-[44px]"
                   >
                     {loading ? (
                       <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        {t('creatingAccount')}
+                        <Loader2 className="mr-2 h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
+                        <span className="text-xs sm:text-sm sm:text-base">{t('creatingAccount')}</span>
                       </>
                     ) : (
-                      t('createAccount')
+                      <span className="text-sm sm:text-base">{t('createAccount')}</span>
                     )}
                   </button>
                   
                   <button
                     type="button"
                     onClick={() => router.push('/login')}
-                    className="auth-button-outline flex-1 w-full py-3 text-sm sm:text-base font-semibold"
+                    className="auth-button-outline flex-1 w-full py-3 sm:py-3.5 text-xs sm:text-sm md:text-base font-semibold min-h-[44px]"
                     disabled={loading}
                   >
                     {t('alreadyHaveAccount')}
@@ -424,27 +425,28 @@ export default function RegisterPage() {
       {/* Terms Modal */}
       {showTermsModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-50 overflow-x-hidden">
-          <div className="auth-card w-full max-w-[calc(100vw-2rem)] sm:max-w-2xl max-h-[80vh] overflow-y-auto overflow-x-hidden">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-semibold text-card-foreground">
+          <div className="auth-card w-full max-w-[calc(100vw-1rem)] sm:max-w-2xl max-h-[90vh] sm:max-h-[80vh] overflow-y-auto overflow-x-hidden">
+            <div className="p-4 sm:p-6">
+              <div className="flex justify-between items-center mb-3 sm:mb-4 gap-2">
+                <h3 className="text-base sm:text-xl font-semibold text-card-foreground break-words flex-1 min-w-0">
                   {modalContent === 'terms' ? t('termsModalTitle') : t('privacyModalTitle')}
                 </h3>
                 <button
                   onClick={() => setShowTermsModal(false)}
-                  className="text-muted-foreground hover:text-foreground cursor-pointer"
+                  className="text-muted-foreground hover:text-foreground cursor-pointer p-1 flex-shrink-0"
+                  aria-label="Close modal"
                 >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               </div>
 
               {/* Tabs */}
-              <div className="flex border-b border-gray-200 mb-6">
+              <div className="flex border-b border-gray-200 mb-4 sm:mb-6 overflow-x-auto">
                 <button
                   onClick={() => setModalContent('terms')}
-                  className={`px-4 py-2 text-sm font-medium border-b-2 cursor-pointer ${
+                  className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium border-b-2 cursor-pointer whitespace-nowrap ${
                     modalContent === 'terms'
                       ? 'border-blue-500 text-blue-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -454,7 +456,7 @@ export default function RegisterPage() {
                 </button>
                 <button
                   onClick={() => setModalContent('privacy')}
-                  className={`px-4 py-2 text-sm font-medium border-b-2 cursor-pointer ${
+                  className={`px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium border-b-2 cursor-pointer whitespace-nowrap ${
                     modalContent === 'privacy'
                       ? 'border-blue-500 text-blue-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -464,22 +466,22 @@ export default function RegisterPage() {
                 </button>
               </div>
               
-              <div className="space-y-6 text-sm text-gray-700 max-h-96 overflow-y-auto">
+              <div className="space-y-4 sm:space-y-6 text-xs sm:text-sm text-gray-700 max-h-[60vh] sm:max-h-96 overflow-y-auto">
                 {modalContent === 'terms' ? (
                   <div>
-                    <h4 className="font-semibold text-gray-900 mb-4 text-lg">{t('termsModalTitle')}</h4>
+                    <h4 className="font-semibold text-gray-900 mb-3 sm:mb-4 text-base sm:text-lg">{t('termsModalTitle')}</h4>
                   
-                    <div className="space-y-4">
-                      <p className="text-xs text-gray-500">
+                    <div className="space-y-3 sm:space-y-4">
+                      <p className="text-[10px] sm:text-xs text-gray-500">
                         <strong>{tTerms('lastUpdated')}</strong> {tTerms('lastUpdatedDate')}
                       </p>
                       
-                      <p>{tTerms('welcomeText')}</p>
+                      <p className="text-xs sm:text-sm">{tTerms('welcomeText')}</p>
 
                       <div>
-                        <h5 className="font-semibold text-gray-900 mb-2">{tTerms('section1Title')}</h5>
-                        <p className="mb-2">{tTerms('section1Intro')}</p>
-                        <ul className="list-disc list-inside space-y-1 ml-4">
+                        <h5 className="font-semibold text-gray-900 mb-1.5 sm:mb-2 text-sm sm:text-base">{tTerms('section1Title')}</h5>
+                        <p className="mb-1.5 sm:mb-2 text-xs sm:text-sm">{tTerms('section1Intro')}</p>
+                        <ul className="list-disc list-inside space-y-1 ml-2 sm:ml-4 text-xs sm:text-sm">
                           <li>{tTerms('section1User')}</li>
                           <li>{tTerms('section1Company')}</li>
                           <li>{tTerms('section1RegistrationData')}</li>
@@ -488,8 +490,8 @@ export default function RegisterPage() {
                       </div>
 
                       <div>
-                        <h5 className="font-semibold text-gray-900 mb-2">{tTerms('section2Title')}</h5>
-                        <ul className="list-disc list-inside space-y-1 ml-4">
+                        <h5 className="font-semibold text-gray-900 mb-1.5 sm:mb-2 text-sm sm:text-base">{tTerms('section2Title')}</h5>
+                        <ul className="list-disc list-inside space-y-1 ml-2 sm:ml-4 text-xs sm:text-sm">
                           <li>{tTerms('section2Item1')}</li>
                           <li>{tTerms('section2Item2')}</li>
                           <li>{tTerms('section2Item3')}</li>
@@ -497,8 +499,8 @@ export default function RegisterPage() {
                       </div>
 
                       <div>
-                        <h5 className="font-semibold text-gray-900 mb-2">{tTerms('section3Title')}</h5>
-                        <ul className="list-disc list-inside space-y-1 ml-4">
+                        <h5 className="font-semibold text-gray-900 mb-1.5 sm:mb-2 text-sm sm:text-base">{tTerms('section3Title')}</h5>
+                        <ul className="list-disc list-inside space-y-1 ml-2 sm:ml-4 text-xs sm:text-sm">
                           <li>{tTerms('section3Item1')}</li>
                           <li>{tTerms('section3Item2')}</li>
                           <li>{tTerms('section3Item3')}</li>
@@ -506,9 +508,9 @@ export default function RegisterPage() {
                       </div>
 
                       <div>
-                        <h5 className="font-semibold text-gray-900 mb-2">{tTerms('section4Title')}</h5>
-                        <p className="mb-2">{tTerms('section4Intro')}</p>
-                        <ul className="list-disc list-inside space-y-1 ml-4">
+                        <h5 className="font-semibold text-gray-900 mb-1.5 sm:mb-2 text-sm sm:text-base">{tTerms('section4Title')}</h5>
+                        <p className="mb-1.5 sm:mb-2 text-xs sm:text-sm">{tTerms('section4Intro')}</p>
+                        <ul className="list-disc list-inside space-y-1 ml-2 sm:ml-4 text-xs sm:text-sm">
                           <li>{tTerms('section4Item1')}</li>
                           <li>{tTerms('section4Item2')}</li>
                           <li>{tTerms('section4Item3')}</li>
@@ -518,24 +520,24 @@ export default function RegisterPage() {
                   </div>
                 ) : (
                   <div>
-                    <h4 className="font-semibold text-gray-900 mb-4 text-lg">{t('privacyModalTitle')}</h4>
+                    <h4 className="font-semibold text-gray-900 mb-3 sm:mb-4 text-base sm:text-lg">{t('privacyModalTitle')}</h4>
                     
-                    <div className="space-y-4">
-                      <p className="text-xs text-gray-500">
+                    <div className="space-y-3 sm:space-y-4">
+                      <p className="text-[10px] sm:text-xs text-gray-500">
                         <strong>{tPrivacy('lastUpdated')}</strong> {tPrivacy('lastUpdatedDate')}
                       </p>
                       
-                      <p>{tPrivacy('introText')}</p>
-                      <p>{tPrivacy('agreementText')}</p>
+                      <p className="text-xs sm:text-sm">{tPrivacy('introText')}</p>
+                      <p className="text-xs sm:text-sm">{tPrivacy('agreementText')}</p>
 
                       <div>
-                        <h5 className="font-semibold text-gray-900 mb-2">{tPrivacy('section1Title')}</h5>
-                        <p className="mb-2">{tPrivacy('section1Intro')}</p>
+                        <h5 className="font-semibold text-gray-900 mb-1.5 sm:mb-2 text-sm sm:text-base">{tPrivacy('section1Title')}</h5>
+                        <p className="mb-1.5 sm:mb-2 text-xs sm:text-sm">{tPrivacy('section1Intro')}</p>
                         
-                        <div className="ml-4 space-y-2">
+                        <div className="ml-2 sm:ml-4 space-y-2">
                           <div>
-                            <strong>{tPrivacy('section1CompanyData')}</strong>
-                            <ul className="list-disc list-inside space-y-1 ml-4 mt-1">
+                            <strong className="text-xs sm:text-sm">{tPrivacy('section1CompanyData')}</strong>
+                            <ul className="list-disc list-inside space-y-1 ml-2 sm:ml-4 mt-1 text-xs sm:text-sm">
                               <li>{tPrivacy('section1CompanyName')}</li>
                               <li>{tPrivacy('section1CompanySlug')}</li>
                               <li>{tPrivacy('section1CompanyEIN')}</li>
@@ -546,8 +548,8 @@ export default function RegisterPage() {
                           </div>
                           
                           <div>
-                            <strong>{tPrivacy('section1ResponsibleData')}</strong>
-                            <ul className="list-disc list-inside space-y-1 ml-4 mt-1">
+                            <strong className="text-xs sm:text-sm">{tPrivacy('section1ResponsibleData')}</strong>
+                            <ul className="list-disc list-inside space-y-1 ml-2 sm:ml-4 mt-1 text-xs sm:text-sm">
                               <li>{tPrivacy('section1ResponsibleName')}</li>
                               <li>{tPrivacy('section1ResponsiblePosition')}</li>
                               <li>{tPrivacy('section1ResponsibleEmail')}</li>
@@ -556,8 +558,8 @@ export default function RegisterPage() {
                           </div>
                           
                           <div>
-                            <strong>{tPrivacy('section1AccessData')}</strong>
-                            <ul className="list-disc list-inside space-y-1 ml-4 mt-1">
+                            <strong className="text-xs sm:text-sm">{tPrivacy('section1AccessData')}</strong>
+                            <ul className="list-disc list-inside space-y-1 ml-2 sm:ml-4 mt-1 text-xs sm:text-sm">
                               <li>{tPrivacy('section1AccessPassword')}</li>
                               <li>{tPrivacy('section1AccessLogs')}</li>
                             </ul>
@@ -566,9 +568,9 @@ export default function RegisterPage() {
                       </div>
 
                       <div>
-                        <h5 className="font-semibold text-gray-900 mb-2">{tPrivacy('section2Title')}</h5>
-                        <p className="mb-2">{tPrivacy('section2Intro')}</p>
-                        <ul className="list-disc list-inside space-y-1 ml-4">
+                        <h5 className="font-semibold text-gray-900 mb-1.5 sm:mb-2 text-sm sm:text-base">{tPrivacy('section2Title')}</h5>
+                        <p className="mb-1.5 sm:mb-2 text-xs sm:text-sm">{tPrivacy('section2Intro')}</p>
+                        <ul className="list-disc list-inside space-y-1 ml-2 sm:ml-4 text-xs sm:text-sm">
                           <li>{tPrivacy('section2Item1')}</li>
                           <li>{tPrivacy('section2Item2')}</li>
                           <li>{tPrivacy('section2Item3')}</li>
@@ -580,10 +582,10 @@ export default function RegisterPage() {
                       </div>
 
                       <div>
-                        <h5 className="font-semibold text-gray-900 mb-2">{tPrivacy('section3Title')}</h5>
-                        <p className="mb-2">{tPrivacy('section3Intro1')}</p>
-                        <p className="mb-2">{tPrivacy('section3Intro2')}</p>
-                        <ul className="list-disc list-inside space-y-1 ml-4">
+                        <h5 className="font-semibold text-gray-900 mb-1.5 sm:mb-2 text-sm sm:text-base">{tPrivacy('section3Title')}</h5>
+                        <p className="mb-1.5 sm:mb-2 text-xs sm:text-sm">{tPrivacy('section3Intro1')}</p>
+                        <p className="mb-1.5 sm:mb-2 text-xs sm:text-sm">{tPrivacy('section3Intro2')}</p>
+                        <ul className="list-disc list-inside space-y-1 ml-2 sm:ml-4 text-xs sm:text-sm">
                           <li>{tPrivacy('section3Item1')}</li>
                           <li>{tPrivacy('section3Item2')}</li>
                           <li>{tPrivacy('section3Item3')}</li>
@@ -591,8 +593,8 @@ export default function RegisterPage() {
                       </div>
 
                       <div>
-                        <h5 className="font-semibold text-gray-900 mb-2">{tPrivacy('section4Title')}</h5>
-                        <ul className="list-disc list-inside space-y-1 ml-4">
+                        <h5 className="font-semibold text-gray-900 mb-1.5 sm:mb-2 text-sm sm:text-base">{tPrivacy('section4Title')}</h5>
+                        <ul className="list-disc list-inside space-y-1 ml-2 sm:ml-4 text-xs sm:text-sm">
                           <li>{tPrivacy('section4Item1')}</li>
                           <li>{tPrivacy('section4Item2')}</li>
                           <li>{tPrivacy('section4Item3')}</li>
@@ -601,17 +603,17 @@ export default function RegisterPage() {
                       </div>
 
                       <div>
-                        <h5 className="font-semibold text-gray-900 mb-2">{tPrivacy('section5Title')}</h5>
-                        <ul className="list-disc list-inside space-y-1 ml-4">
+                        <h5 className="font-semibold text-gray-900 mb-1.5 sm:mb-2 text-sm sm:text-base">{tPrivacy('section5Title')}</h5>
+                        <ul className="list-disc list-inside space-y-1 ml-2 sm:ml-4 text-xs sm:text-sm">
                           <li>{tPrivacy('section5Item1')}</li>
                           <li>{tPrivacy('section5Item2')}</li>
                         </ul>
                       </div>
 
                       <div>
-                        <h5 className="font-semibold text-gray-900 mb-2">{tPrivacy('section6Title')}</h5>
-                        <p className="mb-2">{tPrivacy('section6Intro')}</p>
-                        <ul className="list-disc list-inside space-y-1 ml-4">
+                        <h5 className="font-semibold text-gray-900 mb-1.5 sm:mb-2 text-sm sm:text-base">{tPrivacy('section6Title')}</h5>
+                        <p className="mb-1.5 sm:mb-2 text-xs sm:text-sm">{tPrivacy('section6Intro')}</p>
+                        <ul className="list-disc list-inside space-y-1 ml-2 sm:ml-4 text-xs sm:text-sm">
                           <li>{tPrivacy('section6Item1')}</li>
                           <li>{tPrivacy('section6Item2')}</li>
                           <li>{tPrivacy('section6Item3')}</li>
@@ -621,17 +623,17 @@ export default function RegisterPage() {
                           <li>{tPrivacy('section6Item7')}</li>
                           <li>{tPrivacy('section6Item8')}</li>
                         </ul>
-                        <p className="mt-2">{tPrivacy('section6Contact')}</p>
+                        <p className="mt-1.5 sm:mt-2 text-xs sm:text-sm">{tPrivacy('section6Contact')}</p>
                       </div>
                     </div>
                   </div>
                 )}
               </div>
               
-              <div className="mt-6 flex justify-end">
+              <div className="mt-4 sm:mt-6 flex justify-end">
                 <button
                   onClick={() => setShowTermsModal(false)}
-                  className="auth-button-primary cursor-pointer"
+                  className="auth-button-primary cursor-pointer px-4 sm:px-6 py-2 sm:py-2.5 text-xs sm:text-sm md:text-base min-h-[44px] w-full sm:w-auto"
                 >
                   {t('closeModal')}
                 </button>

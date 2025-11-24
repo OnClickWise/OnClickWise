@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useRouter, usePathname } from "next/navigation"
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import {
   BadgeCheck,
   Bell,
@@ -45,6 +45,7 @@ export function NavUser({
   const isCollapsed = state === "collapsed"
   const router = useRouter()
   const pathname = usePathname()
+  const locale = useLocale()
   const t = useTranslations('UserMenu')
   
   // Verificar se está em alguma página de settings, billing, ou notificações

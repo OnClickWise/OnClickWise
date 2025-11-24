@@ -149,17 +149,17 @@ export function LogoTicker() {
   }, [isDragging, x])
 
   return (
-    <section className="relative py-16 bg-gray-50 dark:bg-gray-900 overflow-hidden">
-      <div className="container mx-auto px-6 text-center">
+    <section className="relative py-8 sm:py-12 md:py-16 bg-gray-50 dark:bg-gray-900 overflow-hidden">
+      <div className="container mx-auto px-4 sm:px-6 text-center">
 
         {/* TAG */}
-        <div className="inline-flex items-center gap-2 py-2 px-5 bg-gradient-to-r from-blue-500 to-yellow-400 text-black font-semibold rounded-full shadow-lg mb-10">
-          <Sparkles className="w-4 h-4 text-black" />
-          {t("tag")}
+        <div className="inline-flex items-center gap-1.5 sm:gap-2 py-1.5 sm:py-2 px-3 sm:px-4 md:px-5 bg-gradient-to-r from-blue-500 to-yellow-400 text-black font-semibold rounded-full shadow-lg mb-6 sm:mb-8 md:mb-10 text-xs sm:text-sm">
+          <Sparkles className="w-3 h-3 sm:w-4 sm:h-4 text-black flex-shrink-0" />
+          <span className="truncate">{t("tag")}</span>
         </div>
 
         {/* TÍTULO */}
-        <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 dark:text-white mb-12">
+        <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-extrabold text-gray-900 dark:text-white mb-6 sm:mb-8 md:mb-12 px-2 sm:px-0">
           {t("title")} <span className="text-blue-600">{t("titleHighlight")}</span>
         </h2>
 
@@ -175,18 +175,18 @@ export function LogoTicker() {
         >
           {/* Gradiente esquerdo - fade out */}
           <div 
-            className="absolute left-0 top-0 bottom-0 w-32 z-10 pointer-events-none
+            className="absolute left-0 top-0 bottom-0 w-16 sm:w-24 md:w-32 z-10 pointer-events-none
             bg-gradient-to-r from-gray-50 dark:from-gray-900 to-transparent"
           />
           
           {/* Gradiente direito - fade out */}
           <div 
-            className="absolute right-0 top-0 bottom-0 w-32 z-10 pointer-events-none
+            className="absolute right-0 top-0 bottom-0 w-16 sm:w-24 md:w-32 z-10 pointer-events-none
             bg-gradient-to-l from-gray-50 dark:from-gray-900 to-transparent"
           />
           
           <motion.div
-            className="flex gap-16"
+            className="flex gap-8 sm:gap-12 md:gap-16"
             drag="x"
             dragElastic={0.1}
             dragMomentum={false}
@@ -221,14 +221,14 @@ export function LogoTicker() {
             {duplicatedLogos.map((logo, i) => (
               <div
                 key={`${logo.name}-${i}`}
-                className="flex items-center justify-center flex-shrink-0 w-40 h-24 bg-white dark:bg-gray-800 shadow-md rounded-xl p-4"
+                className="flex items-center justify-center flex-shrink-0 w-28 h-16 sm:w-32 sm:h-20 md:w-40 md:h-24 bg-white dark:bg-gray-800 shadow-md rounded-lg sm:rounded-xl p-2 sm:p-3 md:p-4"
               >
                 <Image
                   src={logo.image}
                   alt={logo.name}
                   width={120}
                   height={60}
-                  className="object-contain pointer-events-none select-none"
+                  className="object-contain pointer-events-none select-none w-full h-full"
                   unoptimized
                 />
               </div>
