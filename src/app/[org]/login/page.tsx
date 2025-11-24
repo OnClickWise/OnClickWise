@@ -169,7 +169,7 @@ export default function CompanyLoginPage({ params }: { params: Promise<{ org: st
             </div>
             <CardTitle className="text-xl text-destructive">Company Not Found</CardTitle>
             <CardDescription className="text-muted-foreground">
-              The company you're looking for doesn't exist or has been removed.
+              The company you&apos;re looking for doesn&apos;t exist or has been removed.
             </CardDescription>
           </CardHeader>
           <CardContent className="text-center">
@@ -290,7 +290,7 @@ export default function CompanyLoginPage({ params }: { params: Promise<{ org: st
 
                   <div className="text-center">
                     <p className="text-sm text-muted-foreground">
-                      Don't have an account?{' '}
+                      Don&apos;t have an account?{' '}
                       Contact your administrator
                     </p>
                   </div>
