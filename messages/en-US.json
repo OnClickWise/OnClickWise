@@ -4,6 +4,7 @@
     "leads": "Leads",
     "leadList": "Lead List",
     "captureSources": "Capture Sources",
+    "landingPageCreator": "Landing Page Creator",
     "marketing": "Marketing",
     "emailCampaigns": "Email Campaigns",
     "socialMedia": "Social Media",
@@ -1758,6 +1759,464 @@
     },
     "saveButton": "Save Changes",
     "saving": "Saving..."
+  },
+  "LandingPagePresets": {
+    "modern-saas": {
+      "name": "Modern SaaS - Complete",
+      "header": {
+        "logo": "SaaSPro"
+      },
+      "hero": {
+        "title": "The Platform That Transforms Your Business",
+        "subtitle": "Manage your business intelligently. Over 10,000 companies trust our platform to grow.",
+        "ctaPrimary": "Start Free",
+        "ctaSecondary": "Watch Demo"
+      },
+      "features": {
+        "title": "Everything you need in one place",
+        "subtitle": "Powerful features to boost your growth",
+        "items": [
+          "⚡ Setup in 5 minutes - Configure everything quickly",
+          "📊 Real-time analytics - Track your growth",
+          "🔒 Maximum security - Data protected with encryption",
+          "🤝 24/7 support - Team always available",
+          "📱 Mobile app - Manage from anywhere",
+          "🔌 Integrations - Connect with your favorite tools"
+        ]
+      },
+      "testimonials": {
+        "title": "What our customers say"
+      },
+      "cta": {
+        "title": "Ready to transform your business?",
+        "subtitle": "Start free today. No credit card required. Cancel anytime.",
+        "button": "Start Now - Free"
+      },
+      "footer": {
+        "text": "© 2024 SaaSPro. All rights reserved."
+      }
+    },
+    "product-launch": {
+      "name": "Product Launch",
+      "hero": {
+        "badge": "🚀 EXCLUSIVE LAUNCH",
+        "title": "The Future Has Arrived. Be The First.",
+        "subtitle": "Discover the innovation that will revolutionize how you work. Reserve your spot now and get exclusive access.",
+        "form": {
+          "email": "Email",
+          "name": "Name",
+          "submit": "Reserve My Spot"
+        }
+      },
+      "benefits": {
+        "title": "Why choose our product?",
+        "items": [
+          "✨ Revolutionary design that impresses",
+          "⚡ Exceptional performance and speed",
+          "🛡️ Enterprise-level security",
+          "📱 Works perfectly on all devices",
+          "🎯 Easy to use, even for beginners",
+          "💎 Premium quality guaranteed"
+        ]
+      },
+      "offer": {
+        "title": "Special Launch Offer",
+        "highlight": "🔥 50% OFF only for the first 100 customers!",
+        "button": "Secure My Offer Now"
+      }
+    },
+    "lead-magnet": {
+      "name": "Lead Magnet",
+      "hero": {
+        "title": "Free Exclusive Guide",
+        "subtitle": "The 10 Secrets of Successful Professionals",
+        "description": "Discover the proven strategies that top professionals use to achieve extraordinary results. Download now, 100% free!"
+      },
+      "form": {
+        "title": "Fill out and receive now",
+        "fields": {
+          "name": "Full Name",
+          "email": "Email",
+          "phone": "Phone (optional)"
+        },
+        "submit": "Download Free Guide Now"
+      },
+      "guarantees": {
+        "items": [
+          "✅ 100% Free - No hidden costs",
+          "✅ Instant Access - Receive in seconds",
+          "✅ No Spam - We respect your privacy",
+          "✅ Exclusive Content - Not found elsewhere"
+        ]
+      },
+      "socialProof": {
+        "title": "Over 50,000 people have already downloaded"
+      }
+    },
+    "simple": {
+      "name": "Simple Landing Page",
+      "hero": {
+        "title": "Your Powerful Headline Here",
+        "subtitle": "Add a compelling description that clearly explains the unique value of your product or service and why people should choose you.",
+        "cta": "Call to Action"
+      }
+    },
+    "sales": {
+      "name": "Complete Sales Page",
+      "hero": {
+        "badge": "🔥 LIMITED TIME OFFER",
+        "title": "Transform Your Business Today",
+        "subtitle": "The complete solution that thousands of companies are already using to grow and increase their profits. Join them now!",
+        "cta": "I Want to Transform My Business"
+      },
+      "benefits": {
+        "title": "What you'll receive",
+        "items": [
+          "✅ Full access to all premium features",
+          "✅ Priority 24/7 support",
+          "✅ 30-day unconditional guarantee",
+          "✅ Free updates forever",
+          "✅ Complete training included",
+          "✅ Exclusive bonuses worth $1,000"
+        ]
+      },
+      "testimonials": {
+        "title": "Real Results from Real Customers"
+      },
+      "offer": {
+        "highlight": "💰 From $997 to just $497 - Only today!",
+        "button": "Secure My Spot Now",
+        "guarantees": "⚡ Secure payment • 🔒 30-day guarantee • 💳 Installments up to 12x"
+      }
+    },
+    "faq-testimonials": {
+      "name": "FAQ + Testimonials",
+      "hero": {
+        "title": "Frequently Asked Questions",
+        "subtitle": "Get all your questions answered before you start"
+      },
+      "faq": {
+        "items": [
+          {
+            "question": "How does the process work?",
+            "answer": "It's very simple! After registration, you receive immediate access to the platform. Our intuitive interface allows you to start using it in minutes, without extensive training."
+          },
+          {
+            "question": "What are the available plans and prices?",
+            "answer": "We offer flexible plans for all business sizes. We have options from the free basic plan to enterprise plans with advanced features. All plans include support and updates."
+          },
+          {
+            "question": "Do I need technical knowledge to use it?",
+            "answer": "No! Our platform was designed to be used by anyone, regardless of technical level. The interface is intuitive and we offer complete tutorials to guide you."
+          },
+          {
+            "question": "Is support available?",
+            "answer": "Yes! We offer 24/7 support via email, live chat, and phone for all our customers. Our team is always ready to help you succeed."
+          },
+          {
+            "question": "Can I cancel at any time?",
+            "answer": "Absolutely! There are no long-term contracts. You can cancel your subscription at any time, without fees or penalties. Your account will remain active until the end of the paid period."
+          },
+          {
+            "question": "Is my data secure?",
+            "answer": "Yes! We use bank-level encryption and follow the highest security standards in the industry. Your data is completely protected and never shared with third parties."
+          }
+        ]
+      },
+      "testimonials": {
+        "title": "What our customers say"
+      }
+    },
+    "launch": {
+      "name": "Coming Soon Page",
+      "hero": {
+        "title": "Coming Soon",
+        "subtitle": "Something amazing is coming. Be the first to know when we launch!",
+        "form": {
+          "email": "Email",
+          "submit": "Notify Me When Launch"
+        }
+      }
+    }
+  },
+  "LandingPageCreator": {
+    "menu": {
+      "title": "Builder Menu",
+      "subtitle": "Choose an action to continue"
+    },
+    "categories": {
+      "create": "Create and Add",
+      "customization": "Customization",
+      "visualization": "Visualization",
+      "management": "Management",
+      "editing": "Editing",
+      "export": "Export and Settings",
+      "help": "Help",
+      "destructive": "Destructive Actions"
+    },
+    "actions": {
+      "addElement": "Add Element",
+      "addElementDesc": "Text, image, button...",
+      "addSection": "Add Section",
+      "addSectionDesc": "Header, hero, content...",
+      "changeTheme": "Change Theme",
+      "changeThemeDesc": "Colors and fonts",
+      "headerFooter": "Header/Footer",
+      "headerFooterDesc": "Customize top and bottom",
+      "loadTemplate": "Load Template",
+      "loadTemplateDesc": "Ready templates",
+      "viewMobile": "View Mobile",
+      "viewDesktop": "View Desktop",
+      "toggleViewDesc": "Toggle view",
+      "previewLink": "Preview Link",
+      "previewLinkDesc": "View published page",
+      "save": "Save",
+      "saving": "Saving...",
+      "saveDesc": "Save changes",
+      "publish": "Publish",
+      "publishing": "Publishing...",
+      "publishDesc": "Save and publish",
+      "managePages": "Manage Pages",
+      "managePagesDesc": "View all pages",
+      "duplicatePage": "Duplicate Page",
+      "duplicatePageDesc": "Create a copy",
+      "undo": "Undo",
+      "undoDesc": "Revert action",
+      "redo": "Redo",
+      "redoDesc": "Redo action",
+      "exportHTML": "Export HTML",
+      "exportHTMLDesc": "Download code",
+      "settings": "Settings",
+      "settingsDesc": "General adjustments",
+      "help": "Help",
+      "helpDesc": "Tutorial and tips",
+      "resetPage": "Reset Page",
+      "resetPageDesc": "Clear everything"
+    },
+    "elementSelector": {
+      "title": "Add Element",
+      "subtitle": "Choose the type of element you want to add"
+    },
+    "back": "Back",
+    "fab": {
+      "tooltip": "Click here to get started",
+      "ariaLabel": "Open builder menu"
+    },
+    "elementPanel": {
+      "title": "Edit Element",
+      "subtitle": "Customize the content and style of your element",
+      "close": "Close",
+      "delete": "Delete Element",
+      "deleteShort": "Delete",
+      "deleteConfirm": "Are you sure you want to remove this element?"
+    },
+    "deleteSectionConfirm": "Are you sure you want to remove this empty section?",
+    "presetLoader": {
+      "title": "Load Template",
+      "subtitle": "Choose a ready template to get started quickly"
+    },
+    "sectionPreset": {
+      "title": "Add Section",
+      "subtitle": "Choose a section type to add to your page",
+      "back": "Back",
+      "essentialSections": "Essential Sections",
+      "contentSections": "Content Sections",
+      "alreadyAdded": "Already added",
+      "presets": {
+        "header": {
+          "label": "Header",
+          "description": "Navigation header with logo and menu"
+        },
+        "hero": {
+          "label": "Hero Section",
+          "description": "Large banner with headline and CTA"
+        },
+        "form": {
+          "label": "Form Section",
+          "description": "Lead capture form"
+        },
+        "testimonials": {
+          "label": "Testimonials",
+          "description": "Customer testimonials carousel"
+        },
+        "content": {
+          "label": "Benefit Lists",
+          "description": "Feature/benefit list section"
+        },
+        "footer": {
+          "label": "Footer",
+          "description": "Footer with links and legal info"
+        }
+      }
+    },
+    "themeCustomizer": {
+      "title": "Customize Theme"
+    },
+    "headerFooterCustomizer": {
+      "title": "Customize Header and Footer"
+    },
+    "generalSettings": {
+      "title": "General Settings",
+      "subtitle": "Configure basic information and SEO for your landing page",
+      "basicInfo": "Basic Information",
+      "pageName": "Page Name",
+      "pageNamePlaceholder": "My Landing Page",
+      "pageNameDescription": "Internal name to identify this page",
+      "seoSettings": "SEO Settings",
+      "metaTitle": "Page Title (Meta Title)",
+      "metaTitlePlaceholder": "Page title",
+      "metaTitleDescription": "Title that appears in search results",
+      "metaDescription": "Description (Meta Description)",
+      "metaDescriptionPlaceholder": "Page description that appears in search results",
+      "metaDescriptionDescription": "Description that appears in search results",
+      "keywords": "Keywords",
+      "keywordsPlaceholder": "word1, word2, word3",
+      "keywordsDescription": "Separate keywords with commas",
+      "socialMedia": "Social Media (Open Graph)",
+      "ogImage": "Sharing Image (OG Image)",
+      "ogImagePlaceholder": "https://example.com/image.jpg",
+      "ogImageDescription": "URL of the image that appears when sharing on social media (recommended: 1200x630px)",
+      "pageInfo": "Page Information",
+      "createdAt": "Created at: {date}",
+      "lastUpdate": "Last update: {date}",
+      "pageId": "ID: {id}",
+      "cancel": "Cancel",
+      "save": "Save Settings",
+      "back": "Back"
+    },
+    "previewLinkGenerator": {
+      "title": "Preview Links",
+      "subtitle": "Create unique links to share and preview your landing page",
+      "createNewLink": "Create New Link",
+      "linkType": "Link Type",
+      "permanent": "Permanent",
+      "temporary": "Temporary",
+      "permanentDescription": "Permanent link that will always work (ideal for viewing the company's saved landing page)",
+      "temporaryDescription": "Temporary link that expires after a defined period",
+      "expiresIn": "Expires in (days)",
+      "expiresInDays": "The link will expire in {days} day{daysPlural}",
+      "linkName": "Link Name (optional)",
+      "linkNamePlaceholder": "e.g., Link for client X",
+      "linkNameDescription": "A descriptive name to identify this link",
+      "createLink": "Create Link",
+      "creating": "Creating...",
+      "existingLinks": "Existing Links",
+      "noLinks": "No links created yet",
+      "noLinksHint": "Create a link above to get started",
+      "linkWithoutName": "Link without name",
+      "expired": "Expired",
+      "inactive": "Inactive",
+      "accesses": "Accesses: {count}",
+      "expiresAt": "Expires at: {date}",
+      "createdAt": "Created at: {date}",
+      "deactivateLink": "Deactivate link",
+      "activateLink": "Activate link",
+      "deleteLink": "Delete link",
+      "close": "Close",
+      "deleteConfirm": "Are you sure you want to delete this link? It will no longer work.",
+      "linkCreated": "Link created successfully!",
+      "linkDeleted": "Link deleted successfully!",
+      "linkDeactivated": "Link deactivated!",
+      "linkActivated": "Link activated!",
+      "copyError": "Error copying link",
+      "createError": "Error creating preview link",
+      "deleteError": "Error deleting link",
+      "updateError": "Error updating link",
+      "loadError": "Error loading preview links",
+      "loadLinksError": "Error loading links",
+      "noPageSelected": "No landing page selected",
+      "authError": "Authentication token not found"
+    },
+    "landingPageManager": {
+      "title": "Manage Landing Pages",
+      "subtitle": "View, edit and manage all your landing pages",
+      "searchPlaceholder": "Search pages...",
+      "saveManualTitle": "Save Current Page Manually",
+      "updateSlot": "Update Slot {slot}",
+      "saveSlot": "Save to Slot {slot}",
+      "saveManualDescription": "Manual pages are saved permanently and are only replaced when you save over them or delete them.",
+      "manualPages": "Manual Pages (3 permanent slots)",
+      "autoPages": "Automatic History (last 3 used)",
+      "autoPagesDescription": "Automatic history keeps only the 3 most recent pages. The oldest is automatically deleted when a new one is created.",
+      "slot": "Slot {slot} - Manual",
+      "published": "Published",
+      "current": "Current",
+      "automatic": "Automatic",
+      "updated": "Updated: {date}",
+      "publishedAt": "Published: {date}",
+      "loadPage": "Load page",
+      "deletePage": "Delete page",
+      "duplicatePage": "Duplicate page",
+      "noPages": "No pages created yet",
+      "noPagesHint": "Create your first landing page in the builder",
+      "noPagesFound": "No pages found",
+      "noPagesFoundHint": "Try searching with other terms",
+      "close": "Close",
+      "deleteConfirm": "Are you sure you want to delete this page? This action cannot be undone.",
+      "loadError": "Error loading page",
+      "deleteError": "Error deleting page",
+      "duplicateError": "Error duplicating page",
+      "loadDuplicateError": "Error loading page to duplicate",
+      "saveSuccess": "Page saved to manual slot {slot}!",
+      "saveError": "Error saving manual page",
+      "noPageToSave": "No page to save",
+      "authError": "Authentication token not found",
+      "loadPagesError": "Error loading pages"
+    },
+    "canvas": {
+      "editorMode": "Editor Mode",
+      "hint": "Click elements to edit • Use FAB button to add elements",
+      "emptyState": "Blank page",
+      "emptyStateHint": "Use the + button in the bottom right corner to get started"
+    },
+    "duplicateConfirm": {
+      "title": "Duplicate Page",
+      "message": "Are you sure you want to duplicate this page? A new copy will be created.",
+      "cancel": "Cancel",
+      "confirm": "Duplicate"
+    },
+    "resetConfirm": {
+      "message": "Are you sure you want to reset the page? This will erase all content."
+    },
+    "draggingElement": "Moving element...",
+    "error": {
+      "title": "Error",
+      "duplicateError": "Error duplicating page"
+    },
+    "elementTypes": {
+      "title": "Title",
+      "subtitle": "Subtitle",
+      "paragraph": "Text",
+      "image": "Image",
+      "video": "Video",
+      "button": "Button",
+      "countdown": "Countdown",
+      "form": "Form",
+      "highlight": "Highlight",
+      "iconList": "List",
+      "divider": "Divider",
+      "testimonial": "Testimonial",
+      "faq": "Questions",
+      "container": "Container",
+      "columns": "Columns"
+    },
+    "elementDescriptions": {
+      "title": "Large main title",
+      "subtitle": "Secondary title",
+      "paragraph": "Text paragraph",
+      "image": "Add an image",
+      "video": "Add a video",
+      "button": "Action button",
+      "countdown": "Countdown timer",
+      "form": "Contact form",
+      "highlight": "Highlight box",
+      "iconList": "List with icons",
+      "divider": "Divider line",
+      "testimonial": "Customer testimonials",
+      "faq": "Frequently asked questions",
+      "container": "Container to group",
+      "columns": "Column layout"
+    }
   }
 }
 

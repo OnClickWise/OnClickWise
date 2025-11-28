@@ -2,8 +2,11 @@
 
 import { motion } from "framer-motion";
 import { Building2, CheckCircle2, HelpCircle, Mail, Phone } from "lucide-react";
-import React, { use } from "react";
+import React, { use, useEffect, useState } from "react";
 import { EducacaoSemLimiteLanding } from "@/components/EducacaoSemLimiteLanding";
+import { PublishedLandingPageRenderer } from "@/components/PublishedLandingPageRenderer";
+import { LandingPage } from "@/types/landing-page";
+import { getApiBaseUrl } from "@/lib/api";
 
 type OrgData = {
   name: string;
@@ -37,13 +40,79 @@ const faqs = [
 export default function LandingPage({ params }: { params: Promise<{ org: string }> }) {
   const resolvedParams = use(params);
   const orgSlug = resolvedParams.org;
+  const [publishedPage, setPublishedPage] = useState<LandingPage | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Buscar landing page publicada da organização
+  useEffect(() => {
+    const fetchPublishedPage = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const API_BASE_URL = getApiBaseUrl();
+        const response = await fetch(
+          `${API_BASE_URL}/landing-pages/organization/${orgSlug}`,
+          {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+
+        const data = await response.json();
+
+        console.log('Published page response:', { 
+          ok: response.ok, 
+          success: data.success, 
+          hasPage: !!data.landing_page,
+          error: data.error 
+        });
+
+        if (response.ok && data.success && data.landing_page) {
+          console.log('Setting published page:', data.landing_page);
+          setPublishedPage(data.landing_page.content as LandingPage);
+        } else {
+          // Se não encontrar, não é erro - apenas não tem landing page publicada
+          console.log('No published page found for organization:', orgSlug, data.error);
+          setPublishedPage(null);
+        }
+      } catch (err: any) {
+        console.error('Error fetching published landing page:', err);
+        setError(err.message || 'Erro ao carregar landing page');
+        setPublishedPage(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPublishedPage();
+  }, [orgSlug]);
 
   // Se for educacaosemlimites, mostrar landing page específica
   if (orgSlug === 'educacaosemlimites' || orgSlug === 'educacaosemlimite') {
     return <EducacaoSemLimiteLanding orgSlug={orgSlug} />;
   }
 
-  // Para outras empresas, manter o comportamento padrão
+  // Se houver landing page publicada, renderizar ela
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (publishedPage) {
+    return <PublishedLandingPageRenderer page={publishedPage} orgSlug={orgSlug} />;
+  }
+
+  // Para outras empresas sem landing page publicada, manter o comportamento padrão
   return (
     <div className="bg-background text-foreground">
       {/* Hero */}

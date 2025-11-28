@@ -4,6 +4,7 @@
     "leads": "Leads",
     "leadList": "Lista de Leads",
     "captureSources": "Fontes de Captura",
+    "landingPageCreator": "Criador de Landing Page",
     "marketing": "Marketing",
     "emailCampaigns": "Campanhas de E-mail",
     "socialMedia": "Redes Sociais",
@@ -1761,6 +1762,464 @@
     },
     "saveButton": "Salvar Alterações",
     "saving": "Salvando..."
+  },
+  "LandingPagePresets": {
+    "modern-saas": {
+      "name": "SaaS Moderno - Completo",
+      "header": {
+        "logo": "SaaSPro"
+      },
+      "hero": {
+        "title": "A Plataforma que Transforma Seu Negócio",
+        "subtitle": "Gerencie seu negócio de forma inteligente. Mais de 10.000 empresas confiam em nossa plataforma para crescer.",
+        "ctaPrimary": "Começar Grátis",
+        "ctaSecondary": "Ver Demonstração"
+      },
+      "features": {
+        "title": "Tudo que você precisa em um só lugar",
+        "subtitle": "Recursos poderosos para impulsionar seu crescimento",
+        "items": [
+          "⚡ Setup em 5 minutos - Configure tudo rapidamente",
+          "📊 Analytics em tempo real - Acompanhe seu crescimento",
+          "🔒 Segurança máxima - Dados protegidos com criptografia",
+          "🤝 Suporte 24/7 - Equipe sempre disponível",
+          "📱 App mobile - Gerencie de qualquer lugar",
+          "🔌 Integrações - Conecte com suas ferramentas favoritas"
+        ]
+      },
+      "testimonials": {
+        "title": "O que nossos clientes dizem"
+      },
+      "cta": {
+        "title": "Pronto para transformar seu negócio?",
+        "subtitle": "Comece grátis hoje. Sem cartão de crédito. Cancele quando quiser.",
+        "button": "Começar Agora - Grátis"
+      },
+      "footer": {
+        "text": "© 2024 SaaSPro. Todos os direitos reservados."
+      }
+    },
+    "product-launch": {
+      "name": "Lançamento de Produto",
+      "hero": {
+        "badge": "🚀 LANÇAMENTO EXCLUSIVO",
+        "title": "O Futuro Chegou. Seja o Primeiro.",
+        "subtitle": "Descubra a inovação que vai revolucionar sua forma de trabalhar. Reserve seu lugar agora e ganhe acesso exclusivo.",
+        "form": {
+          "email": "Email",
+          "name": "Nome",
+          "submit": "Reservar Minha Vaga"
+        }
+      },
+      "benefits": {
+        "title": "Por que escolher nosso produto?",
+        "items": [
+          "✨ Design revolucionário que impressiona",
+          "⚡ Performance excepcional e velocidade",
+          "🛡️ Segurança de nível empresarial",
+          "📱 Funciona perfeitamente em todos os dispositivos",
+          "🎯 Fácil de usar, mesmo para iniciantes",
+          "💎 Qualidade premium garantida"
+        ]
+      },
+      "offer": {
+        "title": "Oferta Especial de Lançamento",
+        "highlight": "🔥 50% OFF apenas para os primeiros 100 clientes!",
+        "button": "Garantir Minha Oferta Agora"
+      }
+    },
+    "lead-magnet": {
+      "name": "Captura de Leads",
+      "hero": {
+        "title": "Guia Gratuito Exclusivo",
+        "subtitle": "Os 10 Segredos dos Profissionais de Sucesso",
+        "description": "Descubra as estratégias comprovadas que profissionais de alto nível usam para alcançar resultados extraordinários. Baixe agora, 100% grátis!"
+      },
+      "form": {
+        "title": "Preencha e receba agora",
+        "fields": {
+          "name": "Nome Completo",
+          "email": "Email",
+          "phone": "Telefone (opcional)"
+        },
+        "submit": "Baixar Guia Grátis Agora"
+      },
+      "guarantees": {
+        "items": [
+          "✅ 100% Gratuito - Sem custos ocultos",
+          "✅ Acesso Imediato - Receba em segundos",
+          "✅ Sem Spam - Respeitamos sua privacidade",
+          "✅ Conteúdo Exclusivo - Não encontrado em outro lugar"
+        ]
+      },
+      "socialProof": {
+        "title": "Mais de 50.000 pessoas já baixaram"
+      }
+    },
+    "simple": {
+      "name": "Landing Page Simples",
+      "hero": {
+        "title": "Sua Headline Poderosa Aqui",
+        "subtitle": "Adicione uma descrição convincente que explique claramente o valor único do seu produto ou serviço e por que as pessoas devem escolher você.",
+        "cta": "Chamada para Ação"
+      }
+    },
+    "sales": {
+      "name": "Página de Vendas Completa",
+      "hero": {
+        "badge": "🔥 OFERTA POR TEMPO LIMITADO",
+        "title": "Transforme Seu Negócio Hoje Mesmo",
+        "subtitle": "A solução completa que milhares de empresas já estão usando para crescer e aumentar seus lucros. Junte-se a eles agora!",
+        "cta": "Quero Transformar Meu Negócio"
+      },
+      "benefits": {
+        "title": "O que você vai receber",
+        "items": [
+          "✅ Acesso completo a todos os recursos premium",
+          "✅ Suporte prioritário 24/7",
+          "✅ Garantia incondicional de 30 dias",
+          "✅ Atualizações gratuitas para sempre",
+          "✅ Treinamento completo incluso",
+          "✅ Bônus exclusivos no valor de R$ 1.000"
+        ]
+      },
+      "testimonials": {
+        "title": "Resultados Reais de Clientes Reais"
+      },
+      "offer": {
+        "highlight": "💰 De R$ 997 por apenas R$ 497 - Apenas hoje!",
+        "button": "Garantir Minha Vaga Agora",
+        "guarantees": "⚡ Pagamento seguro • 🔒 Garantia de 30 dias • 💳 Parcelamento em até 12x"
+      }
+    },
+    "faq-testimonials": {
+      "name": "FAQ + Depoimentos",
+      "hero": {
+        "title": "Perguntas Frequentes",
+        "subtitle": "Tire todas as suas dúvidas antes de começar"
+      },
+      "faq": {
+        "items": [
+          {
+            "question": "Como funciona o processo?",
+            "answer": "É muito simples! Após o cadastro, você recebe acesso imediato à plataforma. Nossa interface intuitiva permite que você comece a usar em minutos, sem necessidade de treinamento extensivo."
+          },
+          {
+            "question": "Quais são os planos e preços disponíveis?",
+            "answer": "Oferecemos planos flexíveis para todos os tamanhos de negócio. Temos opções desde o plano básico gratuito até planos empresariais com recursos avançados. Todos os planos incluem suporte e atualizações."
+          },
+          {
+            "question": "Preciso ter conhecimento técnico para usar?",
+            "answer": "Não! Nossa plataforma foi projetada para ser usada por qualquer pessoa, independente do nível técnico. A interface é intuitiva e oferecemos tutoriais completos para guiá-lo."
+          },
+          {
+            "question": "Há suporte disponível?",
+            "answer": "Sim! Oferecemos suporte 24/7 por email, chat ao vivo e telefone para todos os nossos clientes. Nossa equipe está sempre pronta para ajudar você a ter sucesso."
+          },
+          {
+            "question": "Posso cancelar a qualquer momento?",
+            "answer": "Absolutamente! Não há contratos de longo prazo. Você pode cancelar sua assinatura a qualquer momento, sem taxas ou penalidades. Sua conta permanecerá ativa até o final do período pago."
+          },
+          {
+            "question": "Os dados estão seguros?",
+            "answer": "Sim! Utilizamos criptografia de nível bancário e seguimos os mais altos padrões de segurança da indústria. Seus dados estão completamente protegidos e nunca são compartilhados com terceiros."
+          }
+        ]
+      },
+      "testimonials": {
+        "title": "O que nossos clientes dizem"
+      }
+    },
+    "launch": {
+      "name": "Página \"Em Breve\"",
+      "hero": {
+        "title": "Em Breve",
+        "subtitle": "Algo incrível está chegando. Seja o primeiro a saber quando lançarmos!",
+        "form": {
+          "email": "Email",
+          "submit": "Me Avisar Quando Lançar"
+        }
+      }
+    }
+  },
+  "LandingPageCreator": {
+    "menu": {
+      "title": "Menu do Construtor",
+      "subtitle": "Escolha uma ação para continuar"
+    },
+    "categories": {
+      "create": "Criar e Adicionar",
+      "customization": "Personalização",
+      "visualization": "Visualização",
+      "management": "Gerenciamento",
+      "editing": "Edição",
+      "export": "Exportar e Configurações",
+      "help": "Ajuda",
+      "destructive": "Ações Destrutivas"
+    },
+    "actions": {
+      "addElement": "Adicionar Elemento",
+      "addElementDesc": "Texto, imagem, botão...",
+      "addSection": "Adicionar Seção",
+      "addSectionDesc": "Header, hero, conteúdo...",
+      "changeTheme": "Alterar Tema",
+      "changeThemeDesc": "Cores e fontes",
+      "headerFooter": "Cabeçalho/Rodapé",
+      "headerFooterDesc": "Personalizar topo e rodapé",
+      "loadTemplate": "Carregar Modelo",
+      "loadTemplateDesc": "Templates prontos",
+      "viewMobile": "Ver Mobile",
+      "viewDesktop": "Ver Desktop",
+      "toggleViewDesc": "Alternar visualização",
+      "previewLink": "Link de Preview",
+      "previewLinkDesc": "Ver página publicada",
+      "save": "Salvar",
+      "saving": "Salvando...",
+      "saveDesc": "Salvar alterações",
+      "publish": "Postar",
+      "publishing": "Publicando...",
+      "publishDesc": "Salvar e publicar",
+      "managePages": "Gerenciar Páginas",
+      "managePagesDesc": "Ver todas as páginas",
+      "duplicatePage": "Duplicar Página",
+      "duplicatePageDesc": "Criar uma cópia",
+      "undo": "Desfazer",
+      "undoDesc": "Reverter ação",
+      "redo": "Refazer",
+      "redoDesc": "Refazer ação",
+      "exportHTML": "Exportar HTML",
+      "exportHTMLDesc": "Baixar código",
+      "settings": "Configurações",
+      "settingsDesc": "Ajustes gerais",
+      "help": "Ajuda",
+      "helpDesc": "Tutorial e dicas",
+      "resetPage": "Resetar Página",
+      "resetPageDesc": "Limpar tudo"
+    },
+    "elementSelector": {
+      "title": "Adicionar Elemento",
+      "subtitle": "Escolha o tipo de elemento que deseja adicionar"
+    },
+    "back": "Voltar",
+    "fab": {
+      "tooltip": "Clique aqui para começar",
+      "ariaLabel": "Abrir menu do construtor"
+    },
+    "elementPanel": {
+      "title": "Editar Elemento",
+      "subtitle": "Personalize o conteúdo e estilo do seu elemento",
+      "close": "Fechar",
+      "delete": "Excluir Elemento",
+      "deleteShort": "Excluir",
+      "deleteConfirm": "Tem certeza que deseja remover este elemento?"
+    },
+    "deleteSectionConfirm": "Tem certeza que deseja remover esta seção vazia?",
+    "presetLoader": {
+      "title": "Carregar Modelo",
+      "subtitle": "Escolha um modelo pronto para começar rapidamente"
+    },
+    "sectionPreset": {
+      "title": "Adicionar Seção",
+      "subtitle": "Escolha um tipo de seção para adicionar à sua página",
+      "essentialSections": "Seções Essenciais",
+      "contentSections": "Seções de Conteúdo",
+      "alreadyAdded": "Já adicionado",
+      "back": "Voltar",
+      "presets": {
+        "header": {
+          "label": "Cabeçalho",
+          "description": "Cabeçalho de navegação com logo e menu"
+        },
+        "hero": {
+          "label": "Seção Hero",
+          "description": "Banner grande com título e chamada para ação"
+        },
+        "form": {
+          "label": "Seção de Formulário",
+          "description": "Formulário de captura de leads"
+        },
+        "testimonials": {
+          "label": "Depoimentos",
+          "description": "Carrossel de depoimentos de clientes"
+        },
+        "content": {
+          "label": "Lista de Benefícios",
+          "description": "Seção de lista de recursos/benefícios"
+        },
+        "footer": {
+          "label": "Rodapé",
+          "description": "Rodapé com links e informações legais"
+        }
+      }
+    },
+    "themeCustomizer": {
+      "title": "Personalizar Tema"
+    },
+    "headerFooterCustomizer": {
+      "title": "Personalizar Cabeçalho e Rodapé"
+    },
+    "generalSettings": {
+      "title": "Configurações Gerais",
+      "subtitle": "Configure informações básicas e SEO da sua landing page",
+      "basicInfo": "Informações Básicas",
+      "pageName": "Nome da Página",
+      "pageNamePlaceholder": "Minha Landing Page",
+      "pageNameDescription": "Nome interno para identificar esta página",
+      "seoSettings": "Configurações de SEO",
+      "metaTitle": "Título da Página (Meta Title)",
+      "metaTitlePlaceholder": "Título da página",
+      "metaTitleDescription": "Título que aparece nos resultados de busca",
+      "metaDescription": "Descrição (Meta Description)",
+      "metaDescriptionPlaceholder": "Descrição da página que aparece nos resultados de busca",
+      "metaDescriptionDescription": "Descrição que aparece nos resultados de busca",
+      "keywords": "Palavras-chave (Keywords)",
+      "keywordsPlaceholder": "palavra1, palavra2, palavra3",
+      "keywordsDescription": "Separe as palavras-chave por vírgula",
+      "socialMedia": "Redes Sociais (Open Graph)",
+      "ogImage": "Imagem para Compartilhamento (OG Image)",
+      "ogImagePlaceholder": "https://exemplo.com/imagem.jpg",
+      "ogImageDescription": "URL da imagem que aparece ao compartilhar nas redes sociais (recomendado: 1200x630px)",
+      "pageInfo": "Informações da Página",
+      "createdAt": "Criada em: {date}",
+      "lastUpdate": "Última atualização: {date}",
+      "pageId": "ID: {id}",
+      "cancel": "Cancelar",
+      "save": "Salvar Configurações",
+      "back": "Voltar"
+    },
+    "previewLinkGenerator": {
+      "title": "Links de Pré-visualização",
+      "subtitle": "Crie links únicos para compartilhar e pré-visualizar sua landing page",
+      "createNewLink": "Criar Novo Link",
+      "linkType": "Tipo de Link",
+      "permanent": "Permanente",
+      "temporary": "Temporário",
+      "permanentDescription": "Link permanente que sempre funcionará (ideal para ver a landing page salva da empresa)",
+      "temporaryDescription": "Link temporário que expira após um período definido",
+      "expiresIn": "Expira em (dias)",
+      "expiresInDays": "O link expirará em {days} dia{daysPlural}",
+      "linkName": "Nome do Link (opcional)",
+      "linkNamePlaceholder": "Ex: Link para cliente X",
+      "linkNameDescription": "Um nome descritivo para identificar este link",
+      "createLink": "Criar Link",
+      "creating": "Criando...",
+      "existingLinks": "Links Existentes",
+      "noLinks": "Nenhum link criado ainda",
+      "noLinksHint": "Crie um link acima para começar",
+      "linkWithoutName": "Link sem nome",
+      "expired": "Expirado",
+      "inactive": "Inativo",
+      "accesses": "Acessos: {count}",
+      "expiresAt": "Expira em: {date}",
+      "createdAt": "Criado em: {date}",
+      "deactivateLink": "Desativar link",
+      "activateLink": "Ativar link",
+      "deleteLink": "Excluir link",
+      "close": "Fechar",
+      "deleteConfirm": "Tem certeza que deseja excluir este link? Ele não funcionará mais.",
+      "linkCreated": "Link criado com sucesso!",
+      "linkDeleted": "Link excluído com sucesso!",
+      "linkDeactivated": "Link desativado!",
+      "linkActivated": "Link ativado!",
+      "copyError": "Erro ao copiar link",
+      "createError": "Erro ao criar link de preview",
+      "deleteError": "Erro ao excluir link",
+      "updateError": "Erro ao atualizar link",
+      "loadError": "Erro ao carregar links de preview",
+      "loadLinksError": "Erro ao carregar links",
+      "noPageSelected": "Nenhuma landing page selecionada",
+      "authError": "Token de autenticação não encontrado"
+    },
+    "landingPageManager": {
+      "title": "Gerenciar Landing Pages",
+      "subtitle": "Visualize, edite e gerencie todas as suas landing pages",
+      "searchPlaceholder": "Buscar páginas...",
+      "saveManualTitle": "Salvar Página Atual Manualmente",
+      "updateSlot": "Atualizar Slot {slot}",
+      "saveSlot": "Salvar no Slot {slot}",
+      "saveManualDescription": "As páginas manuais são salvas permanentemente e só são substituídas quando você salvar por cima ou excluir.",
+      "manualPages": "Páginas Manuais (3 slots permanentes)",
+      "autoPages": "Histórico Automático (últimas 3 usadas)",
+      "autoPagesDescription": "O histórico automático mantém apenas as 3 páginas mais recentes. A mais antiga é excluída automaticamente quando uma nova é criada.",
+      "slot": "Slot {slot} - Manual",
+      "published": "Publicada",
+      "current": "Atual",
+      "automatic": "Automático",
+      "updated": "Atualizada: {date}",
+      "publishedAt": "Publicada: {date}",
+      "loadPage": "Carregar página",
+      "deletePage": "Excluir página",
+      "duplicatePage": "Duplicar página",
+      "noPages": "Nenhuma página criada ainda",
+      "noPagesHint": "Crie sua primeira landing page no construtor",
+      "noPagesFound": "Nenhuma página encontrada",
+      "noPagesFoundHint": "Tente buscar com outros termos",
+      "close": "Fechar",
+      "deleteConfirm": "Tem certeza que deseja excluir esta página? Esta ação não pode ser desfeita.",
+      "loadError": "Erro ao carregar página",
+      "deleteError": "Erro ao excluir página",
+      "duplicateError": "Erro ao duplicar página",
+      "loadDuplicateError": "Erro ao carregar página para duplicar",
+      "saveSuccess": "Página salva no slot manual {slot}!",
+      "saveError": "Erro ao salvar página manual",
+      "noPageToSave": "Nenhuma página para salvar",
+      "authError": "Token de autenticação não encontrado",
+      "loadPagesError": "Erro ao carregar páginas"
+    },
+    "canvas": {
+      "editorMode": "Modo Editor",
+      "hint": "Clique nos elementos para editar • Use o botão FAB para adicionar elementos",
+      "emptyState": "Página em branco",
+      "emptyStateHint": "Use o botão + no canto inferior direito para começar"
+    },
+    "duplicateConfirm": {
+      "title": "Duplicar Página",
+      "message": "Tem certeza que deseja duplicar esta página? Uma nova cópia será criada.",
+      "cancel": "Cancelar",
+      "confirm": "Duplicar"
+    },
+    "resetConfirm": {
+      "message": "Tem certeza que deseja resetar a página? Isso apagará todo o conteúdo."
+    },
+    "draggingElement": "Movendo elemento...",
+    "error": {
+      "title": "Erro",
+      "duplicateError": "Erro ao duplicar página"
+    },
+    "elementTypes": {
+      "title": "Título",
+      "subtitle": "Subtítulo",
+      "paragraph": "Texto",
+      "image": "Imagem",
+      "video": "Vídeo",
+      "button": "Botão",
+      "countdown": "Contador",
+      "form": "Formulário",
+      "highlight": "Destaque",
+      "iconList": "Lista",
+      "divider": "Divisor",
+      "testimonial": "Depoimento",
+      "faq": "Perguntas",
+      "container": "Container",
+      "columns": "Colunas"
+    },
+    "elementDescriptions": {
+      "title": "Título principal grande",
+      "subtitle": "Título secundário",
+      "paragraph": "Parágrafo de texto",
+      "image": "Adicionar uma imagem",
+      "video": "Adicionar um vídeo",
+      "button": "Botão de ação",
+      "countdown": "Contador regressivo",
+      "form": "Formulário de contato",
+      "highlight": "Caixa de destaque",
+      "iconList": "Lista com ícones",
+      "divider": "Linha divisória",
+      "testimonial": "Depoimentos de clientes",
+      "faq": "Perguntas frequentes",
+      "container": "Container para agrupar",
+      "columns": "Layout em colunas"
+    }
   }
 }
 
