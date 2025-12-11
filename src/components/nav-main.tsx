@@ -1,14 +1,14 @@
-"use client"
+"use client";
 
-import { ChevronRight, type LucideIcon } from "lucide-react"
-import { usePathname } from "next/navigation"
-import { ReactNode } from "react"
+import { ChevronRight, type LucideIcon } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { ReactNode } from "react";
 
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible"
+} from "@/components/ui/collapsible";
 import {
   SidebarGroup,
   SidebarGroupLabel,
@@ -19,71 +19,79 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   useSidebar,
-} from "@/components/ui/sidebar"
+} from "@/components/ui/sidebar";
 
 export function NavMain({
   items,
 }: {
   items: {
-    title: string
-    url: string
-    icon?: LucideIcon
-    isActive?: boolean
+    title: string;
+    url: string;
+    icon?: LucideIcon;
+    isActive?: boolean;
     items?: {
-      title: string
-      url: string
-      icon?: ReactNode
-    }[]
-  }[]
+      title: string;
+      url: string;
+      icon?: ReactNode;
+    }[];
+  }[];
 }) {
-  const pathname = usePathname()
-  const { state, setOpen } = useSidebar()
-  const isCollapsed = state === "collapsed"
+  const pathname = usePathname();
+  const { state, setOpen } = useSidebar();
+  const isCollapsed = state === "collapsed";
 
   // Expande o sidebar quando clicar em uma categoria com sub-itens
   const handleCategoryClick = (hasSubItems: boolean) => {
     if (hasSubItems && isCollapsed) {
-      setOpen(true)
+      setOpen(true);
     }
-  }
+  };
 
   // Check if current path matches any item or subitem
-  const isItemActive = (item: typeof items[0]) => {
-    if (pathname === item.url) return true
-    return item.items?.some(subItem => pathname === subItem.url) || false
-  }
+  const isItemActive = (item: (typeof items)[0]) => {
+    if (pathname === item.url) return true;
+    return item.items?.some((subItem) => pathname === subItem.url) || false;
+  };
 
   const isSubItemActive = (subItemUrl: string) => {
-    return pathname === subItemUrl
-  }
+    return pathname === subItemUrl;
+  };
 
   return (
     <SidebarGroup>
       <SidebarMenu className="sidebar-curved-menu">
         {items.map((item) => {
-          const itemActive = isItemActive(item)
-          const hasSubItems = item.items && item.items.length > 0
-          
+          const itemActive = isItemActive(item);
+          const hasSubItems = item.items && item.items.length > 0;
+
           // Se não tem subitens, renderizar como link direto
           if (!hasSubItems) {
             return (
               <SidebarMenuItem key={item.title}>
-                <SidebarMenuButton 
+                <SidebarMenuButton
                   asChild
-                  tooltip={item.title} 
-                  className={`cursor-pointer sidebar-menu-item ${itemActive ? 'active' : ''}`}
+                  tooltip={item.title}
+                  className={`cursor-pointer sidebar-menu-item ${
+                    itemActive ? "active" : ""
+                  }`}
                 >
                   <a href={item.url} className="flex items-center">
-                    {item.icon && <item.icon className="w-5 h-5 flex-shrink-0" />}
-                    <span className={`menu-text ${isCollapsed ? "collapsed" : "expanded"}`}>
+                    {item.icon && (
+                      <item.icon className="w-5 h-5 flex-shrink-0" />
+                    )}
+                    <span
+                      className={`menu-text ${
+                        isCollapsed ? "collapsed" : "expanded"
+                      }`}
+                    >
                       {item.title}
                     </span>
                   </a>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-            )
+            );
           }
-          
+
           // Se tem subitens, renderizar com collapsible
           return (
             <Collapsible
@@ -94,16 +102,28 @@ export function NavMain({
             >
               <SidebarMenuItem>
                 <CollapsibleTrigger asChild>
-                  <SidebarMenuButton 
-                    tooltip={item.title} 
-                    className={`cursor-pointer sidebar-menu-item ${itemActive ? 'active' : ''}`}
+                  <SidebarMenuButton
+                    tooltip={item.title}
+                    className={`cursor-pointer sidebar-menu-item ${
+                      itemActive ? "active" : ""
+                    }`}
                     onClick={() => handleCategoryClick(hasSubItems)}
                   >
-                    {item.icon && <item.icon className="w-5 h-5 flex-shrink-0" />}
-                    <span className={`menu-text ${isCollapsed ? "collapsed" : "expanded"}`}>
+                    {item.icon && (
+                      <item.icon className="w-5 h-5 flex-shrink-0" />
+                    )}
+                    <span
+                      className={`menu-text ${
+                        isCollapsed ? "collapsed" : "expanded"
+                      }`}
+                    >
                       {item.title}
                     </span>
-                    <ChevronRight className={`menu-chevron ${isCollapsed ? "collapsed" : "expanded"}`} />
+                    <ChevronRight
+                      className={`menu-chevron ${
+                        isCollapsed ? "collapsed" : "expanded"
+                      }`}
+                    />
                   </SidebarMenuButton>
                 </CollapsibleTrigger>
                 {!isCollapsed && (
@@ -112,11 +132,17 @@ export function NavMain({
                       {item.items?.map((subItem) => (
                         <SidebarMenuSubItem key={subItem.title}>
                           <SidebarMenuSubButton asChild>
-                            <a 
-                              href={subItem.url} 
-                              className={`cursor-pointer sidebar-submenu-item flex items-center gap-2 ${isSubItemActive(subItem.url) ? 'active' : ''}`}
+                            <a
+                              href={subItem.url}
+                              className={`cursor-pointer sidebar-submenu-item flex items-center gap-2 ${
+                                isSubItemActive(subItem.url) ? "active" : ""
+                              }`}
                             >
-                              {subItem.icon && <span className="w-4 h-4 flex-shrink-0">{subItem.icon}</span>}
+                              {subItem.icon && (
+                                <span className="w-4 h-4 flex-shrink-0">
+                                  {subItem.icon}
+                                </span>
+                              )}
                               <span>{subItem.title}</span>
                             </a>
                           </SidebarMenuSubButton>
@@ -127,9 +153,9 @@ export function NavMain({
                 )}
               </SidebarMenuItem>
             </Collapsible>
-          )
+          );
         })}
       </SidebarMenu>
     </SidebarGroup>
-  )
+  );
 }

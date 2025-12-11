@@ -8,21 +8,17 @@ import Footer from "@/components/Footer";
 import Faqs from "@/components/Faqs";
 import CallToAction from "@/components/CallToAction";
 
-
 export default function Home() {
-
- 
   return (
     <>
-      
       <Header />
       <Horo />
       <LogoTicker />
-      <About  />
+      <About />
       <Feature />
       <ServiceProduct />
       <Faqs />
-      <CallToAction />  
+      <CallToAction />
       <Footer />
     </>
   );

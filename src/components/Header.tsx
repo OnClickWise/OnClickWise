@@ -25,17 +25,20 @@ export default function Navbar() {
       try {
         const token = localStorage.getItem("token");
         const organizationStr = localStorage.getItem("organization");
-        
+
         if (!token || !organizationStr) return null;
-        
+
         const organization = JSON.parse(organizationStr);
         const parts = token.split(".");
         if (parts.length !== 3) return null;
-        
+
         const payload = JSON.parse(atob(parts[1]));
         const userEmail = payload.email || payload.sub || "";
-        const identifier = `${organization.id}_${userEmail}`.replace(/[^a-zA-Z0-9_-]/g, "_");
-        
+        const identifier = `${organization.id}_${userEmail}`.replace(
+          /[^a-zA-Z0-9_-]/g,
+          "_"
+        );
+
         return identifier;
       } catch (error) {
         return null;
@@ -59,23 +62,26 @@ export default function Navbar() {
   // Troca idioma
   const changeLanguage = (lang: "pt-BR" | "en-US") => {
     setCurrentLang(lang);
-    
+
     const getUserIdentifier = () => {
       if (typeof window === "undefined") return null;
       try {
         const token = localStorage.getItem("token");
         const organizationStr = localStorage.getItem("organization");
-        
+
         if (!token || !organizationStr) return null;
-        
+
         const organization = JSON.parse(organizationStr);
         const parts = token.split(".");
         if (parts.length !== 3) return null;
-        
+
         const payload = JSON.parse(atob(parts[1]));
         const userEmail = payload.email || payload.sub || "";
-        const identifier = `${organization.id}_${userEmail}`.replace(/[^a-zA-Z0-9_-]/g, "_");
-        
+        const identifier = `${organization.id}_${userEmail}`.replace(
+          /[^a-zA-Z0-9_-]/g,
+          "_"
+        );
+
         return identifier;
       } catch (error) {
         return null;
@@ -91,7 +97,9 @@ export default function Navbar() {
     }
 
     // Dispara evento para atualizar o ClientLocaleProvider
-    window.dispatchEvent(new CustomEvent("localeChange", { detail: { locale: lang } }));
+    window.dispatchEvent(
+      new CustomEvent("localeChange", { detail: { locale: lang } })
+    );
     setLangMenuOpen(false);
   };
 
@@ -103,12 +111,20 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="sticky fixed top-0 bg-white border-b border-gray-200 dark:bg-gray-900 dark:border-gray-600 w-full z-50">
+    <nav className="fixed top-0 bg-white border-b border-gray-200 dark:bg-gray-900 dark:border-gray-600 w-full z-50">
       <div className="flex items-center justify-between max-w mx-auto p-2 sm:p-3 md:p-4">
-        
         {/* LOGO + MENU ESQUERDA */}
         <div className="flex items-center space-x-2 sm:space-x-4 md:space-x-6">
-          <a href="#home" onClick={(e) => { e.preventDefault(); document.getElementById("home")?.scrollIntoView({ behavior: "smooth" }); }} className="flex items-center space-x-2 sm:space-x-3 rtl:space-x-reverse cursor-pointer">
+          <a
+            href="#home"
+            onClick={(e) => {
+              e.preventDefault();
+              document
+                .getElementById("home")
+                ?.scrollIntoView({ behavior: "smooth" });
+            }}
+            className="flex items-center space-x-2 sm:space-x-3 rtl:space-x-reverse cursor-pointer"
+          >
             <Image
               src="/light-logo.png"
               alt="Logo"
@@ -127,9 +143,50 @@ export default function Navbar() {
 
           {/* MENU DESKTOP */}
           <ul className="hidden md:flex space-x-4 lg:space-x-6 text-gray-900 dark:text-white font-medium text-sm lg:text-base">
-            <li><a href="#home" onClick={(e) => { e.preventDefault(); document.getElementById("home")?.scrollIntoView({ behavior: "smooth" }); }} className="hover:text-blue-600 cursor-pointer">{t("home")}</a></li>
-            <li><a href="#docs" onClick={(e) => { e.preventDefault(); const docs = document.getElementById("docs") || document.getElementById("features"); docs?.scrollIntoView({ behavior: "smooth" }); }} className="hover:text-blue-600 cursor-pointer">{t("docs")}</a></li>
-            <li><a href="#resources" onClick={(e) => { e.preventDefault(); const resources = document.getElementById("resources") || document.getElementById("features"); resources?.scrollIntoView({ behavior: "smooth" }); }} className="hover:text-blue-600 cursor-pointer">{t("resources")}</a></li>
+            <li>
+              <a
+                href="#home"
+                onClick={(e) => {
+                  e.preventDefault();
+                  document
+                    .getElementById("home")
+                    ?.scrollIntoView({ behavior: "smooth" });
+                }}
+                className="hover:text-blue-600 cursor-pointer"
+              >
+                {t("home")}
+              </a>
+            </li>
+            <li>
+              <a
+                href="#docs"
+                onClick={(e) => {
+                  e.preventDefault();
+                  const docs =
+                    document.getElementById("docs") ||
+                    document.getElementById("features");
+                  docs?.scrollIntoView({ behavior: "smooth" });
+                }}
+                className="hover:text-blue-600 cursor-pointer"
+              >
+                {t("docs")}
+              </a>
+            </li>
+            <li>
+              <a
+                href="#resources"
+                onClick={(e) => {
+                  e.preventDefault();
+                  const resources =
+                    document.getElementById("resources") ||
+                    document.getElementById("features");
+                  resources?.scrollIntoView({ behavior: "smooth" });
+                }}
+                className="hover:text-blue-600 cursor-pointer"
+              >
+                {t("resources")}
+              </a>
+            </li>
             <li>
               <button
                 onClick={() => setIsMegaMenuOpen(!isMegaMenuOpen)}
@@ -152,22 +209,30 @@ export default function Navbar() {
 
         {/* AÇÕES DIREITA */}
         <div className="flex items-center space-x-1.5 sm:space-x-2 md:space-x-4">
-
           {/* BOTÃO TRADUÇÃO */}
           <div className="relative">
             <button
               onClick={() => setLangMenuOpen(!langMenuOpen)}
               className="px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg cursor-pointer bg-gray-200 dark:bg-gray-700 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600 text-xs sm:text-sm"
             >
-              🌐<span className="hidden sm:inline">{currentLang === "pt-BR" ? "PT" : "EN"}</span>
+              🌐
+              <span className="hidden sm:inline">
+                {currentLang === "pt-BR" ? "PT" : "EN"}
+              </span>
             </button>
 
             {langMenuOpen && (
               <div className="absolute right-0 mt-2 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg shadow-lg p-2 w-28 sm:w-32 z-50">
-                <button onClick={() => changeLanguage("pt-BR")} className="block w-full text-left px-2 sm:px-3 py-1.5 sm:py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer text-xs sm:text-sm">
+                <button
+                  onClick={() => changeLanguage("pt-BR")}
+                  className="block w-full text-left px-2 sm:px-3 py-1.5 sm:py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer text-xs sm:text-sm"
+                >
                   Português
                 </button>
-                <button onClick={() => changeLanguage("en-US")} className="block w-full text-left px-2 sm:px-3 py-1.5 sm:py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer text-xs sm:text-sm">
+                <button
+                  onClick={() => changeLanguage("en-US")}
+                  className="block w-full text-left px-2 sm:px-3 py-1.5 sm:py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer text-xs sm:text-sm"
+                >
                   English
                 </button>
               </div>
@@ -190,11 +255,19 @@ export default function Navbar() {
             aria-label="Toggle theme"
           >
             {theme === "light" ? (
-              <svg className="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 20 20" fill="currentColor">
+              <svg
+                className="w-4 h-4 sm:w-5 sm:h-5"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
                 <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path>
               </svg>
             ) : (
-              <svg className="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 20 20" fill="currentColor">
+              <svg
+                className="w-4 h-4 sm:w-5 sm:h-5"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
                 <path
                   fillRule="evenodd"
                   clipRule="evenodd"
@@ -210,7 +283,11 @@ export default function Navbar() {
             className="md:hidden p-1.5 sm:p-2 text-gray-500 rounded-lg dark:text-gray-400"
             aria-label="Toggle menu"
           >
-            <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 17 14">
+            <svg
+              className="w-5 h-5 sm:w-6 sm:h-6"
+              fill="none"
+              viewBox="0 0 17 14"
+            >
               <path
                 stroke="currentColor"
                 strokeWidth="2"
@@ -228,14 +305,38 @@ export default function Navbar() {
         <div className="border-t border-gray-200 bg-gray-50 dark:bg-gray-800 dark:border-gray-600">
           <div className="max-w-screen-xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 md:gap-6 p-3 sm:p-4 md:p-5">
             <ul className="space-y-1 sm:space-y-0">
-              <li><a className="block p-2 sm:p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer text-sm sm:text-base">{t("onlineStores")}</a></li>
-              <li><a className="block p-2 sm:p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer text-sm sm:text-base">{t("segmentation")}</a></li>
-              <li><a className="block p-2 sm:p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer text-sm sm:text-base">{t("marketingCRM")}</a></li>
+              <li>
+                <a className="block p-2 sm:p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer text-sm sm:text-base">
+                  {t("onlineStores")}
+                </a>
+              </li>
+              <li>
+                <a className="block p-2 sm:p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer text-sm sm:text-base">
+                  {t("segmentation")}
+                </a>
+              </li>
+              <li>
+                <a className="block p-2 sm:p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer text-sm sm:text-base">
+                  {t("marketingCRM")}
+                </a>
+              </li>
             </ul>
             <ul className="space-y-1 sm:space-y-0">
-              <li><a className="block p-2 sm:p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer text-sm sm:text-base">{t("analytics")}</a></li>
-              <li><a className="block p-2 sm:p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer text-sm sm:text-base">{t("automation")}</a></li>
-              <li><a className="block p-2 sm:p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer text-sm sm:text-base">{t("integrations")}</a></li>
+              <li>
+                <a className="block p-2 sm:p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer text-sm sm:text-base">
+                  {t("analytics")}
+                </a>
+              </li>
+              <li>
+                <a className="block p-2 sm:p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer text-sm sm:text-base">
+                  {t("automation")}
+                </a>
+              </li>
+              <li>
+                <a className="block p-2 sm:p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer text-sm sm:text-base">
+                  {t("integrations")}
+                </a>
+              </li>
             </ul>
           </div>
         </div>
@@ -245,10 +346,68 @@ export default function Navbar() {
       {isMobileMenuOpen && (
         <div className="md:hidden bg-gray-50 dark:bg-gray-800 border-t p-3 sm:p-4">
           <ul className="space-y-1.5 sm:space-y-2 text-gray-900 dark:text-white font-medium">
-            <li><a href="#home" onClick={(e) => { e.preventDefault(); document.getElementById("home")?.scrollIntoView({ behavior: "smooth" }); setIsMobileMenuOpen(false); }} className="block hover:text-blue-600 cursor-pointer py-1.5 sm:py-2 text-sm sm:text-base">{t("home")}</a></li>
-            <li><a href="#docs" onClick={(e) => { e.preventDefault(); const docs = document.getElementById("docs") || document.getElementById("features"); docs?.scrollIntoView({ behavior: "smooth" }); setIsMobileMenuOpen(false); }} className="block hover:text-blue-600 cursor-pointer py-1.5 sm:py-2 text-sm sm:text-base">{t("docs")}</a></li>
-            <li><a href="#resources" onClick={(e) => { e.preventDefault(); const resources = document.getElementById("resources") || document.getElementById("features"); resources?.scrollIntoView({ behavior: "smooth" }); setIsMobileMenuOpen(false); }} className="block hover:text-blue-600 cursor-pointer py-1.5 sm:py-2 text-sm sm:text-base">{t("resources")}</a></li>
-            <li><a href="#features" onClick={(e) => { e.preventDefault(); document.getElementById("features")?.scrollIntoView({ behavior: "smooth" }); setIsMobileMenuOpen(false); }} className="block hover:text-blue-600 cursor-pointer py-1.5 sm:py-2 text-sm sm:text-base">{t("products")}</a></li>
+            <li>
+              <a
+                href="#home"
+                onClick={(e) => {
+                  e.preventDefault();
+                  document
+                    .getElementById("home")
+                    ?.scrollIntoView({ behavior: "smooth" });
+                  setIsMobileMenuOpen(false);
+                }}
+                className="block hover:text-blue-600 cursor-pointer py-1.5 sm:py-2 text-sm sm:text-base"
+              >
+                {t("home")}
+              </a>
+            </li>
+            <li>
+              <a
+                href="#docs"
+                onClick={(e) => {
+                  e.preventDefault();
+                  const docs =
+                    document.getElementById("docs") ||
+                    document.getElementById("features");
+                  docs?.scrollIntoView({ behavior: "smooth" });
+                  setIsMobileMenuOpen(false);
+                }}
+                className="block hover:text-blue-600 cursor-pointer py-1.5 sm:py-2 text-sm sm:text-base"
+              >
+                {t("docs")}
+              </a>
+            </li>
+            <li>
+              <a
+                href="#resources"
+                onClick={(e) => {
+                  e.preventDefault();
+                  const resources =
+                    document.getElementById("resources") ||
+                    document.getElementById("features");
+                  resources?.scrollIntoView({ behavior: "smooth" });
+                  setIsMobileMenuOpen(false);
+                }}
+                className="block hover:text-blue-600 cursor-pointer py-1.5 sm:py-2 text-sm sm:text-base"
+              >
+                {t("resources")}
+              </a>
+            </li>
+            <li>
+              <a
+                href="#features"
+                onClick={(e) => {
+                  e.preventDefault();
+                  document
+                    .getElementById("features")
+                    ?.scrollIntoView({ behavior: "smooth" });
+                  setIsMobileMenuOpen(false);
+                }}
+                className="block hover:text-blue-600 cursor-pointer py-1.5 sm:py-2 text-sm sm:text-base"
+              >
+                {t("products")}
+              </a>
+            </li>
           </ul>
         </div>
       )}
