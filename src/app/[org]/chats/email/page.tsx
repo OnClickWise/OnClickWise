@@ -26,17 +26,7 @@ import { Search, Mail } from "lucide-react";
 import { getMockEmails } from "@/lib/email";
 import SentEmailCard from "@/components/EmailComponents/SentEmailCard";
 import { AlertDialogDemo } from "@/components/AlertDialogDemo";
-
-interface mockEmailsProp {
-  id: number;
-  fromName: string;
-  fromEmail: string;
-  subject: string;
-  preview: string;
-  timestampLatest: string;
-  avatar: string;
-  isRead: boolean;
-}
+import { mockEmailsProp } from "@/app/types/email";
 
 export default function EmailPage({
   params,
@@ -204,7 +194,7 @@ export default function EmailPage({
               {currentEmail ? (
                 <>
                   {/* Header do Email */}
-                  <div className="bg-white border-b border-gray-200 p-4">
+                  <div className="bg-white border-b border-gray-200 p-4 mb-14">
                     <div className="flex items-center justify-between mb-4">
                       <h2 className="text-lg font-semibold text-gray-900">
                         {currentEmail.subject}
@@ -221,10 +211,12 @@ export default function EmailPage({
                           {currentEmail.fromName.charAt(0)}
                         </AvatarFallback>
                       </Avatar>
+
                       <div>
                         <p className="text-sm font-medium text-gray-900">
                           {currentEmail.fromName}
                         </p>
+
                         <p className="text-sm text-gray-500">
                           {currentEmail.fromEmail}
                         </p>
@@ -234,13 +226,6 @@ export default function EmailPage({
 
                   {/* Conteúdo do Email */}
                   <div className="flex flex-col overflow-y-auto">
-                    <SentEmailCard
-                      htmlContent="teste"
-                      timestamp="10:30"
-                      subject="teste"
-                      onSendHandle={() => {}}
-                    />
-
                     <SentEmailCard
                       htmlContent="teste"
                       timestamp="10:30"

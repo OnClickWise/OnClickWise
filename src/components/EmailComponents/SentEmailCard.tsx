@@ -23,7 +23,7 @@ export default function SentEmailCard({
   const [replyAction, setReplyAction] = useState<string>("Responder");
 
   return (
-    <div className="mt-8 space-y-6 px-8">
+    <div className="mb-14 space-y-6 px-8">
       <h4 className="text-sm font-medium text-gray-900 mb-4">Email Enviado</h4>
 
       <div className="border-l-4 border-l-blue-500 pl-4 py-3 bg-gray-50 rounded-r-lg">
@@ -78,7 +78,7 @@ export default function SentEmailCard({
           }
         >
           {replyAction === "Responder" ? (
-            <Reply className="w-4 h-4 mr-2" />
+            <Reply className="w-4 h-4" />
           ) : (
             <span>X</span>
           )}

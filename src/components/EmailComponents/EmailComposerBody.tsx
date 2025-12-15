@@ -348,9 +348,9 @@ export default function EmailComposerBody({
         console.log("Assunto:", fromEmail);
         console.log("HTML do corpo do email:", htmlContent);
       }}
-      className="w-full flex justify-sta"
+      className="w-full flex justify-start"
     >
-      <div className="w-full mb-16 bg-white p-5 flex flex-col gap-4 shadow-lg">
+      <div className="w-full bg-white p-5 flex flex-col gap-4 shadow-lg rounded-lg">
         <Input
           type="text"
           placeholder="Assunto do email"
