@@ -2,7 +2,6 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 
 type Props = {
@@ -91,10 +90,10 @@ export default function EmailInputSelect({
       </label>
 
       <div
-        className={`min-h-[44px] flex items-center gap-2 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900`}
+        className={`min-h-12 flex items-center gap-2 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900`}
       >
         {/* chips area */}
-        <div className="p-8 max-h-[200px] overflow-y-auto flex flex-wrap gap-4 items-center flex-1">
+        <div className="max-h-[160px] px-4 py-2 overflow-y-auto flex flex-wrap gap-4 items-center flex-1">
           {emails.map((e, i) => (
             <span
               key={e + i}

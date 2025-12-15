@@ -13,6 +13,7 @@ import {
 import React, { useState } from "react";
 import EmailComposer from "./EmailComponents/EmailComposer";
 import UserAvatarList from "./EmailComponents/UserAvatarList";
+import UserAvatarListRedirect from "./EmailComponents/UserAvatarListRedirect";
 
 interface AlertDialogDemoProps {
   children: React.ReactNode;
@@ -26,9 +27,14 @@ interface AlertDialogDemoProps {
   contentPopup?: string;
 }
 
-const users = [
-  { id: "1", name: "Nicolas", email: "nicolas@email.com", avatarUrl: "" },
-  { id: "2", name: "Maria", email: "maria@email.com", avatarUrl: "" },
+const usersSend = [
+  {
+    id: "1",
+    fromName: "Nicolas",
+    fromEmail: "nicolas@email.com",
+    avatarUrl: "",
+  },
+  { id: "2", fromName: "Maria", fromEmail: "maria@email.com", avatarUrl: "" },
 ];
 
 export function AlertDialogDemo({
@@ -75,8 +81,8 @@ export function AlertDialogDemo({
           {contentPopup === "novo-email" ? (
             <EmailComposer onSend={handleSend} />
           ) : (
-            <UserAvatarList
-              users={users}
+            <UserAvatarListRedirect
+              users={usersSend}
               onSelect={(u) => console.log("Selecionado:", u)}
             />
           )}

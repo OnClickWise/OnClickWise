@@ -352,8 +352,8 @@ export default function EmailComposer({ onSend }: EmailComposerProps = {}) {
     >
       <div className="w-full bg-white p-5 flex flex-col gap-4">
         {/* Campo de assunto do email */}
-
         <EmailInputSelect value={emails} onChange={setEmails} />
+
         <Input
           type="text"
           placeholder="Assunto do email"
@@ -373,7 +373,7 @@ export default function EmailComposer({ onSend }: EmailComposerProps = {}) {
           onMouseUp={handleSelectionChange}
           onBlur={handleSelectionChange}
           onSelect={handleSelectionChange}
-          className="w-full h-[160px] border rounded-2xl p-3 outline-none text-sm overflow-y-scroll"
+          className="w-full h-[160px] border rounded-2xl p-3 outline-none text-sm overflow-y-auto"
           style={{ fontSize: "14px", color: "#000000", textAlign: "left" }}
           data-placeholder="Escreva o corpo do email aqui..."
         />

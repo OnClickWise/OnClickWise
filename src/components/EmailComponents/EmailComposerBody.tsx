@@ -351,6 +351,13 @@ export default function EmailComposerBody({
       className="w-full flex justify-sta"
     >
       <div className="w-full mb-16 bg-white p-5 flex flex-col gap-4 shadow-lg">
+        <Input
+          type="text"
+          placeholder="Assunto do email"
+          value={fromEmail}
+          className="rounded-2xl h-12"
+        />
+
         {/* Editor de texto formatado (contentEditable) */}
         <div
           ref={editorRef}
@@ -362,7 +369,7 @@ export default function EmailComposerBody({
           onMouseUp={handleSelectionChange}
           onBlur={handleSelectionChange}
           onSelect={handleSelectionChange}
-          className="w-full h-[160px] border rounded-2xl p-3 outline-none text-sm overflow-y-scroll"
+          className="w-full h-[160px] border rounded-2xl p-3 outline-none text-sm overflow-y-auto"
           style={{ fontSize: "14px", color: "#000000", textAlign: "left" }}
           data-placeholder="Escreva o corpo do email aqui..."
         />

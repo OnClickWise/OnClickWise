@@ -126,3 +126,18 @@ export const createNewUser = (
 
   return returnAllUsersActivate();
 };
+
+export async function getMockEmails() {
+  let res;
+
+  try {
+    console.log("Testando requisição da api:");
+
+    res = await fetch("http://localhost:3002/email/get-mock-emails");
+    const data = await res.json();
+
+    return data;
+  } catch (e) {
+    throw e;
+  }
+}

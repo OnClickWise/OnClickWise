@@ -3,7 +3,7 @@
 import { ReactNode, useState } from "react";
 import EmailComposerBody from "./EmailComposerBody";
 import { AlertDialogDemo } from "../AlertDialogDemo";
-import { Forward, Reply } from "lucide-react";
+import { Forward, Paperclip, Reply } from "lucide-react";
 import { Button } from "../ui/button";
 import { Separator } from "../ui/separator";
 
@@ -23,7 +23,7 @@ export default function SentEmailCard({
   const [replyAction, setReplyAction] = useState<string>("Responder");
 
   return (
-    <div className="mt-8 space-y-6">
+    <div className="mt-8 space-y-6 px-8">
       <h4 className="text-sm font-medium text-gray-900 mb-4">Email Enviado</h4>
 
       <div className="border-l-4 border-l-blue-500 pl-4 py-3 bg-gray-50 rounded-r-lg">
@@ -31,6 +31,7 @@ export default function SentEmailCard({
           <h5 className="text-sm font-semibold text-gray-900">
             {subject || "Sem assunto"}
           </h5>
+
           <span className="text-xs text-gray-500">{timestamp}</span>
         </div>
 
