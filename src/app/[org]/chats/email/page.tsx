@@ -15,7 +15,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
   SidebarInset,
@@ -23,10 +22,11 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { Search, Mail } from "lucide-react";
-import { getMockEmails } from "@/lib/email";
+import { filterSearchEmail, findUserById, getMockEmails } from "@/lib/email";
 import SentEmailCard from "@/components/EmailComponents/SentEmailCard";
 import { AlertDialogDemo } from "@/components/AlertDialogDemo";
-import { mockEmailsProp } from "@/app/types/email";
+import { UserEmail } from "@/types/email";
+import EmailCardSideBar from "@/components/EmailComponents/EmailCardSideBar";
 
 export default function EmailPage({
   params,
@@ -34,10 +34,9 @@ export default function EmailPage({
   params: Promise<{ org: string }>;
 }) {
   const { org } = React.use(params);
-  const [selectedEmail, setSelectedEmail] = React.useState(0);
+  const [selectedEmail, setSelectedEmail] = React.useState<number>(0);
   const [searchTerm, setSearchTerm] = React.useState("");
-  const [composeOpen, setComposeOpen] = React.useState(false);
-  const [mockEmails, setMockEmails] = React.useState<mockEmailsProp[]>([]);
+  const [mockEmails, setMockEmails] = React.useState<UserEmail[]>([]);
 
   React.useEffect(() => {
     getMockEmails()
@@ -47,13 +46,11 @@ export default function EmailPage({
       .catch((e) => e);
   }, []);
 
-  const filteredEmails = mockEmails.filter(
-    (email) =>
-      email.fromName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      email.subject.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filtra os emails pesquisados
+  const filteredEmails = filterSearchEmail(mockEmails, searchTerm);
 
-  const currentEmail = mockEmails.find((email) => email.id === selectedEmail);
+  // Atualiza usuário que está em foco na página
+  const currentEmail = findUserById(mockEmails, selectedEmail);
 
   return (
     <AuthGuard orgSlug={org}>
@@ -110,16 +107,14 @@ export default function EmailPage({
                     title="Encaminhar Email"
                     description="Encaminhe este email para outros destinatários"
                   >
-                    <Button
-                      onClick={() => setComposeOpen(true)}
-                      className="bg-blue-600 hover:bg-blue-700"
-                    >
+                    <Button className="bg-blue-600 hover:bg-blue-700">
                       <Mail className="w-4 h-4 mr-2" />
                       Escrever
                     </Button>
                   </AlertDialogDemo>
                 </div>
 
+                {/* INPUT DE PESQUISA */}
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <Input
@@ -143,47 +138,15 @@ export default function EmailPage({
                         : ""
                     }`}
                   >
-                    <div className="flex-shrink-0">
-                      <Avatar className="w-14 h-14">
-                        <AvatarImage src={email.avatar} alt={email.fromName} />
-
-                        <AvatarFallback>
-                          {email.fromName.charAt(0)}
-                        </AvatarFallback>
-                      </Avatar>
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <h3
-                          className={`text-md truncate ${
-                            !email.isRead ? "font-bold" : "font-thin"
-                          }`}
-                        >
-                          {email.fromName}
-                        </h3>
-
-                        <span className="text-xs text-gray-500">
-                          {email.timestampLatest}
-                        </span>
-                      </div>
-
-                      <p
-                        className={`text-sm font-medium text-gray-900 truncate mb-1 ${
-                          !email.isRead ? "font-bold" : "font-thin text-xs"
-                        }`}
-                      >
-                        {email.subject}
-                      </p>
-
-                      <p className="text-xs text-gray-600 truncate">
-                        {email.preview}
-                      </p>
-
-                      {!email.isRead && (
-                        <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
-                      )}
-                    </div>
+                    <EmailCardSideBar
+                      id={email.id}
+                      from={email.fromName}
+                      subject={email.subject}
+                      preview={email.preview}
+                      timestamp={email.timestampLatest}
+                      avatar={email.avatar}
+                      isRead={email.isRead}
+                    />
                   </div>
                 ))}
               </div>
@@ -226,12 +189,16 @@ export default function EmailPage({
 
                   {/* Conteúdo do Email */}
                   <div className="flex flex-col overflow-y-auto">
-                    <SentEmailCard
-                      htmlContent="teste"
-                      timestamp="10:30"
-                      subject="teste"
-                      onSendHandle={() => {}}
-                    />
+                    {currentEmail.messagesHistory.sendMessage.map(
+                      (message: any, idx: number) => (
+                        <SentEmailCard
+                          key={idx}
+                          htmlContent={message.htmlContent ?? ""}
+                          timestamp={message.timestamp ?? ""}
+                          subject={message.subject ?? ""}
+                        />
+                      )
+                    )}
                   </div>
                 </>
               ) : (

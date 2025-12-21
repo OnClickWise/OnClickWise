@@ -13,6 +13,7 @@ import {
   Image as ImageIcon,
   ArrowRight,
 } from "lucide-react";
+import { getDateFormated } from "@/lib/email";
 
 /**
  * Componente de composição de email com editor rich text
@@ -24,31 +25,21 @@ import {
  * - Gera HTML formatado para envio via API
  *
  */
-interface EmailComposerProps {
-  onSendReply?: (data: { subject: string; htmlContent: string }) => void;
-  fromEmail?: string;
-}
-
-export default function EmailComposerBody({
-  onSendReply,
-  fromEmail = "",
-}: EmailComposerProps = {}) {
+export default function EmailComposerBody() {
   // Estados do formulário
-  const [htmlContent, setHtmlContent] = useState(""); // HTML formatado do corpo do email
+  const [htmlContent, setHtmlContent] = useState<string>(""); // HTML formatado do corpo do email
+  const [subjectInput, setSubjectInput] = useState<string>(""); // Conteúdo do assunto
 
   // Estados de formatação (para controle visual dos botões)
   const [fontSize, setFontSize] = useState("14px");
   const [fontColor, setFontColor] = useState("#000000");
-  const [textAlign, setTextAlign] = useState<
-    "left" | "center" | "right" | "justify"
-  >("left");
 
   // Estados dos botões de formatação (para indicar se estão ativos)
   const [isBoldActive, setIsBoldActive] = useState(false);
   const [isItalicActive, setIsItalicActive] = useState(false);
   const [alignActive, setAlignActive] = useState<
-    "left" | "center" | "right" | "justify" | null
-  >(null);
+    "left" | "center" | "right" | "justify"
+  >("left");
 
   // Refs para elementos do DOM
   const editorRef = useRef<HTMLDivElement | null>(null); // Referência do editor contentEditable
@@ -144,7 +135,7 @@ export default function EmailComposerBody({
     } else if (textAlign === "justify") {
       setAlignActive("justify");
     } else {
-      setAlignActive(null);
+      setAlignActive("left");
     }
   }
 
@@ -201,9 +192,6 @@ export default function EmailComposerBody({
     // Aplica o alinhamento
     // @ts-ignore - document.execCommand está deprecated mas ainda é amplamente suportado e funcional
     document.execCommand(command, false, undefined);
-
-    // Atualiza os estados
-    setTextAlign(align);
     setAlignActive(align);
 
     // Salva o HTML atualizado
@@ -314,14 +302,6 @@ export default function EmailComposerBody({
   }
 
   /**
-   * Handler chamado quando a seleção do texto muda
-   * Atualiza os estados dos botões para refletir a formatação atual
-   */
-  function handleSelectionChange() {
-    updateButtonStates();
-  }
-
-  /**
    * Handler chamado quando o conteúdo do editor muda (digitação, formatação, etc)
    * Salva o HTML formatado e atualiza os estados dos botões
    */
@@ -337,15 +317,13 @@ export default function EmailComposerBody({
         e.preventDefault();
 
         // Chama o callback onSendReply se fornecido, passando assunto e HTML
-        if (onSendReply) {
-          onSendReply({
-            subject: fromEmail,
-            htmlContent,
-          });
-        }
+        /* {
+          subject: subjectInput,
+          htmlContent,
+          timestamp: getDateFormated(),
+        } */
 
         // Log para debug
-        console.log("Assunto:", fromEmail);
         console.log("HTML do corpo do email:", htmlContent);
       }}
       className="w-full flex justify-start"
@@ -354,8 +332,9 @@ export default function EmailComposerBody({
         <Input
           type="text"
           placeholder="Assunto do email"
-          value={fromEmail}
           className="rounded-2xl h-12"
+          onChange={(e) => setSubjectInput(e.target.value)}
+          value={subjectInput}
         />
 
         {/* Editor de texto formatado (contentEditable) */}
@@ -364,11 +343,11 @@ export default function EmailComposerBody({
           contentEditable
           suppressContentEditableWarning
           onInput={handleInput}
-          onKeyUp={handleSelectionChange}
-          onClick={handleSelectionChange}
-          onMouseUp={handleSelectionChange}
-          onBlur={handleSelectionChange}
-          onSelect={handleSelectionChange}
+          onKeyUp={updateButtonStates}
+          onClick={updateButtonStates}
+          onMouseUp={updateButtonStates}
+          onBlur={updateButtonStates}
+          onSelect={updateButtonStates}
           className="w-full h-[160px] border rounded-2xl p-3 outline-none text-sm overflow-y-auto"
           style={{ fontSize: "14px", color: "#000000", textAlign: "left" }}
           data-placeholder="Escreva o corpo do email aqui..."

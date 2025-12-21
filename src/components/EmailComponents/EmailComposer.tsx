@@ -15,17 +15,6 @@ import {
 import { AlertDialogCancel } from "@radix-ui/react-alert-dialog";
 import EmailInputSelect from "./EmailInpuSelect";
 
-/**
- * Componente de composição de email com editor rich text
- *
- * Funcionalidades:
- * - Editor de texto formatado (negrito, itálico, alinhamento)
- * - Seleção de cor e tamanho da fonte
- * - Inserção de imagens
- * - Gera HTML formatado para envio via API
- *
- * @param onSend - Callback chamado quando o email é enviado, recebe { subject, htmlContent }
- */
 interface EmailComposerProps {
   onSend?: (data: {
     subject: string;
@@ -36,7 +25,6 @@ interface EmailComposerProps {
 
 export default function EmailComposer({ onSend }: EmailComposerProps = {}) {
   // Estados do formulário
-  const [fromEmail, setFromEmail] = useState(""); // Assunto do email
   const [htmlContent, setHtmlContent] = useState(""); // HTML formatado do corpo do email
 
   // Estados de formatação (para controle visual dos botões)
@@ -313,14 +301,6 @@ export default function EmailComposer({ onSend }: EmailComposerProps = {}) {
   }
 
   /**
-   * Handler chamado quando a seleção do texto muda
-   * Atualiza os estados dos botões para refletir a formatação atual
-   */
-  function handleSelectionChange() {
-    updateButtonStates();
-  }
-
-  /**
    * Handler chamado quando o conteúdo do editor muda (digitação, formatação, etc)
    * Salva o HTML formatado e atualiza os estados dos botões
    */
@@ -334,31 +314,17 @@ export default function EmailComposer({ onSend }: EmailComposerProps = {}) {
     <form
       onSubmit={(e) => {
         e.preventDefault();
-
-        // Chama o callback onSend se fornecido, passando assunto e HTML
-        if (onSend) {
-          onSend({
-            subject: fromEmail,
-            htmlContent,
-            emails,
-          });
-        }
-
-        // Log para debug
-        console.log("Assunto:", fromEmail);
-        console.log("HTML do corpo do email:", htmlContent);
       }}
       className="w-full flex justify-center"
     >
-      <div className="w-full bg-white p-5 flex flex-col gap-4">
-        {/* Campo de assunto do email */}
+      <div className="w-full bg-white flex flex-col gap-4">
+        {/* Campo de seleção de emails */}
         <EmailInputSelect value={emails} onChange={setEmails} />
 
+        {/* Campo de assunto do email */}
         <Input
           type="text"
           placeholder="Assunto do email"
-          value={fromEmail}
-          onChange={(e) => setFromEmail(e.target.value)}
           className="rounded-2xl h-12"
         />
 
@@ -368,11 +334,11 @@ export default function EmailComposer({ onSend }: EmailComposerProps = {}) {
           contentEditable
           suppressContentEditableWarning
           onInput={handleInput}
-          onKeyUp={handleSelectionChange}
-          onClick={handleSelectionChange}
-          onMouseUp={handleSelectionChange}
-          onBlur={handleSelectionChange}
-          onSelect={handleSelectionChange}
+          onKeyUp={updateButtonStates}
+          onClick={updateButtonStates}
+          onMouseUp={updateButtonStates}
+          onBlur={updateButtonStates}
+          onSelect={updateButtonStates}
           className="w-full h-[160px] border rounded-2xl p-3 outline-none text-sm overflow-y-auto"
           style={{ fontSize: "14px", color: "#000000", textAlign: "left" }}
           data-placeholder="Escreva o corpo do email aqui..."

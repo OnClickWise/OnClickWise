@@ -11,12 +11,14 @@ interface PropsCurrentEmail {
   htmlContent: string;
   timestamp: string;
   subject: string;
+  onSendHandle?: any;
 }
 
 export default function SentEmailCard({
   htmlContent,
   timestamp,
   subject,
+  onSendHandle,
 }: PropsCurrentEmail): ReactNode {
   const [replyAction, setReplyAction] = useState<string>("Responder");
 
@@ -42,13 +44,22 @@ export default function SentEmailCard({
       </div>
 
       {/* Componente para responder o e-mail */}
-      {replyAction === "Cancelar" ? <EmailComposerBody /> : <span></span>}
+      {replyAction === "Cancelar" ? (
+        <EmailComposerBody
+          onSendReply={(data) => {
+            setReplyAction("Responder");
+            onSendHandle(data);
+          }}
+        />
+      ) : (
+        <span></span>
+      )}
 
       {/* Opções - (Respostas/Encaminhamentos) */}
       <div className="flex items-center space-x-2">
         <AlertDialogDemo
           contentPopup="encaminhar"
-          onSend={() => {}}
+          onSend={onSendHandle}
           title="Encaminhar Email"
           description="Encaminhe este email para outros destinatários"
         >

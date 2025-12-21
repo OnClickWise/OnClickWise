@@ -63,7 +63,9 @@ export function AlertDialogDemo({
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>{children}</AlertDialogTrigger>
 
-      <AlertDialogContent>
+      <AlertDialogContent
+        className={contentPopup == "novo-email" ? "sm:max-w-2xl" : ""}
+      >
         <AlertDialogHeader>
           <div className="flex justify-between">
             <div>
