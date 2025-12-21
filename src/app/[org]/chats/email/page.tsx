@@ -22,11 +22,17 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { Search, Mail } from "lucide-react";
-import { filterSearchEmail, findUserById, getMockEmails } from "@/lib/email";
+import {
+  filterSearchEmail,
+  findUserById,
+  getMockEmails,
+  mergeAndFormatMessages,
+} from "@/lib/email";
 import SentEmailCard from "@/components/EmailComponents/SentEmailCard";
 import { AlertDialogDemo } from "@/components/AlertDialogDemo";
-import { UserEmail } from "@/types/email";
+import { NormalizedMessage, UserEmail } from "@/types/email";
 import EmailCardSideBar from "@/components/EmailComponents/EmailCardSideBar";
+import ResponseEmailCard from "@/components/EmailComponents/ResponseEmailCard";
 
 export default function EmailPage({
   params,
@@ -41,7 +47,19 @@ export default function EmailPage({
   React.useEffect(() => {
     getMockEmails()
       .then((mockUpdate) => {
-        setMockEmails(mockUpdate.body.message);
+        // aqui vem a a função de organizar as mensagens
+        const mockDateFormated: UserEmail[] = mockUpdate.body.message.map(
+          (user: UserEmail) => {
+            const chatUpdate = mergeAndFormatMessages(
+              user.messagesHistory.sendMessage,
+              user.messagesHistory.receiveMessage
+            );
+            user.messagesHistory.roadMap = chatUpdate;
+            return user;
+          }
+        );
+
+        setMockEmails(mockDateFormated);
       })
       .catch((e) => e);
   }, []);
@@ -189,14 +207,24 @@ export default function EmailPage({
 
                   {/* Conteúdo do Email */}
                   <div className="flex flex-col overflow-y-auto">
-                    {currentEmail.messagesHistory.sendMessage.map(
-                      (message: any, idx: number) => (
-                        <SentEmailCard
-                          key={idx}
-                          htmlContent={message.htmlContent ?? ""}
-                          timestamp={message.timestamp ?? ""}
-                          subject={message.subject ?? ""}
-                        />
+                    {currentEmail.messagesHistory.roadMap?.map(
+                      (message: NormalizedMessage, idx: number) => (
+                        <div key={idx}>
+                          {message.typeMessage === "response" ? (
+                            <SentEmailCard
+                              key={idx}
+                              htmlContent={message.htmlContent ?? ""}
+                              timestamp={message.timestamp ?? ""}
+                              subject={message.subject ?? ""}
+                            />
+                          ) : (
+                            <ResponseEmailCard
+                              htmlContent={message.htmlContent ?? ""}
+                              timestamp={message.timestamp ?? ""}
+                              subject={message.subject ?? ""}
+                            />
+                          )}
+                        </div>
                       )
                     )}
                   </div>

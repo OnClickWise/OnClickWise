@@ -1,4 +1,4 @@
-import { UserEmail } from "@/types/email";
+import { UserEmail, RawMessage, NormalizedMessage } from "@/types/email";
 
 export async function getMockEmails() {
   let res;
@@ -53,3 +53,41 @@ export const findUserById = (
   const currentEmail = mockEmails.find((email) => email.id === selectedEmail);
   return currentEmail;
 };
+
+function formatDate(timestamp: string): string {
+  const date = new Date(timestamp);
+
+  const hh = String(date.getHours()).padStart(2, "0");
+  const mm = String(date.getMinutes()).padStart(2, "0");
+  const ss = String(date.getSeconds()).padStart(2, "0");
+
+  const dd = String(date.getDate()).padStart(2, "0");
+  const MM = String(date.getMonth() + 1).padStart(2, "0");
+  const yy = String(date.getFullYear()).slice(-2);
+
+  return `${hh}:${mm}:${ss} - ${dd}/${MM}/${yy}`;
+}
+
+export function mergeAndFormatMessages(
+  received: RawMessage[],
+  sent: RawMessage[]
+): NormalizedMessage[] {
+  const allMessages: NormalizedMessage[] = [
+    ...received.map<NormalizedMessage>((msg) => ({
+      typeMessage: "response",
+      subject: msg.subject,
+      htmlContent: msg.htmlContent,
+      timestamp: String(formatDate(msg.timestamp)),
+    })),
+    ...sent.map<NormalizedMessage>((msg) => ({
+      typeMessage: "send",
+      subject: msg.subject,
+      htmlContent: msg.htmlContent,
+      timestamp: String(formatDate(msg.timestamp)),
+    })),
+  ];
+
+  return allMessages.sort(
+    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  );
+}

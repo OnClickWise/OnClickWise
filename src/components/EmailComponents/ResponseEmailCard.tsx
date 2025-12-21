@@ -11,22 +11,20 @@ interface PropsCurrentEmail {
   htmlContent: string;
   timestamp: string;
   subject: string;
-  onSendHandle?: any;
 }
 
-export default function SentEmailCard({
+export default function ResponseEmailCard({
   htmlContent,
   timestamp,
   subject,
-  onSendHandle,
 }: PropsCurrentEmail): ReactNode {
   const [replyAction, setReplyAction] = useState<string>("Responder");
 
   return (
     <div className="mb-14 space-y-6 px-8">
-      <h4 className="text-sm font-medium text-gray-900 mb-4">Email Enviado</h4>
+      <h4 className="text-sm font-medium text-gray-900 mb-4">Email Recebido</h4>
 
-      <div className="border-l-4 border-l-blue-500 pl-4 py-3 bg-gray-50 rounded-r-lg">
+      <div className="border-l-4 border-l-gray-800 pl-4 py-3 bg-gray-50 rounded-r-lg">
         <div className="flex items-center justify-between mb-2">
           <h5 className="text-sm font-semibold text-gray-900">
             {subject || "Sem assunto"}
@@ -44,22 +42,13 @@ export default function SentEmailCard({
       </div>
 
       {/* Componente para responder o e-mail */}
-      {replyAction === "Cancelar" ? (
-        <EmailComposerBody
-          onSendReply={(data) => {
-            setReplyAction("Responder");
-            onSendHandle(data);
-          }}
-        />
-      ) : (
-        <span></span>
-      )}
+      {replyAction === "Cancelar" ? <EmailComposerBody /> : <span></span>}
 
       {/* Opções - (Respostas/Encaminhamentos) */}
       <div className="flex items-center space-x-2">
         <AlertDialogDemo
           contentPopup="encaminhar"
-          onSend={onSendHandle}
+          onSend={() => {}}
           title="Encaminhar Email"
           description="Encaminhe este email para outros destinatários"
         >

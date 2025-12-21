@@ -12,7 +12,7 @@ export interface NormalizedMessage {
   timestamp: string;
 }
 
-interface RawMessage {
+export interface RawMessage {
   subject: string;
   timestamp: string;
   htmlContent: string;
