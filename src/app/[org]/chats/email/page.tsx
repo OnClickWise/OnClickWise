@@ -43,18 +43,21 @@ export default function EmailPage({
   const [selectedEmail, setSelectedEmail] = React.useState<number>(0);
   const [searchTerm, setSearchTerm] = React.useState("");
   const [mockEmails, setMockEmails] = React.useState<UserEmail[]>([]);
+  const [userFind, setUserFind] = React.useState<UserEmail>();
 
-  React.useEffect(() => {
+  async function updateListUser() {
     getMockEmails()
       .then((mockUpdate) => {
-        // aqui vem a a função de organizar as mensagens
+        // aqui vem a função de organizar as mensagens
         const mockDateFormated: UserEmail[] = mockUpdate.body.message.map(
           (user: UserEmail) => {
             const chatUpdate = mergeAndFormatMessages(
-              user.messagesHistory.sendMessage,
-              user.messagesHistory.receiveMessage
+              user.messagesHistory.receiveMessage,
+              user.messagesHistory.sendMessage
             );
             user.messagesHistory.roadMap = chatUpdate;
+            user.preview = chatUpdate[chatUpdate.length - 1].htmlContent;
+            user.timestampLatest = chatUpdate[chatUpdate.length - 1].timestamp;
             return user;
           }
         );
@@ -62,13 +65,53 @@ export default function EmailPage({
         setMockEmails(mockDateFormated);
       })
       .catch((e) => e);
+  }
+
+  React.useEffect(() => {
+    updateListUser();
+
+    // Atualiza usuário que está em foco na página
+    const currentEmail = findUserById(mockEmails, selectedEmail);
+    setUserFind(currentEmail);
   }, []);
+
+  async function updateToIsRead(email: UserEmail) {
+    const url = "http://localhost:3002/email/check-read";
+    const dadosParaEnviar = { id: email.id };
+
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(dadosParaEnviar),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erro HTTP! Status: ${response.status}`);
+      }
+
+      // Converte o corpo da resposta para JSON
+      // const dadosRecebidos = await response.json();
+      await response.json();
+
+      // atualiza a lista de usuários
+      await updateListUser().then(() => {
+        const currentEmail = findUserById(mockEmails, email.id);
+
+        if (currentEmail) {
+          setUserFind(currentEmail);
+          setSelectedEmail(email.id);
+        }
+      });
+    } catch (error) {
+      console.error("Ocorreu um erro:", error);
+    }
+  }
 
   // Filtra os emails pesquisados
   const filteredEmails = filterSearchEmail(mockEmails, searchTerm);
-
-  // Atualiza usuário que está em foco na página
-  const currentEmail = findUserById(mockEmails, selectedEmail);
 
   return (
     <AuthGuard orgSlug={org}>
@@ -146,10 +189,21 @@ export default function EmailPage({
 
               {/* Lista de Emails */}
               <div className="flex-1 overflow-y-auto">
-                {filteredEmails.map((email) => (
+                {filteredEmails.map((email: UserEmail) => (
                   <div
                     key={email.id}
-                    onClick={() => setSelectedEmail(email.id)}
+                    onClick={() => {
+                      if (!email.isRead) {
+                        updateToIsRead(email);
+                      } else {
+                        const currentEmail = findUserById(mockEmails, email.id);
+
+                        if (currentEmail) {
+                          setUserFind(currentEmail);
+                          setSelectedEmail(email.id);
+                        }
+                      }
+                    }}
                     className={`flex items-center gap-4 p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors ${
                       selectedEmail === email.id
                         ? "bg-blue-50 border-l-4 border-l-blue-500"
@@ -172,34 +226,34 @@ export default function EmailPage({
 
             {/* Área de Visualização do Email */}
             <div className="flex-1 flex flex-col">
-              {currentEmail ? (
+              {userFind ? (
                 <>
                   {/* Header do Email */}
                   <div className="bg-white border-b border-gray-200 p-4 mb-14">
                     <div className="flex items-center justify-between mb-4">
                       <h2 className="text-lg font-semibold text-gray-900">
-                        {currentEmail.subject}
+                        {userFind.subject}
                       </h2>
                     </div>
 
                     <div className="flex items-center space-x-3">
                       <Avatar className="w-10 h-10">
                         <AvatarImage
-                          src={currentEmail.avatar}
-                          alt={currentEmail.fromName}
+                          src={userFind.avatar}
+                          alt={userFind.fromName}
                         />
                         <AvatarFallback>
-                          {currentEmail.fromName.charAt(0)}
+                          {userFind.fromName.charAt(0)}
                         </AvatarFallback>
                       </Avatar>
 
                       <div>
                         <p className="text-sm font-medium text-gray-900">
-                          {currentEmail.fromName}
+                          {userFind.fromName}
                         </p>
 
                         <p className="text-sm text-gray-500">
-                          {currentEmail.fromEmail}
+                          {userFind.fromEmail}
                         </p>
                       </div>
                     </div>
@@ -207,10 +261,10 @@ export default function EmailPage({
 
                   {/* Conteúdo do Email */}
                   <div className="flex flex-col overflow-y-auto">
-                    {currentEmail.messagesHistory.roadMap?.map(
+                    {userFind.messagesHistory.roadMap?.map(
                       (message: NormalizedMessage, idx: number) => (
                         <div key={idx}>
-                          {message.typeMessage === "response" ? (
+                          {message.typeMessage === "send" ? (
                             <SentEmailCard
                               key={idx}
                               htmlContent={message.htmlContent ?? ""}

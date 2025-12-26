@@ -3,21 +3,16 @@
 import { ReactNode, useState } from "react";
 import EmailComposerBody from "./EmailComposerBody";
 import { AlertDialogDemo } from "../AlertDialogDemo";
-import { Forward, Paperclip, Reply } from "lucide-react";
+import { Forward, Reply } from "lucide-react";
 import { Button } from "../ui/button";
 import { Separator } from "../ui/separator";
-
-interface PropsCurrentEmail {
-  htmlContent: string;
-  timestamp: string;
-  subject: string;
-}
+import { RawMessage } from "@/types/email";
 
 export default function ResponseEmailCard({
   htmlContent,
   timestamp,
   subject,
-}: PropsCurrentEmail): ReactNode {
+}: RawMessage): ReactNode {
   const [replyAction, setReplyAction] = useState<string>("Responder");
 
   return (
@@ -46,7 +41,7 @@ export default function ResponseEmailCard({
 
       {/* Opções - (Respostas/Encaminhamentos) */}
       <div className="flex items-center space-x-2">
-        <AlertDialogDemo
+        {/* <AlertDialogDemo
           contentPopup="encaminhar"
           onSend={() => {}}
           title="Encaminhar Email"
@@ -57,7 +52,7 @@ export default function ResponseEmailCard({
             Encaminhar
           </Button>
         </AlertDialogDemo>
-
+ */}
         <Button
           variant="outline"
           onClick={() =>

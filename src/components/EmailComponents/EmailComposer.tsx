@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { AlertDialogCancel } from "@radix-ui/react-alert-dialog";
 import EmailInputSelect from "./EmailInpuSelect";
+import { individualMessageSend } from "@/types/email";
 
 interface EmailComposerProps {
   onSend?: (data: {
@@ -26,6 +27,7 @@ interface EmailComposerProps {
 export default function EmailComposer({ onSend }: EmailComposerProps = {}) {
   // Estados do formulário
   const [htmlContent, setHtmlContent] = useState(""); // HTML formatado do corpo do email
+  const [subjectInput, setSubjectInput] = useState("");
 
   // Estados de formatação (para controle visual dos botões)
   const [fontSize, setFontSize] = useState("14px");
@@ -314,6 +316,17 @@ export default function EmailComposer({ onSend }: EmailComposerProps = {}) {
     <form
       onSubmit={(e) => {
         e.preventDefault();
+        const emailRoot = "nicolasnkprogramador@gmail.com";
+
+        // enviar email aqui
+        const newEmail: individualMessageSend = {
+          from: emailRoot,
+          to: emails,
+          subject: subjectInput,
+          html: htmlContent,
+        };
+
+        console.log(newEmail);
       }}
       className="w-full flex justify-center"
     >
@@ -326,6 +339,8 @@ export default function EmailComposer({ onSend }: EmailComposerProps = {}) {
           type="text"
           placeholder="Assunto do email"
           className="rounded-2xl h-12"
+          value={subjectInput}
+          onChange={(textTypyng) => setSubjectInput(textTypyng.target.value)}
         />
 
         {/* Editor de texto formatado (contentEditable) */}

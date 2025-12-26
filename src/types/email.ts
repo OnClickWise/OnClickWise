@@ -41,3 +41,10 @@ export interface UserEmail {
   /* Messages */
   messagesHistory: MessagesHistory;
 }
+
+export interface individualMessageSend {
+  from: string;
+  to: string[];
+  subject: string;
+  html: string;
+}

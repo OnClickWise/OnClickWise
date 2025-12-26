@@ -57,22 +57,6 @@ export default function SentEmailCard({
             Encaminhar
           </Button>
         </AlertDialogDemo>
-
-        <Button
-          variant="outline"
-          onClick={() =>
-            replyAction === "Responder"
-              ? setReplyAction("Cancelar")
-              : setReplyAction("Responder")
-          }
-        >
-          {replyAction === "Responder" ? (
-            <Reply className="w-4 h-4" />
-          ) : (
-            <span>X</span>
-          )}
-          {replyAction}
-        </Button>
       </div>
 
       <Separator />
