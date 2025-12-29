@@ -2,8 +2,7 @@
 
 import { ReactNode, useState } from "react";
 import EmailComposerBody from "./EmailComposerBody";
-import { AlertDialogDemo } from "../AlertDialogDemo";
-import { Forward, Reply } from "lucide-react";
+import { Reply } from "lucide-react";
 import { Button } from "../ui/button";
 import { Separator } from "../ui/separator";
 import { RawMessage } from "@/types/email";
@@ -12,6 +11,7 @@ export default function ResponseEmailCard({
   htmlContent,
   timestamp,
   subject,
+  emailChat,
 }: RawMessage): ReactNode {
   const [replyAction, setReplyAction] = useState<string>("Responder");
 
@@ -37,7 +37,11 @@ export default function ResponseEmailCard({
       </div>
 
       {/* Componente para responder o e-mail */}
-      {replyAction === "Cancelar" ? <EmailComposerBody /> : <span></span>}
+      {replyAction === "Cancelar" ? (
+        <EmailComposerBody emailChat={emailChat || ""} />
+      ) : (
+        <span></span>
+      )}
 
       {/* Opções - (Respostas/Encaminhamentos) */}
       <div className="flex items-center space-x-2">

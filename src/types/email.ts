@@ -13,6 +13,7 @@ export interface NormalizedMessage {
 }
 
 export interface RawMessage {
+  emailChat?: string;
   subject: string;
   timestamp: string;
   htmlContent: string;

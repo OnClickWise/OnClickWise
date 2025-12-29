@@ -77,7 +77,7 @@ export default function EmailPage({
 
   async function updateToIsRead(email: UserEmail) {
     const url = "http://localhost:3002/email/check-read";
-    const dadosParaEnviar = { id: email.id };
+    const dadosParaEnviar = email.id;
 
     try {
       const response = await fetch(url, {
@@ -164,7 +164,6 @@ export default function EmailPage({
 
                   <AlertDialogDemo
                     contentPopup="novo-email"
-                    onSend={() => {}}
                     title="Encaminhar Email"
                     description="Encaminhe este email para outros destinatários"
                   >
@@ -276,6 +275,7 @@ export default function EmailPage({
                               htmlContent={message.htmlContent ?? ""}
                               timestamp={message.timestamp ?? ""}
                               subject={message.subject ?? ""}
+                              emailChat={userFind.fromEmail}
                             />
                           )}
                         </div>

@@ -3,7 +3,7 @@
 import { ReactNode, useState } from "react";
 import EmailComposerBody from "./EmailComposerBody";
 import { AlertDialogDemo } from "../AlertDialogDemo";
-import { Forward, Paperclip, Reply } from "lucide-react";
+import { Forward } from "lucide-react";
 import { Button } from "../ui/button";
 import { Separator } from "../ui/separator";
 
@@ -18,7 +18,7 @@ export default function SentEmailCard({
   timestamp,
   subject,
 }: PropsCurrentEmail): ReactNode {
-  const [replyAction, setReplyAction] = useState<string>("Responder");
+  const [replyAction] = useState<string>("Responder");
 
   return (
     <div className="mb-14 space-y-6 px-8">
@@ -48,9 +48,10 @@ export default function SentEmailCard({
       <div className="flex items-center space-x-2">
         <AlertDialogDemo
           contentPopup="encaminhar"
-          onSend={() => {}}
           title="Encaminhar Email"
           description="Encaminhe este email para outros destinatários"
+          subjectSend={subject}
+          htmlContentSend={htmlContent}
         >
           <Button variant="outline">
             <Forward className="w-4 h-4 mr-2" />

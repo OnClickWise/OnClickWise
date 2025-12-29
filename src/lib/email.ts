@@ -1,11 +1,14 @@
-import { UserEmail, RawMessage, NormalizedMessage } from "@/types/email";
+import {
+  UserEmail,
+  RawMessage,
+  NormalizedMessage,
+  individualMessageSend,
+} from "@/types/email";
 
 export async function getMockEmails() {
   let res;
 
   try {
-    console.log("Testando requisição da api:");
-
     res = await fetch("http://localhost:3002/email/get-mock-emails");
     const data = await res.json();
 
@@ -14,16 +17,6 @@ export async function getMockEmails() {
     throw e;
   }
 }
-
-/*
-
-getMockEmails()
-  .then((mockUpdate) => {
-    console.log(mockUpdate);
-  })
-  .catch((e) => e); 
-
-*/
 
 export const getDateFormated = (): string => {
   const now = new Date();
@@ -89,4 +82,43 @@ export function mergeAndFormatMessages(
   return allMessages.sort(
     (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
   );
+}
+
+export async function sendNewEmail(newEmail: individualMessageSend) {
+  const emailRoot = "nicolasnkprogramador@gmail.com";
+
+  // URL do endpoint para onde a requisição será enviada
+  const urlDoEndpoint = "http://localhost:3002/email/send-new-email";
+
+  // Opções da requisição fetch
+  const opcoesDaRequisicao = {
+    method: "POST", // Método HTTP
+    headers: {
+      // Informa ao servidor que estamos enviando dados JSON
+      "Content-Type": "application/json",
+    },
+    // Converte o objeto JavaScript em uma string JSON
+    body: JSON.stringify(newEmail),
+  };
+
+  // Fazendo a requisição
+  fetch(urlDoEndpoint, opcoesDaRequisicao)
+    .then((response) => {
+      // Verifica se a resposta foi bem-sucedida (status 200-299)
+      if (!response.ok) {
+        // Se não, lança um erro para ser capturado pelo .catch()
+        throw new Error("Erro na requisição: " + response.statusText);
+      }
+      // Analisa a resposta como JSON e retorna uma nova Promise
+      return response.json();
+    })
+    .then((data) => {
+      // Aqui você recebe os dados processados (data)
+      console.log("Sucesso:", data);
+      // Você pode manipular o DOM ou fazer outras ações aqui
+    })
+    .catch((error) => {
+      // Captura erros de rede ou erros lançados no primeiro .then()
+      console.error("Houve um problema com a operação fetch:", error);
+    });
 }

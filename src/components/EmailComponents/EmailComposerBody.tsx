@@ -13,7 +13,8 @@ import {
   Image as ImageIcon,
   ArrowRight,
 } from "lucide-react";
-import { getDateFormated } from "@/lib/email";
+import { getDateFormated, sendNewEmail } from "@/lib/email";
+import { individualMessageSend } from "@/types/email";
 
 /**
  * Componente de composição de email com editor rich text
@@ -25,7 +26,11 @@ import { getDateFormated } from "@/lib/email";
  * - Gera HTML formatado para envio via API
  *
  */
-export default function EmailComposerBody() {
+export default function EmailComposerBody({
+  emailChat,
+}: {
+  emailChat: string;
+}) {
   // Estados do formulário
   const [htmlContent, setHtmlContent] = useState<string>(""); // HTML formatado do corpo do email
   const [subjectInput, setSubjectInput] = useState<string>(""); // Conteúdo do assunto
@@ -313,18 +318,19 @@ export default function EmailComposerBody() {
 
   return (
     <form
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
+        const emailRoot = "nicolasnkprogramador@gmail.com";
 
-        // Chama o callback onSendReply se fornecido, passando assunto e HTML
-        /* {
+        // enviar email aqui
+        const newEmail: individualMessageSend = {
+          from: emailRoot,
+          to: [emailChat],
           subject: subjectInput,
-          htmlContent,
-          timestamp: getDateFormated(),
-        } */
+          html: htmlContent,
+        };
 
-        // Log para debug
-        console.log("HTML do corpo do email:", htmlContent);
+        sendNewEmail(newEmail);
       }}
       className="w-full flex justify-start"
     >

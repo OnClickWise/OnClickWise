@@ -15,16 +15,9 @@ import {
 import { AlertDialogCancel } from "@radix-ui/react-alert-dialog";
 import EmailInputSelect from "./EmailInpuSelect";
 import { individualMessageSend } from "@/types/email";
+import { sendNewEmail } from "@/lib/email";
 
-interface EmailComposerProps {
-  onSend?: (data: {
-    subject: string;
-    htmlContent: string;
-    emails: string[];
-  }) => void;
-}
-
-export default function EmailComposer({ onSend }: EmailComposerProps = {}) {
+export default function EmailComposer() {
   // Estados do formulário
   const [htmlContent, setHtmlContent] = useState(""); // HTML formatado do corpo do email
   const [subjectInput, setSubjectInput] = useState("");
@@ -314,7 +307,7 @@ export default function EmailComposer({ onSend }: EmailComposerProps = {}) {
 
   return (
     <form
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault();
         const emailRoot = "nicolasnkprogramador@gmail.com";
 
@@ -326,7 +319,7 @@ export default function EmailComposer({ onSend }: EmailComposerProps = {}) {
           html: htmlContent,
         };
 
-        console.log(newEmail);
+        sendNewEmail(newEmail);
       }}
       className="w-full flex justify-center"
     >
