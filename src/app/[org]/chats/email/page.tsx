@@ -20,7 +20,7 @@ import { Separator } from "@/components/ui/separator"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { 
   Search, 
-  Send, 
+  Send,
   Paperclip, 
   Smile, 
   MoreVertical,
