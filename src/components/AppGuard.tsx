@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useEffect, useState } from 'react';
-import { useAppConfig } from '@/hooks/useAppConfig';
+
 import { AlertCircle } from 'lucide-react';
 import { ThemeStyles } from './ThemeStyles';
 

@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Inter, Poppins, Roboto } from "next/font/google";
-import { getLocale } from 'next-intl/server';
-import { ClientLocaleProvider } from '@/components/ClientLocaleProvider';
-import { AppGuard } from '@/components/AppGuard';
+import { ClientLocaleProvider } from "@/components/ClientLocaleProvider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -38,30 +36,37 @@ export const metadata: Metadata = {
   description: "Plataforma completa de CRM e gestão de leads",
   icons: {
     icon: [
-      { url: '/logo-favicon.png', sizes: 'any' },
-      { url: '/logo-favicon.png', type: 'image/png' },
+      { url: "/logo-favicon.png", sizes: "any" },
+      { url: "/logo-favicon.png", type: "image/png" },
     ],
-    apple: '/logo-favicon.png',
-    shortcut: '/logo-favicon.png',
+    apple: "/logo-favicon.png",
+    shortcut: "/logo-favicon.png",
   },
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
-  const locale = await getLocale();
+}) {
+  const locale = "pt";
 
   return (
-    <html lang={locale}>
+    <html lang={locale} suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${poppins.variable} ${roboto.variable} antialiased`}
+        className={`
+          ${geistSans.variable}
+          ${geistMono.variable}
+          ${inter.variable}
+          ${poppins.variable}
+          ${roboto.variable}
+          antialiased
+          bg-background
+          text-foreground
+        `}
       >
         <ClientLocaleProvider defaultLocale={locale}>
-          <AppGuard>
-            {children}
-          </AppGuard>
+          {children}
         </ClientLocaleProvider>
       </body>
     </html>

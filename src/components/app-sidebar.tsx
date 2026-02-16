@@ -25,8 +25,6 @@ import {
   SidebarHeader,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { useAuth } from "@/hooks/useAuth"
-import { useApi } from "@/hooks/useApi"
 import { generateAvatar, generateOrgLogo } from "@/utils/avatar"
 import { OrganizationAvatar } from "@/components/ui/avatar"
 

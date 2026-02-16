@@ -54,8 +54,6 @@ import {
   Crown,
   User
 } from "lucide-react"
-import { apiService, Lead } from "@/lib/api"
-import { useApi } from "@/hooks/useApi"
 import { formatCurrency, getCurrencySymbol } from "@/lib/utils"
 
 // Cores vibrantes para os gráficos (escala 600-700 para melhor contraste e visibilidade)
