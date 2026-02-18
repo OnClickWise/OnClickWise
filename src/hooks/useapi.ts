@@ -49,6 +49,7 @@ export function useApi() {
         const errorText = await response.text();
         
         // Se for erro de autenticação, limpar token
+        console.log(response.status)
         if (response.status === 401) {
           localStorage.removeItem('token');
           localStorage.removeItem('organization');

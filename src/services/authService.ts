@@ -35,7 +35,7 @@ export async function login({
   password: string;
 }) {
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/login`,
+    `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/login`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -63,7 +63,7 @@ export async function login({
 // ----------------------
 export async function register(data: any) {
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/register`,
+    `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/register`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -93,7 +93,7 @@ export async function logout() {
   const token = getAccessTokenFromCookie();
 
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/logout`,
+    `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/logout`,
     {
       method: "POST",
       headers: {
@@ -119,8 +119,7 @@ export async function logout() {
 // ----------------------
 export async function getCurrentUser() {
   const token = getAccessTokenFromCookie();
-
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/me`, {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/me`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -132,12 +131,13 @@ export async function getCurrentUser() {
     const data = await res.json().catch(() => ({}));
     throw new Error(data.error || "Erro ao buscar usuário");
   }
-
   const data = await res.json();
   return {
+    id: data.user?.id || null,
     name: data.user?.name,
     email: data.user?.email,
     avatar: data.user?.avatar || "/avatars/shadcn.jpg",
+    role: data.user?.role || 'employee'
   };
 }
 

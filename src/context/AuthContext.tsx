@@ -19,9 +19,11 @@ import {
 } from "@/services/authService";
 
 interface User {
+  id:string;
   name: string;
   email: string;
   avatar?: string;
+  role?:string;
 }
 
 interface RegisterPayload {

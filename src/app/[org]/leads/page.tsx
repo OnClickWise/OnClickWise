@@ -153,22 +153,7 @@ export default function LeadsPage({
     try {
       const token = localStorage.getItem('token')
       const organizationStr = localStorage.getItem('organization')
-      
-      if (!token || !organizationStr) return null
-      
-      const organization = JSON.parse(organizationStr)
-      
-      // Decodificar o payload do JWT para pegar o email do usuário
-      const parts = token.split('.')
-      if (parts.length !== 3) return null
-      
-      const payload = JSON.parse(atob(parts[1]))
-      const userEmail = payload.email || payload.sub || ''
-      
-      // Usar orgId + email do usuário como identificador único
-      // Cada usuário da mesma org terá seu próprio ID
-      const identifier = `${organization.id}_${userEmail}`.replace(/[^a-zA-Z0-9_-]/g, '_')
-      return identifier
+  
     } catch (error) {
       console.error('Error getting user identifier:', error)
       return null
@@ -194,7 +179,7 @@ export default function LeadsPage({
   React.useEffect(() => {
     const updateUserId = () => {
       const id = getUserIdentifier()
-      setUserId(id)
+      setUserId('id')
     }
     
     updateUserId()
@@ -1065,8 +1050,6 @@ export default function LeadsPage({
         const response = await apiService.getLeads()
 
         if (response.success && response.data) {
-          console.log('Carregando leads...')
-          console.log(response)
           setLeads(response.data.leads)
           // Atualizar o total se foi retornado pela API
           if (response.data.total !== undefined) {
@@ -1421,7 +1404,6 @@ export default function LeadsPage({
   const reloadLeads = async () => {
     try {
       const response = await apiService.getLeads()
-      console.log(response.data)
       if (response.success && response.data) {
         const newLeads = response.data.leads || []
         setLeads(newLeads)
@@ -1631,7 +1613,7 @@ export default function LeadsPage({
       
       setIsLoadingStages(true)
       try {
-        const response = await apiCall('/pipeline-stages')
+        const response = { success: false, data: null}
         
         // Handle different response formats
         let stagesData = null
@@ -1734,7 +1716,6 @@ export default function LeadsPage({
           if (filters.name) {
 
             const response = await apiService.searchLeadsByName(filters.name)
-            console.log(response)
             if (response.success && response.data) {
               
               allLeads = [...allLeads, ...response.data.leads]
@@ -2064,7 +2045,6 @@ export default function LeadsPage({
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
   const currentLeads = filteredLeads?.slice(startIndex, endIndex)
-
   // Reset to first page when filters change
   React.useEffect(() => {
     setCurrentPage(1)
@@ -2325,7 +2305,6 @@ export default function LeadsPage({
         const response = await apiService.createLead(createData)
 
         if (response.success && response.data) {
-
           setLeads((prev) => [response.data!.lead, ...prev])
 
           pushToast(t('notifications.leadAdded'), "success")
@@ -2435,13 +2414,13 @@ export default function LeadsPage({
     setQuickAssignUserId("")
     
     try {
-      const response = await apiService.getOrganizationUsers(true) // Include master users
-      if (response.success && response.data) {
-        setOrganizationUsers(response.data.employees)
-      } else {
-        pushToast(t('notifications.errorLoadingUsers'), 'error')
-        setQuickAssignLeadId(null)
-      }
+      //const response = await apiService.getOrganizationUsers(true) // Include master users
+      //if (response.success && response.data) {
+        //setOrganizationUsers(response.data.employees)
+      //} else {
+       // pushToast(t('notifications.errorLoadingUsers'), 'error')
+        //setQuickAssignLeadId(null)
+      //}
     } catch (error) {
       console.error('Error fetching users:', error)
       pushToast(t('notifications.errorLoadingUsers'), 'error')
@@ -5319,7 +5298,7 @@ export default function LeadsPage({
 
     <AuthGuard orgSlug={org}>
 
-      <RoleGuard allowedRoles={["admin", "master"]} orgSlug={org}>
+      
 
       <SidebarProvider>
 
@@ -6145,7 +6124,7 @@ export default function LeadsPage({
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={handleToggleSelectPage} className="cursor-pointer">
                                 {(() => {
-                                  const currentPageLeadIds = new Set(currentLeads.map(lead => lead.id))
+                                  const currentPageLeadIds = new Set(currentLeads.map(lead => lead?.id))
                                   const allCurrentPageSelected = currentPageLeadIds.size > 0 && 
                                     Array.from(currentPageLeadIds).every(id => selectedLeads.has(id))
                                   return allCurrentPageSelected ? t('table.unselectPage') : t('table.selectPage')
@@ -8974,8 +8953,6 @@ export default function LeadsPage({
         )}
       </SheetContent>
     </Sheet>
-
-      </RoleGuard>
     </AuthGuard>
   )
 }

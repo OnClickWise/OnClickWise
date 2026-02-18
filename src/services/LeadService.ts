@@ -1,5 +1,12 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
+import {
+  clearAuthCookies,
+  getAccessTokenFromCookie,
+  getRefreshTokenFromCookie,
+  setAccessTokenCookie,
+  setRefreshTokenCookie,
+} from "@/lib/cookies";
 // Export the API base URL for use in other components
 export const getApiBaseUrl = () => API_BASE_URL;
 
@@ -301,25 +308,36 @@ class ApiService {
         error: 'API calls only available on client side'
       };
     }
+    const token = getAccessTokenFromCookie();
     return this.request<{ lead: Lead }>('/api/leads', {
       method: 'POST',
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify(leadData),
     });
   }
 
   async updateLead(leadData: UpdateLeadRequest): Promise<ApiResponse<{ lead: Lead }>> {
     // Verificar se estamos no cliente
+    
     if (typeof window === 'undefined') {
       return {
         success: false,
         error: 'API calls only available on client side'
       };
     }
-
+    const token = getAccessTokenFromCookie();
     return this.request<{ lead: Lead }>('/api/leads', {
       method: 'PUT',
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify(leadData),
     });
+
   }
 
   async deleteLead(id: string): Promise<ApiResponse<{ message: string }>> {
@@ -330,8 +348,13 @@ class ApiService {
         error: 'API calls only available on client side'
       };
     }
+     const token = getAccessTokenFromCookie();
     return this.request<{ message: string }>('/api/leads', {
       method: 'DELETE',
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify({ id }),
     });
   }
@@ -551,7 +574,7 @@ class ApiService {
       };
     }
 
-    const endpoint = `api/leads/search`;
+    const endpoint = `/api/leads/search`;
     return this.request<{ leads: Lead[] }>(endpoint);
   }
 
