@@ -31,6 +31,8 @@ import { OrganizationAvatar } from "@/components/ui/avatar"
 type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
   org: string
 }
+import { useApi } from "@/hooks/useapi"
+import { useAuth } from '@/hooks/useAuth';
 
 export function AppSidebar({ org, ...props }: AppSidebarProps) {
   const { organization } = useAuth()

@@ -46,9 +46,9 @@ import * as XLSX from "xlsx"
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
-import { apiService, Lead, CreateLeadRequest, UpdateLeadRequest, Attachment } from "@/lib/api"
+import { apiService, Lead, CreateLeadRequest, UpdateLeadRequest, Attachment } from "@/services/LeadService"
 
-import { useApi } from "@/hooks/useApi"
+import { useApi } from "@/hooks/useapi"
 
 
 
@@ -1064,10 +1064,9 @@ export default function LeadsPage({
         // Use only the basic call that works
         const response = await apiService.getLeads()
 
-
-        
         if (response.success && response.data) {
-
+          console.log('Carregando leads...')
+          console.log(response)
           setLeads(response.data.leads)
           // Atualizar o total se foi retornado pela API
           if (response.data.total !== undefined) {
@@ -1422,6 +1421,7 @@ export default function LeadsPage({
   const reloadLeads = async () => {
     try {
       const response = await apiService.getLeads()
+      console.log(response.data)
       if (response.success && response.data) {
         const newLeads = response.data.leads || []
         setLeads(newLeads)
@@ -1596,9 +1596,8 @@ export default function LeadsPage({
         try {
 
           const response = await apiService.getLeads()
-
+       
           if (response.success && response.data) {
-
             setLeads(response.data.leads)
             // Atualizar o total se foi retornado pela API
             if (response.data.total !== undefined) {
@@ -1609,7 +1608,6 @@ export default function LeadsPage({
             }
 
             setFilteredLeads(response.data.leads)
-
           }
 
         } catch (error) {
@@ -1687,10 +1685,7 @@ export default function LeadsPage({
 
     const hasFilters = filters.name || filters.email || filters.phone || filters.ssn || filters.ein || filters.source || filters.location || filters.interest || filters.status || filters.pipeline || filters.assignedUserId || sortField || valueRange.min || valueRange.max || dateRange.min || dateRange.max
 
-    
-
     if (hasFilters) {
-
       try {
 
         let allLeads: Lead[] = []
@@ -1727,8 +1722,9 @@ export default function LeadsPage({
           if (valueRange.max && !isNaN(parseFloat(valueRange.max))) searchParams.value_max = parseFloat(valueRange.max)
           if (dateRange.min) searchParams.date_min = dateRange.min
           if (dateRange.max) searchParams.date_max = dateRange.max
-
+          
           const response = await apiService.searchLeads(searchParams)
+
           if (response.success && response.data) {
             allLeads = response.data.leads
           }
@@ -1738,9 +1734,9 @@ export default function LeadsPage({
           if (filters.name) {
 
             const response = await apiService.searchLeadsByName(filters.name)
-
+            console.log(response)
             if (response.success && response.data) {
-
+              
               allLeads = [...allLeads, ...response.data.leads]
 
             }
@@ -1897,14 +1893,9 @@ export default function LeadsPage({
           index === self.findIndex(l => l.id === lead.id)
 
         )
-
-        
-
         // Aplicar filtros adicionais nos resultados (intersecção)
 
         let filteredLeads = uniqueLeads
-
-        
 
         // Se temos filtros de valor, aplicar intersecção
 
@@ -2012,9 +2003,9 @@ export default function LeadsPage({
         try {
 
           const response = await apiService.getLeads()
-
+ 
           if (response.success && response.data) {
-
+            
             setLeads(response.data.leads)
             // Atualizar o total se foi retornado pela API
             if (response.data.total !== undefined) {
@@ -2023,7 +2014,6 @@ export default function LeadsPage({
               // Fallback: usar o tamanho do array se total não estiver disponível
               setTotalLeads(response.data.leads.length)
             }
-
             setFilteredLeads(response.data.leads)
 
           }
@@ -2054,10 +2044,9 @@ export default function LeadsPage({
 
     const hasFilters = searchTerm || filters.name || filters.email || filters.phone || filters.ssn || filters.ein || filters.source || filters.location || filters.interest || filters.status || filters.pipeline || filters.assignedUserId || sortField
 
-    
-
+  
     if (!hasFilters) {
-
+      
       setFilteredLeads(leads)
 
     }
@@ -2068,14 +2057,13 @@ export default function LeadsPage({
   const hasActiveFilters = React.useMemo(() => {
     return !!(searchTerm || filters.name || filters.email || filters.phone || filters.ssn || filters.ein || filters.source || filters.location || filters.interest || filters.status || filters.pipeline || filters.assignedUserId || sortField || valueRange.min || valueRange.max || dateRange.min || dateRange.max)
   }, [searchTerm, filters.name, filters.email, filters.phone, filters.ssn, filters.ein, filters.source, filters.location, filters.interest, filters.status, filters.pipeline, filters.assignedUserId, sortField, valueRange.min, valueRange.max, dateRange.min, dateRange.max])
-
   // Pagination calculations
   // Use totalLeads from API when no filters are applied, otherwise use filteredLeads.length
-  const totalItems = hasActiveFilters ? filteredLeads.length : (totalLeads || filteredLeads.length)
+  const totalItems = hasActiveFilters ? filteredLeads?.length : (totalLeads || filteredLeads?.length)
   const totalPages = Math.ceil(totalItems / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
-  const currentLeads = filteredLeads.slice(startIndex, endIndex)
+  const currentLeads = filteredLeads?.slice(startIndex, endIndex)
 
   // Reset to first page when filters change
   React.useEffect(() => {
@@ -2305,6 +2293,8 @@ export default function LeadsPage({
         const createData: CreateLeadRequest = {
 
           name: safeName,
+
+
 
           email: safeEmail,
 
@@ -6142,7 +6132,7 @@ export default function LeadsPage({
                   <tr className="text-left border-b-2 border-border bg-muted/60">
 
                     <th className="py-2.5 px-1 sm:px-2 w-10 border-r border-border/40">
-                      {leads.length > 0 && (
+                      {leads?.length > 0  && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="sm" className="cursor-pointer p-1 h-6 w-6">
@@ -6176,7 +6166,7 @@ export default function LeadsPage({
 
                 <tbody>
 
-                  {currentLeads.map((lead, index) => {
+                  {currentLeads?.map((lead, index) => {
                     const hasSpecialStatus = lead.show_on_pipeline || lead.assigned_user_id
                     const borderColorClass = lead.show_on_pipeline 
                       ? 'border-l-2 border-l-green-500' 
@@ -6258,7 +6248,7 @@ export default function LeadsPage({
                     );
                   })}
 
-                  {currentLeads.length === 0 && (
+                  {currentLeads?.length === 0 && (
                     <tr>
                       <td colSpan={Object.values(visibleColumns).filter(Boolean).length + 2} className="py-6 px-4 text-center text-xs sm:text-sm text-muted-foreground">
                         {searchTerm ? "No leads found for this search." : "No leads yet. Add the first one above."}
@@ -6366,7 +6356,7 @@ export default function LeadsPage({
           </div>
         </div>
         {/* ADD/EDIT MODAL */}
-        <Sheet open={isModalOpen} onOpenChange={(open) => {
+        <Sheet open={isModalOpen} onOpenChange={(open:boolean) => {
           if (!open) {
             if (unsavedChangesToast.show) {
               // User clicked outside again after seeing the toast
@@ -6383,7 +6373,7 @@ export default function LeadsPage({
             className="w-full sm:max-w-2xl border-l border-border p-4 sm:p-6 md:p-8 flex flex-col max-h-screen overflow-y-auto"
             onDragOver={handleAttachmentDragOver}
             onDragLeave={handleAttachmentDragLeave}
-            onDrop={(e) => editingId && handleAttachmentDrop(e, editingId)}
+            onDrop={(e:React.DragEvent) => editingId && handleAttachmentDrop(e, editingId)}
           >
             <div className="flex-shrink-0">
 
@@ -6963,7 +6953,7 @@ export default function LeadsPage({
 
 
     {/* PREVIEW MODAL - Lead details */}
-    <Sheet open={preview.open} onOpenChange={(open) => setPreview((p) => ({ ...p, open }))}>
+    <Sheet open={preview.open} onOpenChange={(open:boolean) => setPreview((p) => ({ ...p, open }))}>
 
       <SheetContent className="w-full sm:max-w-lg border-l border-border p-6 md:p-8 flex flex-col max-h-screen">
         <div className="flex-shrink-0">
@@ -8278,7 +8268,7 @@ export default function LeadsPage({
       </SheetContent>
     </Sheet>
     {/* QUICK ASSIGN MODAL */}
-    <Sheet open={quickAssignLeadId !== null} onOpenChange={(open) => !open && setQuickAssignLeadId(null)}>
+    <Sheet open={quickAssignLeadId !== null} onOpenChange={(open:boolean) => !open && setQuickAssignLeadId(null)}>
       <SheetContent className="w-full sm:max-w-md border-l border-border p-6 md:p-8">
         <SheetHeader>
           <SheetTitle>{t('bulk.assignToUser')}</SheetTitle>
@@ -8505,7 +8495,7 @@ export default function LeadsPage({
     </SidebarProvider>
     
     {/* LEAD DETAILS MODAL - MODERN DESIGN */}
-    <Sheet open={preview.open} onOpenChange={(open) => setPreview({ open, lead: open ? preview.lead : null })}>
+    <Sheet open={preview.open} onOpenChange={(open:boolean) => setPreview({ open, lead: open ? preview.lead : null })}>
       <SheetContent className="w-full sm:max-w-3xl border-l border-border p-0 overflow-y-auto [&>button]:cursor-pointer">
         {preview.lead && (
           <>

@@ -1,5 +1,5 @@
 'use client';
-
+import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -9,11 +9,89 @@ import {
 } from "lucide-react";
 import { Logo } from "@/components/Logo";
 
+
+
+const mockAuthResult = {
+      success: true,
+      token: 'mock_token',
+      user: {
+        id: "8f61ac3d-3a4d-428f-b100-7a66bd02129a",
+        name: "Pedro Ramires",
+        email: "pmires96@gmail.com",
+        is_temporary_password: false,
+      },
+      organization: {
+        id: "aa18a310-0e22-4bdf-a5ca-8fc62992b559",
+        name: "Ramires Tech Solutions",
+        slug: "ramires-tech",
+        email: "contato@ramirestech.com",
+      },
+    };
+
+
+
+
+
 /* =======================
    PAGE
 ======================= */
 
 export default function LoginPage() {
+  const [formData, setFormData] = useState({
+    email: '',
+    password: ''
+  });
+
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    try {
+
+      
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+      const response = await fetch(`${apiUrl}/api/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+      
+      const result = await response.json();
+      console.log(result);
+      if (result.success) {
+        // Salvar token no localStorage
+        localStorage.setItem('token', result.token);
+        localStorage.setItem('organization', JSON.stringify(result.organization));
+        localStorage.setItem('lastActivity', Date.now().toString());
+        
+        // Disparar evento para ClientLocaleProvider atualizar o locale do usuário
+        window.dispatchEvent(new Event('userLoggedIn'));
+        
+        // Usar window.location.href para garantir redirecionamento completo
+        // Isso evita problemas com AuthGuard que pode verificar antes do router.push
+        window.location.href = `/${result.organization.slug}/dashboard`;
+      } else {
+        // Mapear mensagens de erro da API para chaves de tradução
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+    } finally {
+    }
+  };
+
+
+
   return (
     <div className="min-h-screen w-full flex bg-white">
       {/* LEFT — FORM */}
@@ -37,7 +115,7 @@ export default function LoginPage() {
             </div>
 
             {/* FORM */}
-            <form className="space-y-6">
+            <form className="space-y-6" onSubmit={handleSubmit}>
               {/* EMAIL */}
               <div>
                 <label className="block text-sm font-medium mb-1">
@@ -49,6 +127,8 @@ export default function LoginPage() {
                   <Input
                     name="email"
                     type="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
                     placeholder="email@empresa.com"
                     className="pl-10 h-11 rounded-lg focus:ring-2 focus:ring-blue-500/20"
                   />
@@ -66,6 +146,8 @@ export default function LoginPage() {
                     name="password"
                     type="password"
                     placeholder="••••••••"
+                    value={formData.password}
+                    onChange={handleInputChange}
                     className="pr-10 h-11 rounded-lg focus:ring-2 focus:ring-blue-500/20"
                   />
 
@@ -82,6 +164,7 @@ export default function LoginPage() {
               <Button
                 type="submit"
                 className="w-full h-11 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold"
+                ha
               >
                 Entrar
               </Button>

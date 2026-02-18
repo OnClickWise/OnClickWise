@@ -55,6 +55,8 @@ import {
   User
 } from "lucide-react"
 import { formatCurrency, getCurrencySymbol } from "@/lib/utils"
+import { apiService, Lead } from "@/services/LeadService"
+import { useApi } from "@/hooks/useapi"
 
 // Cores vibrantes para os gráficos (escala 600-700 para melhor contraste e visibilidade)
 const COLORS = [
@@ -2987,7 +2989,6 @@ const extractBgColor = (colorInput: string): string => {
 const EmployeeDashboard = ({ stats, pipelineStages }: { stats: DashboardStats; pipelineStages: any[] }) => {
   const t = useTranslations('Dashboard')
   const locale = useLocale()
-  const { apiCall } = useApi()
   const [notes, setNotes] = React.useState<string>('')
   const [notesLoading, setNotesLoading] = React.useState(false)
   const [notesSaving, setNotesSaving] = React.useState(false)
@@ -3334,36 +3335,22 @@ export default function DashboardPage({
   const [userId, setUserId] = React.useState<string | null>(null)
 
   React.useEffect(() => {
-    if (!isClient) return
+    //if (!isClient) return
 
     // Buscar dados do usuário para verificar role e ID
     const fetchUserData = async () => {
-      try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/auth/me`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-            'Content-Type': 'application/json',
-          },
-        })
-        
-        if (response.ok) {
-          const data = await response.json()
-          const role = data.user?.role || 'employee'
-          const id = data.user?.id || null
+          const role = 'employee'
+          const id = '1231245'
           setUserRole(role)
           setUserId(id)
         }
-      } catch (error) {
-        console.error('Error fetching user data:', error)
-        setUserRole('employee')
-      }
-    }
+      
 
     fetchUserData()
   }, [isClient])
 
   React.useEffect(() => {
-    if (!isClient || userRole === null) return
+    //if (!isClient || userRole === null) return
 
     const fetchDashboardData = async () => {
       try {
@@ -3385,13 +3372,14 @@ export default function DashboardPage({
         // Buscar todos os leads (filtrar por employee se necessário)
         let leadsResponse
         if (userRole === 'employee' && userId) {
+
           // Employee só vê seus próprios leads
-          leadsResponse = await apiService.searchLeads({ assigned_user_id: userId })
+          leadsResponse = await apiService.searchLeads()
         } else {
           // Admin e Master veem todos os leads
           leadsResponse = await apiService.getAllLeads()
         }
-        
+        console.log(leadsResponse);
         if (!leadsResponse.success) {
           throw new Error(leadsResponse.error || 'Erro ao buscar leads')
         }
@@ -3402,8 +3390,8 @@ export default function DashboardPage({
         setAllLeads(leads)
         
         // Buscar conversas do Telegram
-        const telegramResponse = await apiService.getTelegramConversations()
-        const conversations = telegramResponse.success ? (telegramResponse.data?.conversations || []) : []
+        //const telegramResponse = await apiService.getTelegramConversations()
+        //const conversations = telegramResponse.success ? (telegramResponse.data?.conversations || []) : []
 
         // Calcular estatísticas
         const totalLeads = leads.length
@@ -3494,7 +3482,7 @@ export default function DashboardPage({
           })
         }
 
-        // Estatísticas de conversas por plataforma (apenas dados reais do Telegram)
+        /* Estatísticas de conversas por plataforma (apenas dados reais do Telegram)
         const telegramActive = conversations.filter((c: any) => {
           // Considerar ativo se teve mensagem nos últimos 7 dias
           if (!c.last_message_at) return false
@@ -3502,16 +3490,16 @@ export default function DashboardPage({
           const daysSinceLastMessage = (now.getTime() - lastMessageDate.getTime()) / (1000 * 60 * 60 * 24)
           return daysSinceLastMessage <= 7
         }).length
-
+        */
         const conversationStats = [
           { 
             platform: 'Telegram', 
-            count: conversations.length, 
-            active: telegramActive
+            count: 3,   
+            active: 1
           }
         ]
 
-        const totalConversations = conversations.length
+        const totalConversations = 3
         
         // Calcular taxa de conversão real usando stage_type (entry → won)
         const entryStages = stages.filter((s: any) => s.stage_type === 'entry')
@@ -3586,7 +3574,6 @@ export default function DashboardPage({
           conversationStats,
           leadsByUser
         })
-
       } catch (error) {
         console.error('Error fetching dashboard data:', error)
         setError(t('errorLoadingData'))
@@ -3600,6 +3587,7 @@ export default function DashboardPage({
 
   if (loading) {
     return (
+      
       <AuthGuard orgSlug={org}>
         <SidebarProvider>
           <AppSidebar org={org} />
@@ -3692,7 +3680,9 @@ export default function DashboardPage({
     } else if (normalizedRole === 'master') {
       return <MasterDashboard stats={stats} leads={allLeads} pipelineStages={pipelineStages} />
     } else {
+      console.log('EMPREGADO.');
       return <EmployeeDashboard stats={stats} pipelineStages={pipelineStages} />
+      
     }
   }
 
