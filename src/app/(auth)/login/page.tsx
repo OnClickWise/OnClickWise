@@ -1,19 +1,52 @@
-'use client';
+"use client";
 
-import { Button } from "@/components/ui/button";
+import { useState, FormEvent } from "react";
 import { Input } from "@/components/ui/input";
-import {
-  Building2,
-  Mail,
-  Eye,
-} from "lucide-react";
 import { Logo } from "@/components/Logo";
+import { Building2, Mail, Eye, EyeOff } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 
 /* =======================
    PAGE
 ======================= */
-
 export default function LoginPage() {
+  const { loginUser } = useAuth();
+  const router = useRouter();
+
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+  });
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      const result = await loginUser(formData); // usa contexto Auth
+
+      // REDIRECIONA PARA O DASHBOARD DA ORGANIZAÇÃO
+      router.push(`/${result.organization.slug}/dashboard`);
+    } catch (err: any) {
+      console.error("Login error:", err);
+      setError(err.message || "Erro ao tentar entrar");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen w-full flex bg-white">
       {/* LEFT — FORM */}
@@ -30,60 +63,72 @@ export default function LoginPage() {
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
                 Entrar na plataforma
               </h1>
-
               <p className="text-gray-600 mt-2 text-sm sm:text-base">
                 Acesse sua conta corporativa.
               </p>
             </div>
 
             {/* FORM */}
-            <form className="space-y-6">
+            <form className="space-y-6" onSubmit={handleSubmit}>
               {/* EMAIL */}
               <div>
                 <label className="block text-sm font-medium mb-1">
                   E-mail corporativo
                 </label>
-
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                   <Input
                     name="email"
                     type="email"
                     placeholder="email@empresa.com"
+                    value={formData.email}
+                    onChange={handleInputChange}
                     className="pl-10 h-11 rounded-lg focus:ring-2 focus:ring-blue-500/20"
+                    required
                   />
                 </div>
               </div>
 
               {/* PASSWORD */}
               <div>
-                <label className="block text-sm font-medium mb-1">
-                  Senha
-                </label>
-
+                <label className="block text-sm font-medium mb-1">Senha</label>
                 <div className="relative">
                   <Input
                     name="password"
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
+                    value={formData.password}
+                    onChange={handleInputChange}
                     className="pr-10 h-11 rounded-lg focus:ring-2 focus:ring-blue-500/20"
+                    required
                   />
-
                   <button
                     type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    aria-label={
+                      showPassword ? "Ocultar senha" : "Mostrar senha"
+                    }
                   >
-                    <Eye className="h-5 w-5" />
+                    {showPassword ? (
+                      <EyeOff className="h-5 w-5" />
+                    ) : (
+                      <Eye className="h-5 w-5" />
+                    )}
                   </button>
                 </div>
               </div>
 
+              {/* ERROR */}
+              {error && <p className="text-red-500 text-sm">{error}</p>}
+
               {/* SUBMIT */}
               <Button
                 type="submit"
-                className="w-full h-11 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold"
+                className="w-full h-11 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold disabled:opacity-50"
+                disabled={loading}
               >
-                Entrar
+                {loading ? "Entrando..." : "Entrar"}
               </Button>
 
               {/* LINKS */}
@@ -93,6 +138,7 @@ export default function LoginPage() {
                   <button
                     type="button"
                     className="text-blue-600 font-semibold hover:underline"
+                    onClick={() => router.push("/register")}
                   >
                     Criar conta
                   </button>
@@ -135,4 +181,3 @@ export default function LoginPage() {
     </div>
   );
 }
-

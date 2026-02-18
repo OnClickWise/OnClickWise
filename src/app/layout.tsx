@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Inter, Poppins, Roboto } from "next/font/google";
 import { ClientLocaleProvider } from "@/components/ClientLocaleProvider";
 import "./globals.css";
+import { AuthProvider } from "@/context/AuthContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -66,7 +67,10 @@ export default function RootLayout({
         `}
       >
         <ClientLocaleProvider defaultLocale={locale}>
-          {children}
+          <AuthProvider>
+            {/* ✅ Envolvendo toda a app */}
+            {children}
+          </AuthProvider>
         </ClientLocaleProvider>
       </body>
     </html>
