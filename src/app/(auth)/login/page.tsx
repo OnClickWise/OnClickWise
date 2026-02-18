@@ -1,96 +1,52 @@
-'use client';
-import { useState } from 'react';
-import { Button } from "@/components/ui/button";
+
+"use client";
+
+import { useState, FormEvent } from "react";
 import { Input } from "@/components/ui/input";
-import {
-  Building2,
-  Mail,
-  Eye,
-} from "lucide-react";
 import { Logo } from "@/components/Logo";
-
-
-
-const mockAuthResult = {
-      success: true,
-      token: 'mock_token',
-      user: {
-        id: "8f61ac3d-3a4d-428f-b100-7a66bd02129a",
-        name: "Pedro Ramires",
-        email: "pmires96@gmail.com",
-        is_temporary_password: false,
-      },
-      organization: {
-        id: "aa18a310-0e22-4bdf-a5ca-8fc62992b559",
-        name: "Ramires Tech Solutions",
-        slug: "ramires-tech",
-        email: "contato@ramirestech.com",
-      },
-    };
-
-
-
-
+import { Building2, Mail, Eye, EyeOff } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 
 /* =======================
    PAGE
 ======================= */
-
 export default function LoginPage() {
+  const { loginUser } = useAuth();
+  const router = useRouter();
+
   const [formData, setFormData] = useState({
-    email: '',
-    password: ''
+    email: "",
+    password: "",
   });
 
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    setError("");
+    setLoading(true);
 
     try {
+      const result = await loginUser(formData); // usa contexto Auth
 
-      
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-      const response = await fetch(`${apiUrl}/api/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
-      
-      const result = await response.json();
-      console.log(result);
-      if (result.success) {
-        // Salvar token no localStorage
-        localStorage.setItem('token', result.token);
-        localStorage.setItem('organization', JSON.stringify(result.organization));
-        localStorage.setItem('lastActivity', Date.now().toString());
-        
-        // Disparar evento para ClientLocaleProvider atualizar o locale do usuário
-        window.dispatchEvent(new Event('userLoggedIn'));
-        
-        // Usar window.location.href para garantir redirecionamento completo
-        // Isso evita problemas com AuthGuard que pode verificar antes do router.push
-        window.location.href = `/${result.organization.slug}/dashboard`;
-      } else {
-        // Mapear mensagens de erro da API para chaves de tradução
-      }
-    } catch (error) {
-      console.error('Login error:', error);
+      // REDIRECIONA PARA O DASHBOARD DA ORGANIZAÇÃO
+      router.push(`/${result.organization.slug}/dashboard`);
+    } catch (err: any) {
+      console.error("Login error:", err);
+      setError(err.message || "Erro ao tentar entrar");
     } finally {
+      setLoading(false);
     }
   };
-
-
 
   return (
     <div className="min-h-screen w-full flex bg-white">
@@ -108,7 +64,6 @@ export default function LoginPage() {
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
                 Entrar na plataforma
               </h1>
-
               <p className="text-gray-600 mt-2 text-sm sm:text-base">
                 Acesse sua conta corporativa.
               </p>
@@ -121,52 +76,60 @@ export default function LoginPage() {
                 <label className="block text-sm font-medium mb-1">
                   E-mail corporativo
                 </label>
-
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                   <Input
                     name="email"
                     type="email"
+                    placeholder="email@empresa.com"
                     value={formData.email}
                     onChange={handleInputChange}
-                    placeholder="email@empresa.com"
                     className="pl-10 h-11 rounded-lg focus:ring-2 focus:ring-blue-500/20"
+                    required
                   />
                 </div>
               </div>
 
               {/* PASSWORD */}
               <div>
-                <label className="block text-sm font-medium mb-1">
-                  Senha
-                </label>
-
+                <label className="block text-sm font-medium mb-1">Senha</label>
                 <div className="relative">
                   <Input
                     name="password"
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
                     value={formData.password}
                     onChange={handleInputChange}
                     className="pr-10 h-11 rounded-lg focus:ring-2 focus:ring-blue-500/20"
+                    required
                   />
-
                   <button
                     type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    aria-label={
+                      showPassword ? "Ocultar senha" : "Mostrar senha"
+                    }
                   >
-                    <Eye className="h-5 w-5" />
+                    {showPassword ? (
+                      <EyeOff className="h-5 w-5" />
+                    ) : (
+                      <Eye className="h-5 w-5" />
+                    )}
                   </button>
                 </div>
               </div>
 
+              {/* ERROR */}
+              {error && <p className="text-red-500 text-sm">{error}</p>}
+
               {/* SUBMIT */}
               <Button
                 type="submit"
-                className="w-full h-11 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold"
-                ha
+                className="w-full h-11 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold disabled:opacity-50"
+                disabled={loading}
               >
-                Entrar
+                {loading ? "Entrando..." : "Entrar"}
               </Button>
 
               {/* LINKS */}
@@ -176,6 +139,7 @@ export default function LoginPage() {
                   <button
                     type="button"
                     className="text-blue-600 font-semibold hover:underline"
+                    onClick={() => router.push("/register")}
                   >
                     Criar conta
                   </button>
@@ -218,4 +182,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
