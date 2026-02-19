@@ -22,7 +22,7 @@ import * as XLSX from "xlsx"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { apiService, Lead, UpdateLeadRequest } from "@/services/LeadService"
 import { useApi } from "@/hooks/useapi"
-
+import { pipelineService } from "@/services/pipelineService"
 type PipelineStage = {
   id: string
   name: string
@@ -818,6 +818,7 @@ export default function PipelinePage({
       const linkedLeadIds = new Set<string>()
       
       // Load Telegram conversations with lead_id
+      /*
       try {
         const telegramResponse = await apiService.getTelegramConversations({ limit: 1000 })
         if (telegramResponse.success && telegramResponse.data?.conversations) {
@@ -830,7 +831,7 @@ export default function PipelinePage({
       } catch (telegramError) {
         console.error('Error loading Telegram conversations:', telegramError)
       }
-      
+      */
       // TODO: Add WhatsApp and Email conversations when APIs are available
       // try {
       //   const whatsappResponse = await apiService.getWhatsAppConversations({ limit: 1000 })
@@ -1099,8 +1100,8 @@ export default function PipelinePage({
       if (!isClient || stagesLoadedRef.current) return
       
       try {
-        const response = await apiCall('/pipeline-stages')
-        
+        const response = await pipelineService.getStages()
+        console.log(response)
         if (!response || response.success === false) {
           console.error('❌ [Pipeline] Failed to load stages:', response?.error)
           return
@@ -1150,12 +1151,8 @@ export default function PipelinePage({
             
             for (const stageToUpdate of stagesToUpdate) {
               try {
-                await apiCall(`/pipeline-stages/${stageToUpdate.id}`, {
-                  method: 'PUT',
-                  body: JSON.stringify({
-                    stage_type: stageToUpdate.suggestedType
-                  })
-                })
+                await pipelineService.updateStage(stageToUpdate.id, 
+                  {stage_type: stageToUpdate.suggestedType })
                 console.log(`✅ [Pipeline] Auto-set type "${stageToUpdate.suggestedType}" for stage "${stageToUpdate.slug}"`)
               } catch (error) {
                 console.error(`❌ [Pipeline] Failed to auto-set type for stage "${stageToUpdate.slug}":`, error)
@@ -1163,7 +1160,7 @@ export default function PipelinePage({
             }
             
             // Reload stages to get updated types
-            const updatedResponse = await apiCall('/pipeline-stages')
+            const updatedResponse = await pipelineService.getStages()
             const updatedStagesData = updatedResponse.data || updatedResponse
             if (updatedStagesData && Array.isArray(updatedStagesData)) {
               const updatedStagesWithLeads = updatedStagesData.map((stage: any) => ({
@@ -1200,6 +1197,7 @@ export default function PipelinePage({
 
   // Load Telegram accounts and bots
   React.useEffect(() => {
+    /*
     const loadTelegramConfig = async () => {
       try {
         // Load accounts
@@ -1226,6 +1224,7 @@ export default function PipelinePage({
     if (isClient) {
       loadTelegramConfig()
     }
+      */
   }, [isClient])
 
   // Search leads with backend filters
@@ -1685,15 +1684,14 @@ export default function PipelinePage({
         
         // Update existing stage
         console.log('[SAVE STAGE] Calling API PUT...')
-        const response = await apiCall(`/pipeline-stages/${editingStage.id}`, {
-          method: 'PUT',
-          body: JSON.stringify({
+        const response = await pipelineService.updateStage(editingStage.id,
+          {
             name: finalName,
             color,
             stage_type: stageType || null
-          })
-        })
-        
+          }
+        ) 
+         
         console.log('[SAVE STAGE] API Response received:', response)
         
         // Check if response indicates success
@@ -1793,7 +1791,7 @@ export default function PipelinePage({
           
           console.log('[SAVE STAGE] Reloading stages from API...')
           // Reload stages from API to ensure sync
-          const stagesResponse = await apiCall('/pipeline-stages')
+          const stagesResponse = await pipelineService.getStages()
           console.log('[SAVE STAGE] Stages response:', stagesResponse)
           
           const stagesData = stagesResponse.data || stagesResponse
@@ -3362,7 +3360,7 @@ export default function PipelinePage({
     setShowTelegramApiSelector(false)
     
     if (apiType === 'bot') {
-      // Bot API - check for existing conversations
+      //Bot API - check for existing conversations
       setLoadingBotConversations(true)
       try {
         const conversationsResponse = await apiService.getTelegramConversations({ search: phoneNumber || undefined })
@@ -3408,6 +3406,7 @@ export default function PipelinePage({
       setContactModal({ open: false, lead: null })
       setSendMessageModal({ open: true, lead: contactModal.lead, method: 'telegram' })
     }
+      
   }
 
   // Handle contact method selection
@@ -3423,6 +3422,8 @@ export default function PipelinePage({
     }
 
     // Check Telegram configuration
+
+    
     if (method === 'telegram') {
       const hasActiveAccounts = telegramAccounts.some(acc => acc.is_active)
       const hasActiveBots = telegramBots.some(bot => bot.is_active)

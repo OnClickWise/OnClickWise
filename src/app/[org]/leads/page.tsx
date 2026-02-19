@@ -2254,7 +2254,6 @@ export default function LeadsPage({
             )
 
           )
-
           // Process pending attachments after successful lead update
           await processPendingAttachments(editingId)
 
@@ -3667,7 +3666,7 @@ export default function LeadsPage({
       setUploadingAttachments(prev => ({ ...prev, [leadId]: true }))
       setAttachmentProgress(prev => ({ ...prev, [leadId]: 0 }))
 
-      const response = await apiService.uploadLeadAttachment(leadId, file)
+      const response = await apiService.uploadAttachment(leadId, file)
       
       
       if (response.success && response.data) {
@@ -3675,8 +3674,8 @@ export default function LeadsPage({
         // Check if the response has the expected structure
         let newAttachment = null
         
-        if (response.data.attachment) {
-          newAttachment = response.data.attachment
+        if (response.data.lead.attachments) {
+          newAttachment = response.data.lead.attachments[0]
         } else if ((response.data as any).data && (response.data as any).data.attachment) {
           newAttachment = (response.data as any).data.attachment
         } else if (response.data) {
@@ -3722,14 +3721,14 @@ export default function LeadsPage({
 
   const uploadAttachmentSilently = async (leadId: string, file: File) => {
     try {
-      const response = await apiService.uploadLeadAttachment(leadId, file)
+      const response = await apiService.uploadAttachment(leadId, file)
       
       if (response.success && response.data) {
         // Check if the response has the expected structure
         let newAttachment = null
         
-        if (response.data.attachment) {
-          newAttachment = response.data.attachment
+        if (response.data.lead.attachments) {
+          newAttachment = response.data.lead.attachments[0]
         } else if ((response.data as any).data && (response.data as any).data.attachment) {
           newAttachment = (response.data as any).data.attachment
         } else if (response.data) {
@@ -3739,6 +3738,7 @@ export default function LeadsPage({
         if (newAttachment && newAttachment.id && newAttachment.mimeType && newAttachment.originalName) {
           // Update local state to add attachment
           setLeads(prev => prev.map(lead => {
+            console.log(leadId)
             if (lead.id === leadId) {
               const attachments = lead.attachments || []
               return { ...lead, attachments: [...attachments, newAttachment] }
@@ -3834,10 +3834,10 @@ export default function LeadsPage({
 
   const viewAttachment = async (leadId: string, attachmentId: string) => {
     try {
-      const blob = await apiService.getLeadAttachment(leadId, attachmentId)
+      const blob = await apiService.getAttachment(leadId, attachmentId)
       
-      if (blob) {
-        const url = window.URL.createObjectURL(blob)
+      if (blob.data) {
+        const url = window.URL.createObjectURL(blob.data)
         window.open(url, '_blank')
       } else {
         pushToast(t('notifications.errorViewingFile') || t('notifications.fileViewFailed'), 'error')
@@ -6713,7 +6713,7 @@ export default function LeadsPage({
                     <div className="flex items-center justify-between">
                       <h3 className="text-sm font-semibold text-muted-foreground">{t('form.attachments')}</h3>
                       {(() => {
-                        const lead = leads.find(l => l.id === editingId)
+                        const lead = leads.find(l => l?.id === editingId)
                         const attachments = lead?.attachments || []
                         const pending = pendingAttachments[editingId]
                         const pendingToAdd = pending?.toAdd || []
@@ -6830,7 +6830,7 @@ export default function LeadsPage({
                                 <FileIcon className="h-5 w-5 text-muted-foreground flex-shrink-0" />
                                 <div className="flex-1 min-w-0">
                                   <p className="text-sm font-medium truncate">
-                                    {attachment.originalName || t('notifications.unknownFile')}
+                                    {attachment.filename || t('notifications.unknownFile')}
                                   </p>
                                   <p className="text-xs text-muted-foreground">
                                     {formatFileSize(attachment.size || 0)}
@@ -7400,51 +7400,64 @@ export default function LeadsPage({
                     <div className="space-y-3">
                       <h3 className="text-sm font-semibold text-muted-foreground">Attachments</h3>
                       <div className="space-y-2">
-                        {l.attachments.map((attachment) => {
-                          // Add safety checks for attachment properties
-                          if (!attachment || !attachment.id || !attachment.mimeType) {
-                            console.warn('Invalid attachment object:', attachment)
-                            return null
-                          }
-                          
-                          const FileIcon = getFileIcon(attachment.mimeType)
-                          return (
-                            <div
-                              key={attachment.id}
-                              className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
-                            >
-                              <FileIcon className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium truncate">
-                                  {attachment.originalName || 'Unknown file'}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {formatFileSize(attachment.size || 0)} • {attachment.uploadedAt ? new Date(attachment.uploadedAt).toLocaleDateString(locale === 'pt-BR' ? 'pt-BR' : 'en-US') : t('notifications.unknownDate')}
-                                </p>
+                        {l.attachments
+                          .filter(att => att && att.id) // Filtra antes para evitar nulls no render
+                          .map((attachment) => {
+
+                            const attachments = typeof l.attachments === 'string' 
+                            ? JSON.parse(l.attachments) 
+                            : l.attachments;
+                            // Normalização para lidar com mimetype ou mimeType (Fastify vs Express)
+                            const currentMimeType = attachment.mimeType || attachment.mimeType;
+                            
+                            if (!currentMimeType) {
+                              console.warn('Attachment missing mimeType:', attachment);
+                              return null;
+                            }
+
+                            const FileIcon = getFileIcon(currentMimeType);
+                            
+                            return (
+                              <div
+                                key={attachment.id}
+                                className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+                              >
+                                <FileIcon className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate">
+                                    {attachment.filename || attachment.originalName || 'Unknown file'}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {formatFileSize(attachment.size || 0)} • {
+                                      attachment.uploadedAt 
+                                        ? new Date(attachment.uploadedAt).toLocaleDateString(locale === 'pt-BR' ? 'pt-BR' : 'en-US') 
+                                        : t('notifications.unknownDate')
+                                    }
+                                  </p>
+                                </div>
+                                <div className="flex gap-1">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className=""
+                                    onClick={() => viewAttachment(l.id, attachment.id)}
+                                    title={t('notifications.viewFile')}
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="cursor-pointer"
+                                    onClick={() => downloadAttachment(l.id, attachment.id, attachment.filename || 'file')}
+                                    title={t('notifications.downloadFile')}
+                                  >
+                                    <Download className="h-4 w-4" />
+                                  </Button>
+                                </div>
                               </div>
-                              <div className="flex gap-1">
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="cursor-pointer"
-                                  onClick={() => viewAttachment(l.id, attachment.id)}
-                                  title={t('notifications.viewFile')}
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="cursor-pointer"
-                                  onClick={() => downloadAttachment(l.id, attachment.id, attachment.originalName || 'file')}
-                                  title={t('notifications.downloadFile')}
-                                >
-                                  <Download className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
-                          )
-                        })}
+                            );
+                          })}
                       </div>
                     </div>
                   </>

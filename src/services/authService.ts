@@ -137,7 +137,8 @@ export async function getCurrentUser() {
     name: data.user?.name,
     email: data.user?.email,
     avatar: data.user?.avatar || "/avatars/shadcn.jpg",
-    role: data.user?.role || 'employee'
+    role: data.user?.role || 'employee',
+    organization_id: data.organization.id
   };
 }
 

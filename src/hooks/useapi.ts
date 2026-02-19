@@ -1,4 +1,11 @@
 import { useState, useEffect } from 'react';
+import {
+  clearAuthCookies,
+  getAccessTokenFromCookie,
+  getRefreshTokenFromCookie,
+  setAccessTokenCookie,
+  setRefreshTokenCookie,
+} from "@/lib/cookies";
 
 export function useApi() {
   const [isClient, setIsClient] = useState(false);
@@ -16,7 +23,7 @@ export function useApi() {
       return { success: false, error: 'API calls only available on client side' };
     }
 
-    const token = localStorage.getItem('token');
+    const token = getAccessTokenFromCookie();
     const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
     
     // Se for FormData, não definir Content-Type (deixar o browser definir)

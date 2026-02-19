@@ -587,7 +587,7 @@ class ApiService {
       };
     }
 
-    return this.request<{ message: string }>('/leads/bulk-pipeline', {
+    return this.request<{ message: string }>('/api/leads/bulk-pipeline', {
       method: 'POST',
       body: JSON.stringify({
         lead_ids: leadIds,
@@ -605,14 +605,14 @@ class ApiService {
       };
     }
 
-    const token = this.getAuthToken();
+    const token = getAccessTokenFromCookie();
     const formData = new FormData();
     formData.append('file', file);
 
     const response = await fetch(`${API_BASE_URL}/api/leads/${leadId}/attachments`, {
       method: 'POST',
       headers: {
-        ...(token && { Authorization: `Bearer ${token}` }),
+        Authorization: `Bearer ${token}` ,
       },
       body: formData,
     });
@@ -644,7 +644,7 @@ class ApiService {
   }
 
   // Get attachment file data
-  async getAttachment(leadId: string, attachmentId: string): Promise<{ success: boolean; data?: ArrayBuffer; error?: string }> {
+  async getAttachment(leadId: string, attachmentId: string): Promise<{ success: boolean; data?: Blob; error?: string }> {
     if (typeof window === 'undefined') {
       return {
         success: false,
@@ -670,7 +670,7 @@ class ApiService {
     const data = await response.arrayBuffer();
     return {
       success: true,
-      data: data
+      data: new Blob([data])
     };
   }
 
