@@ -17,6 +17,7 @@ export interface PipelineStage {
   name: string;
   order: number;
   color?: string;
+  status?:string;
   description?: string;
   created_at: string;
   updated_at: string;
@@ -25,7 +26,9 @@ export interface PipelineStage {
 export interface CreatePipelineStageRequest {
   name: string;
   order?: number;
+  slug?: string;
   color?: string;
+  stagetype:string;
   description?: string;
 }
 
@@ -101,7 +104,7 @@ class PipelineService {
   }
 
   // POST /api/pipeline-stages/:organizationId
-  async createStage(data: CreatePipelineStageRequest): Promise<ApiResponse<PipelineStage>> {
+  async createStage(data: any): Promise<ApiResponse<PipelineStage>> {
     const orgId = await this.getOrgId();
     if (!orgId) return { success: false, error: 'No organization linked to user' };
 

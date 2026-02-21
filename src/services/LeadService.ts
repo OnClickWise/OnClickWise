@@ -329,7 +329,7 @@ class ApiService {
       };
     }
     const token = getAccessTokenFromCookie();
-    return this.request<{ lead: Lead }>('/api/leads', {
+    const res = await this.request<{ lead: Lead }>('/api/leads', {
       method: 'PUT',
       headers: {
         "Content-Type": "application/json",
@@ -337,7 +337,8 @@ class ApiService {
       },
       body: JSON.stringify(leadData),
     });
-
+    return res
+    
   }
 
   async deleteLead(id: string): Promise<ApiResponse<{ message: string }>> {

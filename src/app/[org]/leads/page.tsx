@@ -49,6 +49,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { apiService, Lead, CreateLeadRequest, UpdateLeadRequest, Attachment } from "@/services/LeadService"
 
 import { useApi } from "@/hooks/useapi"
+import { pipelineService, PipelineStage } from "@/services/pipelineService"
 
 
 
@@ -130,13 +131,7 @@ export default function LeadsPage({
   const locale = useLocale()
   
   // Pipeline stages for status options
-  const [pipelineStages, setPipelineStages] = React.useState<Array<{
-    id: string
-    name: string
-    slug: string
-    translation_key?: string
-    color: string
-  }>>([])
+  const [pipelineStages, setPipelineStages] = React.useState<Array<PipelineStage>>([])
   const [isLoadingStages, setIsLoadingStages] = React.useState(false)
   
   // Helper function to format currency based on locale
@@ -1612,9 +1607,8 @@ export default function LeadsPage({
       if (!isClient) return
       
       setIsLoadingStages(true)
-      try {
-        const response = { success: false, data: null}
-        
+      try { 
+        const response = await pipelineService.getStages()
         // Handle different response formats
         let stagesData = null
         
@@ -1630,6 +1624,7 @@ export default function LeadsPage({
         }
         
         if (stagesData && stagesData.length > 0) {
+          console.log(stagesData)
           setPipelineStages(stagesData)
         } else {
           // Fallback to default stages if API fails
@@ -6538,7 +6533,7 @@ export default function LeadsPage({
                           setCustomStatus("")
 
                         // Find the stage
-                        const stage = pipelineStages.find(s => s.slug === val)
+                        const stage = pipelineStages.find(s => s.status === val)
                         
                         if (stage && stage.translation_key) {
                           // System stages: use legacy format
