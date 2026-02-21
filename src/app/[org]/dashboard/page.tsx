@@ -54,9 +54,11 @@ import {
   Crown,
   User
 } from "lucide-react"
-import { apiService, Lead } from "@/lib/api"
-import { useApi } from "@/hooks/useApi"
 import { formatCurrency, getCurrencySymbol } from "@/lib/utils"
+import { apiService, Lead } from "@/services/LeadService"
+import { useApi } from "@/hooks/useapi"
+import { useAuth } from "@/context/AuthContext";
+import { getCurrentUser } from "@/services/authService"
 
 // Cores vibrantes para os gráficos (escala 600-700 para melhor contraste e visibilidade)
 const COLORS = [
@@ -3324,6 +3326,7 @@ export default function DashboardPage({
 }: {
   params: Promise<{ org: string }>
 }) {
+  
   const { org } = React.use(params)
   const { isClient, apiCall } = useApi()
   const t = useTranslations('Dashboard')
@@ -3334,30 +3337,26 @@ export default function DashboardPage({
   const [error, setError] = React.useState<string | null>(null)
   const [userRole, setUserRole] = React.useState<string | null>(null)
   const [userId, setUserId] = React.useState<string | null>(null)
+  const { user } = useAuth();
+  
 
   React.useEffect(() => {
     if (!isClient) return
 
     // Buscar dados do usuário para verificar role e ID
     const fetchUserData = async () => {
+  
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/auth/me`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-            'Content-Type': 'application/json',
-          },
-        })
+        const currentUser = await getCurrentUser()
+        const role = currentUser?.role || 'employee'
+        const id = currentUser?.id || null
+        setUserRole(role)
+        setUserId(id)
         
-        if (response.ok) {
-          const data = await response.json()
-          const role = data.user?.role || 'employee'
-          const id = data.user?.id || null
-          setUserRole(role)
-          setUserId(id)
-        }
       } catch (error) {
         console.error('Error fetching user data:', error)
         setUserRole('employee')
+        setUserId(null)
       }
     }
 
@@ -3404,8 +3403,8 @@ export default function DashboardPage({
         setAllLeads(leads)
         
         // Buscar conversas do Telegram
-        const telegramResponse = await apiService.getTelegramConversations()
-        const conversations = telegramResponse.success ? (telegramResponse.data?.conversations || []) : []
+        //const telegramResponse = await apiService.getTelegramConversations()
+       //const conversations = telegramResponse.success ? (telegramResponse.data?.conversations || []) : []
 
         // Calcular estatísticas
         const totalLeads = leads.length
@@ -3497,6 +3496,7 @@ export default function DashboardPage({
         }
 
         // Estatísticas de conversas por plataforma (apenas dados reais do Telegram)
+        /*
         const telegramActive = conversations.filter((c: any) => {
           // Considerar ativo se teve mensagem nos últimos 7 dias
           if (!c.last_message_at) return false
@@ -3504,16 +3504,16 @@ export default function DashboardPage({
           const daysSinceLastMessage = (now.getTime() - lastMessageDate.getTime()) / (1000 * 60 * 60 * 24)
           return daysSinceLastMessage <= 7
         }).length
-
+        */
         const conversationStats = [
           { 
             platform: 'Telegram', 
-            count: conversations.length, 
-            active: telegramActive
+            count: 0, 
+            active: 0
           }
         ]
 
-        const totalConversations = conversations.length
+        const totalConversations =  0
         
         // Calcular taxa de conversão real usando stage_type (entry → won)
         const entryStages = stages.filter((s: any) => s.stage_type === 'entry')

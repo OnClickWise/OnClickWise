@@ -1,67 +1,39 @@
 "use client";
 
-import { useState } from "react";
+import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
 import { Input } from "@/components/ui/input";
-import {
-  Building2,
-  Eye,
-  EyeOff,
-  Loader2,
-  Lock,
-  Mail,
-  Phone,
-} from "lucide-react";
 import { Logo } from "@/components/Logo";
+import { Building2, Lock, Mail, Phone, Eye } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 /* =======================
-   TYPES
+   COMPONENT
 ======================= */
-
-interface CompanyData {
-  name: string;
-  slug: string;
-  email: string;
-  company_id: string;
-  password: string;
-  password_confirm: string;
-  phone: string;
-}
-
-/* =======================
-   PAGE
-======================= */
-
 export default function RegisterPage() {
   const router = useRouter();
-  const t = useTranslations("Register");
+  const { registerUser } = useAuth();
 
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
 
-  const [formData, setFormData] = useState<CompanyData>({
+  const [formData, setFormData] = useState({
     name: "",
     slug: "",
+    representative_name: "",
     email: "",
     company_id: "",
     password: "",
-    password_confirm: "",
+    password_confirmation: "",
     phone: "",
   });
 
   /* =======================
-     LOGIC (INALTERADA)
+     HELPERS
   ======================= */
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
   const generateSlug = (name: string) =>
     name
       .toLowerCase()
@@ -72,13 +44,14 @@ export default function RegisterPage() {
       .replace(/-+/g, "-")
       .trim();
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const name = e.target.value;
-    setFormData((prev) => ({
-      ...prev,
-      name,
-      slug: generateSlug(name),
-    }));
+    setFormData((prev) => ({ ...prev, name, slug: generateSlug(name) }));
   };
 
   const validateForm = () => {
@@ -88,31 +61,31 @@ export default function RegisterPage() {
       !formData.company_id ||
       !formData.password
     ) {
-      setError(t("errorAllFieldsRequired"));
+      setError("Todos os campos são obrigatórios");
       return false;
     }
-    if (formData.password !== formData.password_confirm) {
-      setError(t("errorPasswordsDoNotMatch"));
+    if (formData.password !== formData.password_confirmation) {
+      setError("As senhas não coincidem");
       return false;
     }
     if (formData.password.length < 6) {
-      setError(t("errorPasswordMinLength"));
+      setError("A senha deve ter no mínimo 6 caracteres");
       return false;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      setError(t("errorInvalidEmail"));
+      setError("E-mail inválido");
       return false;
     }
     if (!termsAccepted) {
-      setError(t("errorAcceptTerms"));
+      setError("Você deve aceitar os termos de uso");
       return false;
     }
     return true;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setError("");
+    setError(null);
     setLoading(true);
 
     if (!validateForm()) {
@@ -121,54 +94,42 @@ export default function RegisterPage() {
     }
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
-      const response = await fetch(`${apiUrl}/auth/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          organization: {
-            name: formData.name,
-            slug: formData.slug,
-            email: formData.email,
-            company_id: formData.company_id,
-            password: formData.password,
-            phone: formData.phone,
-            address: "",
-            city: "",
-            state: "",
-            country: "United States",
-            zipCode: "",
-          },
-          representative: {},
-        }),
+      const result = await registerUser({
+        organization: {
+          name: formData.name,
+          slug: formData.slug,
+          email: formData.email,
+          company_id: formData.company_id,
+          password: formData.password,
+          phone: formData.phone,
+          address: "",
+          city: "",
+          state: "",
+          country: "United States",
+          // zipCode removido
+        },
+        representative: {
+          name: formData.representative_name || "Nome do responsável",
+          email: formData.email, // ou outro email
+          position: "CEO", // ou outro cargo
+          ssn: "123456789", // ou outro identificador
+        },
       });
 
-      const result = await response.json();
-
-      if (result.success) {
-        localStorage.setItem("token", result.token);
-        localStorage.setItem(
-          "organization",
-          JSON.stringify(result.organization),
-        );
+      // REDIRECIONA DIRETO PARA O DASHBOARD
+      if (result.organization?.slug) {
         router.push(`/${result.organization.slug}/dashboard`);
-      } else {
-        setError(result.error || t("errorCreatingAccount"));
       }
-    } catch {
-      setError(t("errorCreatingAccount"));
+    } catch (err: any) {
+      setError(err.message || "Erro ao criar a conta");
     } finally {
       setLoading(false);
     }
   };
 
-  /* =======================
-     UI
-  ======================= */
-
   return (
     <div className="min-h-screen w-full flex bg-white">
-      {/* RIGHT — BRANDING */}
+      {/* RIGHT */}
       <div className="hidden lg:flex w-1/2 bg-gradient-to-br from-blue-700 to-blue-900 items-center justify-center p-10 rounded-r-[80px] shadow-2xl">
         <div className="max-w-md text-white space-y-6">
           <div className="flex items-center gap-3">
@@ -178,102 +139,76 @@ export default function RegisterPage() {
             <h2 className="text-2xl font-bold">Plataforma Corporativa</h2>
           </div>
 
-          <p className="text-blue-100 text-lg leading-relaxed">
+          <p className="text-blue-100 text-lg">
             Centralize vendas, automações e comunicação em um único lugar.
           </p>
 
-          <ul className="space-y-3 text-blue-100 text-sm pt-4">
-            <li>✔ Cadastro rápido por organização</li>
-            <li>✔ Ambiente corporativo seguro</li>
-            <li>✔ Escalável desde o primeiro dia</li>
+          <ul className="space-y-2 text-blue-100 text-sm">
+            <li>✔ Cadastro por organização</li>
+            <li>✔ Ambiente seguro</li>
+            <li>✔ Escalável desde o início</li>
           </ul>
         </div>
       </div>
 
-      {/* LEFT — FORM */}
-      <div className="w-full lg:w-1/2 h-screen flex justify-center px-4 sm:px-6">
-        {/* Scroll container */}
-        <div
-          className="w-full max-w-xl overflow-y-auto py-10
-                  scrollbar-thin
-                  scrollbar-thumb-gray-300
-                  scrollbar-track-transparent"
-        >
-          {/* Logo */}
+      {/* LEFT */}
+      <div className="w-full lg:w-1/2 flex justify-center px-6">
+        <div className="w-full max-w-xl py-10">
           <div className="flex justify-center mb-6">
             <Logo width={160} height={0} />
           </div>
 
-          {/* Card */}
-          <div className="bg-white rounded-xl shadow-xl p-6 sm:p-8">
-            {/* Header */}
-            <div className="text-center mb-6">
-              <h1 className="text-2xl font-bold text-gray-900">
-                {t("pageTitle")}
-              </h1>
-              <p className="text-gray-600 mt-1 text-sm">
-                Crie sua conta e comece em minutos
-              </p>
-            </div>
-
-            {/* FORM */}
-            <form onSubmit={handleSubmit} className="space-y-5">
-              {/* COMPANY */}
-              <Section title={t("companyInformation")} icon={Building2}>
+          <div className="bg-white rounded-xl shadow-xl p-8">
+            <form className="space-y-6" onSubmit={handleSubmit}>
+              <Section title="Informações da empresa" icon={Building2}>
                 <InputField
-                  label={t("companyName")}
+                  label="Nome da empresa"
+                  name="name"
                   value={formData.name}
                   onChange={handleNameChange}
-                  required
                 />
 
-                <InputBlock label={t("companyUrl")}>
-                  <Input
-                    value={formData.slug}
-                    disabled
-                    className="h-11 rounded-lg"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    onclickwise.com/
-                    <span className="text-blue-600 font-medium">
-                      {formData.slug || "sua-empresa"}
-                    </span>
-                  </p>
+                <InputField
+                  label="Nome do responsável"
+                  name="representative_name"
+                  value={formData.representative_name}
+                  onChange={handleInputChange}
+                />
+
+                <InputBlock label="URL da empresa">
+                  <Input value={formData.slug} disabled />
                 </InputBlock>
 
-                <div className="grid sm:grid-cols-2 gap-3">
+                <div className="grid sm:grid-cols-2 gap-4">
                   <InputField
-                    label={t("companyId")}
+                    label="CNPJ / ID"
                     name="company_id"
                     value={formData.company_id}
                     onChange={handleInputChange}
-                    required
                   />
 
                   <InputField
-                    label={t("companyEmail")}
-                    icon={Mail}
-                    type="email"
+                    label="E-mail corporativo"
                     name="email"
+                    type="email"
+                    icon={Mail}
                     value={formData.email}
                     onChange={handleInputChange}
-                    required
                   />
                 </div>
 
                 <InputField
-                  label={t("phoneNumber")}
-                  icon={Phone}
+                  label="Telefone"
                   name="phone"
+                  icon={Phone}
                   value={formData.phone}
                   onChange={handleInputChange}
                 />
               </Section>
 
-              {/* SECURITY */}
-              <Section title={t("security")} icon={Lock}>
+              <Section title="Segurança" icon={Lock}>
                 <PasswordField
-                  label={t("password")}
+                  label="Senha"
                   name="password"
                   value={formData.password}
                   onChange={handleInputChange}
@@ -282,16 +217,15 @@ export default function RegisterPage() {
                 />
 
                 <PasswordField
-                  label={t("confirmPassword")}
-                  name="password_confirm"
-                  value={formData.password_confirm}
+                  label="Confirmar senha"
+                  name="password_confirmation"
+                  value={formData.password_confirmation}
                   onChange={handleInputChange}
                   show={showConfirmPassword}
                   toggle={() => setShowConfirmPassword(!showConfirmPassword)}
                 />
               </Section>
 
-              {/* TERMS */}
               <label className="flex gap-3 text-sm text-gray-600">
                 <input
                   type="checkbox"
@@ -299,40 +233,18 @@ export default function RegisterPage() {
                   onChange={(e) => setTermsAccepted(e.target.checked)}
                   className="accent-blue-600 mt-1"
                 />
-                {t("acceptTerms")}
+                Aceito os termos de uso
               </label>
 
-              {/* ERROR */}
-              {error && (
-                <div className="bg-red-50 border border-red-100 text-red-600 text-sm p-3 rounded-lg">
-                  {error}
-                </div>
-              )}
+              {error && <p className="text-red-500 text-sm">{error}</p>}
 
-              {/* ACTIONS */}
-              <div className="flex flex-col sm:flex-row gap-4 pt-2">
-                <button
-                  disabled={loading}
-                  className="flex-1 h-11 bg-blue-600 hover:bg-blue-700
-                       text-white rounded-lg font-semibold
-                       flex items-center justify-center transition"
-                >
-                  {loading ? (
-                    <Loader2 className="animate-spin" />
-                  ) : (
-                    t("createAccount")
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => router.push("/login")}
-                  className="flex-1 h-11 border rounded-lg font-semibold
-                       hover:bg-gray-50 transition"
-                >
-                  {t("alreadyHaveAccount")}
-                </button>
-              </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full h-11 bg-blue-600 text-white rounded-lg font-semibold disabled:opacity-50"
+              >
+                {loading ? "Criando conta..." : "Criar Conta"}
+              </button>
             </form>
           </div>
         </div>
@@ -344,7 +256,6 @@ export default function RegisterPage() {
 /* =======================
    UI HELPERS
 ======================= */
-
 function Section({ title, icon: Icon, children }: any) {
   return (
     <section className="space-y-4">
@@ -357,12 +268,10 @@ function Section({ title, icon: Icon, children }: any) {
   );
 }
 
-function InputBlock({ label, required, children }: any) {
+function InputBlock({ label, children }: any) {
   return (
     <div className="space-y-1">
-      <label className="text-sm font-medium">
-        {label} {required && <span className="text-red-500">*</span>}
-      </label>
+      <label className="text-sm font-medium">{label}</label>
       {children}
     </div>
   );
@@ -370,15 +279,12 @@ function InputBlock({ label, required, children }: any) {
 
 function InputField({ label, icon: Icon, ...props }: any) {
   return (
-    <InputBlock label={label} required={props.required}>
+    <InputBlock label={label}>
       <div className="relative">
         {Icon && (
           <Icon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
         )}
-        <Input
-          {...props}
-          className={`h-11 rounded-lg ${Icon ? "pl-10" : ""} focus:ring-2 focus:ring-blue-500/20`}
-        />
+        <Input {...props} className={Icon ? "pl-10" : ""} />
       </div>
     </InputBlock>
   );
@@ -393,14 +299,14 @@ function PasswordField({ label, value, onChange, show, toggle, name }: any) {
           type={show ? "text" : "password"}
           value={value}
           onChange={onChange}
-          className="h-11 rounded-lg pr-10 focus:ring-2 focus:ring-blue-500/20"
+          className="h-11 rounded-lg pr-10"
         />
         <button
           type="button"
           onClick={toggle}
           className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
         >
-          {show ? <EyeOff size={18} /> : <Eye size={18} />}
+          {show ? <Eye size={18} /> : <Eye size={18} />}
         </button>
       </div>
     </InputBlock>

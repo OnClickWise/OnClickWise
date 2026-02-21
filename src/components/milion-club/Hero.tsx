@@ -28,7 +28,7 @@ export function Hero() {
       >
         Bem-vindo ao
         <span className="text-yellow-400 drop-shadow-[0_0_12px_rgba(255,215,0,0.4)]">
-          {" "}Million Club
+          {" "}Million Club DeFi
         </span>
         <br />
         Rumo ao seu primeiro

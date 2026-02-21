@@ -46,9 +46,10 @@ import * as XLSX from "xlsx"
 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
-import { apiService, Lead, CreateLeadRequest, UpdateLeadRequest, Attachment } from "@/lib/api"
+import { apiService, Lead, CreateLeadRequest, UpdateLeadRequest, Attachment } from "@/services/LeadService"
 
-import { useApi } from "@/hooks/useApi"
+import { useApi } from "@/hooks/useapi"
+import { pipelineService, PipelineStage } from "@/services/pipelineService"
 
 
 
@@ -130,13 +131,7 @@ export default function LeadsPage({
   const locale = useLocale()
   
   // Pipeline stages for status options
-  const [pipelineStages, setPipelineStages] = React.useState<Array<{
-    id: string
-    name: string
-    slug: string
-    translation_key?: string
-    color: string
-  }>>([])
+  const [pipelineStages, setPipelineStages] = React.useState<Array<PipelineStage>>([])
   const [isLoadingStages, setIsLoadingStages] = React.useState(false)
   
   // Helper function to format currency based on locale
@@ -153,22 +148,7 @@ export default function LeadsPage({
     try {
       const token = localStorage.getItem('token')
       const organizationStr = localStorage.getItem('organization')
-      
-      if (!token || !organizationStr) return null
-      
-      const organization = JSON.parse(organizationStr)
-      
-      // Decodificar o payload do JWT para pegar o email do usuário
-      const parts = token.split('.')
-      if (parts.length !== 3) return null
-      
-      const payload = JSON.parse(atob(parts[1]))
-      const userEmail = payload.email || payload.sub || ''
-      
-      // Usar orgId + email do usuário como identificador único
-      // Cada usuário da mesma org terá seu próprio ID
-      const identifier = `${organization.id}_${userEmail}`.replace(/[^a-zA-Z0-9_-]/g, '_')
-      return identifier
+  
     } catch (error) {
       console.error('Error getting user identifier:', error)
       return null
@@ -194,7 +174,7 @@ export default function LeadsPage({
   React.useEffect(() => {
     const updateUserId = () => {
       const id = getUserIdentifier()
-      setUserId(id)
+      setUserId('id')
     }
     
     updateUserId()
@@ -1064,10 +1044,7 @@ export default function LeadsPage({
         // Use only the basic call that works
         const response = await apiService.getLeads()
 
-
-        
         if (response.success && response.data) {
-
           setLeads(response.data.leads)
           // Atualizar o total se foi retornado pela API
           if (response.data.total !== undefined) {
@@ -1596,9 +1573,8 @@ export default function LeadsPage({
         try {
 
           const response = await apiService.getLeads()
-
+       
           if (response.success && response.data) {
-
             setLeads(response.data.leads)
             // Atualizar o total se foi retornado pela API
             if (response.data.total !== undefined) {
@@ -1609,7 +1585,6 @@ export default function LeadsPage({
             }
 
             setFilteredLeads(response.data.leads)
-
           }
 
         } catch (error) {
@@ -1632,9 +1607,8 @@ export default function LeadsPage({
       if (!isClient) return
       
       setIsLoadingStages(true)
-      try {
-        const response = await apiCall('/pipeline-stages')
-        
+      try { 
+        const response = await pipelineService.getStages()
         // Handle different response formats
         let stagesData = null
         
@@ -1650,6 +1624,7 @@ export default function LeadsPage({
         }
         
         if (stagesData && stagesData.length > 0) {
+          console.log(stagesData)
           setPipelineStages(stagesData)
         } else {
           // Fallback to default stages if API fails
@@ -1687,10 +1662,7 @@ export default function LeadsPage({
 
     const hasFilters = filters.name || filters.email || filters.phone || filters.ssn || filters.ein || filters.source || filters.location || filters.interest || filters.status || filters.pipeline || filters.assignedUserId || sortField || valueRange.min || valueRange.max || dateRange.min || dateRange.max
 
-    
-
     if (hasFilters) {
-
       try {
 
         let allLeads: Lead[] = []
@@ -1727,8 +1699,9 @@ export default function LeadsPage({
           if (valueRange.max && !isNaN(parseFloat(valueRange.max))) searchParams.value_max = parseFloat(valueRange.max)
           if (dateRange.min) searchParams.date_min = dateRange.min
           if (dateRange.max) searchParams.date_max = dateRange.max
-
+          
           const response = await apiService.searchLeads(searchParams)
+
           if (response.success && response.data) {
             allLeads = response.data.leads
           }
@@ -1738,9 +1711,8 @@ export default function LeadsPage({
           if (filters.name) {
 
             const response = await apiService.searchLeadsByName(filters.name)
-
             if (response.success && response.data) {
-
+              
               allLeads = [...allLeads, ...response.data.leads]
 
             }
@@ -1897,14 +1869,9 @@ export default function LeadsPage({
           index === self.findIndex(l => l.id === lead.id)
 
         )
-
-        
-
         // Aplicar filtros adicionais nos resultados (intersecção)
 
         let filteredLeads = uniqueLeads
-
-        
 
         // Se temos filtros de valor, aplicar intersecção
 
@@ -2012,9 +1979,9 @@ export default function LeadsPage({
         try {
 
           const response = await apiService.getLeads()
-
+ 
           if (response.success && response.data) {
-
+            
             setLeads(response.data.leads)
             // Atualizar o total se foi retornado pela API
             if (response.data.total !== undefined) {
@@ -2023,7 +1990,6 @@ export default function LeadsPage({
               // Fallback: usar o tamanho do array se total não estiver disponível
               setTotalLeads(response.data.leads.length)
             }
-
             setFilteredLeads(response.data.leads)
 
           }
@@ -2054,10 +2020,9 @@ export default function LeadsPage({
 
     const hasFilters = searchTerm || filters.name || filters.email || filters.phone || filters.ssn || filters.ein || filters.source || filters.location || filters.interest || filters.status || filters.pipeline || filters.assignedUserId || sortField
 
-    
-
+  
     if (!hasFilters) {
-
+      
       setFilteredLeads(leads)
 
     }
@@ -2068,15 +2033,13 @@ export default function LeadsPage({
   const hasActiveFilters = React.useMemo(() => {
     return !!(searchTerm || filters.name || filters.email || filters.phone || filters.ssn || filters.ein || filters.source || filters.location || filters.interest || filters.status || filters.pipeline || filters.assignedUserId || sortField || valueRange.min || valueRange.max || dateRange.min || dateRange.max)
   }, [searchTerm, filters.name, filters.email, filters.phone, filters.ssn, filters.ein, filters.source, filters.location, filters.interest, filters.status, filters.pipeline, filters.assignedUserId, sortField, valueRange.min, valueRange.max, dateRange.min, dateRange.max])
-
   // Pagination calculations
   // Use totalLeads from API when no filters are applied, otherwise use filteredLeads.length
-  const totalItems = hasActiveFilters ? filteredLeads.length : (totalLeads || filteredLeads.length)
+  const totalItems = hasActiveFilters ? filteredLeads?.length : (totalLeads || filteredLeads?.length)
   const totalPages = Math.ceil(totalItems / itemsPerPage)
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
-  const currentLeads = filteredLeads.slice(startIndex, endIndex)
-
+  const currentLeads = filteredLeads?.slice(startIndex, endIndex)
   // Reset to first page when filters change
   React.useEffect(() => {
     setCurrentPage(1)
@@ -2286,7 +2249,6 @@ export default function LeadsPage({
             )
 
           )
-
           // Process pending attachments after successful lead update
           await processPendingAttachments(editingId)
 
@@ -2305,6 +2267,8 @@ export default function LeadsPage({
         const createData: CreateLeadRequest = {
 
           name: safeName,
+
+
 
           email: safeEmail,
 
@@ -2335,7 +2299,6 @@ export default function LeadsPage({
         const response = await apiService.createLead(createData)
 
         if (response.success && response.data) {
-
           setLeads((prev) => [response.data!.lead, ...prev])
 
           pushToast(t('notifications.leadAdded'), "success")
@@ -2445,13 +2408,13 @@ export default function LeadsPage({
     setQuickAssignUserId("")
     
     try {
-      const response = await apiService.getOrganizationUsers(true) // Include master users
-      if (response.success && response.data) {
-        setOrganizationUsers(response.data.employees)
-      } else {
-        pushToast(t('notifications.errorLoadingUsers'), 'error')
-        setQuickAssignLeadId(null)
-      }
+      //const response = await apiService.getOrganizationUsers(true) // Include master users
+      //if (response.success && response.data) {
+        //setOrganizationUsers(response.data.employees)
+      //} else {
+       // pushToast(t('notifications.errorLoadingUsers'), 'error')
+        //setQuickAssignLeadId(null)
+      //}
     } catch (error) {
       console.error('Error fetching users:', error)
       pushToast(t('notifications.errorLoadingUsers'), 'error')
@@ -3698,7 +3661,7 @@ export default function LeadsPage({
       setUploadingAttachments(prev => ({ ...prev, [leadId]: true }))
       setAttachmentProgress(prev => ({ ...prev, [leadId]: 0 }))
 
-      const response = await apiService.uploadLeadAttachment(leadId, file)
+      const response = await apiService.uploadAttachment(leadId, file)
       
       
       if (response.success && response.data) {
@@ -3706,8 +3669,8 @@ export default function LeadsPage({
         // Check if the response has the expected structure
         let newAttachment = null
         
-        if (response.data.attachment) {
-          newAttachment = response.data.attachment
+        if (response.data.lead.attachments) {
+          newAttachment = response.data.lead.attachments[0]
         } else if ((response.data as any).data && (response.data as any).data.attachment) {
           newAttachment = (response.data as any).data.attachment
         } else if (response.data) {
@@ -3753,14 +3716,14 @@ export default function LeadsPage({
 
   const uploadAttachmentSilently = async (leadId: string, file: File) => {
     try {
-      const response = await apiService.uploadLeadAttachment(leadId, file)
+      const response = await apiService.uploadAttachment(leadId, file)
       
       if (response.success && response.data) {
         // Check if the response has the expected structure
         let newAttachment = null
         
-        if (response.data.attachment) {
-          newAttachment = response.data.attachment
+        if (response.data.lead.attachments) {
+          newAttachment = response.data.lead.attachments[0]
         } else if ((response.data as any).data && (response.data as any).data.attachment) {
           newAttachment = (response.data as any).data.attachment
         } else if (response.data) {
@@ -3770,6 +3733,7 @@ export default function LeadsPage({
         if (newAttachment && newAttachment.id && newAttachment.mimeType && newAttachment.originalName) {
           // Update local state to add attachment
           setLeads(prev => prev.map(lead => {
+            console.log(leadId)
             if (lead.id === leadId) {
               const attachments = lead.attachments || []
               return { ...lead, attachments: [...attachments, newAttachment] }
@@ -3865,10 +3829,10 @@ export default function LeadsPage({
 
   const viewAttachment = async (leadId: string, attachmentId: string) => {
     try {
-      const blob = await apiService.getLeadAttachment(leadId, attachmentId)
+      const blob = await apiService.getAttachment(leadId, attachmentId)
       
-      if (blob) {
-        const url = window.URL.createObjectURL(blob)
+      if (blob.data) {
+        const url = window.URL.createObjectURL(blob.data)
         window.open(url, '_blank')
       } else {
         pushToast(t('notifications.errorViewingFile') || t('notifications.fileViewFailed'), 'error')
@@ -5329,7 +5293,7 @@ export default function LeadsPage({
 
     <AuthGuard orgSlug={org}>
 
-      <RoleGuard allowedRoles={["admin", "master"]} orgSlug={org}>
+      
 
       <SidebarProvider>
 
@@ -6142,7 +6106,7 @@ export default function LeadsPage({
                   <tr className="text-left border-b-2 border-border bg-muted/60">
 
                     <th className="py-2.5 px-1 sm:px-2 w-10 border-r border-border/40">
-                      {leads.length > 0 && (
+                      {leads?.length > 0  && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="sm" className="cursor-pointer p-1 h-6 w-6">
@@ -6155,7 +6119,7 @@ export default function LeadsPage({
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={handleToggleSelectPage} className="cursor-pointer">
                                 {(() => {
-                                  const currentPageLeadIds = new Set(currentLeads.map(lead => lead.id))
+                                  const currentPageLeadIds = new Set(currentLeads.map(lead => lead?.id))
                                   const allCurrentPageSelected = currentPageLeadIds.size > 0 && 
                                     Array.from(currentPageLeadIds).every(id => selectedLeads.has(id))
                                   return allCurrentPageSelected ? t('table.unselectPage') : t('table.selectPage')
@@ -6176,7 +6140,7 @@ export default function LeadsPage({
 
                 <tbody>
 
-                  {currentLeads.map((lead, index) => {
+                  {currentLeads?.map((lead, index) => {
                     const hasSpecialStatus = lead.show_on_pipeline || lead.assigned_user_id
                     const borderColorClass = lead.show_on_pipeline 
                       ? 'border-l-2 border-l-green-500' 
@@ -6258,7 +6222,7 @@ export default function LeadsPage({
                     );
                   })}
 
-                  {currentLeads.length === 0 && (
+                  {currentLeads?.length === 0 && (
                     <tr>
                       <td colSpan={Object.values(visibleColumns).filter(Boolean).length + 2} className="py-6 px-4 text-center text-xs sm:text-sm text-muted-foreground">
                         {searchTerm ? "No leads found for this search." : "No leads yet. Add the first one above."}
@@ -6366,7 +6330,7 @@ export default function LeadsPage({
           </div>
         </div>
         {/* ADD/EDIT MODAL */}
-        <Sheet open={isModalOpen} onOpenChange={(open) => {
+        <Sheet open={isModalOpen} onOpenChange={(open:boolean) => {
           if (!open) {
             if (unsavedChangesToast.show) {
               // User clicked outside again after seeing the toast
@@ -6383,7 +6347,7 @@ export default function LeadsPage({
             className="w-full sm:max-w-2xl border-l border-border p-4 sm:p-6 md:p-8 flex flex-col max-h-screen overflow-y-auto"
             onDragOver={handleAttachmentDragOver}
             onDragLeave={handleAttachmentDragLeave}
-            onDrop={(e) => editingId && handleAttachmentDrop(e, editingId)}
+            onDrop={(e:React.DragEvent) => editingId && handleAttachmentDrop(e, editingId)}
           >
             <div className="flex-shrink-0">
 
@@ -6569,7 +6533,7 @@ export default function LeadsPage({
                           setCustomStatus("")
 
                         // Find the stage
-                        const stage = pipelineStages.find(s => s.slug === val)
+                        const stage = pipelineStages.find(s => s.status === val)
                         
                         if (stage && stage.translation_key) {
                           // System stages: use legacy format
@@ -6744,7 +6708,7 @@ export default function LeadsPage({
                     <div className="flex items-center justify-between">
                       <h3 className="text-sm font-semibold text-muted-foreground">{t('form.attachments')}</h3>
                       {(() => {
-                        const lead = leads.find(l => l.id === editingId)
+                        const lead = leads.find(l => l?.id === editingId)
                         const attachments = lead?.attachments || []
                         const pending = pendingAttachments[editingId]
                         const pendingToAdd = pending?.toAdd || []
@@ -6861,7 +6825,7 @@ export default function LeadsPage({
                                 <FileIcon className="h-5 w-5 text-muted-foreground flex-shrink-0" />
                                 <div className="flex-1 min-w-0">
                                   <p className="text-sm font-medium truncate">
-                                    {attachment.originalName || t('notifications.unknownFile')}
+                                    {attachment.filename || t('notifications.unknownFile')}
                                   </p>
                                   <p className="text-xs text-muted-foreground">
                                     {formatFileSize(attachment.size || 0)}
@@ -6963,7 +6927,7 @@ export default function LeadsPage({
 
 
     {/* PREVIEW MODAL - Lead details */}
-    <Sheet open={preview.open} onOpenChange={(open) => setPreview((p) => ({ ...p, open }))}>
+    <Sheet open={preview.open} onOpenChange={(open:boolean) => setPreview((p) => ({ ...p, open }))}>
 
       <SheetContent className="w-full sm:max-w-lg border-l border-border p-6 md:p-8 flex flex-col max-h-screen">
         <div className="flex-shrink-0">
@@ -7431,51 +7395,64 @@ export default function LeadsPage({
                     <div className="space-y-3">
                       <h3 className="text-sm font-semibold text-muted-foreground">Attachments</h3>
                       <div className="space-y-2">
-                        {l.attachments.map((attachment) => {
-                          // Add safety checks for attachment properties
-                          if (!attachment || !attachment.id || !attachment.mimeType) {
-                            console.warn('Invalid attachment object:', attachment)
-                            return null
-                          }
-                          
-                          const FileIcon = getFileIcon(attachment.mimeType)
-                          return (
-                            <div
-                              key={attachment.id}
-                              className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
-                            >
-                              <FileIcon className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium truncate">
-                                  {attachment.originalName || 'Unknown file'}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {formatFileSize(attachment.size || 0)} • {attachment.uploadedAt ? new Date(attachment.uploadedAt).toLocaleDateString(locale === 'pt-BR' ? 'pt-BR' : 'en-US') : t('notifications.unknownDate')}
-                                </p>
+                        {l.attachments
+                          .filter(att => att && att.id) // Filtra antes para evitar nulls no render
+                          .map((attachment) => {
+
+                            const attachments = typeof l.attachments === 'string' 
+                            ? JSON.parse(l.attachments) 
+                            : l.attachments;
+                            // Normalização para lidar com mimetype ou mimeType (Fastify vs Express)
+                            const currentMimeType = attachment.mimeType || attachment.mimeType;
+                            
+                            if (!currentMimeType) {
+                              console.warn('Attachment missing mimeType:', attachment);
+                              return null;
+                            }
+
+                            const FileIcon = getFileIcon(currentMimeType);
+                            
+                            return (
+                              <div
+                                key={attachment.id}
+                                className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+                              >
+                                <FileIcon className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate">
+                                    {attachment.filename || attachment.originalName || 'Unknown file'}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {formatFileSize(attachment.size || 0)} • {
+                                      attachment.uploadedAt 
+                                        ? new Date(attachment.uploadedAt).toLocaleDateString(locale === 'pt-BR' ? 'pt-BR' : 'en-US') 
+                                        : t('notifications.unknownDate')
+                                    }
+                                  </p>
+                                </div>
+                                <div className="flex gap-1">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className=""
+                                    onClick={() => viewAttachment(l.id, attachment.id)}
+                                    title={t('notifications.viewFile')}
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="cursor-pointer"
+                                    onClick={() => downloadAttachment(l.id, attachment.id, attachment.filename || 'file')}
+                                    title={t('notifications.downloadFile')}
+                                  >
+                                    <Download className="h-4 w-4" />
+                                  </Button>
+                                </div>
                               </div>
-                              <div className="flex gap-1">
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="cursor-pointer"
-                                  onClick={() => viewAttachment(l.id, attachment.id)}
-                                  title={t('notifications.viewFile')}
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="cursor-pointer"
-                                  onClick={() => downloadAttachment(l.id, attachment.id, attachment.originalName || 'file')}
-                                  title={t('notifications.downloadFile')}
-                                >
-                                  <Download className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
-                          )
-                        })}
+                            );
+                          })}
                       </div>
                     </div>
                   </>
@@ -8278,7 +8255,7 @@ export default function LeadsPage({
       </SheetContent>
     </Sheet>
     {/* QUICK ASSIGN MODAL */}
-    <Sheet open={quickAssignLeadId !== null} onOpenChange={(open) => !open && setQuickAssignLeadId(null)}>
+    <Sheet open={quickAssignLeadId !== null} onOpenChange={(open:boolean) => !open && setQuickAssignLeadId(null)}>
       <SheetContent className="w-full sm:max-w-md border-l border-border p-6 md:p-8">
         <SheetHeader>
           <SheetTitle>{t('bulk.assignToUser')}</SheetTitle>
@@ -8505,7 +8482,7 @@ export default function LeadsPage({
     </SidebarProvider>
     
     {/* LEAD DETAILS MODAL - MODERN DESIGN */}
-    <Sheet open={preview.open} onOpenChange={(open) => setPreview({ open, lead: open ? preview.lead : null })}>
+    <Sheet open={preview.open} onOpenChange={(open:boolean) => setPreview({ open, lead: open ? preview.lead : null })}>
       <SheetContent className="w-full sm:max-w-3xl border-l border-border p-0 overflow-y-auto [&>button]:cursor-pointer">
         {preview.lead && (
           <>
@@ -8984,8 +8961,6 @@ export default function LeadsPage({
         )}
       </SheetContent>
     </Sheet>
-
-      </RoleGuard>
     </AuthGuard>
   )
 }
