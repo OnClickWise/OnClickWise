@@ -9,6 +9,7 @@ import {
   Sparkles
 } from "lucide-react"
 import { motion } from "framer-motion"
+import { ReactNode } from "react"
 
 export function Lead() {
   return (
@@ -100,7 +101,7 @@ export function Lead() {
   )
 }
 
-function Benefit({ icon, text }: { icon: JSX.Element; text: string }) {
+function Benefit({ icon, text }: { icon: ReactNode; text: string }) {
   return (
     <motion.div
       whileHover={{ y: -6 }}

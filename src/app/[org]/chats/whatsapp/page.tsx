@@ -29,7 +29,9 @@ import {
   Info,
   MessageCircle,
 } from "lucide-react"
-import { useApi } from "@/hooks/useApi"
+import { useApi } from "@/hooks/useapi"
+
+
 
 /* ============================
    TYPES

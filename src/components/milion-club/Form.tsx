@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react"
 import { Mail, Phone, User, Coins, Layers, Sparkles, X } from "lucide-react"
 import { motion } from "framer-motion"
-import { CreateLeadRequest } from "@/lib/api"
+import { CreateLeadRequest } from "@/services/LeadService"
+
 
 interface Props {
   orgSlug: string

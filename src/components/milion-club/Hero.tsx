@@ -96,7 +96,7 @@ export function Hero() {
   )
 }
 
-function Pillar({ icon, label }: { icon: JSX.Element; label: string }) {
+function Pillar({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
     <motion.span
       whileHover={{ y: -6 }}

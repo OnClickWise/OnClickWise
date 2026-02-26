@@ -1,9 +1,9 @@
 "use client"
 
 import React, { useEffect, useState } from 'react';
-
 import { AlertCircle } from 'lucide-react';
 import { ThemeStyles } from './ThemeStyles';
+import { useAppConfig } from '@/hooks/useAppConfig';
 
 export function AppGuard({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -19,13 +19,15 @@ export function AppGuard({ children }: { children: React.ReactNode }) {
     return () => clearInterval(interval);
   }, []);
 
-  const { active, loading, uiMode } = useAppConfig(15000);
+  // ✅ removido argumento (hook não recebe parâmetro)
+  const { active, loading, uiMode } = useAppConfig();
 
   if (!isAuthenticated) {
     return <>{children}</>;
   }
 
-  if (active && uiMode === 1) {
+  // ✅ uiMode agora é string ("light" | "dark")
+  if (active && uiMode === "light") {
     return (
       <div className="fixed inset-0 z-[9999] bg-background/95 backdrop-blur-sm flex items-center justify-center">
         <div className="bg-card border border-border rounded-lg shadow-lg p-6 max-w-md mx-4">
@@ -45,7 +47,7 @@ export function AppGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (active && uiMode === 2) {
+  if (active && uiMode === "dark") {
     return (
       <>
         <ThemeStyles />
@@ -56,4 +58,3 @@ export function AppGuard({ children }: { children: React.ReactNode }) {
 
   return <>{children}</>;
 }
-
