@@ -6,8 +6,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { apiService, Lead } from '@/lib/api';
+
 import { Search, User, Mail, Phone, Loader2 } from 'lucide-react';
+import { apiService, Lead } from '@/services/LeadService';
 
 interface LinkLeadModalProps {
   isOpen: boolean;
@@ -38,11 +39,11 @@ export function LinkLeadModal({ isOpen, onClose, onLink, onUnlink, onCreateNew, 
   }, [currentLinkedLead]);
 
   // Load all leads that are already linked to conversations
-  useEffect(() => {
+  {/* useEffect(() => {
     const loadLinkedLeadIds = async () => {
       try {
         // Get all telegram conversations
-        const conversationsResponse = await apiService.getTelegramConversations({ limit: 1000 });
+        const conversationsResponse = await apiService.({ limit: 1000 });
         
         if (conversationsResponse.success && conversationsResponse.data?.conversations) {
           // Extract unique lead IDs that are already linked
@@ -69,7 +70,7 @@ export function LinkLeadModal({ isOpen, onClose, onLink, onUnlink, onCreateNew, 
     if (isOpen) {
       loadLinkedLeadIds();
     }
-  }, [isOpen, actionMode, currentLinkedLead]);
+  }, [isOpen, actionMode, currentLinkedLead]); */}
 
   // Search leads when query changes (with debounce)
   useEffect(() => {

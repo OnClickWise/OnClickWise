@@ -25,6 +25,7 @@ import { apiService, Lead, UpdateLeadRequest, Attachment } from "@/services/Lead
 import { useApi } from "@/hooks/useapi"
 import { pipelineService } from "@/services/pipelineService"
 import { getAccessTokenFromCookie } from "@/lib/cookies"
+import { formatDate } from "@/lib/formatDate"
 type PipelineStage = {
   id: string
   name: string

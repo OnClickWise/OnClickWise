@@ -77,11 +77,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
-import { useApi } from "@/hooks/useApi"
-import { getApiBaseUrl, apiService } from "@/lib/api"
+
 import { LinkLeadModal } from "@/components/LinkLeadModal"
 import { AudioPlayer } from "@/components/AudioPlayer"
 import { useRouter } from "next/navigation"
+import { apiService, getApiBaseUrl } from "@/services/LeadService"
+import { useApi } from "@/hooks/useapi"
 
 // Tipos para as interfaces
 interface TelegramBot {
@@ -2571,7 +2572,7 @@ export default function TelegramPage({
     if (!selectedChat) return
 
     try {
-      const response = await apiService.linkTelegramConversationToLead(selectedChat, leadId)
+      const response = await apiService.getAttachment(selectedChat, leadId)
       if (response.success) {
         // Update the conversation in local state to reflect the linked lead
         setConversations(prev => prev.map(conv => 

@@ -22,11 +22,12 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { useApi } from "@/hooks/useApi"
+
 import { useAuth } from "@/hooks/useAuth"
 import { generateOrgLogo } from "@/utils/avatar"
 import { OrganizationAvatar } from "@/components/ui/avatar"
 import { X } from "lucide-react"
+import { useApi } from '@/hooks/useapi';
 
 interface OrganizationData {
   id: string;

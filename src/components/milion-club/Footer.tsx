@@ -1,12 +1,7 @@
-"use client"
+"use client";
 
-import { motion } from "framer-motion"
-import {
-  Sparkles,
-  ShieldCheck,
-  Globe,
-  Mail
-} from "lucide-react"
+import { motion } from "framer-motion";
+import { Sparkles, ShieldCheck, Globe, Mail } from "lucide-react";
 
 export function Footer() {
   return (
@@ -28,7 +23,6 @@ export function Footer() {
       </div>
 
       <div className="relative z-10 max-w-5xl mx-auto text-center space-y-6">
-
         {/* Logo / Nome */}
         <h3 className="text-3xl font-extrabold text-white tracking-tight">
           Million <span className="text-yellow-400">Club</span>
@@ -53,18 +47,15 @@ export function Footer() {
 
         {/* Copyright */}
         <p className="text-sm text-gray-500">
-          © 2025{" "}
-          <span className="text-white font-semibold">
-            Million Club™
-          </span>{" "}
+          © 2025 <span className="text-white font-semibold">Million Club™</span>{" "}
           — Todos os direitos reservados.
         </p>
       </div>
     </motion.footer>
-  )
+  );
 }
 
-function FooterItem({ icon, text }: { icon: JSX.Element; text: string }) {
+function FooterItem({ icon, text }: { icon: React.ReactNode; text: string }) {
   return (
     <motion.div
       whileHover={{ y: -4 }}
@@ -79,5 +70,5 @@ function FooterItem({ icon, text }: { icon: JSX.Element; text: string }) {
       <span className="text-yellow-400">{icon}</span>
       {text}
     </motion.div>
-  )
+  );
 }

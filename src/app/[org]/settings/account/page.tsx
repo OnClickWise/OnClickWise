@@ -20,7 +20,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar"
-import { useApi } from '@/hooks/useApi'
+
 import { generateAvatar } from '@/utils/avatar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -28,6 +28,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { UserAvatar } from '@/components/ui/avatar'
 import { LanguageSwitcher } from '@/components/LanguageSwitcher'
 import { User, Lock, Save, Upload, X, Globe } from 'lucide-react'
+import { useApi } from '@/hooks/useapi'
 
 interface UserData {
   id: string

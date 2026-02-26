@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect } from 'react'
 import { Mail, Phone, Book, ArrowRight, Laptop, Briefcase, BookOpen, ChevronDown, User, X } from 'lucide-react'
-import { apiService, CreateLeadRequest } from '@/lib/api'
+
 import Image from 'next/image'
+import { CreateLeadRequest } from '@/services/LeadService'
 
 interface EducacaoSemLimiteLandingProps {
   orgSlug: string

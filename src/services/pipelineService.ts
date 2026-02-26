@@ -16,7 +16,9 @@ export interface PipelineStage {
   organization_id: string;
   name: string;
   order: number;
+  slug: string;
   color?: string;
+  translation_key: string;
   status?:string;
   description?: string;
   created_at: string;
