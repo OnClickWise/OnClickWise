@@ -9,7 +9,7 @@ export const localeMap = {
 
 export type RouteLocale = keyof typeof localeMap;
 
-// ✅ Alias para manter compatibilidade
+// Alias para compatibilidade
 export type Locale = RouteLocale;
 
 export type AppLocale = (typeof localeMap)[RouteLocale];
