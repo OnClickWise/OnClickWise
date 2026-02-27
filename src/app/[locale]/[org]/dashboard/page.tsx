@@ -981,7 +981,7 @@ const AdminDashboard = ({ stats, leads, pipelineStages }: { stats: DashboardStat
                         zIndex: 9999,
                         position: 'relative'
                       }}
-                      formatter={(value: any, name: string, props: any) => {
+                      formatter={(value: any, name: string | undefined, props: any) => {
                         const total = stats.leadsBySource.reduce((sum, item) => sum + item.count, 0)
                         const percentage = ((Number(value) / total) * 100).toFixed(1)
                         return [`${value} ${t('charts.leadsPlural')} (${percentage}%)`, props.payload.source]
