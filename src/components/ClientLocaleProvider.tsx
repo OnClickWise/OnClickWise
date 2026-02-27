@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { NextIntlClientProvider } from 'next-intl'
-import enUS from '../../messages/en-US.json'
-import ptBR from '../../messages/pt-BR.json'
+import enUS from '../messages/en-US.json'
+import ptBR from '../messages/pt-BR.json'
+
 
 const messages = {
   'en-US': enUS,

@@ -404,9 +404,9 @@
       "unknownUser": "Usuário desconhecido",
       "cancel": "Cancelar",
       "linking": "Vinculando...",
-      "linkButton": "Vincular",
+      "linkBu tton": "Vincular",
       "success": "Lead {leadName} vinculado a {userName} com sucesso",
-      "error": "Erro ao vincular lead",
+      "error":"Erro ao vincular lead",
       "errorLoadingUsers": "Erro ao carregar usuários",
       "selectUserWarning": "Por favor, selecione um usuário",
       "noUsername": "sem username"

@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Inter, Poppins, Roboto } from "next/font/google";
-import { ClientLocaleProvider } from "@/components/ClientLocaleProvider";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 
@@ -35,14 +34,6 @@ const roboto = Roboto({
 export const metadata: Metadata = {
   title: "OnClickWise - CRM & Lead Management",
   description: "Plataforma completa de CRM e gestão de leads",
-  icons: {
-    icon: [
-      { url: "/logo-favicon.png", sizes: "any" },
-      { url: "/logo-favicon.png", type: "image/png" },
-    ],
-    apple: "/logo-favicon.png",
-    shortcut: "/logo-favicon.png",
-  },
 };
 
 export default function RootLayout({
@@ -50,10 +41,8 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const locale = "pt";
-
   return (
-    <html lang={locale} suppressHydrationWarning>
+    <html suppressHydrationWarning>
       <body
         className={`
           ${geistSans.variable}
@@ -66,12 +55,7 @@ export default function RootLayout({
           text-foreground
         `}
       >
-        <ClientLocaleProvider defaultLocale={locale}>
-          <AuthProvider>
-            {/* ✅ Envolvendo toda a app */}
-            {children}
-          </AuthProvider>
-        </ClientLocaleProvider>
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );
