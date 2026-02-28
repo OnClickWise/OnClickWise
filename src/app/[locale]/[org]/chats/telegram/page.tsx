@@ -82,7 +82,7 @@ import { LinkLeadModal } from "@/components/LinkLeadModal"
 import { AudioPlayer } from "@/components/AudioPlayer"
 import { useRouter } from "next/navigation"
 import { apiService, getApiBaseUrl } from "@/services/LeadService"
-import { useApi } from "@/hooks/useapi"
+import { useApi } from "@/hooks/useApi"
 
 // Tipos para as interfaces
 interface TelegramBot {

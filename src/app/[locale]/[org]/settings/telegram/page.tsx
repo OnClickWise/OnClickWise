@@ -34,7 +34,7 @@ import {
   ToggleLeft,
   ToggleRight
 } from 'lucide-react'
-import { useApi } from "@/hooks/useapi";
+import { useApi } from "@/hooks/useApi";
 
 
 interface TelegramBot {

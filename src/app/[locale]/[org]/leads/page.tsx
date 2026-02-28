@@ -105,7 +105,7 @@ import {
   Attachment,
 } from "@/services/LeadService";
 
-import { useApi } from "@/hooks/useapi";
+import { useApi } from "@/hooks/useApi";
 import { pipelineService, PipelineStage } from "@/services/pipelineService";
 
 function createId() {

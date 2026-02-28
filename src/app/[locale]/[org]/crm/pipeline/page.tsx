@@ -22,7 +22,7 @@ import * as XLSX from "xlsx"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 // IMPORTANTE: Interface Attachment foi importada para resolver os problemas de tipagem (Implicit any type)
 import { apiService, Lead, UpdateLeadRequest, Attachment } from "@/services/LeadService"
-import { useApi } from "@/hooks/useapi"
+import { useApi } from "@/hooks/useApi"
 import { pipelineService } from "@/services/pipelineService"
 import { getAccessTokenFromCookie } from "@/lib/cookies"
 import { formatDate } from "@/lib/formatDate"

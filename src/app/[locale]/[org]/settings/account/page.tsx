@@ -28,7 +28,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { UserAvatar } from '@/components/ui/avatar'
 import { LanguageSwitcher } from '@/components/LanguageSwitcher'
 import { User, Lock, Save, Upload, X, Globe } from 'lucide-react'
-import { useApi } from '@/hooks/useapi'
+import { useApi } from '@/hooks/useApi'
 
 interface UserData {
   id: string
