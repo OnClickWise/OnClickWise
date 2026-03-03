@@ -33,6 +33,7 @@ type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
 }
 import { useApi } from "@/hooks/useapi"
 import { useAuth } from '@/hooks/useAuth';
+import { getLocale } from "next-intl/server"
 
 export function AppSidebar({ org, ...props }: AppSidebarProps) {
   const { organization } = useAuth()
@@ -316,6 +317,7 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
       icon: Settings2,
       items: [
         { title: t('organization'), url: `/${org}/settings/org` },
+        { title: t('whatsappSettings'), url: `/pt/${org}/settings/whatsapp` },
         { title: t('users'), url: `/${org}/settings/users` },
         { title: t('telegramSettings'), url: `/${org}/settings/telegram` },
         { title: t('billing'), url: `/${org}/settings/billing` },
