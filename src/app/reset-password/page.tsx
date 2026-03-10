@@ -1,14 +1,14 @@
 'use client';
 
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Building2, Lock } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { resetPassword } from '@/services/authService';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-export default function ResetPasswordPage() {
+function ResetPasswordContent() {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
@@ -131,5 +131,13 @@ export default function ResetPasswordPage() {
         </div>
       </aside>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense>
+      <ResetPasswordContent />
+    </Suspense>
   );
 }

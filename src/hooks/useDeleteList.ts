@@ -5,13 +5,13 @@ export function useDeleteList() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  async function handleDelete(listId) {
+  async function handleDelete(listId: string) {
     setLoading(true);
     setError("");
     try {
       await deleteList(listId);
       return true;
-    } catch (e) {
+    } catch (e: any) {
       setError(e.message || "Erro ao excluir lista");
     } finally {
       setLoading(false);
