@@ -1,7 +1,15 @@
+"use client";
+
 import { useEffect, useState } from "react";
 
+interface Notification {
+  id: number;
+  text: string;
+  read: boolean;
+}
+
 export function useNotifications() {
-  const [notifications, setNotifications] = useState([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unread, setUnread] = useState(0);
 
   // Simulação: em produção, usar WebSocket, SSE ou polling
