@@ -75,7 +75,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const currentUser = await getCurrentUser();
         setUser(currentUser);
       } catch {
-        setUser(null);
+        // Token expirado — tenta renovar antes de deslogar
+        try {
+          await refreshToken();
+          const currentUser = await getCurrentUser();
+          setUser(currentUser);
+        } catch {
+          setUser(null);
+        }
       } finally {
         setLoading(false);
       }
@@ -118,9 +125,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const result = await register(data);
       const currentUser = await getCurrentUser();
       setUser(currentUser);
-
-      router.push("/login"); // redireciona
-      return result; // agora o tipo está correto
+      return result;
     } catch (err) {
       setUser(null);
       throw err;

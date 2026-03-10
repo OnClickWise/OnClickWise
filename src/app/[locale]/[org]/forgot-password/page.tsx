@@ -16,7 +16,7 @@ interface CompanyInfo {
   logo_url?: string;
 }
 
-export default function CompanyForgotPasswordPage({ params }: { params: Promise<{ org: string }> }) {
+export default function CompanyForgotPasswordPage({ params }: { params: Promise<{ org: string; locale: string }> }) {
   const resolvedParams = use(params);
   const router = useRouter();
   const t = useTranslations('ForgotPassword');
@@ -247,7 +247,7 @@ export default function CompanyForgotPasswordPage({ params }: { params: Promise<
                   {t('emailSentMessage')}
                 </p>
                 <button
-                  onClick={() => router.push(`/${resolvedParams.org}/login`)}
+                  onClick={() => router.push(`/${resolvedParams.locale}/${resolvedParams.org}/login`)}
                   className="auth-button-primary w-full"
                 >
                   {t('backToLogin')}

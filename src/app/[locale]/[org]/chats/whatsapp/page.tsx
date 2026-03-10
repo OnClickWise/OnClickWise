@@ -77,7 +77,7 @@ export default function WhatsAppPage({
      LOAD CONVERSATIONS
   ============================ */
   React.useEffect(() => {
-    apiCall("/api/whatsapp/conversations").then((res) => {
+    apiCall("/whatsapp/conversations").then((res) => {
       if (res.success) setConversations(res.data)
     })
   }, [])
@@ -89,7 +89,7 @@ export default function WhatsAppPage({
     if (!selectedConversation) return
 
     apiCall(
-      `/api/whatsapp/conversations/${selectedConversation.id}/messages`
+      `/whatsapp/conversations/${selectedConversation.id}/messages`
     ).then((res) => {
       if (res.success) setMessages(res.data)
     })
@@ -101,7 +101,7 @@ export default function WhatsAppPage({
   const handleSendMessage = async () => {
     if (!messageText.trim() || !selectedConversation) return
 
-    await apiCall("/api/whatsapp/send", {
+    await apiCall("/whatsapp/messages/send", {
       method: "POST",
       body: JSON.stringify({
         to: selectedConversation.phone,
@@ -112,7 +112,7 @@ export default function WhatsAppPage({
     setMessageText("")
 
     const refreshed = await apiCall(
-      `/api/whatsapp/conversations/${selectedConversation.id}/messages`
+      `/whatsapp/conversations/${selectedConversation.id}/messages`
     )
     if (refreshed.success) setMessages(refreshed.data)
   }

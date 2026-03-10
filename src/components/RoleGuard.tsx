@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext'
+import { useLocale } from 'next-intl'
 
 interface RoleGuardProps {
   allowedRoles: string[];
@@ -18,13 +19,14 @@ export default function RoleGuard({
   redirectTo 
 }: RoleGuardProps) {
   const router = useRouter();
+  const locale = useLocale();
   const [isAllowed, setIsAllowed] = useState(false);
 
   useEffect(() => {
     try {
       const token = localStorage.getItem('token');
       if (!token) {
-        router.push(`/${orgSlug}/login`);
+        router.push(`/${locale}/${orgSlug}/login`);
         return;
       }
 
@@ -37,11 +39,11 @@ export default function RoleGuard({
         setIsAllowed(true);
       } else {
         // Redirect to dashboard or custom redirect
-        router.push(redirectTo || `/${orgSlug}/dashboard`);
+        router.push(redirectTo || `/${locale}/${orgSlug}/dashboard`);
       }
     } catch (error) {
       console.error('Error checking user role:', error);
-      router.push(redirectTo || `/${orgSlug}/dashboard`);
+      router.push(redirectTo || `/${locale}/${orgSlug}/dashboard`);
     }
   }, [orgSlug, router, allowedRoles, redirectTo]);
 

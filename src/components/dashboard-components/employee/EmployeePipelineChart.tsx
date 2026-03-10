@@ -24,7 +24,7 @@ function EmployeePipelineChartComponent({ stats }: Props) {
   )
 
   return (
-    <div className="bg-white p-6 rounded-xl shadow h-96">
+    <div className="bg-card text-card-foreground border border-border p-6 rounded-xl shadow h-96">
       <h3 className="text-lg font-semibold mb-4">
         My Pipeline
       </h3>

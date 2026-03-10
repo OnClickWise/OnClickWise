@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import {
-  getAccessTokenFromCookie,
+  getAuthToken,
   clearAuthCookies,
 } from '@/lib/cookies'
 
@@ -17,7 +17,7 @@ export function useApi() {
   }, []);
 
   const API_BASE_URL =
-    process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+    (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000') + '/api';
 
   const apiCall = async (
     endpoint: string,
@@ -27,7 +27,7 @@ export function useApi() {
       return { success: false, error: 'Client only' };
     }
 
-    const token = getAccessTokenFromCookie();
+    const token = getAuthToken();
     const isFormData = options.body instanceof FormData;
 
     const config: RequestInit = {
@@ -52,11 +52,13 @@ export function useApi() {
           localStorage.removeItem('lastActivity');
 
           if (typeof window !== 'undefined') {
-            const pathParts = window.location.pathname.split('/');
-            const orgSlug = pathParts[1];
+            const pathParts = window.location.pathname.split('/').filter(Boolean);
+            // pathname: /<locale>/<org>/... or /<org>/...
+            const locale = ['pt', 'en', 'es', 'fr'].includes(pathParts[0]) ? pathParts[0] : 'pt';
+            const orgSlug = pathParts[1] || pathParts[0];
 
-            window.location.href = orgSlug
-              ? `/${orgSlug}/login`
+            window.location.href = orgSlug && ['pt', 'en', 'es', 'fr'].includes(locale)
+              ? `/${locale}/${orgSlug}/login`
               : '/login';
           }
         }

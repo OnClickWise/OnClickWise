@@ -12,14 +12,14 @@ export default function EmployeeNotesCard({ org }: Props) {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl shadow p-6">
+      <div className="bg-card text-card-foreground border border-border rounded-xl shadow p-6">
         Loading notes...
       </div>
     )
   }
 
   return (
-    <div className="bg-white rounded-xl shadow p-6">
+    <div className="bg-card text-card-foreground border border-border rounded-xl shadow p-6">
       <h3 className="text-lg font-semibold mb-4">
         My Notes
       </h3>
@@ -47,7 +47,7 @@ export default function EmployeeNotesCard({ org }: Props) {
       </div>
 
       {saving && (
-        <div className="mt-2 text-xs text-gray-400">
+        <div className="mt-2 text-xs text-muted-foreground">
           Syncing...
         </div>
       )}

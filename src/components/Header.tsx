@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
 import { ThemeToggle } from '@/components/layout/theme-toggle';
+import { NotificationBell } from './NotificationBell';
 
 export default function Navbar() {
   const router = useRouter();
@@ -128,6 +129,9 @@ export default function Navbar() {
             {t('getStarted')}
           </button>
 
+
+          {/* Notificações */}
+          <NotificationBell />
           {/* Theme Toggle (GLOBAL) */}
           <ThemeToggle />
 

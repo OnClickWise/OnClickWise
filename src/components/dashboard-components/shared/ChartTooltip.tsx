@@ -31,7 +31,7 @@ export default function ChartTooltip(
   }
 
   return (
-    <div className="bg-white p-3 rounded-lg shadow border text-sm">
+    <div className="bg-card text-card-foreground border border-border p-3 rounded-lg shadow text-sm">
       {label !== undefined && (
         <p className="font-semibold mb-1">{label}</p>
       )}

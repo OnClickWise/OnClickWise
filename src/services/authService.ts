@@ -1,18 +1,10 @@
-// src/lib/authService.ts
-
-import {
+﻿import {
   clearAuthCookies,
-  getAccessTokenFromCookie,
+  getAuthToken,
   getRefreshTokenFromCookie,
   setAccessTokenCookie,
   setRefreshTokenCookie,
 } from "@/lib/cookies";
-
-// ----------------------
-// LOGIN
-// ----------------------
-
-
 
 export interface RegisterResponse {
   success: boolean;
@@ -25,15 +17,48 @@ export interface RegisterResponse {
   [key: string]: any;
 }
 
+// ----------------------
+// FORGOT PASSWORD
+// ----------------------
+export async function forgotPassword(email: string) {
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/forgot-password`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    },
+  );
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || "Erro ao solicitar recuperacao de senha");
+  }
+  return res.json();
+}
 
+// ----------------------
+// RESET PASSWORD
+// ----------------------
+export async function resetPassword({ token, password }: { token: string; password: string }) {
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/reset-password`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token, password }),
+    },
+  );
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || "Erro ao redefinir senha");
+  }
+  return res.json();
+}
 
-export async function login({
-  email,
-  password,
-}: {
-  email: string;
-  password: string;
-}) {
+// ----------------------
+// LOGIN
+// ----------------------
+export async function login({ email, password }: { email: string; password: string }) {
   const res = await fetch(
     `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/login`,
     {
@@ -45,7 +70,10 @@ export async function login({
 
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || "Erro ao fazer login");
+    const msg = Array.isArray(data.message)
+      ? data.message.join(', ')
+      : (data.message || data.error || 'Erro ao fazer login');
+    throw new Error(msg);
   }
 
   const data = await res.json();
@@ -53,6 +81,12 @@ export async function login({
   if (data.accessToken) {
     setAccessTokenCookie(data.accessToken);
     if (data.refreshToken) setRefreshTokenCookie(data.refreshToken);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("token", data.accessToken);
+      if (data.organization) {
+        localStorage.setItem("organization", JSON.stringify(data.organization));
+      }
+    }
   }
 
   return data;
@@ -73,7 +107,10 @@ export async function register(data: any) {
 
   if (!res.ok) {
     const resData = await res.json().catch(() => ({}));
-    throw new Error(resData.error || "Erro ao registrar usuário");
+    const msg = Array.isArray(resData.message)
+      ? resData.message.join(', ')
+      : (resData.message || resData.error || 'Erro ao registrar usuario');
+    throw new Error(msg);
   }
 
   const resData = await res.json();
@@ -81,6 +118,12 @@ export async function register(data: any) {
   if (resData.accessToken) {
     setAccessTokenCookie(resData.accessToken);
     if (resData.refreshToken) setRefreshTokenCookie(resData.refreshToken);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("token", resData.accessToken);
+      if (resData.organization) {
+        localStorage.setItem("organization", JSON.stringify(resData.organization));
+      }
+    }
   }
 
   return resData;
@@ -90,7 +133,7 @@ export async function register(data: any) {
 // LOGOUT
 // ----------------------
 export async function logout() {
-  const token = getAccessTokenFromCookie();
+  const token = getAuthToken();
 
   const res = await fetch(
     `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/logout`,
@@ -105,6 +148,10 @@ export async function logout() {
   );
 
   clearAuthCookies();
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("token");
+    localStorage.removeItem("organization");
+  }
 
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
@@ -118,7 +165,7 @@ export async function logout() {
 // GET CURRENT USER
 // ----------------------
 export async function getCurrentUser() {
-  const token = getAccessTokenFromCookie();
+  const token = getAuthToken();
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/me`, {
     method: "GET",
     headers: {
@@ -129,7 +176,7 @@ export async function getCurrentUser() {
 
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || "Erro ao buscar usuário");
+    throw new Error(data.error || "Erro ao buscar usuario");
   }
   const data = await res.json();
   return {
@@ -137,23 +184,21 @@ export async function getCurrentUser() {
     name: data.user?.name,
     email: data.user?.email,
     avatar: data.user?.avatar || "/avatars/shadcn.jpg",
-    role: data.user?.role || 'employee',
-    organization_id: data.organization.id
+    role: data.user?.role || "employee",
+    organization_id: data.organization?.id,
   };
 }
 
 // ----------------------
 // REFRESH TOKEN
 // ----------------------
-export async function refreshToken(): Promise<{
-  accessToken: string;
-  refreshToken?: string;
-}> {
-  const currentRefreshToken = getRefreshTokenFromCookie();
-  if (!currentRefreshToken) throw new Error("Refresh token não encontrado");
+export async function refreshToken(): Promise<{ accessToken: string; refreshToken?: string }> {
+  const currentRefreshToken = getRefreshTokenFromCookie()
+    ?? (typeof window !== "undefined" ? localStorage.getItem("refreshToken") : null);
+  if (!currentRefreshToken) throw new Error("Refresh token nao encontrado");
 
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/refresh`,
+    `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/refresh`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -171,8 +216,53 @@ export async function refreshToken(): Promise<{
   if (data.accessToken) {
     setAccessTokenCookie(data.accessToken);
     if (data.refreshToken) setRefreshTokenCookie(data.refreshToken);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("token", data.accessToken);
+    }
     return data;
   }
 
-  throw new Error("Token não recebido na renovação");
+  throw new Error("Token nao recebido na renovacao");
+}
+
+// ----------------------
+// AUTHENTICATED FETCH (auto-refresh on 401)
+// ----------------------
+export async function authenticatedFetch(
+  url: string,
+  options: RequestInit = {}
+): Promise<Response> {
+  if (typeof window === "undefined") throw new Error("Client only");
+
+  const method = (options.method || "GET").toUpperCase();
+  const hasBody = method !== "GET" && method !== "DELETE" && method !== "HEAD";
+
+  const makeRequest = (token: string | null): Promise<Response> =>
+    fetch(url, {
+      ...options,
+      headers: {
+        ...(hasBody ? { "Content-Type": "application/json" } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(options.headers as Record<string, string> ?? {}),
+      },
+    });
+
+  let res = await makeRequest(getAuthToken());
+
+  if (res.status === 401) {
+    try {
+      const refreshed = await refreshToken();
+      res = await makeRequest(refreshed.accessToken);
+    } catch {
+      clearAuthCookies();
+      localStorage.removeItem("token");
+      localStorage.removeItem("organization");
+      const parts = window.location.pathname.split("/").filter(Boolean);
+      const locale = ["pt", "en", "es", "fr"].includes(parts[0]) ? parts[0] : "pt";
+      const org = parts[1] || "";
+      window.location.href = org ? `/${locale}/${org}/login` : "/login";
+    }
+  }
+
+  return res;
 }

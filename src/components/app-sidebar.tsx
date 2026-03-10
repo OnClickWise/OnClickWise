@@ -5,6 +5,7 @@ import {
   Users,
   Mail,
   KanbanSquare,
+  LayoutGrid,
   MessageSquare,
   Settings2,
   Building2,
@@ -14,7 +15,7 @@ import {
 import { FaWhatsapp, FaTelegram } from "react-icons/fa"
 import { SiGmail } from "react-icons/si"
 import { usePathname } from "next/navigation"
-import { useTranslations } from "next-intl"
+import { useTranslations, useLocale } from "next-intl"
 
 import { NavMain } from "@/components/nav-main"
 import { NavUser } from "@/components/nav-user"
@@ -33,7 +34,6 @@ type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
 }
 import { useApi } from "@/hooks/useApi"
 import { useAuth } from '@/hooks/useAuth';
-import { getLocale } from "next-intl/server"
 
 export function AppSidebar({ org, ...props }: AppSidebarProps) {
   const { organization } = useAuth()
@@ -43,6 +43,7 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
   const isCollapsed = !open
   const t = useTranslations('Sidebar')
   const tOrg = useTranslations('Organization')
+  const locale = useLocale()
   // Initialize role synchronously from token to avoid flash on F5
   const getInitialRole = (): string => {
     try {
@@ -268,60 +269,68 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
   const allNavItems = [
     {
       title: t('dashboard'),
-      url: `/${org}/dashboard`,
+      url: `/${locale}/${org}/dashboard`,
       icon: LayoutDashboard,
       items: [],
     },
     {
       title: t('leads'),
-      url: `/${org}/leads`,
+      url: `/${locale}/${org}/leads`,
       icon: Users,
       items: [
-        { title: t('leadList'), url: `/${org}/leads` },
-        { title: t('captureSources'), url: `/${org}/leads/sources` },
+        { title: t('leadList'), url: `/${locale}/${org}/leads` },
+        { title: t('captureSources'), url: `/${locale}/${org}/leads/sources` },
       ],
     },
     {
       title: t('marketing'),
-      url: `/${org}/marketing`,
+      url: `/${locale}/${org}/marketing`,
       icon: Mail,
       items: [
-        { title: t('emailCampaigns'), url: `/${org}/marketing/email` },
-        { title: t('socialMedia'), url: `/${org}/marketing/social` },
-        { title: t('aiContent'), url: `/${org}/marketing/ai` },
+        { title: t('emailCampaigns'), url: `/${locale}/${org}/marketing/email` },
+        { title: t('socialMedia'), url: `/${locale}/${org}/marketing/social` },
+        { title: t('aiContent'), url: `/${locale}/${org}/marketing/ai` },
       ],
     },
     {
       title: t('crm'),
-      url: `/${org}/crm`,
+      url: `/${locale}/${org}/crm`,
       icon: KanbanSquare,
       items: [
-        { title: t('opportunities'), url: `/${org}/crm/opportunities` },
-        { title: t('pipeline'), url: `/${org}/crm/pipeline` },
-        { title: t('reports'), url: `/${org}/crm/reports` },
+        { title: t('opportunities'), url: `/${locale}/${org}/crm/opportunities` },
+        { title: t('pipeline'), url: `/${locale}/${org}/crm/pipeline` },
+        { title: t('reports'), url: `/${locale}/${org}/crm/reports` },
+      ],
+    },
+    {
+      title: t('kanban'),
+      url: `/${locale}/${org}/kanban`,
+      icon: LayoutGrid,
+      items: [
+        { title: t('kanbanProjects'), url: `/${locale}/${org}/kanban` },
       ],
     },
     {
       title: t('chats'),
-      url: `/${org}/chats`,
+      url: `/${locale}/${org}/chats`,
       icon: MessageSquare,
       items: [
-        { title: t('whatsapp'), url: `/${org}/chats/whatsapp`, icon: <FaWhatsapp className="w-4 h-4" /> },
-        { title: t('telegram'), url: `/${org}/chats/telegram`, icon: <FaTelegram className="w-4 h-4" /> },
-        { title: t('email'), url: `/${org}/chats/email`, icon: <SiGmail className="w-4 h-4" /> },
+        { title: t('whatsapp'), url: `/${locale}/${org}/chats/whatsapp`, icon: <FaWhatsapp className="w-4 h-4" /> },
+        { title: t('telegram'), url: `/${locale}/${org}/chats/telegram`, icon: <FaTelegram className="w-4 h-4" /> },
+        { title: t('email'), url: `/${locale}/${org}/chats/email`, icon: <SiGmail className="w-4 h-4" /> },
       ],
     },
     {
       title: t('settings'),
-      url: `/${org}/settings`,
+      url: `/${locale}/${org}/settings`,
       icon: Settings2,
       items: [
-        { title: t('organization'), url: `/${org}/settings/org` },
-        { title: t('whatsappSettings'), url: `/pt/${org}/settings/whatsapp` },
-        { title: t('users'), url: `/${org}/settings/users` },
-        { title: t('telegramSettings'), url: `/${org}/settings/telegram` },
-        { title: t('billing'), url: `/${org}/settings/billing` },
-        { title: t('branding'), url: `/${org}/settings/branding` },
+        { title: t('organization'), url: `/${locale}/${org}/settings/org` },
+        { title: t('whatsappSettings'), url: `/${locale}/${org}/settings/whatsapp` },
+        { title: t('users'), url: `/${locale}/${org}/settings/users` },
+        { title: t('telegramSettings'), url: `/${locale}/${org}/settings/telegram` },
+        { title: t('billing'), url: `/${locale}/${org}/settings/billing` },
+        { title: t('branding'), url: `/${locale}/${org}/settings/branding` },
       ],
     },
   ]
@@ -331,18 +340,18 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
   const navMain = isEmployee
     ? allNavItems.map(item => {
         // Filter telegramSettings from settings subitems for employee
-        if (item.url === `/${org}/settings`) {
+        if (item.url === `/${locale}/${org}/settings`) {
           return {
             ...item,
             items: item.items.filter(
-              (subitem) => subitem.url !== `/${org}/settings/telegram`
+              (subitem) => subitem.url !== `/${locale}/${org}/settings/telegram`
             ),
           }
         }
         return item
       })
       .filter(
-        (item) => item.url !== `/${org}/settings` && item.url !== `/${org}/leads`
+        (item) => item.url !== `/${locale}/${org}/settings` && item.url !== `/${locale}/${org}/leads`
       )
     : allNavItems
 

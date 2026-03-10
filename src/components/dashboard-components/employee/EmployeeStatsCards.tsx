@@ -30,8 +30,8 @@ function StatCard({
   value: string | number
 }) {
   return (
-    <div className="bg-white rounded-xl shadow p-6">
-      <p className="text-sm text-gray-500">{title}</p>
+    <div className="bg-card text-card-foreground border border-border rounded-xl shadow p-6">
+      <p className="text-sm text-muted-foreground">{title}</p>
       <p className="text-2xl font-bold mt-2">{value}</p>
     </div>
   )

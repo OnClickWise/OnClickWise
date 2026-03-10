@@ -16,7 +16,7 @@ export default function SummaryStatsGrid({ stats }: Props) {
 
 function OverallPerformanceCard({ stats }: any) {
   return (
-    <div className="bg-white rounded-xl shadow p-6">
+    <div className="bg-card text-card-foreground rounded-xl shadow border border-border p-6">
       <h4 className="text-lg font-semibold mb-4">
         Overall Performance
       </h4>
@@ -32,7 +32,7 @@ function OverallPerformanceCard({ stats }: any) {
 
 function ConversationActivityCard({ stats }: any) {
   return (
-    <div className="bg-white rounded-xl shadow p-6">
+    <div className="bg-card text-card-foreground rounded-xl shadow border border-border p-6">
       <h4 className="text-lg font-semibold mb-4">
         Conversation Activity
       </h4>
@@ -48,7 +48,7 @@ function ConversationActivityCard({ stats }: any) {
 
 function FunnelAnalysisCard({ stats }: any) {
   return (
-    <div className="bg-white rounded-xl shadow p-6">
+    <div className="bg-card text-card-foreground rounded-xl shadow border border-border p-6">
       <h4 className="text-lg font-semibold mb-4">
         Funnel Analysis
       </h4>
@@ -65,7 +65,7 @@ function FunnelAnalysisCard({ stats }: any) {
 function StatRow({ label, value }: any) {
   return (
     <div className="flex justify-between">
-      <span className="text-gray-500">{label}</span>
+      <span className="text-muted-foreground">{label}</span>
       <span className="font-medium">{value ?? '-'}</span>
     </div>
   )

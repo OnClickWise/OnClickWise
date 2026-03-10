@@ -6,12 +6,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
+import { useLocale } from "next-intl";
 import { Building2, Mail, Lock, Shield, ArrowLeft, Eye } from "lucide-react";
 import { OrganizationAvatar } from "@/components/ui/avatar";
 
 export default function CompanyLoginPage() {
   const { loginUser } = useAuth();
   const router = useRouter();
+  const locale = useLocale();
 
   const companyInfo = {
     name: "Empresa Exemplo",
@@ -38,7 +40,7 @@ export default function CompanyLoginPage() {
       const result = await loginUser(formData);
 
       // ⚡ Redireciona para dashboard da organização
-      router.push(`/${result.organization.slug}/dashboard`);
+      router.push(`/${locale}/${result.organization.slug}/dashboard`);
     } catch (err: any) {
       console.error("Login error:", err);
       setError(err.message || "Erro ao entrar na plataforma");

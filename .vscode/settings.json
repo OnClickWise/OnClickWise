@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^\\$files = @\\(\n  \"boardService\\.ts\",\n  \"cardService\\.ts\",\n  \"cardAttachmentService\\.ts\",\n  \"cardChecklistService\\.ts\",\n  \"cardCommentService\\.ts\",\n  \"cardDueDateService\\.ts\",\n  \"cardLabelService\\.ts\",\n  \"cardMemberService\\.ts\",\n  \"listService\\.ts\",\n  \"projectService\\.ts\"\n\\)\n\\$basePath = \"C:\\\\Users\\\\vinio\\\\OneDrive\\\\Área de Trabalho\\\\OnClickWise\\\\src\\\\services\"\nforeach \\(\\$f in \\$files\\) \\{\n  \\$path = Join-Path \\$basePath \\$f\n  if \\(Test-Path \\$path\\) \\{\n    \\$content = Get-Content \\$path -Raw\n    \\$newContent = \\$content -replace 'const API_BASE_URL = process\\\\\\.env\\\\\\.NEXT_PUBLIC_API_BASE_URL;', 'const API_BASE_URL = `\\$\\{process\\.env\\.NEXT_PUBLIC_API_BASE_URL\\}/api`;'\n    Set-Content \\$path \\$newContent -NoNewline\n    Write-Host \"Fixed: \\$f\"\n  \\} else \\{\n    Write-Host \"Not found: \\$f\"\n  \\}\n\\}$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}

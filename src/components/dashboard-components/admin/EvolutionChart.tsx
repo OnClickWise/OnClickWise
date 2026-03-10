@@ -12,7 +12,7 @@ import ChartTooltip from '../shared/ChartTooltip'
 
 export default function EvolutionChart({ stats }: any) {
   return (
-    <div className="bg-white p-6 rounded-xl shadow h-96">
+    <div className="bg-card text-card-foreground p-6 rounded-xl shadow border border-border h-96">
       <h3 className="text-lg font-semibold mb-4">Leads Evolution</h3>
 
       <ResponsiveContainer width="100%" height="100%">

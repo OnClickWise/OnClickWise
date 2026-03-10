@@ -8,7 +8,7 @@ export default function ConversationsCard({ stats }: Props) {
   const conversations = stats?.conversationStats || []
 
   return (
-    <div className="bg-white rounded-xl shadow p-6">
+    <div className="bg-card text-card-foreground rounded-xl shadow border border-border p-6">
       <h3 className="text-lg font-semibold mb-6">
         Conversation Performance
       </h3>
@@ -27,14 +27,14 @@ export default function ConversationsCard({ stats }: Props) {
                 <span>{activityRate}% active</span>
               </div>
 
-              <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+              <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
                 <div
                   className="h-full bg-indigo-500 transition-all duration-500"
                   style={{ width: `${activityRate}%` }}
                 />
               </div>
 
-              <div className="flex justify-between text-xs text-gray-500">
+              <div className="flex justify-between text-xs text-muted-foreground">
                 <span>{conv.active} active</span>
                 <span>{conv.total} total</span>
               </div>
@@ -43,7 +43,7 @@ export default function ConversationsCard({ stats }: Props) {
         })}
 
         {conversations.length === 0 && (
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-muted-foreground">
             No conversation data available.
           </p>
         )}

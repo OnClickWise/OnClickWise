@@ -1,12 +1,37 @@
 'use client';
 
+
+import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Building2, ArrowLeft, Mail } from 'lucide-react';
 import { Logo } from '@/components/Logo';
+import { forgotPassword } from '@/services/authService';
+import { useRouter } from 'next/navigation';
 
 export default function ForgotPasswordPage() {
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+  const router = useRouter();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSuccess(false);
+    setLoading(true);
+    try {
+      await forgotPassword(email);
+      setSuccess(true);
+    } catch (err: any) {
+      setError(err.message || 'Erro ao enviar instruções');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen w-full flex bg-white">
+    <div className="min-h-screen w-full flex bg-background text-foreground transition-colors">
       {/* LEFT */}
       <div className="w-full lg:w-1/2 h-screen flex justify-center px-4 sm:px-6">
         <div className="w-full max-w-md py-10">
@@ -24,7 +49,7 @@ export default function ForgotPasswordPage() {
               </p>
             </div>
 
-            <form className="space-y-5">
+            <form className="space-y-5" onSubmit={handleSubmit}>
               <div>
                 <label className="text-sm font-medium text-gray-700">
                   E-mail
@@ -36,20 +61,29 @@ export default function ForgotPasswordPage() {
                     type="email"
                     placeholder="email@empresa.com"
                     className="pl-10 h-11 rounded-lg"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    required
                   />
                 </div>
               </div>
 
+
+              {error && <div className="text-red-500 text-sm">{error}</div>}
+              {success && <div className="text-green-600 text-sm">Instruções enviadas para seu e-mail.</div>}
+
               <button
                 type="submit"
-                className="w-full h-11 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold flex items-center justify-center"
+                className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg font-semibold flex items-center justify-center transition-colors"
+                disabled={loading}
               >
-                Enviar instruções
+                {loading ? 'Enviando...' : 'Enviar instruções'}
               </button>
 
               <button
                 type="button"
-                className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-blue-600 hover:underline"
+                className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-primary hover:underline"
+                onClick={() => router.push('/login')}
               >
                 <ArrowLeft className="w-4 h-4" />
                 Voltar para login

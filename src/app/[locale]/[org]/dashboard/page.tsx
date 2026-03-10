@@ -15,12 +15,12 @@ export default function DashboardPage() {
   const org =
     typeof params?.org === 'string' ? params.org : ''
 
+  const { role, data, loading, error } =
+    useDashboardData(org)
+
   if (!org) {
     return <div>Invalid tenant</div>
   }
-
-  const { role, data, loading, error } =
-    useDashboardData(org)
 
   const DashboardComponent = useMemo(() => {
     const map: Record<UserRole, ReactNode> = {
@@ -41,8 +41,17 @@ export default function DashboardPage() {
 
   return (
     <DashboardLayoutWrapper org={org}>
-      {loading && <div>Loading...</div>}
-      {error && <div>Error loading dashboard</div>}
+      {loading && (
+        <div className="flex items-center justify-center h-40 text-muted-foreground">
+          Carregando dashboard...
+        </div>
+      )}
+      {error && (
+        <div className="flex flex-col items-center justify-center h-40 gap-3 text-muted-foreground">
+          <p className="text-lg font-medium">Não foi possível conectar ao servidor</p>
+          <p className="text-sm">Verifique se o backend está rodando em <code className="bg-muted px-1 rounded">http://localhost:3000</code></p>
+        </div>
+      )}
       {!loading && !error && DashboardComponent}
     </DashboardLayoutWrapper>
   )

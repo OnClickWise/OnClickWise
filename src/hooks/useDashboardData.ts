@@ -5,6 +5,8 @@ import {
   DashboardResponse,
   UserRole,
 } from '@/types/dashboard'
+import { getCurrentUser } from '@/services/authService'
+import { getAccessTokenFromCookie } from '@/lib/cookies'
 
 interface UseDashboardReturn {
   role: UserRole
@@ -38,27 +40,73 @@ export function useDashboardData(org: string): UseDashboardReturn {
         setLoading(true)
         setError(false)
 
-        const token = localStorage.getItem('token')
+        const BASE = process.env.NEXT_PUBLIC_API_BASE_URL
+        const token = getAccessTokenFromCookie() || localStorage.getItem('token')
+        const headers: HeadersInit = {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        }
+        const signal = controller.signal
 
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/dashboard/${org}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-            signal: controller.signal,
-          }
+        // Get user info (role + organization_id)
+        const user = await getCurrentUser()
+        const userRole = (user?.role || 'employee') as UserRole
+        const orgId = user?.organization_id
+
+        setRole(userRole)
+
+        // Fetch leads and pipeline stages in parallel
+        const [leadsRes, stagesRes] = await Promise.all([
+          fetch(`${BASE}/api/leads`, { headers, signal }),
+          orgId
+            ? fetch(`${BASE}/api/pipeline-stages/${orgId}`, { headers, signal })
+            : Promise.resolve(null),
+        ])
+
+        // Parse leads
+        let leads: DashboardResponse['leads'] = []
+        if (leadsRes.ok) {
+          const leadsJson = await leadsRes.json()
+          leads = Array.isArray(leadsJson)
+            ? leadsJson
+            : (leadsJson.data ?? leadsJson.leads ?? [])
+        }
+
+        // Parse pipeline stages
+        let pipelineStages: DashboardResponse['pipelineStages'] = []
+        if (stagesRes && stagesRes.ok) {
+          const stagesJson = await stagesRes.json()
+          pipelineStages = Array.isArray(stagesJson)
+            ? stagesJson
+            : (stagesJson.data ?? [])
+        }
+
+        // Calculate stats from leads
+        const totalLeads = leads.length
+        const totalRevenue = leads.reduce(
+          (sum, l) => sum + (parseFloat(String(l.value)) || 0),
+          0
         )
+        const wonLeads = leads.filter(
+          (l) => l.status === 'won' || l.status === 'converted'
+        ).length
+        const conversionRate =
+          totalLeads > 0 ? Math.round((wonLeads / totalLeads) * 100) : 0
+        const avgTicket =
+          totalLeads > 0 ? Math.round(totalRevenue / totalLeads) : 0
 
-        if (!res.ok) throw new Error()
-
-        const result: DashboardResponse = await res.json()
-
-        setRole(result.role)
         setData({
-          stats: result.stats,
-          leads: result.leads,
-          pipelineStages: result.pipelineStages,
+          stats: {
+            totalLeads,
+            totalRevenue,
+            conversionRate,
+            avgTicket,
+            openLeads: leads.filter((l) => l.status === 'open').length,
+            wonLeads,
+            lostLeads: leads.filter((l) => l.status === 'lost').length,
+          },
+          leads,
+          pipelineStages,
         })
       } catch (err: unknown) {
         if ((err as Error).name !== 'AbortError') {

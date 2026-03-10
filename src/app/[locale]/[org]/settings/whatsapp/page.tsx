@@ -13,10 +13,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useApi } from "@/hooks/useapi";
+import { useApi } from "@/hooks/useApi";
+import { useParams } from "next/navigation";
 
-export default function WhatsappSettingsPage({ org }: { org: string }) {
-  const api = useApi();
+export default function WhatsappSettingsPage() {
+  const params = useParams();
+  const org = typeof params?.org === 'string' ? params.org : '';
+  const { apiCall } = useApi();
   
   // Estados de Controle
   const [loading, setLoading] = useState(true);
@@ -32,45 +35,55 @@ export default function WhatsappSettingsPage({ org }: { org: string }) {
     phoneNumber: "",
   });
 
-  // Simulação de carregamento inicial
   useEffect(() => {
+    if (!org) return;
     const fetchAccount = async () => {
       setLoading(true);
-      // Aqui você chamaria: const res = await api.get(`/whatsapp/account/${org}`);
-      setTimeout(() => {
-        // Exemplo de conta já existente (mudar para null para ver o formulário vazio)
-        setWhatsappAccount({
-          id: "uuid-123",
-          twilio_account_name: "Suporte Central",
-          phone_number: "+5511999999999",
-          is_active: true,
-          status: "connected", // connected, pending_verification, disconnected
-          created_at: new Date().toISOString()
-        });
+      try {
+        const res = await apiCall(`/whatsapp/accounts?orgSlug=${org}`);
+        if (res && res.data) {
+          setWhatsappAccount(res.data);
+        } else {
+          setWhatsappAccount(null);
+        }
+      } catch {
+        setWhatsappAccount(null);
+      } finally {
         setLoading(false);
-      }, 800);
+      }
     };
     fetchAccount();
-  }, [org]);
+  }, [org, apiCall]);
 
   const handleLinkAccount = async () => {
     setSaving(true);
     try {
-      // Chamada real para o backend:
-      // await api.post('/whatsapp/account', { ...formData, orgSlug: org });
-      console.log("Provisionando subconta para:", formData);
-      
-      // Simulação de sucesso
-      setWhatsappAccount({
-        twilio_account_name: formData.friendlyName,
-        phone_number: formData.phoneNumber,
-        is_active: true,
-        status: "pending_verification"
+      const method = whatsappAccount ? 'PUT' : 'POST';
+      const endpoint = whatsappAccount
+        ? `/whatsapp/accounts/${whatsappAccount.id}`
+        : '/whatsapp/accounts';
+      const res = await apiCall(endpoint, {
+        method,
+        body: JSON.stringify({ ...formData, orgSlug: org }),
       });
+      if (res && res.data) {
+        setWhatsappAccount(res.data);
+      }
     } catch (err) {
-      console.error(err);
+      console.error('Erro ao provisionar conta WhatsApp:', err);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!whatsappAccount?.id) return;
+    try {
+      await apiCall(`/whatsapp/accounts/${whatsappAccount.id}`, { method: 'DELETE' });
+      setWhatsappAccount(null);
+      setShowConfirmDelete(false);
+    } catch (err) {
+      console.error('Erro ao desconectar conta WhatsApp:', err);
     }
   };
 
@@ -263,7 +276,7 @@ export default function WhatsappSettingsPage({ org }: { org: string }) {
             </DialogHeader>
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowConfirmDelete(false)}>Cancelar</Button>
-              <Button variant="destructive">Confirmar Desconexão</Button>
+              <Button variant="destructive" onClick={handleDeleteAccount}>Confirmar Desconexão</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

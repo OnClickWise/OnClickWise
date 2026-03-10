@@ -72,7 +72,7 @@ export function NavUser({
     
     // Redirecionar para a página de login da empresa
     if (organizationSlug && organizationSlug !== 'undefined') {
-      router.push(`/${organizationSlug}/login`)
+      router.push(`/${locale}/${organizationSlug}/login`)
     } else {
       // Fallback para página inicial se não conseguir determinar a organização
       router.push('/')
@@ -145,7 +145,7 @@ export function NavUser({
             <DropdownMenuGroup>
               <DropdownMenuItem 
                 className="cursor-pointer"
-                onClick={() => router.push(`/${orgSlug}/settings/account`)}
+                onClick={() => router.push(`/${locale}/${orgSlug}/settings/account`)}
               >
                 <BadgeCheck />
                 {t('account')}
