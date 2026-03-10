@@ -1,3 +1,4 @@
+"use client";
 
 import { useState } from "react";
 import { createBoard, updateBoard, deleteBoard, CreateBoardRequest, Board } from "../services/boardService";

@@ -1,3 +1,5 @@
+"use client";
+
 import { useBoardForm } from "@/hooks/useBoardForm";
 import { BoardForm } from "@/components/BoardForm";
 import { useParams, useRouter } from "next/navigation";

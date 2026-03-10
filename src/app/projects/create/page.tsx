@@ -1,3 +1,5 @@
+"use client";
+
 import { useProjectForm } from "@/hooks/useProjectForm";
 import { ProjectForm } from "@/components/ProjectForm";
 import { useRouter } from "next/navigation";

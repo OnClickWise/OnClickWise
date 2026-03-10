@@ -1,3 +1,4 @@
+"use client";
 
 import { useState } from "react";
 import { createProject, updateProject, deleteProject, CreateProjectRequest, Project } from "../services/projectService";
