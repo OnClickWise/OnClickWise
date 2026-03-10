@@ -194,6 +194,7 @@
     "employees": "Funcionários",
     "users": "Usuários",
     "organization": "Organização",
+    "whatsappSettings": "Configurações WhatsApp",
     "telegramSettings": "Configurações Telegram"
   },
   "Auth": {

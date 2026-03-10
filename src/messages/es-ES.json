@@ -25,6 +25,7 @@
     "employees": "Empleados",
     "users": "Usuarios",
     "organization": "Organización",
+    "whatsappSettings": "Configuración de WhatsApp",
     "telegramSettings": "Configuración de Telegram"
   },
   "Auth": {

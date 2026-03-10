@@ -34,7 +34,7 @@ export default function ProjectBoardsPage() {
               href={`./board-kanban-page?boardId=${board.id}`}
               style={{ color: "#0070f3", textDecoration: "underline", cursor: "pointer" }}
             >
-              {board.name}
+              {board.title}
             </a>
           </li>
         ))}

@@ -58,9 +58,12 @@ function BoardCard({ board, onClick }: { board: Board; onClick: () => void }) {
   const colorObj = BOARD_COLORS.find((c) => c.id === board.color) || BOARD_COLORS[0];
   const [starred, setStarred] = useState(false);
   return (
-    <button
+    <div
       onClick={onClick}
-      className="group relative w-full h-[100px] rounded-2xl overflow-hidden text-left shadow-sm hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200"
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => e.key === "Enter" && onClick()}
+      className="group relative w-full h-[100px] rounded-2xl overflow-hidden text-left shadow-sm hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
       style={{ background: colorObj.gradient }}
     >
       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition duration-200" />
@@ -68,12 +71,13 @@ function BoardCard({ board, onClick }: { board: Board; onClick: () => void }) {
         {board.title}
       </span>
       <button
+        type="button"
         onClick={(e) => { e.stopPropagation(); setStarred((s) => !s); }}
         className={`absolute top-2 right-2 p-1 rounded-md transition ${starred ? "opacity-100 text-yellow-300" : "opacity-0 group-hover:opacity-100 text-white hover:bg-black/20"}`}
       >
         <Star className={`w-3.5 h-3.5 ${starred ? "fill-current" : ""}`} />
       </button>
-    </button>
+    </div>
   );
 }
 
