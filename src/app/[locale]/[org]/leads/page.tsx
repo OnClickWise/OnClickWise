@@ -621,7 +621,6 @@ export default function LeadsPage({
     phone: true,
     ssn: false,
     ein: false,
-    source: true,
     status: true,
     value: false,
     estimatedCloseDate: false,
@@ -636,7 +635,6 @@ export default function LeadsPage({
     "phone",
     "ssn",
     "ein",
-    "source",
     "status",
     "value",
     "estimatedCloseDate",
@@ -791,7 +789,6 @@ export default function LeadsPage({
     phone: t("columns.phone"),
     ssn: t("columns.ssn"),
     ein: t("columns.ein"),
-    source: t("columns.source"),
     status: t("columns.status"),
     value: t("columns.value"),
     location: t("columns.location"),
@@ -809,7 +806,6 @@ export default function LeadsPage({
       "phone",
       "ssn",
       "ein",
-      "source",
       "status",
       "value",
       "estimatedCloseDate",
@@ -822,7 +818,6 @@ export default function LeadsPage({
       phone: "phone",
       ssn: "ssn",
       ein: "ein",
-      source: "source",
       status: "status",
       value: "value",
       estimatedCloseDate: "estimated_close_date",
@@ -836,7 +831,6 @@ export default function LeadsPage({
       phone: "min-w-[100px] max-w-[120px] w-[120px]",
       ssn: "min-w-[90px] max-w-[100px] w-[100px]",
       ein: "min-w-[90px] max-w-[100px] w-[100px]",
-      source: "min-w-[100px] max-w-[140px] w-[140px]",
       status: "min-w-[80px] max-w-[90px] w-[90px]",
       value: "min-w-[80px] max-w-[90px] w-[90px]",
       estimatedCloseDate: "min-w-[90px] max-w-[100px] w-[100px]",
@@ -962,17 +956,6 @@ export default function LeadsPage({
           <td key={columnId} className="py-2.5 px-2 border-r border-border/30">
             <div className="truncate text-xs font-mono" title={lead.ein}>
               {lead.ein || "-"}
-            </div>
-          </td>
-        );
-      case "source":
-        return (
-          <td
-            key={columnId}
-            className="py-2.5 px-2 border-r border-border/30 max-w-[140px]"
-          >
-            <div className="truncate text-xs max-w-full" title={lead.source}>
-              {lead.source || "-"}
             </div>
           </td>
         );
@@ -7825,21 +7808,6 @@ export default function LeadsPage({
 
                     <div className="space-y-2">
                       <label className="mb-2 block text-sm font-medium leading-tight">
-                        {t("form.source")}
-                      </label>
-
-                      <Input
-                        placeholder={t("form.sourcePlaceholder")}
-                        value={source}
-                        onChange={(e) =>
-                          setSource(e.target.value.slice(0, FIELD_MAX.source))
-                        }
-                        maxLength={FIELD_MAX.source}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="mb-2 block text-sm font-medium leading-tight">
                         {t("form.location")}
                       </label>
                       <Input
@@ -9545,18 +9513,6 @@ export default function LeadsPage({
                     />
                   </div>
                 )}
-
-                <div className="space-y-2">
-                  <label className="mb-2 block text-sm font-medium">
-                    {t("bulk.source")}
-                  </label>
-
-                  <Input
-                    placeholder={t("bulk.leaveEmptyUnchanged")}
-                    value={bulkSource}
-                    onChange={(e) => setBulkSource(e.target.value)}
-                  />
-                </div>
 
                 <Separator />
 

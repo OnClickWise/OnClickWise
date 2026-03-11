@@ -123,8 +123,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     try {
       const result = await register(data);
-      const currentUser = await getCurrentUser();
-      setUser(currentUser);
+      // getCurrentUser é opcional — não deve derrubar o cadastro se falhar
+      try {
+        const currentUser = await getCurrentUser();
+        setUser(currentUser);
+      } catch {
+        // silencia: conta criada, login será feito na próxima tela
+      }
       return result;
     } catch (err) {
       setUser(null);

@@ -279,7 +279,6 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
       icon: Users,
       items: [
         { title: t('leadList'), url: `/${locale}/${org}/leads` },
-        { title: t('captureSources'), url: `/${locale}/${org}/leads/sources` },
       ],
     },
     {
@@ -297,8 +296,7 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
       url: `/${locale}/${org}/crm`,
       icon: KanbanSquare,
       items: [
-        { title: t('opportunities'), url: `/${locale}/${org}/crm/opportunities` },
-        { title: t('pipeline'), url: `/${locale}/${org}/crm/pipeline` },
+        { title: t('opportunities'), url: `/${locale}/${org}/crm/pipeline` },
         { title: t('reports'), url: `/${locale}/${org}/crm/reports` },
       ],
     },
@@ -418,8 +416,8 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
         </div>
       </SidebarHeader>
 
-      {/* CONTEÚDO PRINCIPAL */}
-      <SidebarContent>
+      /* CONTEÚDO PRINCIPAL */
+      <SidebarContent className="overflow-y-auto">
         <NavMain items={data.navMain} />
       </SidebarContent>
 
