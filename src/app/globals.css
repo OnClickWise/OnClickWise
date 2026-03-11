@@ -599,69 +599,50 @@ button[aria-label="Close"] {
    SCROLLBAR CUSTOMIZADA - ESQUERDA
    ======================================== */
 /* Área com scroll (conteúdo da sidebar) */
-[data-sidebar-content] {
-  overflow-y: auto !important; /* Ativar scroll vertical */
-  overflow-x: visible !important; /* Manter overflow horizontal para as curvas */
-  scrollbar-width: thin; /* Firefox: scrollbar fina */
-  scrollbar-color: rgba(255, 255, 255, 0.3) transparent; /* Firefox: cor da scrollbar */
-  direction: rtl; /* Inverte a direção para scrollbar ficar à esquerda */
-  padding-right: 0 !important;
-  padding-left: 6px !important; /* Espaço para a scrollbar à esquerda */
+[data-sidebar="content"] {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+  flex: 1 1 0% !important;
+  min-height: 0 !important;
+  /* remove max-height - agora o flex layout controla corretamente */
 }
 
-/* Inverter a direção do conteúdo de volta ao normal */
-[data-sidebar-content] > * {
-  direction: ltr !important; /* Conteúdo volta ao normal (left to right) */
+[data-sidebar="content"]::-webkit-scrollbar {
+  width: 4px;
 }
-
-/* Webkit (Chrome, Safari, Edge) - Scrollbar customizada */
-[data-sidebar-content]::-webkit-scrollbar {
-  width: 6px; /* Largura da scrollbar */
+[data-sidebar="content"]::-webkit-scrollbar-track {
+  background: transparent;
 }
-
-/* Track (fundo da scrollbar) */
-[data-sidebar-content]::-webkit-scrollbar-track {
-  background: transparent; /* Fundo transparente */
-  margin: 8px 0; /* Margem top/bottom */
+[data-sidebar="content"]::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 10px;
 }
-
-/* Thumb (a barra que você arrasta) */
-[data-sidebar-content]::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.3); /* Branco semi-transparente */
-  border-radius: 10px; /* Bordas arredondadas */
-  transition: background 0.3s ease;
-}
-
-/* Thumb no hover */
-[data-sidebar-content]::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.5); /* Mais visível no hover */
-}
-
-/* Thumb ao clicar */
-[data-sidebar-content]::-webkit-scrollbar-thumb:active {
-  background: rgba(255, 255, 255, 0.7); /* Ainda mais visível ao arrastar */
+[data-sidebar="content"]::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
 }
 
 /* SidebarGroup com overflow visible para as curvas */
-[data-sidebar-group] {
+[data-sidebar="group"] {
   overflow: visible !important;
 }
 
 /* SidebarMenu com overflow visible para as curvas */
-[data-sidebar-menu] {
+[data-sidebar="menu"] {
   overflow: visible !important;
 }
 
 /* MenuItem com overflow visible para as curvas */
-[data-sidebar-menu-item] {
+[data-sidebar="menu-item"] {
   overflow: visible !important;
 }
 
 /* MOBILE: Impedir overflow dos elementos da sidebar */
 @media (max-width: 767px) {
-  [data-sidebar-group],
-  [data-sidebar-menu],
-  [data-sidebar-menu-item] {
+  [data-sidebar="group"],
+  [data-sidebar="menu"],
+  [data-sidebar="menu-item"] {
     overflow: hidden !important;
   }
   
@@ -1712,12 +1693,26 @@ button[data-sidebar="menu-button"][data-size="lg"].nav-user-active:hover > span[
 /* Container da sidebar sem borda direita para não interferir */
 div[data-slot="sidebar-container"] {
   border-right: none !important;
-  overflow: visible !important;
+  overflow: hidden !important;
 }
 
-/* Inner da sidebar sem borda */
+/* Inner da sidebar - flex column para header/content/footer funcionarem */
 div[data-slot="sidebar-inner"] {
-  overflow: visible !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+}
+
+/* Header fixo no topo */
+[data-slot="sidebar-header"] {
+  flex-shrink: 0 !important;
+}
+
+/* Footer fixo na base */
+[data-slot="sidebar-footer"] {
+  flex-shrink: 0 !important;
+  margin-top: auto;
 }
 
 /* Espaçamento do grupo de menu */

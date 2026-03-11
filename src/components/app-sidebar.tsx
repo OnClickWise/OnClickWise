@@ -44,10 +44,11 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
   const t = useTranslations('Sidebar')
   const tOrg = useTranslations('Organization')
   const locale = useLocale()
-  // Initialize role synchronously from token to avoid flash on F5
-  const getInitialRole = (): string => {
+  // Always start with 'employee' so server and client render the same HTML (no hydration mismatch)
+  // Role will be updated from localStorage inside useEffect after mount
+  const getRoleFromToken = (): string => {
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+      const token = localStorage.getItem('token')
       if (token) {
         const parts = token.split('.')
         if (parts.length === 3) {
@@ -67,7 +68,7 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
     name: "",
     email: "",
     avatar: "",
-    role: getInitialRole(),
+    role: 'employee', // always start with 'employee' on both server and client
   })
   const [orgData, setOrgData] = React.useState({
     name: "",
@@ -89,7 +90,7 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
             name: t('account') || "User",
             email: "user@example.com",
             avatar: generateAvatar(t('account') || "User"),
-            role: "Member",
+            role: getRoleFromToken(),
           });
           setOrgData({
             name: tOrg('name') || "Organization",
@@ -121,12 +122,12 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
             })
           }
         } catch (error) {
-          // Fallback data when API is not available
+          // Fallback data when API is not available — use role from token to avoid wrong nav filtering
           setUserData({
             name: t('account') || "User",
             email: "user@example.com",
             avatar: generateAvatar(t('account') || "User"),
-            role: "employee",
+            role: getRoleFromToken(),
           })
         }
 
@@ -420,7 +421,7 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="overflow-y-auto max-h-screen scrollbar-thin scrollbar-thumb-sidebar-accent">
+      <SidebarContent>
         <NavMain items={data.navMain} />
       </SidebarContent>
 
