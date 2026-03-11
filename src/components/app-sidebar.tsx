@@ -12,7 +12,7 @@ import {
   BarChart3,
   LayoutDashboard,
 } from "lucide-react"
-import { FaWhatsapp, FaTelegram } from "react-icons/fa"
+import { FaWhatsapp, FaTelegram, FaInstagram, FaFacebookMessenger } from "react-icons/fa"
 import { SiGmail } from "react-icons/si"
 import { usePathname } from "next/navigation"
 import { useTranslations, useLocale } from "next-intl"
@@ -82,9 +82,9 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
       try {
         const token = localStorage.getItem('token');
         const organizationStr = localStorage.getItem('organization');
-        
-        if (!token || !organizationStr) {
-          // Set fallback data
+
+        // Sem token: nenhuma chamada possível, usa fallback
+        if (!token) {
           setUserData({
             name: t('account') || "User",
             email: "user@example.com",
@@ -132,7 +132,7 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
 
         // Try to fetch organization data from API
         try {
-          const orgResponse = await apiCall('/auth/user-organization', {
+          const orgResponse = await apiCall('/organization/user-organization', {
             method: 'GET',
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -144,17 +144,17 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
             setOrgData({
               name: orgResponse.organization.name || tOrg('name') || "Organization",
               logo_url: orgResponse.organization.logo_url,
-              plan: tOrg('enterprise') || "Enterprise",
+              plan: orgResponse.organization.plan || tOrg('enterprise') || "Enterprise",
             })
           }
         } catch (error) {
           // Fallback to localStorage data
           try {
-            const organization = JSON.parse(organizationStr);
+            const organization = organizationStr ? JSON.parse(organizationStr) : null;
             setOrgData({
-              name: organization.name || tOrg('name') || "Organization",
-              logo_url: organization.logo_url,
-              plan: tOrg('enterprise') || "Enterprise",
+              name: organization?.name || tOrg('name') || "Organization",
+              logo_url: organization?.logo_url,
+              plan: organization?.plan || tOrg('enterprise') || "Enterprise",
             })
           } catch (parseError) {
             setOrgData({
@@ -188,7 +188,7 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
           const token = localStorage.getItem('token');
           if (!token) return;
 
-          const orgResponse = await apiCall('/auth/user-organization', {
+          const orgResponse = await apiCall('/organization/user-organization', {
             method: 'GET',
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -257,11 +257,13 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
   }, [isClient, apiCall])
   
   // Use organization data from API
+  // Forçar reload da logo ao mudar (evita cache)
+  const logoUrlWithTimestamp = dataLoaded && orgData.logo_url
+    ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}${orgData.logo_url}?t=${Date.now()}`
+    : dataLoaded ? generateOrgLogo(orgData.name) : null;
   const organizationData = {
     name: dataLoaded ? orgData.name : "",
-    logo: dataLoaded && orgData.logo_url 
-      ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}${orgData.logo_url}` 
-      : dataLoaded ? generateOrgLogo(orgData.name) : null,
+    logo: logoUrlWithTimestamp,
     plan: dataLoaded ? orgData.plan : "",
   }
 
@@ -315,6 +317,8 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
       items: [
         { title: t('whatsapp'), url: `/${locale}/${org}/chats/whatsapp`, icon: <FaWhatsapp className="w-4 h-4" /> },
         { title: t('telegram'), url: `/${locale}/${org}/chats/telegram`, icon: <FaTelegram className="w-4 h-4" /> },
+        { title: t('instagram'), url: `/${locale}/${org}/chats/instagram`, icon: <FaInstagram className="w-4 h-4" /> },
+        { title: t('messenger'), url: `/${locale}/${org}/chats/messenger`, icon: <FaFacebookMessenger className="w-4 h-4" /> },
         { title: t('email'), url: `/${locale}/${org}/chats/email`, icon: <SiGmail className="w-4 h-4" /> },
       ],
     },
@@ -416,8 +420,7 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
         </div>
       </SidebarHeader>
 
-      /* CONTEÚDO PRINCIPAL */
-      <SidebarContent className="overflow-y-auto">
+      <SidebarContent className="overflow-y-auto max-h-screen scrollbar-thin scrollbar-thumb-sidebar-accent">
         <NavMain items={data.navMain} />
       </SidebarContent>
 

@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import { Search, Plus, Download, Upload, Trash2, Edit, X, ChevronDown, CheckCircle2, AlertTriangle, AlertCircle, Check, Filter, XCircle, ArrowUp, ArrowDown, Eye, Phone, Mail, Calendar, User, Building2, File, FileText, Image, FileImage, FileVideo, FileAudio, Archive, Loader2, Trash, MessageCircle, Send, Info, Settings2, DollarSign, Briefcase, CreditCard, FileDigit, MapPin, Tag, Clock, Hash, UserPlus, Copy, MoreVertical, Bot } from "lucide-react"
+import { Search, Plus, Download, Upload, Trash2, Edit, X, ChevronDown, CheckCircle2, AlertTriangle, AlertCircle, Check, Filter, XCircle, ArrowUp, ArrowDown, Eye, Phone, Mail, Calendar, User, Building2, File, FileText, Image, FileImage, FileVideo, FileAudio, Archive, Loader2, Trash, MessageCircle, Send, Info, Settings2, DollarSign, Briefcase, CreditCard, FileDigit, MapPin, Tag, Clock, Hash, UserPlus, Copy, MoreVertical, Bot, KanbanSquare } from "lucide-react"
 import * as XLSX from "xlsx"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 // IMPORTANTE: Interface Attachment foi importada para resolver os problemas de tipagem (Implicit any type)
@@ -700,6 +700,7 @@ export default function PipelinePage({
   const [selectedUserId, setSelectedUserId] = React.useState<string>("")
   const [availableUsers, setAvailableUsers] = React.useState<any[]>([])
   const [isLoadingUsers, setIsLoadingUsers] = React.useState(false)
+  const [loadingStages, setLoadingStages] = React.useState(true)
   const [isLinkingLead, setIsLinkingLead] = React.useState(false)
 
   const [isAttachmentDragActive, setIsAttachmentDragActive] = React.useState(false)
@@ -753,14 +754,22 @@ export default function PipelinePage({
   React.useEffect(() => {
     const loadStages = async () => {
       if (!isClient || stagesLoadedRef.current) return
+      setLoadingStages(true)
       try {
         const response = await pipelineService.getStages()
         if (!response || response.success === false) {
           console.error('❌ [Pipeline] Failed to load stages:', response?.error)
+          stagesLoadedRef.current = true
           return
         }
         const stagesData = response.data || response
         if (stagesData && Array.isArray(stagesData)) {
+          // Always mark as loaded even if empty
+          stagesLoadedRef.current = true
+          if (stagesData.length === 0) {
+            setPipelineStages([])
+            return
+          }
           const stagesWithLeads = stagesData.map((stage: any) => ({ ...stage, leads: [] }))
           const defaultStageTypes: { [key: string]: 'entry' | 'progress' | 'won' | 'lost' } = {
             'new': 'entry', 'novos-leads': 'entry', 'new-leads': 'entry', 'contact': 'progress', 'em-contato': 'progress', 'in-contact': 'progress', 'qualified': 'progress', 'qualificados': 'progress', 'won': 'won', 'ganhos': 'won', 'fechados': 'won', 'closed': 'won', 'lost': 'lost', 'perdidos': 'lost'
@@ -788,10 +797,14 @@ export default function PipelinePage({
           } else {
             setPipelineStages(stagesWithLeads)
           }
+        } else {
           stagesLoadedRef.current = true
         }
       } catch (error) {
         console.error('❌ [Pipeline] Error loading stages:', error)
+        stagesLoadedRef.current = true
+      } finally {
+        setLoadingStages(false)
       }
     }
     loadStages()
@@ -2401,9 +2414,30 @@ export default function PipelinePage({
               )}
             </div>
             
-            {pipelineStages.length === 0 && (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">⏳ Loading pipeline stages...</p>
+            {loadingStages && (
+              <div className="flex items-center justify-center py-12">
+                <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                  <div className="w-6 h-6 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  <p className="text-sm">{t('salesPipeline')}...</p>
+                </div>
+              </div>
+            )}
+
+            {!loadingStages && pipelineStages.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-16 gap-4">
+                <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
+                  <KanbanSquare className="w-8 h-8 text-muted-foreground" />
+                </div>
+                <div className="text-center">
+                  <p className="font-semibold text-base">Nenhuma etapa configurada</p>
+                  <p className="text-sm text-muted-foreground mt-1">Clique em "Gerenciar Etapas" para criar o seu funil de vendas.</p>
+                </div>
+                {canManageStages && (
+                  <Button variant="outline" size="sm" onClick={() => setIsStageManagementOpen(true)}>
+                    <Settings2 className="h-4 w-4 mr-2" />
+                    Gerenciar Etapas
+                  </Button>
+                )}
               </div>
             )}
             

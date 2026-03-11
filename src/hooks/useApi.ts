@@ -21,7 +21,8 @@ export function useApi() {
 
   const apiCall = async (
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit = {},
+    timeoutMs = 15000
   ) => {
     if (typeof window === 'undefined') {
       return { success: false, error: 'Client only' };
@@ -38,6 +39,10 @@ export function useApi() {
       },
       ...options,
     };
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    config.signal = controller.signal;
 
     try {
       const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
@@ -90,6 +95,13 @@ export function useApi() {
 
       return { success: true, ...data };
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        return {
+          success: false,
+          error: 'O servidor demorou muito para responder. Tente novamente.',
+          timeout: true,
+        };
+      }
       return {
         success: false,
         error:
@@ -97,6 +109,8 @@ export function useApi() {
             ? error.message
             : 'Network error',
       };
+    } finally {
+      clearTimeout(timeoutId);
     }
   };
 

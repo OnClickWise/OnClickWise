@@ -22,7 +22,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, User, Mail, Calendar, Shield, Trash2 } from 'lucide-react';
+import { Plus, Search, User, Mail, Calendar, Shield, Trash2, Eye, EyeOff } from 'lucide-react';
 
 interface User {
   id: string;
@@ -62,6 +62,7 @@ export default function UsersPage({
   const [success, setSuccess] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [showDeleteMenu, setShowDeleteMenu] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -496,15 +497,26 @@ export default function UsersPage({
                     <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
                       {t('password')} *
                     </label>
-                    <Input
-                      id="password"
-                      name="password"
-                      type="password"
-                      value={formData.password}
-                      onChange={handleInputChange}
-                      required
-                      placeholder={t('passwordPlaceholder')}
-                    />
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        name="password"
+                        type={showPassword ? 'text' : 'password'}
+                        value={formData.password}
+                        onChange={handleInputChange}
+                        required
+                        placeholder={t('passwordPlaceholder')}
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((p) => !p)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition"
+                        tabIndex={-1}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                   </div>
                   <div>
                     <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">

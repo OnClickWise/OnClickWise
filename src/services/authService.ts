@@ -115,11 +115,13 @@ export async function register(data: any) {
 
   const resData = await res.json();
 
-  if (resData.accessToken) {
-    setAccessTokenCookie(resData.accessToken);
+  // API pode retornar 'accessToken' ou 'token'
+  const tokenValue = resData.accessToken || resData.token;
+  if (tokenValue) {
+    setAccessTokenCookie(tokenValue);
     if (resData.refreshToken) setRefreshTokenCookie(resData.refreshToken);
     if (typeof window !== "undefined") {
-      localStorage.setItem("token", resData.accessToken);
+      localStorage.setItem("token", tokenValue);
       if (resData.organization) {
         localStorage.setItem("organization", JSON.stringify(resData.organization));
       }

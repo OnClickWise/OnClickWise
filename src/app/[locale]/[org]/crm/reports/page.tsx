@@ -68,12 +68,23 @@ export default function CrmReportsPage({
     setLoading(true)
     try {
       const stagesRes = await pipelineService.getStages()
-      if (!stagesRes.success || !stagesRes.data) {
+      // Only error on genuine failures, not on empty data
+      if (stagesRes.success === false) {
         setError('Não foi possível carregar os dados do funil.')
         return
       }
 
-      const rawStages = stagesRes.data as (PipelineStage & { leads?: Lead[] })[]
+      const rawStages = (stagesRes.data ?? stagesRes ?? []) as (PipelineStage & { leads?: Lead[] })[]
+
+      // Empty pipeline — show zero state without error
+      if (!Array.isArray(rawStages) || rawStages.length === 0) {
+        setStages([])
+        setTotalLeads(0)
+        setTotalValue(0)
+        setWonLeads(0)
+        setLostLeads(0)
+        return
+      }
 
       // Try to get all leads for richer data
       let allLeads: Lead[] = []

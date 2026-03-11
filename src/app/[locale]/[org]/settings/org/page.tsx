@@ -128,7 +128,7 @@ export default function OrgPage({
   const loadOrganizationData = async () => {
     setLoading(true);
     try {
-      const response = await apiCall('/auth/user-organization', {
+      const response = await apiCall('/organization/user-organization', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -201,8 +201,8 @@ export default function OrgPage({
         const formData = new FormData();
         formData.append('logo', logoFile);
 
-        const uploadResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/auth/upload-logo`, {
-          method: 'POST',
+        const uploadResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/organization/logo`, {
+          method: 'PATCH',
           headers: {
             'Authorization': `Bearer ${token}`,
           },
@@ -212,22 +212,12 @@ export default function OrgPage({
         const uploadResult = await uploadResponse.json();
 
         if (uploadResult.success) {
-          // Update organization data with new logo URL
-          const updatedOrgData = {
-            ...organizationData,
-            logo_url: uploadResult.logo_url
-          };
-          
-          setOrganizationData(updatedOrgData);
+          // Após upload, recarregar dados da organização do backend
+          await loadOrganizationData();
           setLogoPreview(null);
           setLogoFile(null);
-          
-          // Update original data to prevent double save
-          setOriginalData(updatedOrgData);
-          
-          // Emit event to update sidebar immediately
+          // Emitir evento para Sidebar atualizar
           window.dispatchEvent(new CustomEvent('organizationUpdated'));
-          
           addNotification('success', t('success.logoUploaded'));
           setSaving(false);
           return;
@@ -254,7 +244,7 @@ export default function OrgPage({
         return;
       }
 
-      const response = await apiCall('/auth/update-organization', {
+      const response = await apiCall('/organization/update', {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,

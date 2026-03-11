@@ -64,7 +64,7 @@ export default function BrandingPage({
   const loadBranding = async () => {
     setLoading(true)
     try {
-      const res = await apiCall('/auth/user-organization', {
+      const res = await apiCall('/organization/user-organization', {
         method: 'GET',
         headers: { Authorization: `Bearer ${token}` },
       })
@@ -119,9 +119,9 @@ export default function BrandingPage({
         const formData = new FormData()
         formData.append('logo', logoFile)
         const uploadRes = await fetch(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/auth/upload-logo`,
+          `${process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/organization/logo`,
           {
-            method: 'POST',
+            method: 'PATCH',
             headers: { Authorization: `Bearer ${token}` },
             body: formData,
           }
@@ -154,7 +154,7 @@ export default function BrandingPage({
         return
       }
 
-      const res = await apiCall('/auth/update-organization', {
+      const res = await apiCall('/organization/update', {
         method: 'PUT',
         headers: {
           Authorization: `Bearer ${token}`,

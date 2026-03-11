@@ -94,8 +94,21 @@ export default function RegisterPage() {
           ssn: "",
         },
       });
-      if (result.organization?.slug) {
-        router.push(`/pt/${result.organization.slug}/dashboard`);
+
+      // API pode retornar o slug em caminhos diferentes
+      const orgSlug =
+        result.organization?.slug ||
+        result.slug ||
+        result.data?.organization?.slug ||
+        result.data?.slug;
+
+      if (orgSlug) {
+        router.push(`/pt/${orgSlug}/dashboard`);
+      } else if (result.success !== false) {
+        // Cadastro criado mas slug não retornado: vai para login
+        router.push(`/login`);
+      } else {
+        setError(result.message || result.error || "Erro ao criar a conta. Tente novamente.");
       }
     } catch (err: any) {
       setError(err.message || "Erro ao criar a conta");
