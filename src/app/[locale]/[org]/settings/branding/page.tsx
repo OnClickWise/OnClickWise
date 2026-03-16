@@ -24,6 +24,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { useApi } from '@/hooks/useApi'
 import { useAuth } from '@/hooks/useAuth'
 import { Loader2, Upload, X, ImageIcon, Palette, CheckCircle2 } from 'lucide-react'
+import { getApiBaseUrl, resolveMediaUrl } from '@/lib/api-url'
 
 interface OrgBranding {
   name: string
@@ -55,6 +56,7 @@ export default function BrandingPage({
   const [originalBranding, setOriginalBranding] = useState<OrgBranding>({ ...branding })
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
   const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [logoVersion, setLogoVersion] = useState<number>(Date.now())
   const [uploadError, setUploadError] = useState('')
 
   useEffect(() => {
@@ -77,6 +79,7 @@ export default function BrandingPage({
         }
         setBranding(data)
         setOriginalBranding(data)
+        setLogoVersion(Date.now())
       }
     } catch {
       setError('Não foi possível carregar os dados de branding.')
@@ -119,7 +122,7 @@ export default function BrandingPage({
         const formData = new FormData()
         formData.append('logo', logoFile)
         const uploadRes = await fetch(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/organization/logo`,
+          `${getApiBaseUrl()}/organization/logo`,
           {
             method: 'PATCH',
             headers: { Authorization: `Bearer ${token}` },
@@ -131,6 +134,7 @@ export default function BrandingPage({
           setBranding((prev) => ({ ...prev, logo_url: uploadData.logo_url }))
           setLogoPreview(null)
           setLogoFile(null)
+          setLogoVersion(Date.now())
           window.dispatchEvent(new CustomEvent('organizationUpdated'))
           setSaved(true)
           setSaving(false)
@@ -178,7 +182,11 @@ export default function BrandingPage({
     }
   }
 
-  const currentLogo = logoPreview || branding.logo_url
+  const resolvedLogo = resolveMediaUrl(branding.logo_url)
+  const currentLogo =
+    logoPreview || !resolvedLogo
+      ? logoPreview || resolvedLogo
+      : `${resolvedLogo}${resolvedLogo.includes('?') ? '&' : '?'}t=${logoVersion}`
   const primary = branding.primary_color || '#3B82F6'
   const secondary = branding.secondary_color || '#8B5CF6'
   const hasChanges =

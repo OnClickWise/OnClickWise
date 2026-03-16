@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/sidebar"
 import { generateAvatar, generateOrgLogo } from "@/utils/avatar"
 import { OrganizationAvatar } from "@/components/ui/avatar"
+import { resolveMediaUrl } from "@/lib/api-url"
 
 type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
   org: string
@@ -116,7 +117,7 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
               name: userResponse.user.name || t('account') || "User",
               email: userResponse.user.email || "user@example.com",
               avatar: userResponse.user.profile_image 
-                ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}${userResponse.user.profile_image}` 
+                ? resolveMediaUrl(userResponse.user.profile_image) || generateAvatar(userResponse.user.name || t('account') || "User")
                 : generateAvatar(userResponse.user.name || t('account') || "User"),
               role: userResponse.user.role || "employee",
             })
@@ -239,7 +240,7 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
               name: userResponse.user.name || t('account') || "User",
               email: userResponse.user.email || "user@example.com",
               avatar: userResponse.user.profile_image 
-              ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}${userResponse.user.profile_image}` 
+              ? resolveMediaUrl(userResponse.user.profile_image) || generateAvatar(userResponse.user.name || t('account') || "User")
               : generateAvatar(userResponse.user.name || t('account') || "User"),
               role: userResponse.user.role || "employee",
             })
@@ -259,8 +260,9 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
   
   // Use organization data from API
   // Forçar reload da logo ao mudar (evita cache)
-  const logoUrlWithTimestamp = dataLoaded && orgData.logo_url
-    ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}${orgData.logo_url}?t=${Date.now()}`
+  const resolvedOrgLogo = resolveMediaUrl(orgData.logo_url)
+  const logoUrlWithTimestamp = dataLoaded && resolvedOrgLogo
+    ? `${resolvedOrgLogo}${resolvedOrgLogo.includes('?') ? '&' : '?'}t=${Date.now()}`
     : dataLoaded ? generateOrgLogo(orgData.name) : null;
   const organizationData = {
     name: dataLoaded ? orgData.name : "",
@@ -301,6 +303,22 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
       items: [
         { title: t('opportunities'), url: `/${locale}/${org}/crm/pipeline` },
         { title: t('reports'), url: `/${locale}/${org}/crm/reports` },
+      ],
+    },
+    {
+      title: t('investments'),
+      url: `/${locale}/${org}/investments`,
+      icon: BarChart3,
+      items: [
+        { title: t('investmentsOverview'), url: `/${locale}/${org}/investments` },
+        { title: t('portfolios'), url: `/${locale}/${org}/investments/portfolios` },
+        { title: 'Aportes', url: `/${locale}/${org}/investments/contributions` },
+        { title: 'Fluxo Financeiro', url: `/${locale}/${org}/investments/financial-flow` },
+        { title: 'Dividendos', url: `/${locale}/${org}/investments/dividends` },
+        { title: 'Metas', url: `/${locale}/${org}/investments/goals` },
+        { title: t('simulation'), url: `/${locale}/${org}/investments/simulation` },
+        { title: t('wealth'), url: `/${locale}/${org}/investments/wealth` },
+        { title: 'Relatorios', url: `/${locale}/${org}/investments/reports` },
       ],
     },
     {

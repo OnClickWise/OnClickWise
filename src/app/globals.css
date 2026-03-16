@@ -116,6 +116,12 @@
   * {
     @apply border-border outline-ring/50;
   }
+  button {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
   html, body {
     @apply bg-background text-foreground;
     overflow-x: hidden !important;
@@ -479,6 +485,8 @@ input[class*="auth-input"][class*="has-icon"] {
 }
 
 /* Remove outlines from chart elements */
+/* stroke-width: 0 removido intencionalmente — cascateava para <path> filhos via herança SVG
+   tornando as linhas dos LineChart e AreaChart completamente invisíveis */
 .recharts-wrapper,
 .recharts-surface,
 .recharts-layer,
@@ -489,7 +497,6 @@ input[class*="auth-input"][class*="has-icon"] {
 .recharts-pie-sector,
 .recharts-sector {
   outline: none !important;
-  stroke-width: 0 !important;
 }
 
 .recharts-wrapper:focus,
@@ -600,27 +607,28 @@ button[aria-label="Close"] {
    ======================================== */
 /* Área com scroll (conteúdo da sidebar) */
 [data-sidebar="content"] {
-  overflow-y: auto !important;
+  overflow-y: scroll !important; /* scroll: sempre mostra a barra, evitando layout shift */
   overflow-x: hidden !important;
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+  scrollbar-color: rgba(255, 255, 255, 0.45) rgba(255, 255, 255, 0.08);
   flex: 1 1 0% !important;
   min-height: 0 !important;
-  /* remove max-height - agora o flex layout controla corretamente */
 }
 
 [data-sidebar="content"]::-webkit-scrollbar {
-  width: 4px;
+  width: 6px;
 }
 [data-sidebar="content"]::-webkit-scrollbar-track {
-  background: transparent;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  margin: 4px 0;
 }
 [data-sidebar="content"]::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.45);
   border-radius: 10px;
 }
 [data-sidebar="content"]::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.7);
 }
 
 /* SidebarGroup com overflow visible para as curvas */
@@ -645,7 +653,7 @@ button[aria-label="Close"] {
   [data-sidebar="menu-item"] {
     overflow: hidden !important;
   }
-  
+
   /* Garantir que a sidebar container no mobile não permita overflow */
   [data-sidebar="sidebar"],
   [data-slot="sidebar"],
@@ -654,54 +662,41 @@ button[aria-label="Close"] {
   }
 }
 
-/* Collapsible elements com overflow e animação */
-[data-radix-collapsible-content],
-[data-radix-collapsible-trigger] {
-  overflow: hidden !important; /* Hidden para animação funcionar */
+/* ============================================================
+   ANIMAÇÃO DO COLLAPSIBLE — abordagem grid (sem height fixo,
+   compatível com scroll container)
+   ============================================================ */
+
+/* Estado FECHADO: colapsa via grid-template-rows */
+[data-radix-collapsible-content][data-state="closed"] {
+  display: grid !important;
+  grid-template-rows: 0fr !important;
+  overflow: hidden !important;
+  animation: collapseClose 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
-/* Animação para ABRIR categoria - slide down suave */
-[data-state="open"] > [data-radix-collapsible-content] {
-  animation: slideDown 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-  overflow: visible !important; /* Permite que subitems apareçam */
+/* Estado ABERTO: expande via grid-template-rows */
+[data-radix-collapsible-content][data-state="open"] {
+  display: grid !important;
+  grid-template-rows: 1fr !important;
+  overflow: visible !important;
+  animation: collapseOpen 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
-/* Animação para FECHAR categoria - slide up suave e rápido */
-[data-state="closed"] > [data-radix-collapsible-content] {
-  animation: slideUp 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-  overflow: hidden !important; /* Esconde subitems ao fechar */
+/* Wrapper interno necessário para a técnica de grid */
+[data-radix-collapsible-content] > * {
+  overflow: hidden;
+  min-height: 0;
 }
 
-/* Keyframes para slide down (abrir) */
-@keyframes slideDown {
-  from {
-    height: 0;
-    opacity: 0;
-    transform: scaleY(0.95) translateY(-10px);
-    transform-origin: top;
-  }
-  to {
-    height: var(--radix-collapsible-content-height);
-    opacity: 1;
-    transform: scaleY(1) translateY(0);
-    transform-origin: top;
-  }
+@keyframes collapseOpen {
+  from { grid-template-rows: 0fr; opacity: 0.6; }
+  to   { grid-template-rows: 1fr; opacity: 1; }
 }
 
-/* Keyframes para slide up (fechar) */
-@keyframes slideUp {
-  from {
-    height: var(--radix-collapsible-content-height);
-    opacity: 1;
-    transform: scaleY(1) translateY(0);
-    transform-origin: top;
-  }
-  to {
-    height: 0;
-    opacity: 0;
-    transform: scaleY(0.95) translateY(-10px);
-    transform-origin: top;
-  }
+@keyframes collapseClose {
+  from { grid-template-rows: 1fr; opacity: 1; }
+  to   { grid-template-rows: 0fr; opacity: 0; }
 }
 
 /* Garantir que list items não cortem */
@@ -1196,28 +1191,16 @@ button.nav-user-active:hover,
 /* Sidebar background customization - AZUL */
 [data-sidebar] {
   background: #3b82f6 !important; /* Blue background - Nova cor */
-  overflow: visible !important; /* Permitir que as curvas apareçam */
+  /* overflow: visible removido — quebrava o scroll do SidebarContent */
 }
 
 .dark [data-sidebar] {
   background: #2563eb !important; /* Darker blue for dark mode */
-  overflow: visible !important;
 }
 
-/* Garantir que o container da sidebar não corte */
-[data-sidebar] > * {
-  overflow: visible !important;
-}
-
-/* SidebarContent com overflow visible */
-[data-sidebar-content] {
-  overflow: visible !important;
-}
-
-/* Sobrescrever overflow-auto do componente base */
-div[data-sidebar="content"] {
-  overflow: visible !important;
-}
+/* Overflow visible apenas nos containers que precisam (curvas do item ativo) */
+/* SidebarGroup, SidebarMenu e SidebarMenuItem já têm overflow: visible por regras específicas */
+/* NÃO aplicar ao SidebarContent — ele precisa de overflow-y: scroll */
 
 /* Remover SidebarRail completamente */
 button[data-sidebar="rail"] {

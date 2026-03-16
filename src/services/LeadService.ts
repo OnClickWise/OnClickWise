@@ -195,11 +195,11 @@ class ApiService {
           localStorage.removeItem('lastActivity');
           // Redirecionar para login da organização específica se estivermos no cliente
           if (typeof window !== 'undefined') {
-            // Extrair o slug da organização da URL atual
-            const pathParts = window.location.pathname.split('/');
-            const orgSlug = pathParts[1]; // Primeira parte após a barra
+            const pathParts = window.location.pathname.split('/').filter(Boolean);
+            const locale = ['pt', 'en', 'es', 'fr'].includes(pathParts[0]) ? pathParts[0] : 'pt';
+            const orgSlug = ['pt', 'en', 'es', 'fr'].includes(pathParts[0]) ? pathParts[1] : pathParts[0];
             if (orgSlug && orgSlug !== 'login' && orgSlug !== 'register') {
-              window.location.href = `/${orgSlug}/login`;
+              window.location.href = `/${locale}/${orgSlug}/login`;
             } else {
               window.location.href = '/login';
             }
@@ -712,10 +712,11 @@ class ApiService {
           localStorage.removeItem('organization');
           localStorage.removeItem('lastActivity');
           if (typeof window !== 'undefined') {
-            const pathParts = window.location.pathname.split('/');
-            const orgSlug = pathParts[1];
+            const pathParts = window.location.pathname.split('/').filter(Boolean);
+            const locale = ['pt', 'en', 'es', 'fr'].includes(pathParts[0]) ? pathParts[0] : 'pt';
+            const orgSlug = ['pt', 'en', 'es', 'fr'].includes(pathParts[0]) ? pathParts[1] : pathParts[0];
             if (orgSlug && orgSlug !== 'login' && orgSlug !== 'register') {
-              window.location.href = `/${orgSlug}/login`;
+              window.location.href = `/${locale}/${orgSlug}/login`;
             } else {
               window.location.href = '/login';
             }
@@ -784,10 +785,11 @@ class ApiService {
           localStorage.removeItem('organization');
           localStorage.removeItem('lastActivity');
           if (typeof window !== 'undefined') {
-            const pathParts = window.location.pathname.split('/');
-            const orgSlug = pathParts[1];
+            const pathParts = window.location.pathname.split('/').filter(Boolean);
+            const locale = ['pt', 'en', 'es', 'fr'].includes(pathParts[0]) ? pathParts[0] : 'pt';
+            const orgSlug = ['pt', 'en', 'es', 'fr'].includes(pathParts[0]) ? pathParts[1] : pathParts[0];
             if (orgSlug && orgSlug !== 'login' && orgSlug !== 'register') {
-              window.location.href = `/${orgSlug}/login`;
+              window.location.href = `/${locale}/${orgSlug}/login`;
             } else {
               window.location.href = '/login';
             }

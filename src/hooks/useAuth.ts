@@ -76,18 +76,22 @@ export function useAuth() {
     
     // Tentar decodificar o payload para verificar se é um JWT válido
     try {
-      const payload = JSON.parse(atob(parts[1]));
-      
-      // Verificar se tem as propriedades básicas de um JWT
-      if (!payload.exp || !payload.userId || !payload.organizationId) {
-        console.error('Invalid JWT: missing required claims');
-        return false;
+      const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+      const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
+      const payload = JSON.parse(atob(padded));
+
+      // Aceita variações comuns de claims entre provedores.
+      // O único requisito obrigatório aqui é não estar expirado quando 'exp' existir.
+      if (payload.exp && typeof payload.exp === 'number') {
+        const now = Math.floor(Date.now() / 1000);
+        if (payload.exp < now) {
+          console.error('JWT token has expired');
+          return false;
+        }
       }
-      
-      // Verificar se o token não está expirado
-      const now = Math.floor(Date.now() / 1000);
-      if (payload.exp < now) {
-        console.error('JWT token has expired');
+
+      if (!payload.sub && !payload.email && !payload.userId && !payload.id) {
+        console.error('Invalid JWT: missing user identity claims');
         return false;
       }
       
@@ -96,8 +100,6 @@ export function useAuth() {
       console.error('Invalid JWT format: cannot decode payload', error);
       return false;
     }
-      
-    return true;
   }, []);
 
   // Limpar autenticação inválida

@@ -101,7 +101,7 @@ function UserAvatar({ src, name = "User", className, size = "md" }: UserAvatarPr
 
   return (
     <Avatar className={cn(sizeClasses[size], "rounded-full", className)}>
-      <AvatarImage src={src} alt={name} className="rounded-full" />
+      <AvatarImage src={src || undefined} alt={name} className="rounded-full" />
       <AvatarFallback 
         className={cn(textSizeClasses[size], "bg-transparent")}
         style={{ 
@@ -163,7 +163,7 @@ function OrganizationAvatar({ src, name = "Organization", className, size = "md"
 
   return (
     <Avatar className={cn(sizeClasses[size], "rounded-full", className)}>
-      <AvatarImage src={src} alt={name} className="rounded-full" />
+      <AvatarImage src={src || undefined} alt={name} className="rounded-full" />
       <AvatarFallback 
         className={cn(textSizeClasses[size], "rounded-full bg-transparent")}
         style={{ 
