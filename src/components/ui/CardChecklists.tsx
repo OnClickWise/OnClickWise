@@ -24,6 +24,7 @@ export default function CardChecklists({ cardId, onUpdated }: CardChecklistsProp
   const [newItem, setNewItem] = useState<{ [key: string]: string }>({});
   const [editingItem, setEditingItem] = useState<{ checklistId: string; itemId: string; text: string } | null>(null);
   const [deletingItem, setDeletingItem] = useState<{ checklistId: string; itemId: string } | null>(null);
+  const [deletingChecklistId, setDeletingChecklistId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!cardId) return;
@@ -62,7 +63,6 @@ export default function CardChecklists({ cardId, onUpdated }: CardChecklistsProp
   }
 
   async function handleDeleteChecklist(checklistId: string) {
-    if (!window.confirm("Excluir este checklist?")) return;
     try {
       await deleteChecklist(cardId, checklistId);
       setChecklists((prev) => prev.filter(cl => cl.id !== checklistId));
@@ -132,7 +132,7 @@ export default function CardChecklists({ cardId, onUpdated }: CardChecklistsProp
               </p>
             </div>
             <button
-              onClick={() => handleDeleteChecklist(cl.id)}
+              onClick={() => setDeletingChecklistId(cl.id)}
               className="inline-flex h-8 w-8 items-center justify-center rounded-md text-red-600 hover:bg-red-50"
               title="Excluir checklist"
             >
@@ -229,6 +229,22 @@ export default function CardChecklists({ cardId, onUpdated }: CardChecklistsProp
         }}
         title="Excluir item"
         message="Tem certeza que deseja excluir este item?"
+        confirmText="Excluir"
+        isDangerous
+      />
+
+      {/* Delete Checklist Modal */}
+      <ConfirmModal
+        isOpen={!!deletingChecklistId}
+        onClose={() => setDeletingChecklistId(null)}
+        onConfirm={() => {
+          if (deletingChecklistId) {
+            handleDeleteChecklist(deletingChecklistId);
+            setDeletingChecklistId(null);
+          }
+        }}
+        title="Excluir checklist"
+        message="Tem certeza que deseja excluir este checklist?"
         confirmText="Excluir"
         isDangerous
       />

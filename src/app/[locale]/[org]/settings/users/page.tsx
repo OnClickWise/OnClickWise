@@ -23,6 +23,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Search, User, Mail, Calendar, Shield, Trash2, Eye, EyeOff } from 'lucide-react';
+import { getApiBaseUrl } from '@/lib/api-url';
 
 interface User {
   id: string;
@@ -105,7 +106,7 @@ export default function UsersPage({
         return;
       }
 
-      const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000') + '/api';
+      const apiUrl = getApiBaseUrl();
       const response = await fetch(`${apiUrl}/auth/employees`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -147,7 +148,7 @@ export default function UsersPage({
       }
 
       console.log('Sending request to create employee...');
-      const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000') + '/api';
+      const apiUrl = getApiBaseUrl();
       const response = await fetch(`${apiUrl}/auth/create-employee`, {
         method: 'POST',
         headers: {
@@ -237,7 +238,7 @@ export default function UsersPage({
         return;
       }
 
-      const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000') + '/api';
+      const apiUrl = getApiBaseUrl();
       const response = await fetch(`${apiUrl}/auth/update-employee`, {
         method: 'PUT',
         headers: {
@@ -294,7 +295,7 @@ export default function UsersPage({
         return;
       }
 
-      const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000') + '/api';
+      const apiUrl = getApiBaseUrl();
       const response = await fetch(`${apiUrl}/auth/delete-employee`, {
         method: 'DELETE',
         headers: {

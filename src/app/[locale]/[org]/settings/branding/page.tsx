@@ -88,21 +88,66 @@ export default function BrandingPage({
     }
   }
 
-  const handleLogoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+  const optimizeLogoFile = async (file: File): Promise<File> => {
+    const isRasterImage = ['image/jpeg', 'image/png', 'image/webp'].includes(file.type)
+    if (!isRasterImage) return file
+
+    const imageBitmap = await createImageBitmap(file)
+    const maxDimension = 1024
+    const scale = Math.min(1, maxDimension / Math.max(imageBitmap.width, imageBitmap.height))
+    const targetWidth = Math.max(1, Math.round(imageBitmap.width * scale))
+    const targetHeight = Math.max(1, Math.round(imageBitmap.height * scale))
+
+    const canvas = document.createElement('canvas')
+    canvas.width = targetWidth
+    canvas.height = targetHeight
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return file
+
+    ctx.drawImage(imageBitmap, 0, 0, targetWidth, targetHeight)
+    imageBitmap.close()
+
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, 'image/webp', 0.82)
+    })
+
+    if (!blob) return file
+
+    return new File([blob], `${file.name.replace(/\.[^.]+$/, '')}.webp`, {
+      type: 'image/webp',
+      lastModified: Date.now(),
+    })
+  }
+
+  const handleLogoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0]
+    if (!selectedFile) return
     setUploadError('')
     const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml']
-    if (!allowed.includes(file.type)) {
+    if (!allowed.includes(selectedFile.type)) {
       setUploadError('Formato inválido. Use JPG, PNG, GIF, WebP ou SVG.')
       return
     }
-    if (file.size > 5 * 1024 * 1024) {
+    if (selectedFile.size > 5 * 1024 * 1024) {
       setUploadError('Arquivo muito grande. Máximo 5 MB.')
       return
     }
-    setLogoPreview(URL.createObjectURL(file))
-    setLogoFile(file)
+
+    let fileToUpload = selectedFile
+    try {
+      fileToUpload = await optimizeLogoFile(selectedFile)
+    } catch (error) {
+      console.warn('Falha ao otimizar logo, usando arquivo original', error)
+    }
+
+    const maxUploadSize = 900 * 1024
+    if (fileToUpload.size > maxUploadSize) {
+      setUploadError('Arquivo muito grande para o servidor. Use uma imagem menor que 900KB.')
+      return
+    }
+
+    setLogoPreview(URL.createObjectURL(fileToUpload))
+    setLogoFile(fileToUpload)
   }
 
   const handleRemoveLogo = () => {
@@ -251,7 +296,7 @@ export default function BrandingPage({
                       Logotipo
                     </CardTitle>
                     <CardDescription>
-                      Formatos aceitos: JPG, PNG, GIF, WebP, SVG (máx. 5 MB)
+                      Formatos aceitos: JPG, PNG, GIF, WebP, SVG (otimizado automaticamente, recomendado menor que 900KB)
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="flex flex-col sm:flex-row items-start sm:items-center gap-6">

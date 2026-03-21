@@ -68,6 +68,16 @@ export async function getCards(listId: string): Promise<Card[]> {
   return (Array.isArray(data) ? data : []).map(normalizeCard);
 }
 
+export async function getCardsByBoard(boardId: string): Promise<Card[]> {
+  const token = getAuthToken();
+  const res = await fetch(`${API_BASE_URL}/cards?boardId=${boardId}`, {
+    headers: { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) },
+  });
+  if (!res.ok) throw new Error("Erro ao buscar cartoes do board");
+  const data = await res.json();
+  return (Array.isArray(data) ? data : []).map(normalizeCard);
+}
+
 export async function createCard(data: CreateCardRequest): Promise<Card> {
   const token = getAuthToken();
   const metadata = { ...(data.metadata || {}), ...(data.cover ? { cover: data.cover } : {}) };

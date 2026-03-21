@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { getBoard, Board } from "@/services/boardService";
 import { getLists, createList, updateList, deleteList, List } from "@/services/listService";
-import { getCards, createCard, updateCard, Card, deleteCard, getCardById } from "@/services/cardService";
+import { getCards, getCardsByBoard, createCard, updateCard, Card, deleteCard, getCardById } from "@/services/cardService";
 import CardChecklists from "@/components/ui/CardChecklists";
 import { ColorPickerModal } from "@/components/modals/ColorPickerModal";
 import { ListPickerModal } from "@/components/modals/ListPickerModal";
@@ -599,8 +599,16 @@ export default function BoardPage() {
         setBoard(b);
         const sorted = ls.sort((a, b) => a.position - b.position);
         setLists(sorted);
-        const all = (await Promise.all(sorted.map((l) => getCards(l.id).catch(() => [] as Card[])))).flat();
-        setCards(all.sort((a, b) => a.position - b.position));
+
+        // Preferir busca em lote para evitar padrão N+1 de chamadas por lista.
+        try {
+          const all = await getCardsByBoard(boardId);
+          setCards(all.sort((a, b) => a.position - b.position));
+        } catch {
+          // Fallback de compatibilidade enquanto endpoint de board estiver indisponível.
+          const all = (await Promise.all(sorted.map((l) => getCards(l.id).catch(() => [] as Card[])))).flat();
+          setCards(all.sort((a, b) => a.position - b.position));
+        }
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));

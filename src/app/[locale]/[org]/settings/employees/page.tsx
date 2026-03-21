@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import AuthGuard from '@/components/AuthGuard';
 import RoleGuard from '@/components/RoleGuard';
+import { getApiBaseUrl } from '@/lib/api-url';
 
 interface Employee {
   id: string;
@@ -45,7 +46,7 @@ export default function EmployeesPage({ params }: { params: { org: string } }) {
         return;
       }
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+      const apiUrl = getApiBaseUrl();
       const response = await fetch(`${apiUrl}/auth/employees`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -100,7 +101,7 @@ export default function EmployeesPage({ params }: { params: { org: string } }) {
         return;
       }
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+      const apiUrl = getApiBaseUrl();
       const response = await fetch(`${apiUrl}/auth/create-employee`, {
         method: 'POST',
         headers: {

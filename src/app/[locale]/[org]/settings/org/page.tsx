@@ -208,23 +208,69 @@ export default function OrgPage({
     }
   };
 
-  const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  const optimizeLogoFile = async (file: File): Promise<File> => {
+    const isRasterImage = ['image/jpeg', 'image/png', 'image/webp'].includes(file.type);
+    if (!isRasterImage) {
+      return file;
+    }
+
+    const imageBitmap = await createImageBitmap(file);
+    const maxDimension = 1024;
+    const scale = Math.min(1, maxDimension / Math.max(imageBitmap.width, imageBitmap.height));
+    const targetWidth = Math.max(1, Math.round(imageBitmap.width * scale));
+    const targetHeight = Math.max(1, Math.round(imageBitmap.height * scale));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return file;
+
+    ctx.drawImage(imageBitmap, 0, 0, targetWidth, targetHeight);
+    imageBitmap.close();
+
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, 'image/webp', 0.82);
+    });
+
+    if (!blob) return file;
+
+    return new File([blob], `${file.name.replace(/\.[^.]+$/, '')}.webp`, {
+      type: 'image/webp',
+      lastModified: Date.now(),
+    });
+  };
+
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = event.target.files?.[0];
+    if (!selectedFile) return;
 
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
-    if (!allowedTypes.includes(file.type)) {
+    if (!allowedTypes.includes(selectedFile.type)) {
       addNotification('error', t('errors.invalidFileType'));
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
+    if (selectedFile.size > 5 * 1024 * 1024) {
       addNotification('error', t('errors.fileTooLarge'));
       return;
     }
 
-    setLogoPreview(URL.createObjectURL(file));
-    setLogoFile(file);
+    let fileToUpload = selectedFile;
+    try {
+      fileToUpload = await optimizeLogoFile(selectedFile);
+    } catch (error) {
+      console.warn('Falha ao otimizar logo, usando arquivo original', error);
+    }
+
+    const maxUploadSize = 900 * 1024;
+    if (fileToUpload.size > maxUploadSize) {
+      addNotification('error', 'A imagem está muito grande para o servidor. Use uma imagem menor que 900KB.');
+      return;
+    }
+
+    setLogoPreview(URL.createObjectURL(fileToUpload));
+    setLogoFile(fileToUpload);
   };
 
   const hasChanges = useMemo(() => {
