@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useParams, useRouter } from "next/navigation";
 import { AppSidebar } from "@/components/app-sidebar";
 import AuthGuard from "@/components/AuthGuard";
@@ -16,11 +17,15 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import {
   Plus, X, MoreHorizontal, ArrowLeft, Star, Filter,
-  ChevronDown, Loader2, ChevronsLeftRight, Search, List as ListIcon, LayoutGrid, Check, Pencil,
+  ChevronDown, Loader2, List as ListIcon, LayoutGrid, Check, Pencil, CheckCircle2, Circle, MessageSquare, Trash2, Copy, Link2, Archive, Palette, Move,
 } from "lucide-react";
 import { getBoard, Board } from "@/services/boardService";
 import { getLists, createList, updateList, deleteList, List } from "@/services/listService";
-import { getCards, createCard, updateCard, Card } from "@/services/cardService";
+import { getCards, createCard, updateCard, Card, deleteCard, getCardById } from "@/services/cardService";
+import CardChecklists from "@/components/ui/CardChecklists";
+import { ColorPickerModal } from "@/components/modals/ColorPickerModal";
+import { ListPickerModal } from "@/components/modals/ListPickerModal";
+import { ConfirmModal } from "@/components/modals/ConfirmModal";
 
 // ─── Gradientes dos boards (fundo completo) ─────────────────────────
 const BOARD_BG: Record<string, string> = {
@@ -55,18 +60,91 @@ const CARD_COVER_COLORS: Record<string, string> = {
   pink:   "#e91e63",
 };
 
+function getChecklistProgress(card: Card): { done: number; total: number } {
+  const checklists = Array.isArray(card.metadata?.checklists) ? card.metadata.checklists : [];
+  let total = 0;
+  let done = 0;
+
+  for (const checklist of checklists) {
+    const items = Array.isArray(checklist?.items) ? checklist.items : [];
+    total += items.length;
+    done += items.filter((item: any) => Boolean(item?.checked)).length;
+  }
+
+  return { done, total };
+}
+
+type CardComment = {
+  id: string;
+  text: string;
+  createdAt: string;
+};
+
+function getCardComments(card: Card | null): CardComment[] {
+  if (!card) return [];
+  return Array.isArray(card.metadata?.comments) ? card.metadata.comments : [];
+}
+
+function isCardArchived(card: Card): boolean {
+  return Boolean(card.metadata?.archived);
+}
+
 // ─── CARD ITEM ───────────────────────────────────────────────────────
-function CardItem({ card, listeners, attributes, isDragging, onRename }: {
+function CardItem({ card, listeners, attributes, isDragging, onRename, onOpenDetails, onToggleComplete, onEditDescription, onDelete, onSetCover, onMoveCard, onDuplicateCard, onCopyCardLink, onArchiveCard }: {
   card: Card; listeners?: any; attributes?: any; isDragging?: boolean;
   onRename?: (id: string, newTitle: string) => void;
+  onOpenDetails?: (cardId: string) => void;
+  onToggleComplete?: (cardId: string) => void;
+  onEditDescription?: (cardId: string) => void;
+  onDelete?: (cardId: string) => void;
+  onSetCover?: (cardId: string) => void;
+  onMoveCard?: (cardId: string) => void;
+  onDuplicateCard?: (cardId: string) => void;
+  onCopyCardLink?: (cardId: string) => void;
+  onArchiveCard?: (cardId: string) => void;
 }) {
   const coverHex = card.cover ? CARD_COVER_COLORS[card.cover] : null;
+  const isCompleted = Boolean(card.metadata?.completed);
+  const checklistProgress = getChecklistProgress(card);
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(card.title);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [pencilMenuOpen, setPencilMenuOpen] = useState(false);
+  const [pencilMenuPosition, setPencilMenuPosition] = useState<{ top: number; left: number } | null>(null);
+  const pencilButtonRef = useRef<HTMLButtonElement>(null);
+  const pencilMenuRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => { if (editing) { setEditTitle(card.title); inputRef.current?.focus(); inputRef.current?.select(); } }, [editing]);
+
+  useEffect(() => {
+    if (!pencilMenuOpen) return;
+
+    const updatePosition = () => {
+      const rect = pencilButtonRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const menuWidth = 220;
+      const nextLeft = Math.min(window.innerWidth - menuWidth - 8, Math.max(8, rect.right - menuWidth));
+      setPencilMenuPosition({ top: rect.bottom + 8, left: nextLeft });
+    };
+
+    const onOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (pencilMenuRef.current?.contains(target)) return;
+      if (pencilButtonRef.current?.contains(target)) return;
+      setPencilMenuOpen(false);
+    };
+
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    document.addEventListener("mousedown", onOutside);
+
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+      document.removeEventListener("mousedown", onOutside);
+    };
+  }, [pencilMenuOpen]);
 
   function commitRename() {
     const t = editTitle.trim();
@@ -76,16 +154,17 @@ function CardItem({ card, listeners, attributes, isDragging, onRename }: {
 
   return (
     <div
-      className={`group/card relative bg-white rounded-lg shadow-sm select-none transition-all duration-150 ${
-        isDragging ? "opacity-0" : "hover:shadow-md hover:-translate-y-px"
+      className={`group/card relative overflow-hidden rounded-xl border border-[#dfe1e6] bg-white select-none transition-all duration-200 ${
+        isDragging ? "opacity-0" : "hover:border-[#c7d1db] hover:shadow-sm"
       } ${editing ? "cursor-default ring-2 ring-blue-400" : "cursor-grab active:cursor-grabbing"}`}
+      onClick={() => { if (!editing) onOpenDetails?.(card.id); }}
       {...(editing ? {} : listeners)}
       {...attributes}
     >
       {coverHex && (
         <div className="h-8 w-full rounded-t-lg" style={{ background: coverHex }} />
       )}
-      <div className={`px-3 py-2 ${coverHex ? "" : "pt-2.5"}`}>
+      <div className={`px-3.5 py-3 ${coverHex ? "" : "pt-3"}`}>
         {editing ? (
           <>
             <textarea
@@ -118,35 +197,56 @@ function CardItem({ card, listeners, attributes, isDragging, onRename }: {
           </>
         ) : (
           <>
-            <p className="text-[#172b4d] text-sm leading-snug break-words pr-5">{card.title}</p>
+            <div className="pr-14">
+              <p className={`text-[15px] font-medium leading-snug break-words ${isCompleted ? "line-through text-[#5e6c84]" : "text-[#172b4d]"}`}>{card.title}</p>
+            </div>
             {card.description && (
-              <p className="text-[#626f86] text-xs mt-1 line-clamp-2 leading-snug">{card.description}</p>
+              <p className="text-[#626f86] text-[12px] mt-1 line-clamp-2 leading-snug">{card.description}</p>
+            )}
+            {checklistProgress.total > 0 && (
+              <div className="mt-1.5 inline-flex items-center gap-1 rounded bg-[#f1f2f4] px-2 py-0.5 text-[11px] font-semibold text-[#44546f]">
+                <Check className="w-3 h-3" />
+                {checklistProgress.done}/{checklistProgress.total}
+              </div>
             )}
           </>
         )}
       </div>
 
-      {/* Card menu */}
+      {/* Hover quick actions */}
       {!editing && (
-        <div className="absolute top-1.5 right-1.5" onPointerDown={(e) => e.stopPropagation()}>
+        <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 translate-y-1 group-hover/card:opacity-100 group-hover/card:translate-y-0 transition-all duration-200" onPointerDown={(e) => e.stopPropagation()}>
           <button
-            onClick={(e) => { e.stopPropagation(); setMenuOpen((o) => !o); }}
-            className="p-0.5 rounded opacity-0 group-hover/card:opacity-100 hover:bg-[#091e4224] transition text-[#44546f]"
+            ref={pencilButtonRef}
+            onClick={(e) => { e.stopPropagation(); setPencilMenuOpen((prev) => !prev); }}
+            className="h-7 w-7 inline-flex items-center justify-center rounded-md border border-[#d0d9e3] bg-white/95 text-[#44546f] hover:text-[#172b4d] hover:bg-white shadow-sm"
+            title="Editar"
           >
-            <MoreHorizontal className="w-3 h-3" />
+            <Pencil className="w-3.5 h-3.5" />
           </button>
-          {menuOpen && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onToggleComplete?.(card.id); }}
+            className={`h-7 w-7 inline-flex items-center justify-center rounded-md border shadow-sm ${isCompleted ? "border-green-200 bg-green-50 text-green-700" : "border-[#d0d9e3] bg-white/95 text-[#44546f] hover:text-[#172b4d] hover:bg-white"}`}
+            title={isCompleted ? "Marcar como pendente" : "Marcar como concluido"}
+          >
+            {isCompleted ? <CheckCircle2 className="w-4 h-4" /> : <Circle className="w-4 h-4" />}
+          </button>
+
+          {pencilMenuOpen && pencilMenuPosition && typeof document !== "undefined" && createPortal(
             <div
-              className="absolute right-0 top-6 z-50 bg-white rounded-xl shadow-xl border border-gray-200 py-1 w-36"
-              onPointerDown={(e) => e.stopPropagation()}
+              ref={pencilMenuRef}
+              className="fixed z-[220] w-[220px] rounded-xl border border-gray-200 bg-white shadow-2xl py-1"
+              style={{ top: pencilMenuPosition.top, left: pencilMenuPosition.left }}
             >
-              <button
-                onClick={() => { setMenuOpen(false); setEditing(true); }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition"
-              >
-                <Pencil className="w-3.5 h-3.5" /> Renomear
-              </button>
-            </div>
+              <button onClick={(e) => { e.stopPropagation(); setPencilMenuOpen(false); onOpenDetails?.(card.id); }} className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 inline-flex items-center gap-2"><Pencil className="w-3.5 h-3.5" /> Abrir detalhes</button>
+              <button onClick={(e) => { e.stopPropagation(); setPencilMenuOpen(false); onSetCover?.(card.id); }} className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 inline-flex items-center gap-2"><Palette className="w-3.5 h-3.5" /> Alterar capa</button>
+              <button onClick={(e) => { e.stopPropagation(); setPencilMenuOpen(false); onMoveCard?.(card.id); }} className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 inline-flex items-center gap-2"><Move className="w-3.5 h-3.5" /> Mover</button>
+              <button onClick={(e) => { e.stopPropagation(); setPencilMenuOpen(false); onDuplicateCard?.(card.id); }} className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 inline-flex items-center gap-2"><Copy className="w-3.5 h-3.5" /> Copiar cartão</button>
+              <button onClick={(e) => { e.stopPropagation(); setPencilMenuOpen(false); onCopyCardLink?.(card.id); }} className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 inline-flex items-center gap-2"><Link2 className="w-3.5 h-3.5" /> Copiar link</button>
+              <button onClick={(e) => { e.stopPropagation(); setPencilMenuOpen(false); onArchiveCard?.(card.id); }} className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 inline-flex items-center gap-2"><Archive className="w-3.5 h-3.5" /> Arquivar</button>
+              <button onClick={(e) => { e.stopPropagation(); setPencilMenuOpen(false); onDelete?.(card.id); }} className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 inline-flex items-center gap-2"><Trash2 className="w-3.5 h-3.5" /> Excluir</button>
+            </div>,
+            document.body,
           )}
         </div>
       )}
@@ -155,13 +255,40 @@ function CardItem({ card, listeners, attributes, isDragging, onRename }: {
 }
 
 // ─── SORTABLE CARD ───────────────────────────────────────────────────
-function SortableCard({ card, onRename }: { card: Card; onRename: (id: string, t: string) => void }) {
+function SortableCard({ card, onRename, onOpenDetails, onToggleComplete, onEditDescription, onDeleteCard, onSetCover, onMoveCard, onDuplicateCard, onCopyCardLink, onArchiveCard }: {
+  card: Card;
+  onRename: (id: string, t: string) => void;
+  onOpenDetails: (cardId: string) => void;
+  onToggleComplete: (cardId: string) => void;
+  onEditDescription: (cardId: string) => void;
+  onDeleteCard: (cardId: string) => void;
+  onSetCover: (cardId: string) => void;
+  onMoveCard: (cardId: string) => void;
+  onDuplicateCard: (cardId: string) => void;
+  onCopyCardLink: (cardId: string) => void;
+  onArchiveCard: (cardId: string) => void;
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: card.id, data: { type: "card", card },
   });
   return (
     <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }}>
-      <CardItem card={card} listeners={listeners} attributes={attributes} isDragging={isDragging} onRename={onRename} />
+      <CardItem
+        card={card}
+        listeners={listeners}
+        attributes={attributes}
+        isDragging={isDragging}
+        onRename={onRename}
+        onOpenDetails={onOpenDetails}
+        onToggleComplete={onToggleComplete}
+        onEditDescription={onEditDescription}
+        onDelete={onDeleteCard}
+        onSetCover={onSetCover}
+        onMoveCard={onMoveCard}
+        onDuplicateCard={onDuplicateCard}
+        onCopyCardLink={onCopyCardLink}
+        onArchiveCard={onArchiveCard}
+      />
     </div>
   );
 }
@@ -202,11 +329,20 @@ function AddCardForm({ onAdd, onClose }: { onAdd: (title: string) => void; onClo
 }
 
 // ─── COLUMN ──────────────────────────────────────────────────────────
-function Column({ list, cards, onAddCard, onDeleteList, onRenameCard, isAddingCard, setAddingCard }: {
+function Column({ list, cards, onAddCard, onDeleteList, onRenameCard, onOpenCardDetails, onToggleCardComplete, onEditCardDescription, onDeleteCard, onSetCardCover, onMoveCard, onDuplicateCard, onCopyCardLink, onArchiveCard, isAddingCard, setAddingCard }: {
   list: List; cards: Card[];
   onAddCard: (listId: string, title: string) => void;
   onDeleteList: (listId: string) => void;
   onRenameCard: (id: string, newTitle: string) => void;
+  onOpenCardDetails: (cardId: string) => void;
+  onToggleCardComplete: (cardId: string) => void;
+  onEditCardDescription: (cardId: string) => void;
+  onDeleteCard: (cardId: string) => void;
+  onSetCardCover: (cardId: string) => void;
+  onMoveCard: (cardId: string) => void;
+  onDuplicateCard: (cardId: string) => void;
+  onCopyCardLink: (cardId: string) => void;
+  onArchiveCard: (cardId: string) => void;
   isAddingCard: boolean;
   setAddingCard: (v: boolean) => void;
 }) {
@@ -219,30 +355,30 @@ function Column({ list, cards, onAddCard, onDeleteList, onRenameCard, isAddingCa
   return (
     <div
       ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition, background: "rgba(241,242,244,0.97)" }}
-      className={`flex-shrink-0 w-[272px] flex flex-col rounded-xl shadow-md transition-all duration-150 ${
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={`flex-shrink-0 w-[320px] flex flex-col rounded-2xl border border-[#d0d9e3] bg-[#ebecf0] transition-all duration-150 overflow-visible ${
         isDragging ? "opacity-50 scale-95" : ""
       }`}
     >
       {/* Column Header */}
       <div
-        className="flex items-center gap-2 px-3 pt-2.5 pb-1 cursor-grab active:cursor-grabbing"
+        className="relative flex items-center gap-2 px-3 pt-2.5 pb-1.5 cursor-grab active:cursor-grabbing overflow-visible"
         {...attributes}
         {...listeners}
       >
-        <h3 className="flex-1 font-bold text-sm text-[#172b4d] leading-tight truncate">{list.title}</h3>
+        <h3 className="flex-1 font-semibold text-lg text-[#172b4d] leading-tight truncate">{list.title}</h3>
         <span className="text-xs text-[#626f86] font-semibold tabular-nums">{cards.length}</span>
-        <div className="relative">
+        <div className="relative z-30">
           <button
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => { e.stopPropagation(); setMenuOpen((o) => !o); }}
-            className="p-1 rounded-md hover:bg-[#091e4224] transition text-[#44546f]"
+            className="h-8 w-8 inline-flex items-center justify-center rounded-full hover:bg-[#091e4224] transition text-[#44546f]"
           >
             <MoreHorizontal className="w-3.5 h-3.5" />
           </button>
           {menuOpen && (
             <div
-              className="absolute right-0 top-7 z-50 bg-white rounded-xl shadow-xl border border-gray-200 py-1 w-48"
+              className="absolute right-0 top-full mt-1.5 z-[140] bg-white rounded-xl shadow-xl border border-gray-200 py-1 w-52"
               onPointerDown={(e) => e.stopPropagation()}
             >
               {!confirmDelete ? (
@@ -277,9 +413,24 @@ function Column({ list, cards, onAddCard, onDeleteList, onRenameCard, isAddingCa
       </div>
 
       {/* Cards list */}
-      <div className="px-2 pb-1 flex flex-col gap-2 overflow-y-auto max-h-[calc(100vh-200px)]">
+      <div className="px-2.5 pb-2 flex flex-col gap-2 overflow-y-auto max-h-[calc(100vh-200px)]">
         <SortableContext items={cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
-          {cards.map((card) => <SortableCard key={card.id} card={card} onRename={onRenameCard} />)}
+          {cards.map((card) => (
+            <SortableCard
+              key={card.id}
+              card={card}
+              onRename={onRenameCard}
+              onOpenDetails={onOpenCardDetails}
+              onToggleComplete={onToggleCardComplete}
+              onEditDescription={onEditCardDescription}
+              onDeleteCard={onDeleteCard}
+              onSetCover={onSetCardCover}
+              onMoveCard={onMoveCard}
+              onDuplicateCard={onDuplicateCard}
+              onCopyCardLink={onCopyCardLink}
+              onArchiveCard={onArchiveCard}
+            />
+          ))}
         </SortableContext>
         {isAddingCard && (
           <AddCardForm
@@ -293,7 +444,7 @@ function Column({ list, cards, onAddCard, onDeleteList, onRenameCard, isAddingCa
       {!isAddingCard && (
         <button
           onClick={() => setAddingCard(true)}
-          className="flex items-center gap-2 mx-2 mb-2 mt-1 px-2 py-1.5 rounded-md text-[#44546f] hover:bg-[#091e4214] hover:text-[#172b4d] transition text-sm font-medium"
+          className="flex items-center gap-2 mx-2 mb-2 mt-1 px-2 py-1.5 rounded-md text-[#44546f] hover:bg-[#091e4214] hover:text-[#172b4d] transition text-base font-medium"
         >
           <Plus className="w-4 h-4 flex-shrink-0" />
           Adicionar um cartão
@@ -310,7 +461,7 @@ function AddListForm({ onAdd, onClose }: { onAdd: (title: string) => void; onClo
   useEffect(() => { ref.current?.focus(); }, []);
 
   return (
-    <div className="flex-shrink-0 w-[272px] rounded-xl p-2 flex flex-col gap-2 shadow-md" style={{ background: "rgba(241,242,244,0.97)" }}>
+    <div className="flex-shrink-0 w-[320px] rounded-xl p-2 flex flex-col gap-2 shadow-md" style={{ background: "rgba(241,242,244,0.97)" }}>
       <input
         ref={ref}
         value={title}
@@ -358,12 +509,87 @@ export default function BoardPage() {
   const [filterCardId, setFilterCardId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"board" | "list">("board");
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const [detailTitle, setDetailTitle] = useState("");
+  const [detailDescription, setDetailDescription] = useState("");
+  const [detailComments, setDetailComments] = useState<CardComment[]>([]);
+  const [newCommentText, setNewCommentText] = useState("");
+  const [savingDetails, setSavingDetails] = useState(false);
+  const autosaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSavedSnapshotRef = useRef<{ title: string; description: string }>({ title: "", description: "" });
 
   const [activeType, setActiveType] = useState<"card" | "list" | null>(null);
   const [activeCard, setActiveCard] = useState<Card | null>(null);
   const [activeList, setActiveList] = useState<List | null>(null);
+  
+  // Modal states
+  const [colorPickerCardId, setColorPickerCardId] = useState<string | null>(null);
+  const [listPickerCardId, setListPickerCardId] = useState<string | null>(null);
+  const [deleteConfirmCard, setDeleteConfirmCard] = useState<string | null>(null);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const selectedCard = selectedCardId ? cards.find((card) => card.id === selectedCardId) || null : null;
+
+  useEffect(() => {
+    if (!selectedCard) {
+      setDetailTitle("");
+      setDetailDescription("");
+      setDetailComments([]);
+      return;
+    }
+
+    setDetailTitle(selectedCard.title || "");
+    setDetailDescription(selectedCard.description || "");
+    setDetailComments(getCardComments(selectedCard));
+    lastSavedSnapshotRef.current = {
+      title: selectedCard.title || "",
+      description: selectedCard.description || "",
+    };
+  }, [selectedCard?.id, selectedCard?.title, selectedCard?.description, selectedCard?.metadata]);
+
+  useEffect(() => {
+    if (!selectedCard) return;
+
+    const normalizedTitle = (detailTitle || "").trim();
+    const normalizedDescription = detailDescription || "";
+
+    const hasChanged =
+      normalizedTitle !== (lastSavedSnapshotRef.current.title || "").trim() ||
+      normalizedDescription !== (lastSavedSnapshotRef.current.description || "");
+
+    if (!hasChanged) return;
+
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+    }
+
+    autosaveTimerRef.current = setTimeout(async () => {
+      try {
+        const updated = await updateCard(selectedCard.id, {
+          title: normalizedTitle || selectedCard.title,
+          description: normalizedDescription,
+          metadata: {
+            ...(selectedCard.metadata || {}),
+            comments: detailComments,
+          },
+        });
+
+        setCards((prev) => prev.map((card) => (card.id === selectedCard.id ? updated : card)));
+        lastSavedSnapshotRef.current = {
+          title: updated.title || "",
+          description: updated.description || "",
+        };
+      } catch (error) {
+        console.error("Erro no autosave do card", error);
+      }
+    }, 700);
+
+    return () => {
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current);
+      }
+    };
+  }, [selectedCard?.id, detailTitle, detailDescription]);
 
   useEffect(() => {
     if (!boardId) return;
@@ -380,9 +606,9 @@ export default function BoardPage() {
       .finally(() => setLoading(false));
   }, [boardId]);
 
-  const cardsForList = useCallback((id: string) => cards.filter((c) => c.listId === id), [cards]);
+  const cardsForList = useCallback((id: string) => cards.filter((c) => c.listId === id && !isCardArchived(c)), [cards]);
   const filteredCardsForList = useCallback((id: string) => {
-    const listCards = cards.filter((c) => c.listId === id);
+    const listCards = cards.filter((c) => c.listId === id && !isCardArchived(c));
     if (!filterCardId) return listCards;
     return listCards.filter((c) => c.id === filterCardId);
   }, [cards, filterCardId]);
@@ -405,8 +631,208 @@ export default function BoardPage() {
   async function handleRenameCard(cardId: string, newTitle: string) {
     try {
       const updated = await updateCard(cardId, { title: newTitle });
-      setCards((p) => p.map((c) => c.id === cardId ? { ...c, title: updated.title } : c));
+      setCards((p) => p.map((c) => c.id === cardId ? updated : c));
     } catch (e: any) { alert("Erro ao renomear card: " + e.message); }
+  }
+
+  async function refreshCard(cardId: string) {
+    try {
+      const fresh = await getCardById(cardId);
+      setCards((prev) => prev.map((card) => (card.id === cardId ? fresh : card)));
+    } catch {
+      // no-op
+    }
+  }
+
+  async function handleToggleCardComplete(cardId: string) {
+    const card = cards.find((item) => item.id === cardId);
+    if (!card) return;
+
+    try {
+      const metadata = {
+        ...(card.metadata || {}),
+        completed: !Boolean(card.metadata?.completed),
+      };
+      const updated = await updateCard(cardId, { metadata });
+      setCards((prev) => prev.map((item) => (item.id === cardId ? updated : item)));
+    } catch (e: any) {
+      alert("Erro ao atualizar status do cartão: " + e.message);
+    }
+  }
+
+  async function handleEditCardDescription(cardId: string) {
+    const card = cards.find((item) => item.id === cardId);
+    if (!card) return;
+
+    const nextDescription = window.prompt("Descrição do cartão:", card.description || "");
+    if (nextDescription === null) return;
+
+    try {
+      const updated = await updateCard(cardId, { description: nextDescription });
+      setCards((prev) => prev.map((item) => (item.id === cardId ? updated : item)));
+    } catch (e: any) {
+      alert("Erro ao atualizar descrição: " + e.message);
+    }
+  }
+
+  async function handleDeleteCard(cardId: string) {
+    setDeleteConfirmCard(cardId);
+  }
+
+  async function handleConfirmDeleteCard(cardId: string) {
+    try {
+      await deleteCard(cardId);
+      setCards((prev) => prev.filter((card) => card.id !== cardId));
+      if (selectedCardId === cardId) {
+        setSelectedCardId(null);
+      }
+    } catch (e: any) {
+      alert("Erro ao excluir cartão: " + e.message);
+    }
+  }
+
+  async function handleSetCardCover(cardId: string) {
+    setColorPickerCardId(cardId);
+  }
+
+  async function handleConfirmCardCover(color: string) {
+    if (!colorPickerCardId) return;
+    const card = cards.find((item) => item.id === colorPickerCardId);
+    if (!card) return;
+
+    try {
+      const metadata = {
+        ...(card.metadata || {}),
+        ...(color ? { cover: color } : {}),
+      };
+      const updated = await updateCard(colorPickerCardId, { metadata, cover: color || undefined });
+      setCards((prev) => prev.map((item) => (item.id === colorPickerCardId ? updated : item)));
+      setColorPickerCardId(null);
+    } catch (e: any) {
+      alert("Erro ao atualizar capa: " + e.message);
+    }
+  }
+
+  async function handleMoveCard(cardId: string) {
+    setListPickerCardId(cardId);
+  }
+
+  async function handleConfirmMoveCard(targetListId: string) {
+    if (!listPickerCardId) return;
+    const card = cards.find((item) => item.id === listPickerCardId);
+    if (!card) return;
+
+    try {
+      const targetCount = cardsForList(targetListId).length;
+      const updated = await updateCard(listPickerCardId, {
+        listId: targetListId,
+        position: targetCount,
+      });
+      setCards((prev) => prev.map((item) => (item.id === listPickerCardId ? updated : item)));
+      setListPickerCardId(null);
+    } catch (e: any) {
+      alert("Erro ao mover cartão: " + e.message);
+    }
+  }
+
+  async function handleDuplicateCard(cardId: string) {
+    const card = cards.find((item) => item.id === cardId);
+    if (!card) return;
+
+    try {
+      const duplicate = await createCard({
+        title: `${card.title} (cópia)`,
+        description: card.description,
+        listId: card.listId,
+        position: cardsForList(card.listId).length,
+        metadata: {
+          ...(card.metadata || {}),
+          archived: false,
+        },
+      });
+      setCards((prev) => [...prev, duplicate]);
+    } catch (e: any) {
+      alert("Erro ao copiar cartão: " + e.message);
+    }
+  }
+
+  async function handleCopyCardLink(cardId: string) {
+    const current = window.location.href.split("#")[0];
+    const url = `${current}#card-${cardId}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      alert("Link do cartão copiado!");
+    } catch {
+      prompt("Copie o link:", url);
+    }
+  }
+
+  async function handleArchiveCard(cardId: string) {
+    const card = cards.find((item) => item.id === cardId);
+    if (!card) return;
+
+    try {
+      const metadata = {
+        ...(card.metadata || {}),
+        archived: true,
+      };
+      const updated = await updateCard(cardId, { metadata });
+      setCards((prev) => prev.map((item) => (item.id === cardId ? updated : item)));
+      if (selectedCardId === cardId) setSelectedCardId(null);
+    } catch (e: any) {
+      alert("Erro ao arquivar cartão: " + e.message);
+    }
+  }
+
+  async function handleSaveCardDetails() {
+    if (!selectedCard) return;
+
+    setSavingDetails(true);
+    try {
+      const updated = await updateCard(selectedCard.id, {
+        title: detailTitle.trim() || selectedCard.title,
+        description: detailDescription,
+        metadata: {
+          ...(selectedCard.metadata || {}),
+          comments: detailComments,
+        },
+      });
+
+      setCards((prev) => prev.map((card) => (card.id === selectedCard.id ? updated : card)));
+    } catch (e: any) {
+      alert("Erro ao salvar detalhes do cartão: " + e.message);
+    } finally {
+      setSavingDetails(false);
+    }
+  }
+
+  async function handleAddComment() {
+    if (!selectedCard || !newCommentText.trim()) return;
+
+    const nextComments = [
+      ...detailComments,
+      {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        text: newCommentText.trim(),
+        createdAt: new Date().toISOString(),
+      },
+    ];
+
+    setDetailComments(nextComments);
+    setNewCommentText("");
+
+    try {
+      const updated = await updateCard(selectedCard.id, {
+        metadata: {
+          ...(selectedCard.metadata || {}),
+          comments: nextComments,
+        },
+      });
+
+      setCards((prev) => prev.map((card) => (card.id === selectedCard.id ? updated : card)));
+    } catch (e: any) {
+      alert("Erro ao salvar comentário: " + e.message);
+    }
   }
 
   async function handleDeleteList(listId: string) {
@@ -468,6 +894,7 @@ export default function BoardPage() {
   }
 
   const bgGradient = board ? (BOARD_BG[board.color] || BOARD_BG.ocean) : BOARD_BG.ocean;
+  const selectedCardProgress = selectedCard ? getChecklistProgress(selectedCard) : { done: 0, total: 0 };
 
   return (
     <AuthGuard orgSlug={org}>
@@ -640,25 +1067,48 @@ export default function BoardPage() {
                             {filtered.length === 0 ? (
                               <p className="text-xs text-[#626f86] px-4 py-3">Nenhum cartão</p>
                             ) : (
-                              filtered.map((card) => (
-                                <div key={card.id} className="flex items-center gap-3 px-4 py-2.5 border-b border-gray-50 last:border-0 hover:bg-gray-50 group/row">
-                                  {card.cover && <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: CARD_COVER_COLORS[card.cover] }} />}
-                                  <span className="text-sm text-[#172b4d] flex-1">{card.title}</span>
-                                  <button
-                                    onClick={() => { const t = window.prompt("Novo nome:", card.title); if (t?.trim()) handleRenameCard(card.id, t.trim()); }}
-                                    className="opacity-0 group-hover/row:opacity-100 p-1 rounded hover:bg-gray-200 transition text-gray-400"
-                                  >
-                                    <Pencil className="w-3 h-3" />
-                                  </button>
-                                </div>
-                              ))
+                              filtered.map((card) => {
+                                const checklistProgress = getChecklistProgress(card);
+                                return (
+                                  <div key={card.id} className="flex items-center gap-3 px-4 py-2.5 border-b border-gray-50 last:border-0 hover:bg-gray-50 group/row">
+                                    <button
+                                      onClick={() => handleToggleCardComplete(card.id)}
+                                      className="text-[#44546f] hover:text-[#172b4d]"
+                                      title={card.metadata?.completed ? "Marcar como pendente" : "Marcar como concluido"}
+                                    >
+                                      {card.metadata?.completed ? <CheckCircle2 className="w-4 h-4 text-green-600" /> : <Circle className="w-4 h-4" />}
+                                    </button>
+                                    {card.cover && <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: CARD_COVER_COLORS[card.cover] }} />}
+                                    <div className="flex-1 min-w-0">
+                                      <button
+                                        onClick={() => setSelectedCardId(card.id)}
+                                        className={`text-sm block truncate text-left ${card.metadata?.completed ? "text-[#5e6c84] line-through" : "text-[#172b4d]"}`}
+                                      >
+                                        {card.title}
+                                      </button>
+                                      {card.description && <span className="text-xs text-[#626f86] block truncate">{card.description}</span>}
+                                    </div>
+                                    {checklistProgress.total > 0 && (
+                                      <span className="text-[11px] font-semibold text-[#44546f] bg-[#f1f2f4] rounded px-2 py-0.5">
+                                        {checklistProgress.done}/{checklistProgress.total}
+                                      </span>
+                                    )}
+                                    <button
+                                      onClick={() => { const t = window.prompt("Novo nome:", card.title); if (t?.trim()) handleRenameCard(card.id, t.trim()); }}
+                                      className="opacity-0 group-hover/row:opacity-100 p-1 rounded hover:bg-gray-200 transition text-gray-400"
+                                    >
+                                      <Pencil className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                );
+                              })
                             )}
                           </div>
                         );
                       })}
                     </div>
                   ) : (
-                    <div className="flex gap-3 h-full px-4 py-3 items-start min-w-max">
+                    <div className="flex gap-3 h-full px-4 py-3 items-start min-w-max overflow-visible">
                       <SortableContext items={lists.map((l) => l.id)} strategy={horizontalListSortingStrategy}>
                         {lists.map((list) => (
                           <Column
@@ -668,6 +1118,15 @@ export default function BoardPage() {
                             onAddCard={handleAddCard}
                             onDeleteList={handleDeleteList}
                             onRenameCard={handleRenameCard}
+                            onOpenCardDetails={setSelectedCardId}
+                            onToggleCardComplete={handleToggleCardComplete}
+                            onEditCardDescription={handleEditCardDescription}
+                            onDeleteCard={handleDeleteCard}
+                            onSetCardCover={handleSetCardCover}
+                            onMoveCard={handleMoveCard}
+                            onDuplicateCard={handleDuplicateCard}
+                            onCopyCardLink={handleCopyCardLink}
+                            onArchiveCard={handleArchiveCard}
                             isAddingCard={addingCardListId === list.id}
                             setAddingCard={(v) => setAddingCardListId(v ? list.id : null)}
                           />
@@ -680,7 +1139,7 @@ export default function BoardPage() {
                       ) : (
                         <button
                           onClick={() => setAddingList(true)}
-                          className="flex-shrink-0 w-[272px] flex items-center gap-2.5 px-4 py-3 rounded-xl text-white/90 hover:text-white text-sm font-semibold transition-all hover:bg-white/15"
+                          className="flex-shrink-0 w-[320px] flex items-center gap-2.5 px-4 py-3 rounded-xl text-white/90 hover:text-white text-sm font-semibold transition-all hover:bg-white/15"
                           style={{ background: "rgba(255,255,255,0.2)", backdropFilter: "blur(8px)" }}
                         >
                           <Plus className="w-4 h-4 flex-shrink-0" />
@@ -698,7 +1157,7 @@ export default function BoardPage() {
                     </div>
                   )}
                   {activeType === "list" && activeList && (
-                    <div className="rotate-1 w-[272px] rounded-xl px-3 py-2.5 text-[#172b4d] font-bold text-sm shadow-2xl opacity-95"
+                    <div className="rotate-1 w-[320px] rounded-xl px-3 py-2.5 text-[#172b4d] font-bold text-sm shadow-2xl opacity-95"
                       style={{ background: "rgba(241,242,244,0.97)" }}>
                       {activeList.title}
                     </div>
@@ -706,9 +1165,180 @@ export default function BoardPage() {
                 </DragOverlay>
               </DndContext>
             )}
+
+            {selectedCard && (
+              <div
+                className="fixed inset-0 z-[90] bg-[#0b122033] dark:bg-black/70 backdrop-blur-md flex items-center justify-center p-4"
+                onClick={() => setSelectedCardId(null)}
+              >
+                <div
+                  className="w-full max-w-6xl h-[92vh] rounded-2xl overflow-hidden shadow-2xl border border-white/40 dark:border-white/10 bg-white/35 dark:bg-slate-900/55 backdrop-blur-xl flex flex-col"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="relative h-36 px-6 py-4" style={{ background: board ? (BOARD_BG[board.color] || BOARD_BG.ocean) : BOARD_BG.ocean }}>
+                    <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/20" />
+                    <div className="relative flex items-start justify-between h-full">
+                      <input
+                        value={detailTitle}
+                        onChange={(e) => setDetailTitle(e.target.value)}
+                        className="w-full max-w-[78%] rounded-md border border-white/40 bg-white/90 dark:bg-slate-900/70 dark:border-white/20 px-3 py-1.5 text-[28px] leading-tight font-extrabold text-[#172b4d] dark:text-slate-100"
+                      />
+                      <button
+                        onClick={() => setSelectedCardId(null)}
+                        className="text-white/90 hover:text-white p-1.5 rounded-lg hover:bg-white/20"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-0 h-[calc(92vh-9rem)] min-h-0">
+                    <div className="overflow-y-auto p-6 border-r border-white/30 dark:border-white/10 bg-white/20 dark:bg-slate-900/20 min-h-0">
+                      <div className="flex items-center gap-2 mb-5">
+                        <button
+                          onClick={() => handleToggleCardComplete(selectedCard.id)}
+                          className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-semibold border ${selectedCard.metadata?.completed ? "bg-green-100/80 border-green-200 text-green-700" : "bg-white/70 dark:bg-slate-900/60 border-white/70 dark:border-white/20 text-[#44546f] dark:text-slate-200"}`}
+                        >
+                          {selectedCard.metadata?.completed ? <CheckCircle2 className="w-4 h-4" /> : <Circle className="w-4 h-4" />}
+                          {selectedCard.metadata?.completed ? "Concluído" : "Marcar concluído"}
+                        </button>
+                        {selectedCardProgress.total > 0 && (
+                          <span className="text-xs font-semibold text-[#44546f] dark:text-slate-300 bg-white/70 dark:bg-slate-900/60 border border-white/70 dark:border-white/20 rounded px-2 py-1">
+                            Progresso: {selectedCardProgress.done}/{selectedCardProgress.total}
+                          </span>
+                        )}
+                      </div>
+
+                      <section className="mb-6 rounded-xl border border-white/60 dark:border-white/15 bg-white/55 dark:bg-slate-900/45 backdrop-blur-sm p-4 shadow-sm">
+                        <h3 className="text-sm font-bold text-[#172b4d] dark:text-slate-100 mb-2">Descrição</h3>
+                        <textarea
+                          value={detailDescription}
+                          onChange={(e) => setDetailDescription(e.target.value)}
+                          rows={5}
+                          placeholder="Descreva o contexto, critérios e próximos passos..."
+                          className="w-full rounded-lg border border-white/70 dark:border-white/20 bg-white/65 dark:bg-slate-900/55 px-3 py-2 text-sm text-[#172b4d] dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        />
+                      </section>
+
+                      <section className="mb-6 rounded-xl border border-white/60 dark:border-white/15 bg-white/55 dark:bg-slate-900/45 backdrop-blur-sm p-4 shadow-sm">
+                        <h3 className="text-sm font-bold text-[#172b4d] dark:text-slate-100 mb-2">Checklist</h3>
+                        <CardChecklists
+                          cardId={selectedCard.id}
+                          onUpdated={() => refreshCard(selectedCard.id)}
+                        />
+                      </section>
+
+                      <div className="h-2" />
+                    </div>
+
+                    <aside className="overflow-y-auto p-5 bg-white/30 dark:bg-slate-900/35 backdrop-blur-sm min-h-0">
+                      <h3 className="text-xs font-bold text-[#44546f] dark:text-slate-300 uppercase tracking-wide mb-3">Ações do cartão</h3>
+                      <div className="grid gap-2">
+                        <button
+                          onClick={handleSaveCardDetails}
+                          disabled={savingDetails}
+                          className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-[#0c66e4] hover:bg-[#0055cc] disabled:opacity-60 text-white text-sm font-semibold px-3 py-2"
+                        >
+                          <Check className="w-4 h-4" /> {savingDetails ? "Salvando..." : "Salvar alterações"}
+                        </button>
+                        <button
+                          onClick={() => handleEditCardDescription(selectedCard.id)}
+                          className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-white/70 dark:bg-slate-900/60 hover:bg-white dark:hover:bg-slate-900 text-[#172b4d] dark:text-slate-100 text-sm font-semibold px-3 py-2 border border-white/80 dark:border-white/20"
+                        >
+                          <Pencil className="w-4 h-4" /> Editar descrição rápida
+                        </button>
+                        <button
+                          onClick={() => handleToggleCardComplete(selectedCard.id)}
+                          className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-white/70 dark:bg-slate-900/60 hover:bg-white dark:hover:bg-slate-900 text-[#172b4d] dark:text-slate-100 text-sm font-semibold px-3 py-2 border border-white/80 dark:border-white/20"
+                        >
+                          {selectedCard.metadata?.completed ? <Circle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
+                          {selectedCard.metadata?.completed ? "Marcar pendente" : "Marcar concluído"}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteCard(selectedCard.id)}
+                          className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-red-50 hover:bg-red-100 text-red-700 text-sm font-semibold px-3 py-2 border border-red-200"
+                        >
+                          <Trash2 className="w-4 h-4" /> Excluir cartão
+                        </button>
+                      </div>
+
+                      <section className="mt-5 rounded-xl border border-white/60 dark:border-white/15 bg-white/45 dark:bg-slate-900/45 backdrop-blur-sm p-3 shadow-sm">
+                        <h4 className="text-xs font-bold text-[#44546f] dark:text-slate-300 uppercase tracking-wide mb-2">Comentários</h4>
+                        <div className="space-y-2 mb-3 max-h-64 overflow-y-auto pr-1">
+                          {detailComments.length === 0 ? (
+                            <p className="text-xs text-[#626f86] dark:text-slate-400">Nenhum comentário ainda.</p>
+                          ) : detailComments.map((comment) => (
+                            <div key={comment.id} className="rounded-lg bg-white/75 dark:bg-slate-900/55 border border-white/70 dark:border-white/15 px-2.5 py-2">
+                              <p className="text-sm text-[#172b4d] dark:text-slate-100 whitespace-pre-wrap">{comment.text}</p>
+                              <p className="text-[11px] text-[#626f86] dark:text-slate-400 mt-1">{new Date(comment.createdAt).toLocaleString()}</p>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="space-y-2">
+                          <input
+                            value={newCommentText}
+                            onChange={(e) => setNewCommentText(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && !e.shiftKey) {
+                                e.preventDefault();
+                                handleAddComment();
+                              }
+                            }}
+                            placeholder="Escrever comentário..."
+                            className="w-full rounded-lg border border-white/70 dark:border-white/20 bg-white/70 dark:bg-slate-900/60 px-3 py-2 text-sm text-[#172b4d] dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                          />
+                          <button
+                            onClick={handleAddComment}
+                            className="w-full px-3 py-2 rounded-md bg-[#0c66e4] hover:bg-[#0055cc] text-white text-sm font-semibold"
+                          >
+                            Comentar
+                          </button>
+                        </div>
+                      </section>
+                    </aside>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </SidebarInset>
       </SidebarProvider>
+
+      {/* Color Picker Modal */}
+      <ColorPickerModal
+        isOpen={!!colorPickerCardId}
+        onClose={() => setColorPickerCardId(null)}
+        onSelect={(color) => handleConfirmCardCover(color)}
+        currentColor={colorPickerCardId ? cards.find(c => c.id === colorPickerCardId)?.cover || undefined : undefined}
+        title="Escolha a cor da capa do cartão"
+      />
+
+      {/* List Picker Modal */}
+      <ListPickerModal
+        isOpen={!!listPickerCardId}
+        onClose={() => setListPickerCardId(null)}
+        onSelect={(listId) => handleConfirmMoveCard(listId)}
+        lists={lists.map(l => ({ id: l.id, name: l.title }))}
+        currentListId={listPickerCardId ? cards.find(c => c.id === listPickerCardId)?.listId : undefined}
+        title="Mover cartão para qual lista?"
+      />
+
+      {/* Delete Card Confirm Modal */}
+      <ConfirmModal
+        isOpen={!!deleteConfirmCard}
+        onClose={() => setDeleteConfirmCard(null)}
+        onConfirm={() => {
+          if (deleteConfirmCard) {
+            handleConfirmDeleteCard(deleteConfirmCard);
+          }
+        }}
+        title="Excluir cartão"
+        message="Tem certeza que deseja excluir este cartão? Esta ação não pode ser desfeita."
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        isDangerous
+      />
     </AuthGuard>
   );
 }

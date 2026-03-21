@@ -1,6 +1,7 @@
 ﻿import { getAuthToken } from "@/lib/cookies";
+import { getApiBaseUrl } from "@/lib/api-url";
 
-const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api`;
+const API_BASE_URL = getApiBaseUrl();
 
 export interface List {
   id: string;

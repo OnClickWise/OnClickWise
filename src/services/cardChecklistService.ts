@@ -1,6 +1,4 @@
-import { getAuthToken } from "@/lib/cookies";
-
-const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_BASE_URL}/api`;
+import { getCardById, updateCard } from "@/services/cardService";
 
 export interface CardChecklist {
   id: string;
@@ -9,69 +7,132 @@ export interface CardChecklist {
   items: { id: string; text: string; checked: boolean }[];
 }
 
+function generateId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function normalizeChecklists(raw: any, cardId: string): CardChecklist[] {
+  if (!Array.isArray(raw)) return [];
+
+  return raw.map((checklist: any) => ({
+    id: String(checklist?.id || generateId()),
+    cardId,
+    title: String(checklist?.title || "Checklist"),
+    items: Array.isArray(checklist?.items)
+      ? checklist.items.map((item: any) => ({
+          id: String(item?.id || generateId()),
+          text: String(item?.text || ""),
+          checked: Boolean(item?.checked),
+        }))
+      : [],
+  }));
+}
+
+async function getCardChecklists(cardId: string): Promise<CardChecklist[]> {
+  const card = await getCardById(cardId);
+  return normalizeChecklists(card.metadata?.checklists, cardId);
+}
+
+async function saveCardChecklists(cardId: string, checklists: CardChecklist[]): Promise<void> {
+  const card = await getCardById(cardId);
+  const metadata = {
+    ...(card.metadata || {}),
+    checklists,
+  };
+  await updateCard(cardId, { metadata });
+}
+
 export async function getChecklists(cardId: string): Promise<CardChecklist[]> {
-  const token = getAuthToken();
-  const res = await fetch(`${API_BASE_URL}/cards/${cardId}/checklists`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(token && { Authorization: `Bearer ${token}` }),
-    },
-  });
-  if (!res.ok) throw new Error("Erro ao buscar checklists");
-  return res.json();
+  return getCardChecklists(cardId);
 }
 
 export async function addChecklist(cardId: string, title: string): Promise<CardChecklist> {
-  const token = getAuthToken();
-  const res = await fetch(`${API_BASE_URL}/cards/${cardId}/checklists`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token && { Authorization: `Bearer ${token}` }),
-    },
-    body: JSON.stringify({ title }),
-  });
-  if (!res.ok) throw new Error("Erro ao adicionar checklist");
-  return res.json();
+  const checklists = await getCardChecklists(cardId);
+  const checklist: CardChecklist = {
+    id: generateId(),
+    cardId,
+    title,
+    items: [],
+  };
+  const updated = [...checklists, checklist];
+  await saveCardChecklists(cardId, updated);
+  return checklist;
 }
 
 export async function addChecklistItem(cardId: string, checklistId: string, text: string): Promise<CardChecklist> {
-  const token = getAuthToken();
-  const res = await fetch(`${API_BASE_URL}/cards/${cardId}/checklists/${checklistId}/items`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token && { Authorization: `Bearer ${token}` }),
-    },
-    body: JSON.stringify({ text }),
+  const checklists = await getCardChecklists(cardId);
+  const updated = checklists.map((checklist) => {
+    if (checklist.id !== checklistId) return checklist;
+    return {
+      ...checklist,
+      items: [...checklist.items, { id: generateId(), text, checked: false }],
+    };
   });
-  if (!res.ok) throw new Error("Erro ao adicionar item");
-  return res.json();
+
+  await saveCardChecklists(cardId, updated);
+  const checklist = updated.find((item) => item.id === checklistId);
+  if (!checklist) throw new Error("Checklist nao encontrado");
+  return checklist;
 }
 
 export async function toggleChecklistItem(cardId: string, checklistId: string, itemId: string, checked: boolean): Promise<CardChecklist> {
-  const token = getAuthToken();
-  const res = await fetch(`${API_BASE_URL}/cards/${cardId}/checklists/${checklistId}/items/${itemId}`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token && { Authorization: `Bearer ${token}` }),
-    },
-    body: JSON.stringify({ checked }),
+  const checklists = await getCardChecklists(cardId);
+  const updated = checklists.map((checklist) => {
+    if (checklist.id !== checklistId) return checklist;
+    return {
+      ...checklist,
+      items: checklist.items.map((item) =>
+        item.id === itemId ? { ...item, checked } : item,
+      ),
+    };
   });
-  if (!res.ok) throw new Error("Erro ao atualizar item");
-  return res.json();
+
+  await saveCardChecklists(cardId, updated);
+  const checklist = updated.find((item) => item.id === checklistId);
+  if (!checklist) throw new Error("Checklist nao encontrado");
+  return checklist;
 }
 
 export async function deleteChecklist(cardId: string, checklistId: string) {
-  const token = getAuthToken();
-  const res = await fetch(`${API_BASE_URL}/cards/${cardId}/checklists/${checklistId}`, {
-    method: "DELETE",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token && { Authorization: `Bearer ${token}` }),
-    },
+  const checklists = await getCardChecklists(cardId);
+  const updated = checklists.filter((item) => item.id !== checklistId);
+  await saveCardChecklists(cardId, updated);
+  return { success: true };
+}
+
+export async function updateChecklistItem(cardId: string, checklistId: string, itemId: string, newText: string): Promise<CardChecklist> {
+  const checklists = await getCardChecklists(cardId);
+  const updated = checklists.map((checklist) => {
+    if (checklist.id !== checklistId) return checklist;
+    return {
+      ...checklist,
+      items: checklist.items.map((item) =>
+        item.id === itemId ? { ...item, text: newText } : item,
+      ),
+    };
   });
-  if (!res.ok) throw new Error("Erro ao excluir checklist");
-  return res.json();
+
+  await saveCardChecklists(cardId, updated);
+  const checklist = updated.find((item) => item.id === checklistId);
+  if (!checklist) throw new Error("Checklist nao encontrado");
+  return checklist;
+}
+
+export async function deleteChecklistItem(cardId: string, checklistId: string, itemId: string): Promise<CardChecklist> {
+  const checklists = await getCardChecklists(cardId);
+  const updated = checklists.map((checklist) => {
+    if (checklist.id !== checklistId) return checklist;
+    return {
+      ...checklist,
+      items: checklist.items.filter((item) => item.id !== itemId),
+    };
+  });
+
+  await saveCardChecklists(cardId, updated);
+  const checklist = updated.find((item) => item.id === checklistId);
+  if (!checklist) throw new Error("Checklist nao encontrado");
+  return checklist;
 }

@@ -5,6 +5,9 @@
   setAccessTokenCookie,
   setRefreshTokenCookie,
 } from "@/lib/cookies";
+import { getApiBaseUrl } from "@/lib/api-url";
+
+const API_BASE_URL = getApiBaseUrl();
 
 export interface RegisterResponse {
   success: boolean;
@@ -22,7 +25,7 @@ export interface RegisterResponse {
 // ----------------------
 export async function forgotPassword(email: string) {
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/forgot-password`,
+    `${API_BASE_URL}/auth/forgot-password`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -41,7 +44,7 @@ export async function forgotPassword(email: string) {
 // ----------------------
 export async function resetPassword({ token, password }: { token: string; password: string }) {
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/reset-password`,
+    `${API_BASE_URL}/auth/reset-password`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -60,7 +63,7 @@ export async function resetPassword({ token, password }: { token: string; passwo
 // ----------------------
 export async function login({ email, password }: { email: string; password: string }) {
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/login`,
+    `${API_BASE_URL}/auth/login`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -97,7 +100,7 @@ export async function login({ email, password }: { email: string; password: stri
 // ----------------------
 export async function register(data: any) {
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/register`,
+    `${API_BASE_URL}/auth/register`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -138,7 +141,7 @@ export async function logout() {
   const token = getAuthToken();
 
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/logout`,
+    `${API_BASE_URL}/auth/logout`,
     {
       method: "POST",
       headers: {
@@ -168,7 +171,7 @@ export async function logout() {
 // ----------------------
 export async function getCurrentUser() {
   const token = getAuthToken();
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/me`, {
+  const res = await fetch(`${API_BASE_URL}/auth/me`, {
     method: "GET",
     headers: {
       "Content-Type": "application/json",
@@ -200,7 +203,7 @@ export async function refreshToken(): Promise<{ accessToken: string; refreshToke
   if (!currentRefreshToken) throw new Error("Refresh token nao encontrado");
 
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/refresh`,
+    `${API_BASE_URL}/auth/refresh`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
