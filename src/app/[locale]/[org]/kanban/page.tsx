@@ -7,9 +7,9 @@ import AuthGuard from "@/components/AuthGuard";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import {
   Plus, Star, ChevronRight, Layers, Zap, Map, Bug, Calendar, Layout,
-  X, Loader2, FolderPlus, Sparkles, LayoutGrid, MoreHorizontal, Trash2,
+  X, Loader2, FolderPlus, Sparkles, LayoutGrid, MoreHorizontal, Trash2, Pencil, UserPlus,
 } from "lucide-react";
-import { getProjects, createProject, deleteProject, Project } from "@/services/projectService";
+import { getProjects, createProject, deleteProject, updateProject, getAvailableProjectUsers, Project, ProjectAvailableUser } from "@/services/projectService";
 import { getBoards, createBoard, Board } from "@/services/boardService";
 import { createList } from "@/services/listService";
 
@@ -352,6 +352,13 @@ export default function KanbanHomePage() {
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [wsMenuOpen, setWsMenuOpen] = useState<string | null>(null);
   const [wsDeleteConfirm, setWsDeleteConfirm] = useState<string | null>(null);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [editingDescription, setEditingDescription] = useState("");
+  const [savingDescription, setSavingDescription] = useState(false);
+  const [inviteProject, setInviteProject] = useState<Project | null>(null);
+  const [inviteUsers, setInviteUsers] = useState<ProjectAvailableUser[]>([]);
+  const [inviteSearch, setInviteSearch] = useState("");
+  const [inviteLoading, setInviteLoading] = useState(false);
 
   useEffect(() => {
     if (!org) return;
@@ -399,6 +406,36 @@ export default function KanbanHomePage() {
       [board.projectId]: [...(prev[board.projectId] || []), board],
     }));
     router.push(`/${locale}/${org}/kanban/projects/${board.projectId}/boards/${board.id}`);
+  }
+
+  async function handleSaveDescription() {
+    if (!editingProject) return;
+    setSavingDescription(true);
+    try {
+      const updated = await updateProject(editingProject.id, { description: editingDescription.trim() || "" });
+      setProjects((prev) => prev.map((p) => (p.id === updated.id ? { ...p, ...updated } : p)));
+      setEditingProject(null);
+      setEditingDescription("");
+    } catch (e: any) {
+      alert("Erro ao atualizar descricao: " + e.message);
+    } finally {
+      setSavingDescription(false);
+    }
+  }
+
+  async function openInviteModal(project: Project) {
+    setInviteProject(project);
+    setInviteSearch("");
+    setInviteLoading(true);
+    try {
+      const users = await getAvailableProjectUsers();
+      setInviteUsers(users);
+    } catch (e: any) {
+      setInviteUsers([]);
+      alert("Erro ao carregar usuarios: " + e.message);
+    } finally {
+      setInviteLoading(false);
+    }
   }
 
   const activeProject = projects.find((p) => p.id === activeProjectId);
@@ -464,13 +501,30 @@ export default function KanbanHomePage() {
                           onClick={(e) => e.stopPropagation()}
                         >
                           {wsDeleteConfirm !== p.id ? (
-                            <button
-                              onClick={() => setWsDeleteConfirm(p.id)}
-                              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                              Excluir workspace
-                            </button>
+                            <>
+                              <button
+                                onClick={() => { setEditingProject(p); setEditingDescription(p.description || ""); setWsMenuOpen(null); }}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/60 transition"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                                Editar descricao
+                              </button>
+                              <button
+                                onClick={() => { setWsMenuOpen(null); openInviteModal(p); }}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/60 transition"
+                              >
+                                <UserPlus className="w-3.5 h-3.5" />
+                                Convidar usuario
+                              </button>
+                              <div className="h-px bg-gray-200 dark:bg-gray-700 my-1" />
+                              <button
+                                onClick={() => setWsDeleteConfirm(p.id)}
+                                className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                Excluir workspace
+                              </button>
+                            </>
                           ) : (
                             <div className="px-3 py-2 flex flex-col gap-2">
                               <p className="text-xs text-gray-600 dark:text-gray-300 leading-snug">Excluir este workspace e todos os quadros?</p>
@@ -679,6 +733,106 @@ export default function KanbanHomePage() {
           onCreated={handleBoardCreated}
           initialTemplate={createBoardFor.template}
         />
+      )}
+
+      {editingProject && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)" }}
+          onClick={() => { if (!savingDescription) setEditingProject(null); }}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-2xl p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-base font-bold text-gray-900 dark:text-white">Editar descricao do workspace</h3>
+            <p className="text-xs text-gray-500 mt-1 mb-3">Workspace: {editingProject.name}</p>
+            <textarea
+              value={editingDescription}
+              onChange={(e) => setEditingDescription(e.target.value)}
+              rows={5}
+              className="w-full resize-none rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Descreva o objetivo deste workspace..."
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                onClick={() => setEditingProject(null)}
+                disabled={savingDescription}
+                className="px-4 py-2 rounded-xl text-sm font-semibold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 transition"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveDescription}
+                disabled={savingDescription}
+                className="px-4 py-2 rounded-xl text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-70 flex items-center gap-2"
+              >
+                {savingDescription ? <><Loader2 className="w-4 h-4 animate-spin" /> Salvando...</> : "Salvar descricao"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {inviteProject && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)" }}
+          onClick={() => setInviteProject(null)}
+        >
+          <div
+            className="w-full max-w-xl rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-2xl p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-base font-bold text-gray-900 dark:text-white">Convidar usuario</h3>
+            <p className="text-xs text-gray-500 mt-1">Workspace: {inviteProject.name}</p>
+
+            <input
+              value={inviteSearch}
+              onChange={(e) => setInviteSearch(e.target.value)}
+              placeholder="Buscar por nome ou email..."
+              className="mt-3 w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+
+            <div className="mt-3 max-h-72 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-xl">
+              {inviteLoading ? (
+                <div className="p-4 text-sm text-gray-500 flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />Carregando usuarios...</div>
+              ) : inviteUsers.length === 0 ? (
+                <div className="p-4 text-sm text-gray-500">Nenhum usuario encontrado nesta empresa.</div>
+              ) : (
+                inviteUsers
+                  .filter((u) => {
+                    const q = inviteSearch.trim().toLowerCase();
+                    if (!q) return true;
+                    return u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
+                  })
+                  .map((u) => (
+                    <div key={u.id} className="px-3 py-2 border-b last:border-b-0 border-gray-100 dark:border-gray-800 flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">{u.name}</p>
+                        <p className="text-xs text-gray-500 truncate">{u.email}</p>
+                      </div>
+                      <button
+                        onClick={() => alert(`Usuario ${u.name} selecionado para convite no workspace ${inviteProject.name}.`)}
+                        className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition"
+                      >
+                        Convidar
+                      </button>
+                    </div>
+                  ))
+              )}
+            </div>
+
+            <div className="mt-4 flex justify-end">
+              <button
+                onClick={() => setInviteProject(null)}
+                className="px-4 py-2 rounded-xl text-sm font-semibold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 transition"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </AuthGuard>
   );
