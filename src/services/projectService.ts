@@ -16,6 +16,14 @@ export interface CreateProjectRequest {
   description?: string;
 }
 
+export interface ProjectAvailableUser {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  created_at?: string;
+}
+
 async function handleResponse<T>(res: Response, errorMessage: string): Promise<T> {
   if (!res.ok) {
     const body = await res.text().catch(() => '');
@@ -59,4 +67,12 @@ export async function deleteProject(projectId: string): Promise<void> {
     const body = await res.text().catch(() => '');
     throw new Error(`Erro ao excluir projeto (${res.status}: ${body})`);
   }
+}
+
+export async function getAvailableProjectUsers(): Promise<ProjectAvailableUser[]> {
+  const res = await authenticatedFetch(`${API_BASE_URL}/projects/available-users`);
+  const data = await handleResponse<any>(res, "Erro ao buscar usuários disponíveis");
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.users)) return data.users;
+  return [];
 }

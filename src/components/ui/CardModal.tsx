@@ -5,6 +5,7 @@ import CardDueDate from "@/components/ui/CardDueDate";
 import CardMembers from "@/components/ui/CardMembers";
 import { CardComments } from "@/components/ui/CardComments";
 import { CardAttachments } from "@/components/ui/CardAttachments";
+import { getAvailableProjectUsers, ProjectAvailableUser } from "@/services/projectService";
 
 interface CardModalProps {
   open: boolean;
@@ -22,14 +23,25 @@ interface CardModalProps {
   };
 }
 
-// Exemplo de usuários disponíveis (em produção, buscar do contexto do projeto/time)
-const mockUsers = [
-  { id: '1', name: 'Alice' },
-  { id: '2', name: 'Bob' },
-  { id: '3', name: 'Carol' },
-];
-
 export default function CardModal({ open, onClose, card }: CardModalProps) {
+  const [availableUsers, setAvailableUsers] = useState<ProjectAvailableUser[]>([]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    let mounted = true;
+    getAvailableProjectUsers()
+      .then((users) => {
+        if (mounted) setAvailableUsers(users);
+      })
+      .catch(() => {
+        if (mounted) setAvailableUsers([]);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [open]);
 
 
   if (!open) return null;
@@ -45,7 +57,7 @@ export default function CardModal({ open, onClose, card }: CardModalProps) {
         {/* Labels */}
         <CardLabels cardId={card.id} />
         <CardDueDate cardId={card.id} />
-        <CardMembers cardId={card.id} availableUsers={mockUsers} />
+        <CardMembers cardId={card.id} availableUsers={availableUsers} />
         {/* Due Date */}
         {card.dueDate && (
           <div style={{ marginBottom: 16 }}>
