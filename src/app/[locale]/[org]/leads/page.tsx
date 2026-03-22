@@ -112,6 +112,11 @@ function createId() {
   return Math.random().toString(36).slice(2, 10);
 }
 
+const IMPORT_MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
+const IMPORT_MAX_ROWS = 5000;
+const IMPORT_MAX_COLUMNS = 100;
+const DANGEROUS_IMPORT_KEYS = new Set(["__proto__", "prototype", "constructor"]);
+
 // Removed SAMPLE_LEADS - now using API
 
 // Sortable Column Item Component using HTML5 Drag and Drop
@@ -4305,6 +4310,85 @@ export default function LeadsPage({
     return { valid: true };
   };
 
+  function validateImportFile(file: File): { valid: boolean; error?: string } {
+    const allowed = /\.(xlsx|xls|csv|ods|json)$/i.test(file.name);
+    if (!allowed) {
+      return {
+        valid: false,
+        error: "Unsupported file. Please choose .xlsx, .xls, .csv, .ods or .json",
+      };
+    }
+
+    if (file.size > IMPORT_MAX_FILE_SIZE_BYTES) {
+      return {
+        valid: false,
+        error: `File exceeds ${Math.floor(IMPORT_MAX_FILE_SIZE_BYTES / 1024 / 1024)}MB limit. Current size: ${formatFileSize(file.size)}`,
+      };
+    }
+
+    return { valid: true };
+  }
+
+  function sanitizeImportedRows(
+    rows: Record<string, unknown>[],
+  ): Record<string, unknown>[] {
+    const sanitized: Record<string, unknown>[] = [];
+
+    for (const row of rows) {
+      const cleanRow: Record<string, unknown> = {};
+      let colCount = 0;
+
+      for (const [rawKey, rawValue] of Object.entries(row)) {
+        if (colCount >= IMPORT_MAX_COLUMNS) break;
+
+        const key = String(rawKey || "").trim();
+        if (!key) continue;
+
+        const normalized = key.toLowerCase();
+        if (DANGEROUS_IMPORT_KEYS.has(normalized)) continue;
+
+        if (typeof rawValue === "string") {
+          cleanRow[key] = rawValue.slice(0, 5000);
+        } else {
+          cleanRow[key] = rawValue;
+        }
+
+        colCount++;
+      }
+
+      if (Object.keys(cleanRow).length > 0) {
+        sanitized.push(cleanRow);
+      }
+    }
+
+    return sanitized;
+  }
+
+  function parseRowsFromSpreadsheet(arrayBuffer: ArrayBuffer): Record<string, unknown>[] {
+    const workbook = XLSX.read(arrayBuffer, {
+      type: "array",
+      dense: true,
+      cellFormula: false,
+      cellHTML: false,
+      cellNF: false,
+      cellStyles: false,
+    });
+
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    const parsedRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(worksheet, {
+      defval: "",
+      raw: false,
+      blankrows: false,
+    });
+
+    if (parsedRows.length > IMPORT_MAX_ROWS) {
+      throw new Error(`Import limit exceeded. Maximum ${IMPORT_MAX_ROWS} rows per file.`);
+    }
+
+    return sanitizeImportedRows(parsedRows);
+  }
+
   const handleAttachmentFileSelect = (
     event: React.ChangeEvent<HTMLInputElement>,
     leadId: string,
@@ -5570,6 +5654,11 @@ export default function LeadsPage({
 
   async function processFileForPreview(file: File) {
     try {
+      const validation = validateImportFile(file);
+      if (!validation.valid) {
+        throw new Error(validation.error);
+      }
+
       const lower = file.name.toLowerCase();
       let imported: Lead[] = [];
       let fields: string[] = [];
@@ -5577,21 +5666,13 @@ export default function LeadsPage({
       if (lower.endsWith(".json")) {
         const text = await file.text();
         const data = JSON.parse(text) as Record<string, unknown>[];
-        imported = mapRowsToLeads(Array.isArray(data) ? data : []);
-        fields = data.length > 0 ? Object.keys(data[0]) : [];
+        const safeRows = sanitizeImportedRows(Array.isArray(data) ? data.slice(0, IMPORT_MAX_ROWS) : []);
+        imported = mapRowsToLeads(safeRows);
+        fields = safeRows.length > 0 ? Object.keys(safeRows[0]) : [];
       } else {
         // CSV, XLSX, XLS, ODS via SheetJS
         const arrayBuffer = await file.arrayBuffer();
-        const workbook = XLSX.read(arrayBuffer, { type: "array" });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        const rows: Record<string, unknown>[] = XLSX.utils.sheet_to_json(
-          worksheet,
-          {
-            defval: "",
-            raw: false, // 🔹 Força conversão automática de números de data em string
-          },
-        );
+        const rows = parseRowsFromSpreadsheet(arrayBuffer);
         imported = mapRowsToLeads(rows);
         fields = rows.length > 0 ? Object.keys(rows[0]) : [];
       }
@@ -5644,6 +5725,11 @@ export default function LeadsPage({
     setCurrentImportLeads([]); // Reset current import leads
 
     try {
+      const validation = validateImportFile(file);
+      if (!validation.valid) {
+        throw new Error(validation.error);
+      }
+
       const lower = file.name.toLowerCase();
 
       let imported: Lead[] = [];
@@ -5653,25 +5739,14 @@ export default function LeadsPage({
 
         const data = JSON.parse(text) as Record<string, unknown>[];
 
-        imported = mapRowsToLeads(Array.isArray(data) ? data : []);
+        const safeRows = sanitizeImportedRows(Array.isArray(data) ? data.slice(0, IMPORT_MAX_ROWS) : []);
+        imported = mapRowsToLeads(safeRows);
       } else {
         // CSV, XLSX, XLS, ODS via SheetJS
 
         const arrayBuffer = await file.arrayBuffer();
 
-        const workbook = XLSX.read(arrayBuffer, { type: "array" });
-
-        const sheetName = workbook.SheetNames[0];
-
-        const worksheet = workbook.Sheets[sheetName];
-
-        const rows: Record<string, unknown>[] = XLSX.utils.sheet_to_json(
-          worksheet,
-          {
-            defval: "",
-            raw: false, // 🔹 Força conversão automática de números de data em string
-          },
-        );
+        const rows = parseRowsFromSpreadsheet(arrayBuffer);
         imported = mapRowsToLeads(rows);
       }
 
@@ -9255,12 +9330,10 @@ export default function LeadsPage({
 
                       if (!file) return;
 
-                      const ok = /\.(xlsx|xls|csv|ods|json)$/i.test(file.name);
+                      const validation = validateImportFile(file);
 
-                      if (!ok) {
-                        alert(
-                          "Unsupported file. Please choose .xlsx, .xls, .csv, .ods or .json",
-                        );
+                      if (!validation.valid) {
+                        alert(validation.error);
 
                         return;
                       }
@@ -9313,12 +9386,10 @@ export default function LeadsPage({
 
                     if (!file) return;
 
-                    const ok = /\.(xlsx|xls|csv|ods|json)$/i.test(file.name);
+                    const validation = validateImportFile(file);
 
-                    if (!ok) {
-                      alert(
-                        "Unsupported file. Please choose .xlsx, .xls, .csv, .ods or .json",
-                      );
+                    if (!validation.valid) {
+                      alert(validation.error);
 
                       return;
                     }
