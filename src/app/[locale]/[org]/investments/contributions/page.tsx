@@ -10,9 +10,11 @@ import { Label } from "@/components/ui/label";
 import { investmentService } from "@/services/investmentService";
 import { Contribution, InvestmentAsset, Portfolio } from "@/types/investments";
 import { parseLocalizedNumber } from "@/lib/number";
+import { useInvestmentModals } from "@/hooks/useInvestmentModals";
 
 export default function InvestmentsContributionsPage({ params }: { params: Promise<{ org: string }> }) {
   const { org } = use(params);
+  const { confirmDeleteContribution } = useInvestmentModals();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
@@ -122,6 +124,17 @@ export default function InvestmentsContributionsPage({ params }: { params: Promi
   };
 
   const onDelete = async (id: string) => {
+    const contribution = contributions.find(c => c.id === id);
+    if (!contribution) return;
+
+    const confirmed = await confirmDeleteContribution(
+      contribution.type,
+      contribution.value,
+      contribution.date,
+    );
+    
+    if (!confirmed) return;
+
     try {
       setError(null);
       await investmentService.deleteContribution(id);

@@ -88,23 +88,44 @@ type FinancialGoalApi = {
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = getAuthToken();
+  
+  // Não adicionar Content-Type para requisições sem body (GET, DELETE)
+  const hasBody = options.body !== undefined && options.body !== null;
+  const headers: HeadersInit = {
+    ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(options.headers || {}),
+  };
 
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options.headers || {}),
-    },
+    headers,
   });
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(text || `Erro ao acessar ${endpoint}`);
+    if (text) {
+      try {
+        const parsed = JSON.parse(text) as { message?: string | string[] };
+        if (Array.isArray(parsed.message)) {
+          throw new Error(parsed.message.join(", "));
+        }
+        if (parsed.message) {
+          throw new Error(parsed.message);
+        }
+      } catch {
+        throw new Error(text);
+      }
+    }
+    throw new Error(`Erro ao acessar ${endpoint}`);
   }
 
-  const data = (await response.json()) as T;
-  return data;
+  const text = await response.text();
+  if (!text) {
+    return undefined as T;
+  }
+
+  return JSON.parse(text) as T;
 }
 
 function mapInvestor(data: InvestorApi): Investor {
@@ -359,7 +380,6 @@ export const investmentService = {
   async refreshInvestmentPrices(): Promise<{ updated: number }> {
     return request<{ updated: number }>('/investments/refresh-prices', {
       method: 'POST',
-      body: JSON.stringify({}),
     });
   },
 

@@ -10,9 +10,11 @@ import { Label } from "@/components/ui/label";
 import { investmentService } from "@/services/investmentService";
 import { FinancialGoal } from "@/types/investments";
 import { parseLocalizedNumber } from "@/lib/number";
+import { useInvestmentModals } from "@/hooks/useInvestmentModals";
 
 export default function InvestmentsGoalsPage({ params }: { params: Promise<{ org: string }> }) {
   const { org } = use(params);
+  const { confirmDeleteFinancialGoal } = useInvestmentModals();
   const [goals, setGoals] = useState<FinancialGoal[]>([]);
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
@@ -72,6 +74,16 @@ export default function InvestmentsGoalsPage({ params }: { params: Promise<{ org
   };
 
   const onDelete = async (id: string) => {
+    const goal = goals.find(g => g.id === id);
+    if (!goal) return;
+
+    const confirmed = await confirmDeleteFinancialGoal(
+      goal.name,
+      goal.targetAmount,
+    );
+    
+    if (!confirmed) return;
+
     try {
       setError(null);
       await investmentService.deleteFinancialGoal(id);

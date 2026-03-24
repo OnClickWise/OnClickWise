@@ -304,19 +304,31 @@ export default function OrgPage({
 
         if (!uploadResponse.ok || !uploadResult.success) {
           addNotification('error', uploadResult.error || t('errors.uploadFailed'));
+          console.error('Logo upload failed:', uploadResult.error);
           return;
         }
 
+        const newLogoUrl = uploadResult.logo_url || uploadResult.organization?.logo_url || nextData.logo_url;
+        
         nextData = {
           ...nextData,
-          logo_url: uploadResult.logo_url || uploadResult.organization?.logo_url || nextData.logo_url,
+          logo_url: newLogoUrl,
         };
 
         setOrganizationData(nextData);
         setLogoPreview(null);
         setLogoFile(null);
-        setLogoVersion(Date.now());
+        const timestamp = Date.now();
+        setLogoVersion(timestamp);
         uploadedLogo = true;
+        
+        // Log para debug
+        console.log('Logo uploaded successfully:', { newLogoUrl, timestamp });
+        
+        // Disparar evento para atualizar sidebar e outros componentes
+        window.dispatchEvent(new CustomEvent('organizationUpdated', { 
+          detail: { logoUrl: newLogoUrl, timestamp } 
+        }));
       }
 
       const changedFields: Partial<OrganizationData> = {};

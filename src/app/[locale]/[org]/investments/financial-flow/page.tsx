@@ -10,9 +10,11 @@ import { Label } from "@/components/ui/label";
 import { investmentService } from "@/services/investmentService";
 import { FinancialFlow } from "@/types/investments";
 import { parseLocalizedNumber } from "@/lib/number";
+import { useInvestmentModals } from "@/hooks/useInvestmentModals";
 
 export default function InvestmentsFinancialFlowPage({ params }: { params: Promise<{ org: string }> }) {
   const { org } = use(params);
+  const { confirmDeleteFinancialFlow } = useInvestmentModals();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [flows, setFlows] = useState<FinancialFlow[]>([]);
@@ -94,6 +96,17 @@ export default function InvestmentsFinancialFlowPage({ params }: { params: Promi
   };
 
   const onDelete = async (id: string) => {
+    const flow = flows.find(f => f.id === id);
+    if (!flow) return;
+
+    const confirmed = await confirmDeleteFinancialFlow(
+      flow.category,
+      flow.value,
+      flow.type,
+    );
+    
+    if (!confirmed) return;
+
     try {
       setError(null);
       await investmentService.deleteFinancialFlow(id);

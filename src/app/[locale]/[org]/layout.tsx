@@ -1,6 +1,8 @@
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { getLocale } from 'next-intl/server';
 import { ClientLocaleProvider } from '@/components/ClientLocaleProvider';
+import { ModalsProvider } from '@/context/ModalsContext';
+import { ModalsRenderer } from '@/components/ModalsRenderer';
 
 export default async function PublicLayout({
   children,
@@ -15,9 +17,12 @@ export default async function PublicLayout({
       <div className="absolute top-4 right-4 z-50">
         <ThemeToggle />
       </div>
-      <ClientLocaleProvider defaultLocale={locale}>
-          {children}
-      </ClientLocaleProvider>
+      <ModalsProvider>
+        <ClientLocaleProvider defaultLocale={locale}>
+            {children}
+        </ClientLocaleProvider>
+        <ModalsRenderer />
+      </ModalsProvider>
     </main>
   );
 }

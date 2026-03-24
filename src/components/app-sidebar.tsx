@@ -75,6 +75,7 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
     name: "",
     logo_url: null,
     plan: "",
+    logoTimestamp: Date.now(),
   })
   const [dataLoaded, setDataLoaded] = React.useState(false)
   
@@ -97,6 +98,7 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
             name: tOrg('name') || "Organization",
             logo_url: null,
             plan: tOrg('enterprise') || "Enterprise",
+            logoTimestamp: Date.now(),
           });
           setDataLoaded(true);
           return;
@@ -147,6 +149,7 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
               name: orgResponse.organization.name || tOrg('name') || "Organization",
               logo_url: orgResponse.organization.logo_url,
               plan: orgResponse.organization.plan || tOrg('enterprise') || "Enterprise",
+              logoTimestamp: Date.now(),
             })
           }
         } catch (error) {
@@ -156,13 +159,13 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
             setOrgData({
               name: organization?.name || tOrg('name') || "Organization",
               logo_url: organization?.logo_url,
-              plan: organization?.plan || tOrg('enterprise') || "Enterprise",
-            })
+              plan: organization?.plan || tOrg('enterprise') || "Enterprise",              logoTimestamp: Date.now(),            })
           } catch (parseError) {
             setOrgData({
               name: tOrg('name') || "Organization",
               logo_url: null,
               plan: tOrg('enterprise') || "Enterprise",
+              logoTimestamp: Date.now(),
             })
           }
         }
@@ -183,7 +186,7 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
 
   // Listen for organization updates
   React.useEffect(() => {
-    const handleOrganizationUpdate = () => {
+    const handleOrganizationUpdate = (event: Event) => {
       // Reload organization data when updated
       const fetchOrgData = async () => {
         try {
@@ -199,12 +202,17 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
           })
           
           if (orgResponse.success && orgResponse.organization) {
+            const newLogoUrl = orgResponse.organization.logo_url || ''
+            // Adicionar timestamp para garantir que o browser não use cache
+            const timestamp = Date.now()
             setOrgData({
               name: orgResponse.organization.name || tOrg('name') || "Organization",
-              logo_url: orgResponse.organization.logo_url,
+              logo_url: newLogoUrl,
               plan: tOrg('enterprise') || "Enterprise",
+              logoTimestamp: timestamp
             })
             setDataLoaded(true)
+            console.log('Sidebar updated logo:', { newLogoUrl, timestamp })
           }
         } catch (error) {
           console.error('Sidebar - Error reloading organization data:', error)
@@ -214,8 +222,8 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
       fetchOrgData()
     }
 
-    window.addEventListener('organizationUpdated', handleOrganizationUpdate)
-    return () => window.removeEventListener('organizationUpdated', handleOrganizationUpdate)
+    window.addEventListener('organizationUpdated', handleOrganizationUpdate as EventListener)
+    return () => window.removeEventListener('organizationUpdated', handleOrganizationUpdate as EventListener)
   }, [isClient, apiCall])
 
   // Listen for user updates
@@ -261,8 +269,10 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
   // Use organization data from API
   // Forçar reload da logo ao mudar (evita cache)
   const resolvedOrgLogo = resolveMediaUrl(orgData.logo_url)
+  // Usar timestamp armazenado ou gerar um novo apenas uma vez
+  const timestamp = (orgData as any).logoTimestamp || Date.now()
   const logoUrlWithTimestamp = dataLoaded && resolvedOrgLogo
-    ? `${resolvedOrgLogo}${resolvedOrgLogo.includes('?') ? '&' : '?'}t=${Date.now()}`
+    ? `${resolvedOrgLogo}${resolvedOrgLogo.includes('?') ? '&' : '?'}t=${timestamp}`
     : dataLoaded ? generateOrgLogo(orgData.name) : null;
   const organizationData = {
     name: dataLoaded ? orgData.name : "",

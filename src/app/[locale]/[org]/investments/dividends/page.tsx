@@ -10,9 +10,11 @@ import { Label } from "@/components/ui/label";
 import { investmentService } from "@/services/investmentService";
 import { Dividend, InvestmentAsset, Portfolio } from "@/types/investments";
 import { parseLocalizedNumber } from "@/lib/number";
+import { useInvestmentModals } from "@/hooks/useInvestmentModals";
 
 export default function InvestmentsDividendsPage({ params }: { params: Promise<{ org: string }> }) {
   const { org } = use(params);
+  const { confirmDeleteDividend } = useInvestmentModals();
   const [dividends, setDividends] = useState<Dividend[]>([]);
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
   const [assets, setAssets] = useState<InvestmentAsset[]>([]);
@@ -89,6 +91,17 @@ export default function InvestmentsDividendsPage({ params }: { params: Promise<{
   };
 
   const onDelete = async (id: string) => {
+    const dividend = dividends.find(d => d.id === id);
+    if (!dividend) return;
+
+    const confirmed = await confirmDeleteDividend(
+      dividend.assetName || 'Ativo',
+      dividend.value,
+      dividend.date,
+    );
+    
+    if (!confirmed) return;
+
     try {
       setError(null);
       await investmentService.deleteDividend(id);

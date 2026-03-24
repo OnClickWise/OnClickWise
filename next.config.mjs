@@ -7,16 +7,26 @@ const nextConfig = {
   reactStrictMode: true,
 
   async headers() {
+    const isDev = process.env.NODE_ENV !== 'production';
+    const devConnectSrc = isDev
+      ? ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:8080', 'http://127.0.0.1:8080']
+      : [];
+    
+    // Adicionar localhost às sources de imagem em desenvolvimento
+    const devImgSrc = isDev
+      ? ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:8080', 'http://127.0.0.1:8080']
+      : [];
+
     const csp = [
       "default-src 'self'",
       "base-uri 'self'",
       "frame-ancestors 'none'",
       "object-src 'none'",
-      "img-src 'self' data: blob: https:",
+      `img-src 'self' data: blob: https: ${devImgSrc.join(' ')}`.trim(),
       "font-src 'self' data: https:",
       "style-src 'self' 'unsafe-inline' https:",
       "script-src 'self' 'unsafe-inline' 'unsafe-eval' https:",
-      "connect-src 'self' https: ws: wss:",
+      `connect-src 'self' https: ws: wss: ${devConnectSrc.join(' ')}`.trim(),
     ].join('; ');
 
     return [

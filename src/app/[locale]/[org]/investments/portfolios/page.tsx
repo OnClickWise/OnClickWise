@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { parseLocalizedNumber } from "@/lib/number";
+import { useInvestmentModals } from "@/hooks/useInvestmentModals";
 
 function getAssetTypeLabel(assetType: string) {
   const labels: Record<string, string> = {
@@ -26,6 +27,7 @@ const money = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency",
 
 export default function InvestmentsPortfoliosPage({ params }: { params: Promise<{ org: string }> }) {
   const { org } = use(params);
+  const { confirmDeletePortfolio, confirmDeleteAsset, showErrorAlert } = useInvestmentModals();
   const [loading, setLoading] = useState(true);
   const [loadingAssets, setLoadingAssets] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -126,14 +128,25 @@ export default function InvestmentsPortfoliosPage({ params }: { params: Promise<
   };
 
   const onDeletePortfolio = async (id: string) => {
-    if (!confirm("Excluir esta carteira? Todos os ativos vinculados também serão removidos.")) return;
+    const portfolio = portfolios.find(p => p.id === id);
+    if (!portfolio) return;
+
+    const confirmed = await confirmDeletePortfolio(
+      portfolio.name,
+      assets.filter(a => a.portfolioId === id).length,
+    );
+    
+    if (!confirmed) return;
+    
     try {
       setError(null);
       await investmentService.deletePortfolioCascade(id);
       if (selectedPortfolioId === id) setSelectedPortfolioId("");
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao excluir carteira");
+      const errorMsg = err instanceof Error ? err.message : "Erro ao excluir carteira";
+      setError(errorMsg);
+      await showErrorAlert("Erro ao Excluir", errorMsg);
     }
   };
 
@@ -187,13 +200,26 @@ export default function InvestmentsPortfoliosPage({ params }: { params: Promise<
   };
 
   const onDeleteAsset = async (assetId: string) => {
+    const asset = assets.find(a => a.id === assetId);
+    if (!asset) return;
+
+    const confirmed = await confirmDeleteAsset(
+      asset.assetName,
+      asset.quantity,
+      asset.currentValue,
+    );
+    
+    if (!confirmed) return;
+
     try {
       setError(null);
       await investmentService.deleteInvestment(assetId);
       if (editingAssetId === assetId) onCancelEditAsset();
       await Promise.all([load(), loadAssets(selectedPortfolioId)]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao excluir ativo");
+      const errorMsg = err instanceof Error ? err.message : "Erro ao excluir ativo";
+      setError(errorMsg);
+      await showErrorAlert("Erro ao Excluir Ativo", errorMsg);
     }
   };
 

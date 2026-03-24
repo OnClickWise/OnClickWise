@@ -176,16 +176,26 @@ export default function BrandingPage({
         )
         const uploadData = await uploadRes.json()
         if (uploadData.success) {
-          setBranding((prev) => ({ ...prev, logo_url: uploadData.logo_url }))
+          const newLogoUrl = uploadData.logo_url || ''
+          // Garantir que a URL tem cache busting
+          const newTimestamp = Date.now()
+          setBranding((prev) => ({ ...prev, logo_url: newLogoUrl }))
           setLogoPreview(null)
           setLogoFile(null)
-          setLogoVersion(Date.now())
-          window.dispatchEvent(new CustomEvent('organizationUpdated'))
+          setLogoVersion(newTimestamp)
+          // Forçar reload do sidebar e de todos os componentes que usam o logo
+          window.dispatchEvent(new CustomEvent('organizationUpdated', { 
+            detail: { logoUrl: newLogoUrl, timestamp: newTimestamp } 
+          }))
           setSaved(true)
           setSaving(false)
+          // Log para debug
+          console.log('Logo uploaded successfully:', { newLogoUrl, newTimestamp })
           return
         } else {
-          setError(uploadData.error || 'Falha ao enviar o logo.')
+          const errorMsg = uploadData.error || 'Falha ao enviar o logo.'
+          setError(errorMsg)
+          console.error('Logo upload failed:', errorMsg)
           setSaving(false)
           return
         }
