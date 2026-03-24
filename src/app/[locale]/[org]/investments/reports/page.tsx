@@ -40,15 +40,15 @@ export default function InvestmentsReportsPage({ params }: { params: Promise<{ o
 
   useEffect(() => {
     const load = async () => {
-      const portfolioData = await investmentService.getPortfolios();
-      const [assetsByPortfolio, contributionData, flowData] = await Promise.all([
-        Promise.all(portfolioData.map((portfolio) => investmentService.getInvestments(portfolio.id))),
+      const [portfolioData, assetsData, contributionData, flowData] = await Promise.all([
+        investmentService.getPortfolios(),
+        investmentService.getInvestments(),
         investmentService.getContributions(),
         investmentService.getFinancialFlows(),
       ]);
 
       setPortfolios(portfolioData);
-      setAssets(assetsByPortfolio.flat());
+      setAssets(assetsData);
       setContributions(contributionData);
       setFlows(flowData);
     };

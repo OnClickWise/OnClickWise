@@ -263,8 +263,9 @@ export const investmentService = {
     return mapPortfolio(response);
   },
 
-  async getInvestments(portfolioId: string): Promise<InvestmentAsset[]> {
-    const response = await request<InvestmentAssetApi[]>(`/investments?portfolioId=${portfolioId}`, {
+  async getInvestments(portfolioId?: string): Promise<InvestmentAsset[]> {
+    const suffix = portfolioId ? `?portfolioId=${portfolioId}` : '';
+    const response = await request<InvestmentAssetApi[]>(`/investments${suffix}`, {
       method: 'GET',
     });
 
@@ -399,6 +400,45 @@ export const investmentService = {
   },
 
   async deletePortfolioCascade(id: string): Promise<void> {
+    const token = getAuthToken();
+    const authHeaders: HeadersInit = {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+
+    const atomicEndpoints = [
+      `/portfolios/${id}/cascade`,
+      `/portfolios/${id}?cascade=true`,
+    ];
+
+    for (const endpoint of atomicEndpoints) {
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        method: 'DELETE',
+        headers: authHeaders,
+      });
+
+      if (response.ok) {
+        return;
+      }
+
+      if (![404, 405, 501].includes(response.status)) {
+        const text = await response.text();
+        if (text) {
+          try {
+            const parsed = JSON.parse(text) as { message?: string | string[] };
+            if (Array.isArray(parsed.message)) {
+              throw new Error(parsed.message.join(', '));
+            }
+            if (parsed.message) {
+              throw new Error(parsed.message);
+            }
+          } catch {
+            throw new Error(text);
+          }
+        }
+        throw new Error('Erro ao excluir carteira em cascata');
+      }
+    }
+
     const [investments, contributions, dividends] = await Promise.all([
       this.getInvestments(id),
       this.getContributions(id),
