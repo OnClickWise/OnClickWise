@@ -1,7 +1,8 @@
 import { getAuthToken } from '@/lib/cookies';
+import { getApiBaseUrl } from '@/lib/api-url';
 import { Contribution, Dividend, FinancialFlow, FinancialGoal, InvestmentAsset, Investor, Portfolio } from '@/types/investments';
 
-const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000'}/api`;
+const API_BASE_URL = getApiBaseUrl();
 
 type InvestorApi = {
   id: string;

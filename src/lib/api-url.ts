@@ -2,7 +2,8 @@ const DEFAULT_API_ORIGIN = 'http://localhost:3000'
 
 export function getApiOrigin() {
   const configured = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || DEFAULT_API_ORIGIN
-  return configured.replace(/\/api\/?$/, '')
+  const trimmed = configured.trim().replace(/\/+$/, '')
+  return trimmed.replace(/(?:\/api)+$/i, '')
 }
 
 export function getApiBaseUrl() {
