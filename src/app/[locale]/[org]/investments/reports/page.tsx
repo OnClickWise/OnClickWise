@@ -136,7 +136,7 @@ export default function InvestmentsReportsPage({ params }: { params: Promise<{ o
                       <CartesianGrid strokeDasharray="3 3" vertical={false} />
                       <XAxis dataKey="label" minTickGap={24} tick={{ fontSize: 12 }} />
                       <YAxis width={72} tickMargin={8} tick={{ fontSize: 12 }} tickFormatter={(value) => `R$ ${Math.round(value / 1000)}k`} />
-                      <Tooltip formatter={(value: number) => money(value)} />
+                      <Tooltip formatter={(value: any) => money(value)} />
                       <Line type="monotone" dataKey="patrimonio" name="Patrimonio" stroke="#2563eb" strokeWidth={2.5} dot={false} />
                       <Line type="monotone" dataKey="investido" name="Investido" stroke="#64748b" strokeWidth={2} dot={false} strokeDasharray="5 5" />
                     </LineChart>
@@ -164,7 +164,7 @@ export default function InvestmentsReportsPage({ params }: { params: Promise<{ o
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="label" minTickGap={24} tick={{ fontSize: 12 }} />
                     <YAxis width={72} tickMargin={8} tick={{ fontSize: 12 }} tickFormatter={(value) => `${Number(value).toFixed(0)}%`} />
-                    <Tooltip formatter={(value: number) => `${Number(value).toFixed(2)}%`} />
+                    <Tooltip formatter={(value: any) => `${Number(value).toFixed(2)}%`} />
                     <Bar dataKey="rentabilidade" name="Rentabilidade" fill="#16a34a" radius={[4, 4, 0, 0]} barSize={44} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -192,7 +192,7 @@ export default function InvestmentsReportsPage({ params }: { params: Promise<{ o
                       <CartesianGrid strokeDasharray="3 3" vertical={false} />
                       <XAxis dataKey="label" minTickGap={24} tick={{ fontSize: 12 }} />
                       <YAxis width={72} tickMargin={8} tick={{ fontSize: 12 }} tickFormatter={(value) => `R$ ${Math.round(value / 1000)}k`} />
-                      <Tooltip formatter={(value: number) => money(value)} />
+                      <Tooltip formatter={(value: any) => money(value)} />
                       <Bar dataKey="receitas" name="Receitas" fill="#16a34a" radius={[4, 4, 0, 0]} barSize={28} />
                       <Bar dataKey="despesas" name="Despesas" fill="#ef4444" radius={[4, 4, 0, 0]} barSize={28} />
                     </BarChart>
@@ -217,7 +217,7 @@ export default function InvestmentsReportsPage({ params }: { params: Promise<{ o
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                   <XAxis type="number" tick={{ fontSize: 12 }} tickFormatter={(value) => `R$ ${Math.round(value / 1000)}k`} />
                   <YAxis type="category" dataKey="name" width={84} tick={{ fontSize: 12 }} />
-                  <Tooltip formatter={(value: number, name) => name === 'valor' ? money(value) : `${Number(value).toFixed(2)}%`} />
+                  <Tooltip formatter={(value: any, name: any) => name === 'valor' ? money(value) : `${Number(value).toFixed(2)}%`} />
                   <Bar dataKey="valor" name="valor" fill="#2563eb" radius={[0, 4, 4, 0]} barSize={28} />
                 </BarChart>
               </ResponsiveContainer>

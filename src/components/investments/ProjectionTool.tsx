@@ -120,7 +120,7 @@ export function ProjectionTool({
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="label" minTickGap={24} tick={{ fontSize: 12 }} />
               <YAxis width={72} tickMargin={8} tick={{ fontSize: 12 }} tickFormatter={(value) => `R$ ${Math.round(value / 1000)}k`} />
-              <Tooltip formatter={(value: number) => formatCurrency(value)} />
+              <Tooltip formatter={(value: any) => formatCurrency(value)} />
               <Area type="monotone" dataKey="saldo" stroke="#2563eb" strokeWidth={2.5} fill="url(#saldoGradient)" />
               <Line type="monotone" dataKey="investido" stroke="#64748b" strokeWidth={2} dot={false} strokeDasharray="5 5" />
             </AreaChart>

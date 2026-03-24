@@ -55,7 +55,7 @@ export function AllocationChart({ items }: { items: AllocationItem[] }) {
                     ))}
                   </Pie>
                   <Tooltip
-                    formatter={(value: number) => {
+                    formatter={(value: any) => {
                       const percent = total > 0 ? (Number(value) / total) * 100 : 0;
                       return [`${money(Number(value))} (${percent.toFixed(1)}%)`, "Valor"];
                     }}

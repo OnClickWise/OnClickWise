@@ -248,7 +248,7 @@ export default function InvestmentsPage({ params }: { params: Promise<{ org: str
                         <CartesianGrid strokeDasharray="3 3" vertical={false} />
                         <XAxis dataKey="label" minTickGap={24} tick={{ fontSize: 12 }} />
                         <YAxis width={72} tickMargin={8} tick={{ fontSize: 12 }} tickFormatter={(value) => `R$ ${Math.round(value / 1000)}k`} />
-                        <Tooltip formatter={(value: number) => money(value)} />
+                        <Tooltip formatter={(value: any) => value ? money(value) : ''} />
                         <Line type="monotone" dataKey="patrimonio" stroke="#2563eb" strokeWidth={2.5} dot={false} />
                         <Line type="monotone" dataKey="investido" stroke="#64748b" strokeWidth={2} dot={false} strokeDasharray="5 5" />
                       </LineChart>
@@ -319,7 +319,7 @@ export default function InvestmentsPage({ params }: { params: Promise<{ org: str
                         <CartesianGrid strokeDasharray="3 3" vertical={false} />
                         <XAxis dataKey="label" minTickGap={24} tick={{ fontSize: 12 }} />
                         <YAxis width={72} tickMargin={8} tick={{ fontSize: 12 }} tickFormatter={(value) => `${Number(value).toFixed(0)}%`} />
-                        <Tooltip formatter={(value: number) => `${Number(value).toFixed(2)}%`} />
+                        <Tooltip formatter={(value: any) => `${Number(value).toFixed(2)}%`} />
                         <Bar dataKey="rentabilidade" fill="#16a34a" radius={[4, 4, 0, 0]} barSize={44} />
                       </BarChart>
                     </ResponsiveContainer>
