@@ -307,7 +307,6 @@ export function useAuth() {
     const handleStorageChange = (e: StorageEvent) => {
       // Se o token foi removido ou modificado em outra aba
       if (e.key === 'token' || e.key === 'organization') {
-        console.log('Storage change detected, rechecking auth');
         checkAuth();
       }
     };

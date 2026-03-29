@@ -32,7 +32,7 @@ export default function CompanyForgotPasswordPage({ params }: { params: Promise<
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
         
-        const response = await fetch(`${apiUrl}/auth/check-company-by-slug`, {
+        const response = await fetch(`${apiUrl}/api/auth/check-company-by-slug`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -42,7 +42,6 @@ export default function CompanyForgotPasswordPage({ params }: { params: Promise<
 
         const contentType = response.headers.get('content-type');
         if (contentType && contentType.includes('text/html')) {
-          console.log('API not available');
           setCompanyInfo(null);
           setLoadingCompany(false);
           return;

@@ -39,7 +39,7 @@ export function Form({ orgSlug, onSuccess }: Props) {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL
       if (!apiUrl) return
 
-      const res = await fetch(`${apiUrl}/auth/check-company-by-slug`, {
+      const res = await fetch(`${apiUrl}/api/auth/check-company-by-slug`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ slug: orgSlug }),
@@ -71,11 +71,11 @@ export function Form({ orgSlug, onSuccess }: Props) {
         status: "New",
         interest: formData.trilhas.join(","),
         description: `Capital inicial: ${formData.capital || "Não informado"}`,
-        show_on_pipeline: false,
+        show_on_pipeline: true,
       }
 
       const apiUrl = process.env.NEXT_PUBLIC_API_URL!
-      const res = await fetch(`${apiUrl}/leads/public`, {
+      const res = await fetch(`${apiUrl}/api/leads/public`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...lead, organization_id: organizationId }),
@@ -133,10 +133,38 @@ export function Form({ orgSlug, onSuccess }: Props) {
 
         {error && <p className="text-red-400 text-center">{error}</p>}
 
-        <Input icon={<Mail />} placeholder="Email" />
-        <Input icon={<User />} placeholder="Nome completo" />
-        <Input icon={<Phone />} placeholder="WhatsApp" />
-        <Input icon={<Coins />} placeholder="Capital inicial (opcional)" />
+        <Input
+          icon={<Mail />}
+          placeholder="Email"
+          value={formData.email}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+            setFormData(p => ({ ...p, email: e.target.value }))
+          }
+        />
+        <Input
+          icon={<User />}
+          placeholder="Nome completo"
+          value={formData.name}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+            setFormData(p => ({ ...p, name: e.target.value }))
+          }
+        />
+        <Input
+          icon={<Phone />}
+          placeholder="WhatsApp"
+          value={formData.whatsapp}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+            setFormData(p => ({ ...p, whatsapp: e.target.value }))
+          }
+        />
+        <Input
+          icon={<Coins />}
+          placeholder="Capital inicial (opcional)"
+          value={formData.capital}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+            setFormData(p => ({ ...p, capital: e.target.value }))
+          }
+        />
 
         {/* Trilhas */}
         <div className="space-y-3">

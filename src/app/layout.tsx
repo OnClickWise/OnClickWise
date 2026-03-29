@@ -43,7 +43,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html suppressHydrationWarning lang="pt-BR">
+    <html lang="pt-BR" suppressHydrationWarning>
       <body
         className={`
           ${geistSans.variable}

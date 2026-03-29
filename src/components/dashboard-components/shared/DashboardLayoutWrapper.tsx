@@ -11,9 +11,10 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/s
 interface Props {
   org: string
   children: ReactNode
+  title?: string
 }
 
-export default function DashboardLayoutWrapper({ org, children }: Props) {
+export default function DashboardLayoutWrapper({ org, children, title = 'Dashboard' }: Props) {
   return (
     <SidebarProvider>
       <AppSidebar org={org} />
@@ -24,12 +25,12 @@ export default function DashboardLayoutWrapper({ org, children }: Props) {
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
-                <BreadcrumbPage>Dashboard</BreadcrumbPage>
+                <BreadcrumbPage>{title}</BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
         </header>
-        <div className="flex-1 p-6 bg-muted/40">
+        <div className="flex-1 bg-muted/40 flex flex-col">
           {children}
         </div>
       </SidebarInset>

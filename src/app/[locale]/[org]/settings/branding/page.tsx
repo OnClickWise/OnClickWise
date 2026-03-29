@@ -189,8 +189,6 @@ export default function BrandingPage({
           }))
           setSaved(true)
           setSaving(false)
-          // Log para debug
-          console.log('Logo uploaded successfully:', { newLogoUrl, newTimestamp })
           return
         } else {
           const errorMsg = uploadData.error || 'Falha ao enviar o logo.'

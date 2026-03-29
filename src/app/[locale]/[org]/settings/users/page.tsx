@@ -135,7 +135,6 @@ export default function UsersPage({
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Creating user with data:', formData);
     setCreating(true);
     setError('');
     setSuccess('');
@@ -147,7 +146,6 @@ export default function UsersPage({
         return;
       }
 
-      console.log('Sending request to create employee...');
       const apiUrl = getApiBaseUrl();
       const response = await fetch(`${apiUrl}/auth/create-employee`, {
         method: 'POST',
@@ -158,9 +156,7 @@ export default function UsersPage({
         body: JSON.stringify(formData),
       });
 
-      console.log('Response status:', response.status);
       const result = await response.json();
-      console.log('Response data:', result);
 
       if (result.success) {
         setSuccess(t('userCreatedSuccess'));
@@ -683,7 +679,6 @@ export default function UsersPage({
                   {!searchTerm && (
                     <Button
                       onClick={() => {
-                        console.log('Add First User button clicked');
                         setShowCreateForm(true);
                         setShowEditForm(false);
                         setShowDeleteMenu(false);

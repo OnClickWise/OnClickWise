@@ -212,7 +212,6 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
               logoTimestamp: timestamp
             })
             setDataLoaded(true)
-            console.log('Sidebar updated logo:', { newLogoUrl, timestamp })
           }
         } catch (error) {
           console.error('Sidebar - Error reloading organization data:', error)
@@ -289,6 +288,12 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
       items: [],
     },
     {
+      title: 'Bate-papo',
+      url: `/${locale}/${org}/mensagens`,
+      icon: MessageSquare,
+      items: [],
+    },
+    {
       title: t('leads'),
       url: `/${locale}/${org}/leads`,
       icon: Users,
@@ -342,7 +347,7 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
     {
       title: t('chats'),
       url: `/${locale}/${org}/chats`,
-      icon: MessageSquare,
+      icon: Mail,
       items: [
         { title: t('whatsapp'), url: `/${locale}/${org}/chats/whatsapp`, icon: <FaWhatsapp className="w-4 h-4" /> },
         { title: t('telegram'), url: `/${locale}/${org}/chats/telegram`, icon: <FaTelegram className="w-4 h-4" /> },

@@ -322,9 +322,6 @@ export default function OrgPage({
         setLogoVersion(timestamp);
         uploadedLogo = true;
         
-        // Log para debug
-        console.log('Logo uploaded successfully:', { newLogoUrl, timestamp });
-        
         // Disparar evento para atualizar sidebar e outros componentes
         window.dispatchEvent(new CustomEvent('organizationUpdated', { 
           detail: { logoUrl: newLogoUrl, timestamp } 

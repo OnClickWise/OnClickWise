@@ -78,7 +78,7 @@ export function EducacaoSemLimiteLanding({ orgSlug }: EducacaoSemLimiteLandingPr
     const fetchOrganization = async () => {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
-        const response = await fetch(`${apiUrl}/auth/check-company-by-slug`, {
+        const response = await fetch(`${apiUrl}/api/auth/check-company-by-slug`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -278,7 +278,7 @@ export function EducacaoSemLimiteLanding({ orgSlug }: EducacaoSemLimiteLandingPr
       let orgId = organizationId
       if (!orgId) {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
-        const orgResponse = await fetch(`${apiUrl}/auth/check-company-by-slug`, {
+        const orgResponse = await fetch(`${apiUrl}/api/auth/check-company-by-slug`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -344,7 +344,7 @@ export function EducacaoSemLimiteLanding({ orgSlug }: EducacaoSemLimiteLandingPr
       // Criar lead usando a API pública para landing pages
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
       
-      const response = await fetch(`${apiUrl}/leads/public`, {
+      const response = await fetch(`${apiUrl}/api/leads/public`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

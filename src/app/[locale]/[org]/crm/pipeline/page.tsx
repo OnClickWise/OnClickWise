@@ -1905,11 +1905,9 @@ export default function PipelinePage({
     try {
       const updateData: UpdateLeadRequest = { id: draggedLead.id, status: newStatus }
       const response = await apiService.updateLead(updateData)
-      console.log(response)
       if (response.success && response.data) {
         setLeads((prev) => {
           const updatedLeads = prev.map((lead) => lead.id === draggedLead.id ? response.data!.lead : lead )
-          console.log([prev.map((lead) => lead.id === draggedLead.id ? response.data!.lead : lead)])
           updatePipelineStages(updatedLeads)
           return updatedLeads
         })

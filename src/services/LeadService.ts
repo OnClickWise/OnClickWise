@@ -98,36 +98,7 @@ class ApiService {
     
     // Buscar token do localStorage
     const token = localStorage.getItem('token');
-    /*
-    if (!token) {
-      console.log('No auth token found');
-      return null;
-    }
-    */
     
-    // Validar formato do JWT antes de usar
-    /*
-    if (!this.isValidJWT(token)) {
-      console.error('Invalid or malformed JWT token detected, clearing auth');
-      localStorage.removeItem('token');
-      localStorage.removeItem('organization');
-      localStorage.removeItem('lastActivity');
-      // Redirecionar para login
-      if (typeof window !== 'undefined') {
-        const pathParts = window.location.pathname.split('/');
-        const orgSlug = pathParts[1];
-        if (orgSlug && orgSlug !== 'login' && orgSlug !== 'register') {
-          window.location.href = `/${orgSlug}/login`;
-        } else {
-          window.location.href = '/login';
-        }
-      }
-      
-      return null;
-    }
-    */
-    
-    console.log('Using token from localStorage');
     return token;
   }
 
@@ -158,12 +129,8 @@ class ApiService {
       const fullUrl = `${API_BASE_URL}${endpoint}`;
       
       const response = await fetch(fullUrl, config);
-      
-      // Check if response is HTML (API not running)
       const contentType = response.headers.get('content-type');
-      console.log(response)
       if (contentType && contentType.includes('text/html')) {
-        console.log('API not available, returning fallback response');
         return {
           success: false,
           error: 'API not available'
@@ -181,9 +148,7 @@ class ApiService {
                                    errorText.toLowerCase().includes('não pertence');
         
         if (isDuplicateError) {
-          console.log('Lead duplicate detected (expected behavior):', errorText);
         } else if (isLeadNotFoundError) {
-          console.log('Lead not found (expected during rollback):', errorText);
         } else {
           console.error('API Error:', response.status, errorText);
         }
@@ -218,7 +183,6 @@ class ApiService {
       // If no content-type or content-length is 0, or status is 204 (No Content), return success without data
       // Note: contentType is already declared at line 193
       if (response.status === 204 || contentLength === '0' || !contentType || !contentType.includes('application/json')) {
-        console.log('API response: No content (success)');
         return {
           success: true,
           data: undefined
@@ -228,7 +192,6 @@ class ApiService {
       // Check if the response body is empty
       const text = await response.text();
       if (!text || text.trim() === '') {
-        console.log('API response: Empty body (success)');
         return {
           success: true,
           data: undefined
@@ -426,9 +389,6 @@ class ApiService {
         const queryString = queryParams.toString();
         const url = queryString ? `/api/leads/search?${queryString}` : '/api/leads/search';
         
-        console.log('API: Final URL:', url);
-        console.log('API: Query params:', Object.fromEntries(queryParams.entries()));
-
         return this.request<{ leads: Lead[]; total?: number }>(url);
   }
 
@@ -699,7 +659,6 @@ class ApiService {
 
     try {
       const fullUrl = `${API_BASE_URL}/api/leads/${leadId}/attachments`;
-      console.log('Uploading attachment to:', fullUrl);
       
       const response = await fetch(fullUrl, config);
       
@@ -730,7 +689,6 @@ class ApiService {
       }
 
       const data = await response.json();
-      console.log('Upload response:', data);
       return {
         success: true,
         data: data
@@ -773,7 +731,6 @@ class ApiService {
 
     try {
       const fullUrl = `${API_BASE_URL}/api/leads/${leadId}/attachments/${attachmentId}`;
-      console.log('Downloading attachment from:', fullUrl);
       
       const response = await fetch(fullUrl, config);
       
