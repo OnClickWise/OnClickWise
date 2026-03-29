@@ -41,7 +41,7 @@ export function MillionClubLanding({ orgSlug }: { orgSlug: string }) {
 
         <Hero />
         <Lead />
-        <Form orgSlug={orgSlug} onSuccess={() => setSuccess(true)} />
+        <Form onSuccess={() => setSuccess(true)} />
         <Footer />
       </div>
     </div>
