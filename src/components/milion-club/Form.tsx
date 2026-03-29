@@ -33,20 +33,39 @@ export function Form({ orgSlug, onSuccess }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [organizationId, setOrganizationId] = useState<string | null>(null)
+  const [loadingOrg, setLoadingOrg] = useState(true)
 
   useEffect(() => {
     const fetchOrg = async () => {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL
-      if (!apiUrl) return
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL
+        if (!apiUrl) {
+          setError("URL da API não configurada")
+          setLoadingOrg(false)
+          return
+        }
 
-      const res = await fetch(`${apiUrl}/api/auth/check-company-by-slug`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug: orgSlug }),
-      })
+        const res = await fetch(`${apiUrl}/api/auth/check-company-by-slug`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ slug: orgSlug }),
+        })
 
-      const data = await res.json()
-      if (data?.company?.id) setOrganizationId(data.company.id)
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`)
+        }
+
+        const data = await res.json()
+        if (data?.company?.id) {
+          setOrganizationId(data.company.id)
+        } else {
+          setError("Organização não encontrada")
+        }
+      } catch (err: any) {
+        setError(`Erro ao carregar organização: ${err.message}`)
+      } finally {
+        setLoadingOrg(false)
+      }
     }
 
     fetchOrg()
@@ -57,7 +76,16 @@ export function Form({ orgSlug, onSuccess }: Props) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!organizationId || formData.trilhas.length === 0) return
+    
+    if (!organizationId) {
+      setError("Aguarde o carregamento da organização...")
+      return
+    }
+
+    if (formData.trilhas.length === 0) {
+      setError("Selecione pelo menos uma trilha de interesse")
+      return
+    }
 
     setLoading(true)
     setError("")
@@ -85,10 +113,11 @@ export function Form({ orgSlug, onSuccess }: Props) {
         onSuccess()
         setFormData({ email: "", name: "", whatsapp: "", capital: "", trilhas: [] })
       } else {
-        setError("Erro ao enviar inscrição.")
+        const errText = await res.text()
+        setError(`Erro ao enviar inscrição: ${res.status} - ${errText}`)
       }
-    } catch {
-      setError("Erro inesperado.")
+    } catch (err: any) {
+      setError(`Erro inesperado: ${err.message}`)
     } finally {
       setLoading(false)
     }
@@ -221,16 +250,18 @@ export function Form({ orgSlug, onSuccess }: Props) {
         </div>
 
         <motion.button
+          type="submit"
           whileHover={{ scale: 1.03 }}
           whileTap={{ scale: 0.97 }}
-          disabled={loading}
-          className="
+          disabled={loading || loadingOrg || !organizationId}
+          className={`
             w-full py-4 rounded-xl font-bold text-black
             bg-gradient-to-r from-yellow-400 via-amber-300 to-yellow-500
             shadow-xl
-          "
+            ${(loading || loadingOrg) ? 'opacity-70 cursor-not-allowed' : ''}
+          `}
         >
-          {loading ? "Enviando..." : "Confirmar acesso"}
+          {loadingOrg ? "Carregando..." : loading ? "Enviando..." : "Confirmar acesso"}
         </motion.button>
       </motion.form>
     </motion.section>
