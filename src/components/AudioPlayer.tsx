@@ -12,12 +12,12 @@ interface AudioPlayerProps {
   className?: string
 }
 
-export function AudioPlayer({ 
-  fileId, 
-  fileName, 
-  duration = 0, 
-  direction, 
-  className = '' 
+export function AudioPlayer({
+  fileId,
+  fileName,
+  duration = 0,
+  direction,
+  className = ''
 }: AudioPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
@@ -25,14 +25,14 @@ export function AudioPlayer({
   const [playbackRate, setPlaybackRate] = useState(1)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  
+
   const audioRef = useRef<HTMLAudioElement>(null)
   const progressRef = useRef<HTMLDivElement>(null)
   const waveformRef = useRef<HTMLDivElement>(null)
 
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
   const audioUrl = `${API_BASE_URL}/telegram/files/${fileId}`
-  
+
   // Determine audio type based on fileId or fileName
   const getAudioType = () => {
     if (fileName?.toLowerCase().includes('.ogg')) {
@@ -86,7 +86,7 @@ export function AudioPlayer({
     const currentIndex = rates.indexOf(playbackRate)
     const nextIndex = (currentIndex + 1) % rates.length
     const newRate = rates[nextIndex]
-    
+
     setPlaybackRate(newRate)
     if (audioRef.current) {
       audioRef.current.playbackRate = newRate
@@ -155,7 +155,7 @@ export function AudioPlayer({
       const randomFactor = Math.random() * 0.3
       return Math.max(0.1, Math.min(1, baseHeight + variation + randomFactor))
     })
-    
+
     waveformRef.current.innerHTML = ''
     waveform.forEach((height, index) => {
       const bar = document.createElement('div')
@@ -193,22 +193,20 @@ export function AudioPlayer({
   const progressPercentage = audioDuration > 0 ? (currentTime / audioDuration) * 100 : 0
 
   return (
-    <div className={`flex items-center space-x-3 p-3 rounded-lg max-w-full overflow-hidden w-full ${
-      direction === 'outgoing' 
-        ? 'bg-blue-600 text-white' 
+    <div className={`flex items-center space-x-3 p-3 rounded-lg max-w-full overflow-hidden w-full ${direction === 'outgoing'
+        ? 'bg-blue-600 text-white'
         : 'bg-gray-50 text-gray-900'
-    } ${className}`}>
+      } ${className}`}>
       {/* Play/Pause Button */}
       <Button
         variant="ghost"
         size="sm"
         onClick={togglePlayPause}
         disabled={isLoading}
-        className={`p-2 rounded-full hover:bg-black/10 transition-all duration-200 cursor-pointer ${
-          direction === 'outgoing' 
-            ? 'text-white hover:text-white hover:bg-white/20' 
+        className={`p-2 rounded-full hover:bg-black/10 transition-all duration-200 cursor-pointer ${direction === 'outgoing'
+            ? 'text-white hover:text-white hover:bg-white/20'
             : 'text-gray-600 hover:text-gray-700 hover:bg-gray-200'
-        } ${isPlaying ? 'scale-110' : ''}`}
+          } ${isPlaying ? 'scale-110' : ''}`}
       >
         {isLoading ? (
           <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
@@ -223,12 +221,12 @@ export function AudioPlayer({
       <div className="flex-1 min-w-0 max-w-full overflow-hidden">
         {/* Waveform Visualization */}
         <div className="relative max-w-full overflow-hidden">
-          <div 
+          <div
             ref={waveformRef}
             className="flex items-center h-4 mb-1 space-x-0.5 max-w-full overflow-hidden"
           />
           {/* Progress overlay on waveform */}
-          <div 
+          <div
             className="absolute top-0 left-0 h-4 overflow-hidden"
             style={{ width: `${progressPercentage}%` }}
           >
@@ -249,19 +247,19 @@ export function AudioPlayer({
             </div>
           </div>
         </div>
-        
+
         {/* Progress Bar */}
-        <div 
+        <div
           ref={progressRef}
           className="relative h-1 bg-black/20 rounded-full cursor-pointer max-w-full overflow-hidden"
           onClick={handleProgressClick}
         >
-          <div 
+          <div
             className="absolute top-0 left-0 h-full bg-current rounded-full transition-all duration-100"
             style={{ width: `${progressPercentage}%` }}
           />
         </div>
-        
+
         {/* Time Display */}
         <div className="flex justify-between text-xs mt-1">
           <span className="opacity-70">
@@ -280,11 +278,10 @@ export function AudioPlayer({
           variant="ghost"
           size="sm"
           onClick={changePlaybackRate}
-          className={`px-2 py-1 rounded text-xs font-medium hover:bg-black/10 cursor-pointer ${
-            direction === 'outgoing' 
-              ? 'text-white hover:text-white' 
+          className={`px-2 py-1 rounded text-xs font-medium hover:bg-black/10 cursor-pointer ${direction === 'outgoing'
+              ? 'text-white hover:text-white'
               : 'text-gray-600 hover:text-gray-700'
-          }`}
+            }`}
         >
           {playbackRate}x
         </Button>
@@ -294,11 +291,10 @@ export function AudioPlayer({
           variant="ghost"
           size="sm"
           onClick={handleDownload}
-          className={`p-1 rounded-full hover:bg-black/10 cursor-pointer ${
-            direction === 'outgoing' 
-              ? 'text-white hover:text-white' 
+          className={`p-1 rounded-full hover:bg-black/10 cursor-pointer ${direction === 'outgoing'
+              ? 'text-white hover:text-white'
               : 'text-gray-600 hover:text-gray-700'
-          }`}
+            }`}
         >
           <Download className="w-3 h-3" />
         </Button>
@@ -308,6 +304,7 @@ export function AudioPlayer({
       <audio
         ref={audioRef}
         preload="metadata"
+        crossOrigin="anonymous" // 👈 ADICIONE AQUI NA TAG PAI
         onError={() => setError('Failed to load audio')}
       >
         <source src={audioUrl} type={getAudioType()} />
