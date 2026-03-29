@@ -6,7 +6,7 @@ import { motion } from "framer-motion"
 import { CreateLeadRequest } from "@/services/LeadService"
 import { getApiBaseUrl } from "@/lib/api-url"
 
-
+// Million Club Form Component
 interface Props {
   orgSlug: string
   onSuccess: () => void
