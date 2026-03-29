@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { Mail, Phone, User, Coins, Layers, Sparkles, X } from "lucide-react"
 import { motion } from "framer-motion"
 import { CreateLeadRequest } from "@/services/LeadService"
+import { getApiBaseUrl } from "@/lib/api-url"
 
 
 interface Props {
@@ -38,14 +39,7 @@ export function Form({ orgSlug, onSuccess }: Props) {
   useEffect(() => {
     const fetchOrg = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL
-        if (!apiUrl) {
-          setError("URL da API não configurada")
-          setLoadingOrg(false)
-          return
-        }
-
-        const res = await fetch(`${apiUrl}/api/auth/check-company-by-slug`, {
+        const res = await fetch(`${getApiBaseUrl()}/auth/check-company-by-slug`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ slug: orgSlug }),
@@ -102,8 +96,7 @@ export function Form({ orgSlug, onSuccess }: Props) {
         show_on_pipeline: true,
       }
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL!
-      const res = await fetch(`${apiUrl}/api/leads/public`, {
+      const res = await fetch(`${getApiBaseUrl()}/leads/public`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...lead, organization_id: organizationId }),
