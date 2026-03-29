@@ -44,7 +44,7 @@ export function Form({ orgSlug, onSuccess }: Props) {
         
         // Debug
         if (typeof window !== 'undefined') {
-          window.DEBUG_MILLION_CLUB = {
+          (window as any).DEBUG_MILLION_CLUB = {
             apiBaseUrl: apiUrl,
             fullUrl: fullUrl,
             orgSlug: orgSlug,
