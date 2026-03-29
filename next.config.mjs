@@ -27,7 +27,7 @@ const nextConfig = {
       "style-src 'self' 'unsafe-inline' https:",
       "script-src 'self' 'unsafe-inline' 'unsafe-eval' https:",
       `connect-src 'self' https: ws: wss: ${devConnectSrc.join(' ')}`.trim(),
-      `media-src 'self' data: blob: ${devConnectSrc.join(' ')}`.trim(),
+      `media-src 'self' data: blob: https://api.onclickwise.com.br https: ${devConnectSrc.join(' ')}`.trim(),
     ].join('; ');
 
     return [
