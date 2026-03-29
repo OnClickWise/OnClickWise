@@ -1,10 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Mail, Phone, User, Coins, Layers, Sparkles, X } from "lucide-react"
 import { motion } from "framer-motion"
 import { CreateLeadRequest } from "@/services/LeadService"
+import { getApiBaseUrl } from "@/lib/api-url"
+
 interface Props {
+  orgSlug: string
   onSuccess: () => void
 }
 
@@ -18,10 +21,7 @@ const trilhas = [
   "Comunidade VIP"
 ]
 
-// Million Club organization ID (hardcoded for landing page)
-const MILLION_CLUB_ORG_ID = "27bb1888-eaac-4531-88c0-2d16b6a4dab2"
-
-export function Form({ onSuccess }: Props) {
+export function Form({ orgSlug, onSuccess }: Props) {
   const [formData, setFormData] = useState({
     email: "",
     name: "",
@@ -32,6 +32,40 @@ export function Form({ onSuccess }: Props) {
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const [organizationId, setOrganizationId] = useState<string | null>(null)
+  const [loadingOrg, setLoadingOrg] = useState(true)
+
+  useEffect(() => {
+    const fetchOrg = async () => {
+      try {
+        const apiUrl = getApiBaseUrl()
+        const fullUrl = `${apiUrl}/auth/check-company-by-slug`
+        
+        const res = await fetch(fullUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ slug: orgSlug }),
+        })
+
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`)
+        }
+
+        const data = await res.json()
+        if (data?.company?.id) {
+          setOrganizationId(data.company.id)
+        } else {
+          setError("Organização não encontrada")
+        }
+      } catch (err: any) {
+        setError(`Erro ao carregar organização: ${err.message}`)
+      } finally {
+        setLoadingOrg(false)
+      }
+    }
+
+    fetchOrg()
+  }, [orgSlug])
 
   const formatPhone = (v: string) =>
     v.replace(/\D/g, "").slice(0, 11)
@@ -39,6 +73,11 @@ export function Form({ onSuccess }: Props) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
+    if (!organizationId) {
+      setError("Aguarde o carregamento da organização...")
+      return
+    }
+
     if (formData.trilhas.length === 0) {
       setError("Selecione pelo menos uma trilha de interesse")
       return
@@ -59,10 +98,10 @@ export function Form({ onSuccess }: Props) {
         show_on_pipeline: true,
       }
 
-      const res = await fetch(`https://api.onclickwise.com.br/api/leads/public`, {
+      const res = await fetch(`${getApiBaseUrl()}/leads/public`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...lead, organization_id: MILLION_CLUB_ORG_ID }),
+        body: JSON.stringify({ ...lead, organization_id: organizationId }),
       })
 
       if (res.ok) {
@@ -209,15 +248,15 @@ export function Form({ onSuccess }: Props) {
           type="submit"
           whileHover={{ scale: 1.03 }}
           whileTap={{ scale: 0.97 }}
-          disabled={loading}
+          disabled={loading || loadingOrg || !organizationId}
           className={`
             w-full py-4 rounded-xl font-bold text-black
             bg-gradient-to-r from-yellow-400 via-amber-300 to-yellow-500
             shadow-xl
-            ${loading ? 'opacity-70 cursor-not-allowed' : ''}
+            ${(loading || loadingOrg) ? 'opacity-70 cursor-not-allowed' : ''}
           `}
         >
-          {loading ? "Enviando..." : "Confirmar acesso"}
+          {loadingOrg ? "Carregando..." : loading ? "Enviando..." : "Confirmar acesso"}
         </motion.button>
       </motion.form>
     </motion.section>
