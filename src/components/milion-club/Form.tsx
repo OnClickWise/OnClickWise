@@ -39,7 +39,20 @@ export function Form({ orgSlug, onSuccess }: Props) {
   useEffect(() => {
     const fetchOrg = async () => {
       try {
-        const res = await fetch(`${getApiBaseUrl()}/auth/check-company-by-slug`, {
+        const apiUrl = getApiBaseUrl()
+        const fullUrl = `${apiUrl}/auth/check-company-by-slug`
+        
+        // Debug
+        if (typeof window !== 'undefined') {
+          window.DEBUG_MILLION_CLUB = {
+            apiBaseUrl: apiUrl,
+            fullUrl: fullUrl,
+            orgSlug: orgSlug,
+            apiUrlEnv: process.env.NEXT_PUBLIC_API_URL,
+          }
+        }
+        
+        const res = await fetch(fullUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ slug: orgSlug }),
