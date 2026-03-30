@@ -1,7 +1,8 @@
 import { getAccessTokenFromCookie } from "@/lib/cookies";
 import { getCurrentUser } from "./authService";
+import { getApiOrigin } from "@/lib/api-url";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+const API_BASE_URL = getApiOrigin();
 
 // Interfaces permanecem as mesmas
 export interface ApiResponse<T> {

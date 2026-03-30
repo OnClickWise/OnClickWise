@@ -1,5 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-
+import { getApiOrigin } from "@/lib/api-url";
 import {
   clearAuthCookies,
   getAccessTokenFromCookie,
@@ -7,8 +6,10 @@ import {
   setAccessTokenCookie,
   setRefreshTokenCookie,
 } from "@/lib/cookies";
+
+const API_BASE_URL = getApiOrigin();
 // Export the API base URL for use in other components
-export const getApiBaseUrl = () => API_BASE_URL;
+export const getApiBaseUrl = () => `${API_BASE_URL}/api`;
 
 export interface Attachment {
   id: string;
