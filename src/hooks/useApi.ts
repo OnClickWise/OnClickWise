@@ -5,7 +5,7 @@ import {
   getAuthToken,
   clearAuthCookies,
 } from '@/lib/cookies'
-import { getApiBaseUrl } from '@/lib/api-url'
+import { getApiOrigin } from '@/lib/api-url'
 import { refreshToken } from '@/services/authService'
 
   
@@ -18,7 +18,8 @@ export function useApi() {
     }
   }, []);
 
-  const API_BASE_URL = getApiBaseUrl();
+  const API_BASE_URL = getApiOrigin();
+
 
   const resolveLoginRedirect = () => {
     if (typeof window === 'undefined') return '/login'
