@@ -7,6 +7,7 @@ import {
 } from '@/types/dashboard'
 import { getCurrentUser } from '@/services/authService'
 import { getAccessTokenFromCookie } from '@/lib/cookies'
+import { getApiBaseUrl } from '@/lib/api-url'
 
 interface UseDashboardReturn {
   role: UserRole
@@ -40,7 +41,7 @@ export function useDashboardData(org: string): UseDashboardReturn {
         setLoading(true)
         setError(false)
 
-        const BASE = process.env.NEXT_PUBLIC_API_BASE_URL
+        const BASE = getApiBaseUrl()
         const token = getAccessTokenFromCookie() || localStorage.getItem('token')
         const headers: HeadersInit = {
           'Content-Type': 'application/json',
@@ -57,9 +58,9 @@ export function useDashboardData(org: string): UseDashboardReturn {
 
         // Fetch leads and pipeline stages in parallel
         const [leadsRes, stagesRes] = await Promise.all([
-          fetch(`${BASE}/api/leads`, { headers, signal }),
+          fetch(`${BASE}/leads`, { headers, signal }),
           orgId
-            ? fetch(`${BASE}/api/pipeline-stages/${orgId}`, { headers, signal })
+            ? fetch(`${BASE}/pipeline-stages/${orgId}`, { headers, signal })
             : Promise.resolve(null),
         ])
 
