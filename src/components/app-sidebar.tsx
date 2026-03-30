@@ -45,6 +45,35 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
   const t = useTranslations('Sidebar')
   const tOrg = useTranslations('Organization')
   const locale = useLocale()
+
+  const getOrganizationFallback = React.useCallback((organizationStr: string | null) => {
+    try {
+      const parsed = organizationStr ? JSON.parse(organizationStr) : organization
+      return {
+        name: parsed?.name || tOrg('name') || "Organization",
+        logo_url: parsed?.logo_url || null,
+        plan: parsed?.plan || tOrg('enterprise') || "Enterprise",
+        logoTimestamp: Date.now(),
+      }
+    } catch {
+      return {
+        name: organization?.name || tOrg('name') || "Organization",
+        logo_url: organization?.logo_url || null,
+        plan: tOrg('enterprise') || "Enterprise",
+        logoTimestamp: Date.now(),
+      }
+    }
+  }, [organization, tOrg])
+
+  const getUserFallback = React.useCallback(() => {
+    return {
+      name: t('account') || "User",
+      email: "user@example.com",
+      avatar: generateAvatar(t('account') || "User"),
+      role: getRoleFromToken(),
+    }
+  }, [t])
+
   // Always start with 'employee' so server and client render the same HTML (no hydration mismatch)
   // Role will be updated from localStorage inside useEffect after mount
   const getRoleFromToken = (): string => {
@@ -53,7 +82,9 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
       if (token) {
         const parts = token.split('.')
         if (parts.length === 3) {
-          const payload = JSON.parse(atob(parts[1]))
+          const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+          const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4)
+          const payload = JSON.parse(atob(padded))
           return (
             payload.role || payload.type || payload.userType || payload.user_type || 'employee'
           )
@@ -88,18 +119,8 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
 
         // Sem token: nenhuma chamada possível, usa fallback
         if (!token) {
-          setUserData({
-            name: t('account') || "User",
-            email: "user@example.com",
-            avatar: generateAvatar(t('account') || "User"),
-            role: getRoleFromToken(),
-          });
-          setOrgData({
-            name: tOrg('name') || "Organization",
-            logo_url: null,
-            plan: tOrg('enterprise') || "Enterprise",
-            logoTimestamp: Date.now(),
-          });
+          setUserData(getUserFallback());
+          setOrgData(getOrganizationFallback(organizationStr));
           setDataLoaded(true);
           return;
         }
@@ -123,15 +144,12 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
                 : generateAvatar(userResponse.user.name || t('account') || "User"),
               role: userResponse.user.role || "employee",
             })
+          } else {
+            setUserData(getUserFallback())
           }
         } catch (error) {
           // Fallback data when API is not available — use role from token to avoid wrong nav filtering
-          setUserData({
-            name: t('account') || "User",
-            email: "user@example.com",
-            avatar: generateAvatar(t('account') || "User"),
-            role: getRoleFromToken(),
-          })
+          setUserData(getUserFallback())
         }
 
         // Try to fetch organization data from API
@@ -151,23 +169,12 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
               plan: orgResponse.organization.plan || tOrg('enterprise') || "Enterprise",
               logoTimestamp: Date.now(),
             })
+          } else {
+            setOrgData(getOrganizationFallback(organizationStr))
           }
         } catch (error) {
-          // Fallback to localStorage data
-          try {
-            const organization = organizationStr ? JSON.parse(organizationStr) : null;
-            setOrgData({
-              name: organization?.name || tOrg('name') || "Organization",
-              logo_url: organization?.logo_url,
-              plan: organization?.plan || tOrg('enterprise') || "Enterprise",              logoTimestamp: Date.now(),            })
-          } catch (parseError) {
-            setOrgData({
-              name: tOrg('name') || "Organization",
-              logo_url: null,
-              plan: tOrg('enterprise') || "Enterprise",
-              logoTimestamp: Date.now(),
-            })
-          }
+          // Fallback to localStorage/useAuth data
+          setOrgData(getOrganizationFallback(organizationStr))
         }
         
         // Mark data as loaded
@@ -182,7 +189,7 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
     if (isClient) {
       fetchData()
     }
-  }, [isClient]) // Dependência do isClient para aguardar o cliente estar pronto
+  }, [getOrganizationFallback, getUserFallback, isClient, t, tOrg]) // Dependência do isClient para aguardar o cliente estar pronto
 
   // Listen for organization updates
   React.useEffect(() => {
