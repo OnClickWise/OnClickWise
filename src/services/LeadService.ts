@@ -225,7 +225,7 @@ class ApiService {
 
   // Users/Employees API methods
   async getOrganizationUsers(includeMaster: boolean = false) {
-    const url = includeMaster ? '/auth/employees?include_master=true' : '/auth/employees';
+    const url = includeMaster ? '/api/auth/employees?include_master=true' : '/api/auth/employees';
     return this.request<{ success: boolean; employees: Array<{id: string, name: string, email: string, role: string}> }>(url, {
       method: 'GET'
     });
