@@ -230,7 +230,7 @@ const StageFormModal = React.memo(({
           <div className="space-y-2">
             <label className="text-sm font-medium">{t('stageManagement.stageTypeLabel')}</label>
             <select
-              className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input h-10 w-full min-w-0 rounded-md border bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+              className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground border-input h-10 w-full min-w-0 rounded-md border bg-background text-foreground px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] dark:bg-slate-900 dark:text-slate-100 [&>option]:bg-background [&>option]:text-foreground dark:[&>option]:bg-slate-900 dark:[&>option]:text-slate-100"
               value={stageType}
               onChange={(e) => setStageType(e.target.value as any)}
             >
@@ -246,7 +246,7 @@ const StageFormModal = React.memo(({
           <div className="space-y-2">
             <label className="text-sm font-medium">{t('stageManagement.colorLabel')}</label>
             <select
-              className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input h-10 w-full min-w-0 rounded-md border bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+              className="file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground border-input h-10 w-full min-w-0 rounded-md border bg-background text-foreground px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] dark:bg-slate-900 dark:text-slate-100 [&>option]:bg-background [&>option]:text-foreground dark:[&>option]:bg-slate-900 dark:[&>option]:text-slate-100"
               value={useCustomColor ? 'custom' : stageColor}
               onChange={(e) => handleColorSelectChange(e.target.value)}
             >
