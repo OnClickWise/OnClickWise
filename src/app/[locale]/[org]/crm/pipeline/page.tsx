@@ -2403,7 +2403,7 @@ export default function PipelinePage({
 
           <div className="flex-1 bg-muted/50 rounded-xl p-2 sm:p-4 flex flex-col max-h-[600px] sm:max-h-[800px] overflow-hidden">
             <div className="flex items-center justify-between mb-2 sm:mb-4 flex-shrink-0 gap-2">
-              <h2 className="text-base sm:text-lg font-semibold">{t('salesPipeline')}</h2>
+              <h2 className="text-base sm:text-lg font-semibold text-foreground">{t('salesPipeline')}</h2>
               {canManageStages && (
                 <Button variant="outline" size="sm" onClick={() => setIsStageManagementOpen(true)} className="cursor-pointer text-xs sm:text-sm h-7 sm:h-9 px-2 sm:px-3">
                   <Settings2 className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
@@ -2416,7 +2416,7 @@ export default function PipelinePage({
               <div className="flex items-center justify-center py-12">
                 <div className="flex flex-col items-center gap-3 text-muted-foreground">
                   <div className="w-6 h-6 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                  <p className="text-sm">{t('salesPipeline')}...</p>
+                  <p className="text-sm text-foreground">{t('salesPipeline')}...</p>
                 </div>
               </div>
             )}
@@ -2427,7 +2427,7 @@ export default function PipelinePage({
                   <KanbanSquare className="w-8 h-8 text-muted-foreground" />
                 </div>
                 <div className="text-center">
-                  <p className="font-semibold text-base">Nenhuma etapa configurada</p>
+                  <p className="font-semibold text-base text-foreground">Nenhuma etapa configurada</p>
                   <p className="text-sm text-muted-foreground mt-1">Clique em "Gerenciar Etapas" para criar o seu funil de vendas.</p>
                 </div>
                 {canManageStages && (
@@ -2439,7 +2439,7 @@ export default function PipelinePage({
               </div>
             )}
             
-            <div ref={pipelineScrollRef} className="pipeline-scroll-container flex gap-2 sm:gap-4 overflow-x-auto overflow-y-hidden pb-4 flex-1 min-h-0 w-full" onDragOver={handlePipelineDragOver} onDragEnd={handlePipelineDragEnd} onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) { handlePipelineDragEnd() } }}>
+            <div ref={pipelineScrollRef} className="pipeline-scroll-container flex gap-2 sm:gap-4 overflow-x-auto overflow-y-hidden pb-4 flex-1 min-h-0 w-full text-foreground" onDragOver={handlePipelineDragOver} onDragEnd={handlePipelineDragEnd} onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) { handlePipelineDragEnd() } }}>
               {filteredStages.map((stage) => {
                 const isUncategorized = stage.id === '__uncategorized__'
                 
@@ -2540,7 +2540,7 @@ export default function PipelinePage({
                     {isUncategorized && <p className="text-[10px] sm:text-xs text-amber-700 dark:text-amber-400 mt-1 sm:mt-2 leading-tight">{t('stageManagement.uncategorizedTooltip')}</p>}
                   </div>
                   
-                  <div className="flex-1 overflow-y-auto space-y-1.5 sm:space-y-2 pr-1 sm:pr-2">
+                  <div className="flex-1 overflow-y-auto space-y-1.5 sm:space-y-2 pr-1 sm:pr-2 text-foreground">
                     {stage.filteredLeads.map((lead) => (
                       <LeadCard
                         key={lead.id} lead={lead} onDragStart={handleDragStart} onContact={handleContactLead} onPreview={handlePreviewLead} onEdit={handleEdit} onLinkLead={canManageStages ? handleOpenLinkLead : undefined} userRole={userRole} locale={locale} hasConversation={leadsWithConversations.has(lead.id)}
