@@ -340,7 +340,7 @@ StageFormModal.displayName = 'StageFormModal'
 // LEAD CARD - Isolated Component to prevent re-renders
 // ============================================================================
 const LeadCard = React.memo(({ 
-  lead, onDragStart, onContact, onPreview, onEdit, onLinkLead, userRole, locale, hasConversation
+  lead, onDragStart, onContact, onPreview, onEdit, onLinkLead, userRole, locale, hasConversation, userNameMap
 }: { 
   lead: Lead, 
   onDragStart: (e: React.DragEvent, lead: Lead) => void,
@@ -350,7 +350,8 @@ const LeadCard = React.memo(({
   onLinkLead?: (lead: Lead) => void,
   userRole: string,
   locale: string,
-  hasConversation?: boolean
+  hasConversation?: boolean,
+  userNameMap?: { [userId: string]: string }
 }) => {
   const t = useTranslations('Pipeline')
   
@@ -458,6 +459,11 @@ const LeadCard = React.memo(({
             )}
           </div>
           <p className="text-[#626f86] text-[12px] truncate mt-1" title={lead.email}>{lead.email}</p>
+          {lead.assigned_user_id && userNameMap && userNameMap[lead.assigned_user_id] && (
+            <p className="text-[#626f86] text-[11px] truncate mt-0.5 font-medium" title={`Responsável: ${userNameMap[lead.assigned_user_id]}`}>
+              👤 {userNameMap[lead.assigned_user_id]}
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover/card:opacity-100">
           <Button size="sm" variant="ghost" className="h-7 w-7 p-0 cursor-pointer hover:bg-[#f1f2f4]" onClick={(e) => { e.stopPropagation(); onPreview(lead) }} title={t('leadCard.viewDetails')}>
@@ -522,6 +528,9 @@ const LeadCard = React.memo(({
     </div>
   )
 }, (prevProps, nextProps) => {
+  const prevUserName = prevProps.userNameMap?.[prevProps.lead.assigned_user_id || '']
+  const nextUserName = nextProps.userNameMap?.[nextProps.lead.assigned_user_id || '']
+  
   return (
     prevProps.lead.id === nextProps.lead.id &&
     prevProps.lead.name === nextProps.lead.name &&
@@ -531,6 +540,7 @@ const LeadCard = React.memo(({
     prevProps.lead.estimated_close_date === nextProps.lead.estimated_close_date &&
     prevProps.lead.description === nextProps.lead.description &&
     prevProps.lead.assigned_user_id === nextProps.lead.assigned_user_id &&
+    prevUserName === nextUserName &&
     prevProps.locale === nextProps.locale &&
     prevProps.userRole === nextProps.userRole &&
     prevProps.hasConversation === nextProps.hasConversation &&
@@ -600,6 +610,28 @@ export default function PipelinePage({
   const [leads, setLeads] = React.useState<Lead[]>([])
   const [pipelineStages, setPipelineStages] = React.useState<PipelineStage[]>([])
   const [leadsWithConversations, setLeadsWithConversations] = React.useState<Set<string>>(new Set())
+  const [userNameMap, setUserNameMap] = React.useState<{ [userId: string]: string }>({})
+  
+  React.useEffect(() => {
+    const loadUsers = async () => {
+      if (!isClient) return
+      try {
+        const response = await apiService.getOrganizationUsers(true)
+        if (response.success && response.data && response.data.employees) {
+          const map: { [userId: string]: string } = {}
+          response.data.employees.forEach((emp: any) => {
+            if (emp.id && emp.name) {
+              map[emp.id] = emp.name
+            }
+          })
+          setUserNameMap(map)
+        }
+      } catch (error) {
+        console.error('Error loading user map for Kanban:', error)
+      }
+    }
+    loadUsers()
+  }, [isClient])
   
   const loadLinkedConversations = React.useCallback(async (leadIds: string[]) => {
     if (!isClient || leadIds.length === 0) return
@@ -2563,7 +2595,7 @@ export default function PipelinePage({
                   <div className="flex-1 overflow-y-auto px-2.5 pb-2 space-y-2 text-foreground">
                     {stage.filteredLeads.map((lead) => (
                       <LeadCard
-                        key={lead.id} lead={lead} onDragStart={handleDragStart} onContact={handleContactLead} onPreview={handlePreviewLead} onEdit={handleEdit} onLinkLead={canManageStages ? handleOpenLinkLead : undefined} userRole={userRole} locale={locale} hasConversation={leadsWithConversations.has(lead.id)}
+                        key={lead.id} lead={lead} onDragStart={handleDragStart} onContact={handleContactLead} onPreview={handlePreviewLead} onEdit={handleEdit} onLinkLead={canManageStages ? handleOpenLinkLead : undefined} userRole={userRole} locale={locale} hasConversation={leadsWithConversations.has(lead.id)} userNameMap={userNameMap}
                       />
                     ))}
                   </div>

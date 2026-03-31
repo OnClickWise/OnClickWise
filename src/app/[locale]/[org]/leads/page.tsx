@@ -202,6 +202,23 @@ export default function LeadsPage({
   >([]);
   const [isLoadingStages, setIsLoadingStages] = React.useState(false);
 
+  const getInitialPipelineStatus = React.useCallback(() => {
+    if (!pipelineStages.length) return "new";
+
+    const sortedStages = [...pipelineStages].sort((a, b) => (a.order || 0) - (b.order || 0));
+    const initialStage = sortedStages[0];
+
+    return initialStage?.slug || "new";
+  }, [pipelineStages]);
+
+  const extractEmployees = React.useCallback((response: any) => {
+    const fromData = response?.data?.employees;
+    const fromRoot = response?.employees;
+    const candidates = Array.isArray(fromData) ? fromData : Array.isArray(fromRoot) ? fromRoot : [];
+
+    return candidates.filter((u: any) => u?.id && u?.name);
+  }, []);
+
   // Helper function to format currency based on locale
   const formatCurrency = React.useCallback(
     (value: number) => {
@@ -1064,8 +1081,8 @@ export default function LeadsPage({
       if (isFilterOpen && organizationUsers.length === 0) {
         try {
           const response = await apiService.getOrganizationUsers(true);
-          if (response.success && response.data) {
-            setOrganizationUsers(response.data.employees);
+          if (response.success) {
+            setOrganizationUsers(extractEmployees(response));
           }
         } catch (error) {
           console.error("Error loading users for filter:", error);
@@ -1074,7 +1091,7 @@ export default function LeadsPage({
     };
 
     loadUsers();
-  }, [isFilterOpen, organizationUsers.length]);
+  }, [isFilterOpen, organizationUsers.length, extractEmployees]);
 
   // Função para validar data
 
@@ -2520,13 +2537,17 @@ export default function LeadsPage({
     setQuickAssignUserId("");
 
     try {
-      //const response = await apiService.getOrganizationUsers(true) // Include master users
-      //if (response.success && response.data) {
-      //setOrganizationUsers(response.data.employees)
-      //} else {
-      // pushToast(t('notifications.errorLoadingUsers'), 'error')
-      //setQuickAssignLeadId(null)
-      //}
+      const response = await apiService.getOrganizationUsers(true);
+      if (response.success) {
+        const users = extractEmployees(response);
+        setOrganizationUsers(users);
+        if (!users.length) {
+          pushToast(t("notifications.errorLoadingUsers"), "warning");
+        }
+      } else {
+        pushToast(t("notifications.errorLoadingUsers"), "error");
+        setQuickAssignLeadId(null);
+      }
     } catch (error) {
       console.error("Error fetching users:", error);
       pushToast(t("notifications.errorLoadingUsers"), "error");
@@ -2578,17 +2599,30 @@ export default function LeadsPage({
       const lead = leads.find((l) => l.id === quickAssignLeadId);
       if (!lead) return;
 
+      const initialStatus = getInitialPipelineStatus();
+
       const updateData: any = {
         id: lead.id,
-        assigned_user_id: quickAssignUserId,
+        assignedUserId: quickAssignUserId,
+        status: initialStatus,
       };
 
       const response = await apiService.updateLead(updateData);
 
       if (response.success) {
+        const pipelineResponse = await apiService.bulkUpdatePipeline([lead.id], true);
+        if (!pipelineResponse.success) {
+          pushToast(
+            pipelineResponse.error || t("notifications.errorUpdatingPipeline"),
+            "warning",
+          );
+        }
+
         const updatedLead = {
           ...lead,
           assigned_user_id: quickAssignUserId,
+          status: initialStatus,
+          show_on_pipeline: true,
         };
 
         setLeads((prevLeads) =>
@@ -2724,8 +2758,8 @@ export default function LeadsPage({
   async function openBulkAssign() {
     try {
       const response = await apiService.getOrganizationUsers(true); // Include master users
-      if (response.success && response.data) {
-        setOrganizationUsers(response.data.employees);
+      if (response.success) {
+        setOrganizationUsers(extractEmployees(response));
       } else {
         pushToast(t("notifications.errorLoadingUsers"), "error");
         return;
@@ -3317,6 +3351,7 @@ export default function LeadsPage({
       const successfullyUpdatedIds: string[] = [];
       const updatedLeadsMap = new Map<string, Lead>();
       const failedUpdates: Array<{ lead: Lead; error: string }> = [];
+      const initialStatus = getInitialPipelineStatus();
 
       // Process batches
       for (let i = 0; i < totalBatches; i++) {
@@ -3358,7 +3393,8 @@ export default function LeadsPage({
           const chunkPromises = chunk.map(async (lead) => {
             const updateData: any = {
               id: lead.id,
-              assigned_user_id: selectedUserId,
+              assignedUserId: selectedUserId,
+              status: initialStatus,
             };
             return updateLeadWithRetry(lead, updateData, 5);
           });
@@ -3373,6 +3409,8 @@ export default function LeadsPage({
               const updatedLead = {
                 ...result.lead,
                 assigned_user_id: selectedUserId,
+                status: initialStatus,
+                show_on_pipeline: true,
               };
               updatedLeadsMap.set(result.lead.id, updatedLead);
             } else {
@@ -3415,7 +3453,8 @@ export default function LeadsPage({
           const retryPromises = retryChunk.map(({ lead }) => {
             const updateData: any = {
               id: lead.id,
-              assigned_user_id: selectedUserId,
+              assignedUserId: selectedUserId,
+              status: initialStatus,
             };
             return updateLeadWithRetry(lead, updateData, 5);
           });
@@ -3429,12 +3468,28 @@ export default function LeadsPage({
               const updatedLead = {
                 ...result.lead,
                 assigned_user_id: selectedUserId,
+                status: initialStatus,
+                show_on_pipeline: true,
               };
               updatedLeadsMap.set(result.lead.id, updatedLead);
             }
           });
 
           // No delay between retry chunks for maximum speed
+        }
+
+        const allSuccessIds = [...successfullyUpdatedIds, ...retriedSuccessIds];
+        if (allSuccessIds.length > 0) {
+          const pipelineResponse = await apiService.bulkUpdatePipeline(
+            allSuccessIds,
+            true,
+          );
+          if (!pipelineResponse.success) {
+            pushToast(
+              pipelineResponse.error || t("notifications.errorUpdatingPipeline"),
+              "warning",
+            );
+          }
         }
 
         // Update UI for successful retries
@@ -3471,6 +3526,19 @@ export default function LeadsPage({
             "warning",
           );
         } else {
+          if (successfullyUpdatedIds.length > 0) {
+            const pipelineResponse = await apiService.bulkUpdatePipeline(
+              successfullyUpdatedIds,
+              true,
+            );
+            if (!pipelineResponse.success) {
+              pushToast(
+                pipelineResponse.error || t("notifications.errorUpdatingPipeline"),
+                "warning",
+              );
+            }
+          }
+
           pushToast(
             t("notifications.leadsAssigned", { count: successCount }),
             "success",
