@@ -221,7 +221,7 @@ export default function CrmReportsPage({
             </Breadcrumb>
 
             {/* Export buttons */}
-            <div className="ml-auto flex gap-2">
+            <div className="ml-auto mr-14 sm:mr-16 flex gap-2">
               <Button variant="outline" size="sm" onClick={exportPDF} disabled={loading}>
                 <FileText className="w-4 h-4 mr-1.5" />
                 Exportar PDF

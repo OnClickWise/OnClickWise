@@ -437,75 +437,87 @@ const LeadCard = React.memo(({
   return (
     <div
       ref={cardRef} key={lead.id}
-      className="bg-background border rounded-lg p-2 sm:p-2.5 cursor-move hover:shadow-md transition-shadow select-none"
+      className="group/card relative overflow-hidden rounded-xl border border-[#dfe1e6] bg-white p-2.5 sm:p-3 cursor-move select-none"
       draggable onDragStart={(e) => onDragStart(e, lead)}
       onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} onTouchCancel={handleTouchEnd}
       style={{ touchAction: 'pan-y', WebkitUserSelect: 'none', userSelect: 'none' }}
     >
-      <div className="flex items-start justify-between mb-1.5 sm:mb-2 gap-1">
+      <div className="flex items-start justify-between mb-2 gap-2">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1">
-            <h4 className="font-semibold text-xs sm:text-sm truncate" title={lead.name}>{lead.name}</h4>
+          <div className="flex items-center gap-1.5">
+            <h4 className="font-medium text-[15px] leading-snug text-[#172b4d] truncate" title={lead.name}>{lead.name}</h4>
             {(userRole === 'admin' || userRole === 'master') && lead.assigned_user_id && (
-              <span className="inline-flex items-center justify-center rounded-full bg-blue-100 p-0.5 flex-shrink-0" title={t('leadCard.assignedToUser')}>
-                <UserPlus className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-blue-700" />
+              <span className="inline-flex items-center justify-center rounded-full bg-blue-100 p-0.5" title={t('leadCard.assignedToUser')}>
+                <UserPlus className="h-3 w-3 text-blue-700" />
               </span>
             )}
             {hasConversation && (
-              <span className="inline-flex items-center justify-center rounded-full bg-green-100 p-0.5 flex-shrink-0" title={t('leadCard.hasConversation')}>
-                <MessageCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-green-700" />
+              <span className="inline-flex items-center justify-center rounded-full bg-green-100 p-0.5" title={t('leadCard.hasConversation')}>
+                <MessageCircle className="h-3 w-3 text-green-700" />
               </span>
             )}
           </div>
-          <p className="text-[10px] sm:text-xs text-muted-foreground truncate mt-0.5" title={lead.email}>{lead.email}</p>
+          <p className="text-[#626f86] text-[12px] truncate mt-1" title={lead.email}>{lead.email}</p>
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-            <Button size="sm" variant="ghost" className="h-5 w-5 sm:h-6 sm:w-6 p-0 cursor-pointer hover:bg-muted flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-              <MoreVertical className="h-3 w-3 sm:h-4 sm:w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-40 sm:w-48">
-            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onPreview(lead); }} className="cursor-pointer text-xs sm:text-sm">
-              <Eye className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />{t('leadCard.viewDetails')}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(lead); }} className="cursor-pointer text-xs sm:text-sm">
-              <Edit className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />{t('leadCard.editLead')}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onContact(lead); }} className="cursor-pointer text-xs sm:text-sm">
-              <MessageCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />{t('leadCard.startConversation')}
-            </DropdownMenuItem>
-            {(userRole === 'admin' || userRole === 'master') && onLinkLead && (
-              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onLinkLead(lead); }} className="cursor-pointer text-xs sm:text-sm">
-                <UserPlus className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2" />{t('leadCard.linkToUser')}
+        <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover/card:opacity-100">
+          <Button size="sm" variant="ghost" className="h-7 w-7 p-0 cursor-pointer hover:bg-[#f1f2f4]" onClick={(e) => { e.stopPropagation(); onPreview(lead) }} title={t('leadCard.viewDetails')}>
+            <Eye className="h-3.5 w-3.5 text-[#44546f]" />
+          </Button>
+          <Button size="sm" variant="ghost" className="h-7 w-7 p-0 cursor-pointer hover:bg-[#f1f2f4]" onClick={(e) => { e.stopPropagation(); onEdit(lead) }} title={t('leadCard.editLead')}>
+            <Edit className="h-3.5 w-3.5 text-[#44546f]" />
+          </Button>
+          <Button size="sm" variant="ghost" className="h-7 w-7 p-0 cursor-pointer hover:bg-[#f1f2f4]" onClick={(e) => { e.stopPropagation(); onContact(lead) }} title={t('leadCard.startConversation')}>
+            <MessageCircle className="h-3.5 w-3.5 text-[#44546f]" />
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+              <Button size="sm" variant="ghost" className="h-7 w-7 p-0 cursor-pointer hover:bg-[#f1f2f4]" onClick={(e) => e.stopPropagation()}>
+                <MoreVertical className="h-3.5 w-3.5 text-[#44546f]" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onPreview(lead); }} className="cursor-pointer text-sm">
+                <Eye className="h-4 w-4 mr-2" />{t('leadCard.viewDetails')}
               </DropdownMenuItem>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(lead); }} className="cursor-pointer text-sm">
+                <Edit className="h-4 w-4 mr-2" />{t('leadCard.editLead')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onContact(lead); }} className="cursor-pointer text-sm">
+                <MessageCircle className="h-4 w-4 mr-2" />{t('leadCard.startConversation')}
+              </DropdownMenuItem>
+              {(userRole === 'admin' || userRole === 'master') && onLinkLead && (
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onLinkLead(lead); }} className="cursor-pointer text-sm">
+                  <UserPlus className="h-4 w-4 mr-2" />{t('leadCard.linkToUser')}
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
-      {lead.value && (
-        <div className="mb-1 sm:mb-1.5">
-          <div className="text-xs sm:text-sm font-bold text-green-600 truncate">{formatCurrency(lead.value)}</div>
+
+      {lead.value !== undefined && lead.value !== null && (
+        <div className="mb-2 inline-flex items-center rounded bg-[#f1f2f4] px-2 py-0.5 text-[11px] font-semibold text-[#44546f]">
+          {formatCurrency(lead.value)}
         </div>
       )}
-      <div className="space-y-0.5 sm:space-y-1">
+
+      <div className="space-y-1">
         {lead.source && (
-          <div className="text-[10px] sm:text-xs text-muted-foreground flex items-center">
-            <Building2 className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1 flex-shrink-0" />
+          <div className="text-[12px] text-[#626f86] flex items-center gap-1">
+            <Building2 className="h-3.5 w-3.5 flex-shrink-0" />
             <span className="truncate">{lead.source}</span>
           </div>
         )}
         {lead.estimated_close_date && (
-          <div className="text-[10px] sm:text-xs text-muted-foreground flex items-center">
-            <Calendar className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1 flex-shrink-0" />
+          <div className="text-[12px] text-[#626f86] flex items-center gap-1">
+            <Calendar className="h-3.5 w-3.5 flex-shrink-0" />
             <span className="truncate">{formatDate(lead.estimated_close_date)}</span>
           </div>
         )}
       </div>
+
       {lead.description && (
-        <div className="mt-1 sm:mt-1.5 p-1 sm:p-1.5 bg-muted/30 rounded text-[10px] sm:text-xs text-muted-foreground">
-          <div className="line-clamp-2" title={lead.description}>📝 {lead.description}</div>
-        </div>
+        <p className="text-[#626f86] text-[12px] mt-2 line-clamp-2 leading-snug" title={lead.description}>{lead.description}</p>
       )}
     </div>
   )
@@ -815,15 +827,35 @@ export default function PipelinePage({
     if (pipelineStages.length > 0 && !stagesLoaded) setStagesLoaded(true)
   }, [pipelineStages.length, stagesLoaded])
 
+  const applyKanbanBoardPayload = React.useCallback((boardData: any) => {
+    const stagesFromApi = Array.isArray(boardData?.stages) ? boardData.stages : []
+    const uncategorizedLeads = Array.isArray(boardData?.uncategorizedLeads) ? boardData.uncategorizedLeads : []
+
+    const mergedStages = [...stagesFromApi]
+    if (uncategorizedLeads.length > 0) {
+      mergedStages.unshift({
+        id: '__uncategorized__',
+        name: t('stageManagement.uncategorized'),
+        slug: '__uncategorized__',
+        color: JSON.stringify({ bg: '#FEF3C7', text: '#92400E' }),
+        order: -1,
+        leads: uncategorizedLeads,
+      })
+    }
+
+    setPipelineStages(mergedStages)
+
+    const allLeads = mergedStages.flatMap((stage: any) => (Array.isArray(stage.leads) ? stage.leads : []))
+    setLeads(allLeads)
+    loadLinkedConversations(allLeads.map((lead: Lead) => lead.id))
+  }, [loadLinkedConversations, t])
+
   const searchLeads = React.useCallback(async (searchParams: any) => {
     try {
-      const response = await apiService.searchLeads(searchParams)
+      const response = await pipelineService.getKanbanBoard(searchParams)
       if (response.success && response.data) {
-        setLeads(response.data.leads)
-        updatePipelineStages(response.data.leads)
-        const leadIds = response.data.leads.map((l: Lead) => l.id)
-        loadLinkedConversations(leadIds)
-        return response.data.leads
+        applyKanbanBoardPayload(response.data)
+        return (response.data.stages || []).flatMap((stage: any) => Array.isArray(stage.leads) ? stage.leads : [])
       } else {
         pushToast(t('notifications.errorSearching'), 'error')
         return []
@@ -832,7 +864,7 @@ export default function PipelinePage({
       pushToast('Erro ao buscar leads', 'error')
       return []
     }
-  }, [loadLinkedConversations, t])
+  }, [applyKanbanBoardPayload, t])
 
   const clearFilters = () => {
     setSearchTerm('')
@@ -842,12 +874,9 @@ export default function PipelinePage({
     const loadAllLeads = async () => {
       try {
         const params = addEmployeeFilter({ show_on_pipeline: true })
-        const response = await apiService.searchLeads(params)
+        const response = await pipelineService.getKanbanBoard(params)
         if (response.success && response.data) {
-          setLeads(response.data.leads)
-          updatePipelineStages(response.data.leads)
-          const leadIds = response.data.leads.map((l: Lead) => l.id)
-          loadLinkedConversations(leadIds)
+          applyKanbanBoardPayload(response.data)
         }
       } catch (error) { console.error('Error loading all leads:', error) }
     }
@@ -871,18 +900,15 @@ export default function PipelinePage({
       const loadAllLeads = async () => {
         try {
           const params = addEmployeeFilter({ show_on_pipeline: true })
-          const response = await apiService.searchLeads(params)
+          const response = await pipelineService.getKanbanBoard(params)
           if (response.success && response.data) {
-            setLeads(response.data.leads)
-            updatePipelineStages(response.data.leads)
-            const leadIds = response.data.leads.map((l: Lead) => l.id)
-            loadLinkedConversations(leadIds)
+            applyKanbanBoardPayload(response.data)
           }
         } catch (error) { console.error('Error loading all leads:', error) }
       }
       loadAllLeads()
     }
-  }, [searchTerm, debouncedSearch, isClient, stagesLoaded, userRole, addEmployeeFilter])
+  }, [searchTerm, debouncedSearch, isClient, stagesLoaded, userRole, addEmployeeFilter, applyKanbanBoardPayload])
 
   const applyModalFilters = React.useCallback(async () => {
     if (!isClient) return
@@ -905,12 +931,9 @@ export default function PipelinePage({
         if (dateRange.max) searchParams.date_max = dateRange.max
         searchParams = addEmployeeFilter(searchParams)
 
-        const response = await apiService.searchLeads(searchParams)
+        const response = await pipelineService.getKanbanBoard(searchParams)
         if (response.success && response.data) {
-          setLeads(response.data.leads)
-          updatePipelineStages(response.data.leads)
-          const leadIds = response.data.leads.map((l: Lead) => l.id)
-          loadLinkedConversations(leadIds)
+          applyKanbanBoardPayload(response.data)
         }
       } catch (error) {
         pushToast(t('notifications.errorApplyingFilters'), 'error')
@@ -919,18 +942,15 @@ export default function PipelinePage({
       const loadAllLeads = async () => {
         try {
           const params = addEmployeeFilter({ show_on_pipeline: true })
-          const response = await apiService.searchLeads(params)
+          const response = await pipelineService.getKanbanBoard(params)
           if (response.success && response.data) {
-            setLeads(response.data.leads)
-            updatePipelineStages(response.data.leads)
-            const leadIds = response.data.leads.map((l: Lead) => l.id)
-            loadLinkedConversations(leadIds)
+            applyKanbanBoardPayload(response.data)
           }
         } catch (error) { console.error('Error loading all leads:', error) }
       }
       loadAllLeads()
     }
-  }, [filters, valueRange, dateRange, isClient, addEmployeeFilter])
+  }, [filters, valueRange, dateRange, isClient, addEmployeeFilter, applyKanbanBoardPayload, t])
 
   function updatePipelineStages(leadsList: Lead[]) {
     setPipelineStages(prev => {
@@ -2439,17 +2459,17 @@ export default function PipelinePage({
               </div>
             )}
             
-            <div ref={pipelineScrollRef} className="pipeline-scroll-container flex gap-2 sm:gap-4 overflow-x-auto overflow-y-hidden pb-4 flex-1 min-h-0 w-full text-foreground" onDragOver={handlePipelineDragOver} onDragEnd={handlePipelineDragEnd} onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) { handlePipelineDragEnd() } }}>
+            <div ref={pipelineScrollRef} className="pipeline-scroll-container flex gap-3 overflow-x-auto overflow-y-hidden pb-3 flex-1 min-h-0 w-full text-foreground items-start" onDragOver={handlePipelineDragOver} onDragEnd={handlePipelineDragEnd} onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) { handlePipelineDragEnd() } }}>
               {filteredStages.map((stage) => {
                 const isUncategorized = stage.id === '__uncategorized__'
                 
                 return (
-                <div key={stage.id} className={`rounded-lg border-2 p-2 sm:p-3 h-[500px] sm:h-[600px] flex flex-col transition-colors ${isUncategorized ? "border-amber-400 bg-amber-50/50 dark:bg-amber-900/10" : draggedOverStage === stage.id || touchOverStageRef.current === stage.id ? "border-primary bg-primary/5" : "border-border"}`} style={{ flex: pipelineStages.length <= 4 ? '1 1 0%' : '0 0 auto', minWidth: '240px', width: pipelineStages.length > 4 ? '280px' : 'auto' }} data-stage-id={stage.id} onDragOver={(e) => handleDragOver(e, stage.id)} onDragLeave={handleDragLeave} onDrop={(e) => handleDrop(e, stage.id)} onTouchMove={(e) => handleStageTouchMoveForLeadDrop(e, stage.id)} onTouchEnd={(e) => handleStageTouchEndForLeadDrop(e, stage.id)} title={isUncategorized ? t('stageManagement.uncategorizedTooltip') : ''}>
-                  <div className="flex-shrink-0 mb-2 sm:mb-3">
-                    <div className="flex items-center justify-between gap-1 sm:gap-2">
-                      <div className="flex items-center gap-1 sm:gap-2 flex-1 min-w-0">
+                <div key={stage.id} className={`flex-shrink-0 flex flex-col rounded-2xl border bg-[#ebecf0] h-[500px] sm:h-[600px] ${isUncategorized ? "border-amber-300" : draggedOverStage === stage.id || touchOverStageRef.current === stage.id ? "border-primary" : "border-[#d0d9e3]"}`} style={{ flex: pipelineStages.length <= 4 ? '1 1 0%' : '0 0 auto', minWidth: '260px', width: pipelineStages.length > 4 ? '320px' : 'auto' }} data-stage-id={stage.id} onDragOver={(e) => handleDragOver(e, stage.id)} onDragLeave={handleDragLeave} onDrop={(e) => handleDrop(e, stage.id)} onTouchMove={(e) => handleStageTouchMoveForLeadDrop(e, stage.id)} onTouchEnd={(e) => handleStageTouchEndForLeadDrop(e, stage.id)} title={isUncategorized ? t('stageManagement.uncategorizedTooltip') : ''}>
+                  <div className="flex-shrink-0 px-3 pt-2.5 pb-1.5 border-b border-[#dfe1e6]">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 flex-1 min-w-0">
                         {isUncategorized && <AlertTriangle className="h-3 w-3 sm:h-4 sm:w-4 text-amber-600 flex-shrink-0" />}
-                        {renderStageBadge(stage, "inline-flex items-center rounded-md border px-1.5 sm:px-2 py-0.5 sm:py-1 text-[10px] sm:text-xs font-medium min-w-0")}
+                        {renderStageBadge(stage, "inline-flex items-center rounded-md border px-2.5 py-1 text-[12px] font-semibold min-w-0")}
                         {isUncategorized && (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -2535,12 +2555,12 @@ export default function PipelinePage({
                           </DropdownMenu>
                         )}
                       </div>
-                      <div className="text-[10px] sm:text-xs text-muted-foreground font-medium bg-muted px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md whitespace-nowrap">{stage.leads.length}</div>
+                      <div className="ml-2 text-xs text-[#626f86] font-semibold tabular-nums">{stage.leads.length}</div>
                     </div>
                     {isUncategorized && <p className="text-[10px] sm:text-xs text-amber-700 dark:text-amber-400 mt-1 sm:mt-2 leading-tight">{t('stageManagement.uncategorizedTooltip')}</p>}
                   </div>
                   
-                  <div className="flex-1 overflow-y-auto space-y-1.5 sm:space-y-2 pr-1 sm:pr-2 text-foreground">
+                  <div className="flex-1 overflow-y-auto px-2.5 pb-2 space-y-2 text-foreground">
                     {stage.filteredLeads.map((lead) => (
                       <LeadCard
                         key={lead.id} lead={lead} onDragStart={handleDragStart} onContact={handleContactLead} onPreview={handlePreviewLead} onEdit={handleEdit} onLinkLead={canManageStages ? handleOpenLinkLead : undefined} userRole={userRole} locale={locale} hasConversation={leadsWithConversations.has(lead.id)}

@@ -35,6 +35,16 @@ export interface CreatePipelineStageRequest {
   description?: string;
 }
 
+export interface PipelineKanbanBoardResponse {
+  stages: Array<PipelineStage & { leads: any[] }>;
+  uncategorizedLeads: any[];
+  metrics: {
+    totalLeads: number;
+    totalValue: number;
+    conversionRate: number;
+  };
+}
+
 class PipelineService {
   private getAuthToken(): string | null {
     if (typeof window === 'undefined') return null;
@@ -147,6 +157,28 @@ class PipelineService {
       method: 'PATCH',
       body: JSON.stringify({ stageIds }),
     });
+  }
+
+  // GET /api/pipeline-stages/:organizationId/kanban
+  async getKanbanBoard(params?: {
+    search?: string;
+    assigned_user_id?: string;
+    show_on_pipeline?: boolean;
+    limit?: number;
+  }): Promise<ApiResponse<PipelineKanbanBoardResponse>> {
+    const orgId = await this.getOrgId();
+    if (!orgId) return { success: false, error: 'No organization linked to user' };
+
+    const query = new URLSearchParams();
+    if (params?.search) query.append('search', params.search);
+    if (params?.assigned_user_id) query.append('assigned_user_id', params.assigned_user_id);
+    if (params?.show_on_pipeline !== undefined) {
+      query.append('show_on_pipeline', String(params.show_on_pipeline));
+    }
+    if (params?.limit) query.append('limit', String(params.limit));
+
+    const endpoint = `/api/pipeline-stages/${orgId}/kanban${query.toString() ? `?${query.toString()}` : ''}`;
+    return this.request<PipelineKanbanBoardResponse>(endpoint);
   }
 }
 
