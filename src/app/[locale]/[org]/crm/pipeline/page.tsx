@@ -574,7 +574,7 @@ export default function PipelinePage({
   
   React.useEffect(() => {
     try {
-      const token = getAccessTokenFromCookie()
+      const token = getAccessTokenFromCookie() || (typeof window !== 'undefined' ? localStorage.getItem('token') : null)
       if (token) {
         const parts = token.split('.')
         if (parts.length === 3) {
@@ -924,7 +924,7 @@ export default function PipelinePage({
   }, [searchLeads])
 
   React.useEffect(() => {
-    if (!isClient || !stagesLoaded || !userRole) return
+    if (!isClient || !stagesLoaded) return
     if (searchTerm) {
       const searchParams = addEmployeeFilter({ search: searchTerm, show_on_pipeline: true })
       debouncedSearch(searchParams)
@@ -940,7 +940,7 @@ export default function PipelinePage({
       }
       loadAllLeads()
     }
-  }, [searchTerm, debouncedSearch, isClient, stagesLoaded, userRole, addEmployeeFilter, applyKanbanBoardPayload])
+  }, [searchTerm, debouncedSearch, isClient, stagesLoaded, addEmployeeFilter, applyKanbanBoardPayload])
 
   const applyModalFilters = React.useCallback(async () => {
     if (!isClient) return

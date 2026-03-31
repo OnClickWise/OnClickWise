@@ -541,7 +541,11 @@ class ApiService {
   }
 
   // Atualização em massa para pipeline
-  async bulkUpdatePipeline(leadIds: string[], showOnPipeline: boolean): Promise<ApiResponse<{ message: string }>> {
+  async bulkUpdatePipeline(
+    leadIds: string[],
+    showOnPipeline: boolean,
+    status?: string,
+  ): Promise<ApiResponse<{ message: string }>> {
     if (typeof window === 'undefined') {
       return {
         success: false,
@@ -553,7 +557,8 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify({
         lead_ids: leadIds,
-        show_on_pipeline: showOnPipeline
+        show_on_pipeline: showOnPipeline,
+        ...(status ? { status } : {}),
       }),
     });
   }

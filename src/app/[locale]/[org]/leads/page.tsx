@@ -2559,9 +2559,12 @@ export default function LeadsPage({
 
   async function handleTogglePipeline(leadId: string, currentStatus: boolean) {
     try {
+      const lead = leads.find((l) => l.id === leadId);
+      const initialStatus = getInitialPipelineStatus();
       const response = await apiService.bulkUpdatePipeline(
         [leadId],
         !currentStatus,
+        !currentStatus ? initialStatus : lead?.status,
       );
 
       if (response.success) {
@@ -2569,14 +2572,22 @@ export default function LeadsPage({
         setLeads((prevLeads) =>
           prevLeads.map((lead) =>
             lead.id === leadId
-              ? { ...lead, show_on_pipeline: !currentStatus }
+              ? {
+                  ...lead,
+                  show_on_pipeline: !currentStatus,
+                  status: !currentStatus ? initialStatus : lead.status,
+                }
               : lead,
           ),
         );
         setFilteredLeads((prevLeads) =>
           prevLeads.map((lead) =>
             lead.id === leadId
-              ? { ...lead, show_on_pipeline: !currentStatus }
+              ? {
+                  ...lead,
+                  show_on_pipeline: !currentStatus,
+                  status: !currentStatus ? initialStatus : lead.status,
+                }
               : lead,
           ),
         );
@@ -2610,7 +2621,11 @@ export default function LeadsPage({
       const response = await apiService.updateLead(updateData);
 
       if (response.success) {
-        const pipelineResponse = await apiService.bulkUpdatePipeline([lead.id], true);
+        const pipelineResponse = await apiService.bulkUpdatePipeline(
+          [lead.id],
+          true,
+          initialStatus,
+        );
         if (!pipelineResponse.success) {
           pushToast(
             pipelineResponse.error || t("notifications.errorUpdatingPipeline"),
@@ -2786,10 +2801,12 @@ export default function LeadsPage({
     try {
       const leadIds = Array.from(selectedLeads);
       const showOnPipeline = pipelineAction === "add";
+      const initialStatus = getInitialPipelineStatus();
 
       const response = await apiService.bulkUpdatePipeline(
         leadIds,
         showOnPipeline,
+        showOnPipeline ? initialStatus : undefined,
       );
 
       if (response.success) {
@@ -2797,7 +2814,11 @@ export default function LeadsPage({
         setLeads((prev) =>
           prev.map((lead) =>
             selectedLeads.has(lead.id)
-              ? { ...lead, show_on_pipeline: showOnPipeline }
+              ? {
+                  ...lead,
+                  show_on_pipeline: showOnPipeline,
+                  status: showOnPipeline ? initialStatus : lead.status,
+                }
               : lead,
           ),
         );
@@ -3483,6 +3504,7 @@ export default function LeadsPage({
           const pipelineResponse = await apiService.bulkUpdatePipeline(
             allSuccessIds,
             true,
+            initialStatus,
           );
           if (!pipelineResponse.success) {
             pushToast(
@@ -3530,6 +3552,7 @@ export default function LeadsPage({
             const pipelineResponse = await apiService.bulkUpdatePipeline(
               successfullyUpdatedIds,
               true,
+              initialStatus,
             );
             if (!pipelineResponse.success) {
               pushToast(
