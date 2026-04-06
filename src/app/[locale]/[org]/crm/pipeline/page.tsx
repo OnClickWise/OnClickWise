@@ -514,12 +514,12 @@ const LeadCard = React.memo(({
             <span className="truncate">{lead.source}</span>
           </div>
         )}
-        {lead.estimated_close_date && (
-          <div className="text-[12px] text-[#626f86] flex items-center gap-1">
-            <Calendar className="h-3.5 w-3.5 flex-shrink-0" />
-            <span className="truncate">{formatDate(lead.estimated_close_date)}</span>
-          </div>
-        )}
+        <div className="text-[12px] text-[#626f86] flex items-center gap-1">
+          <Calendar className="h-3.5 w-3.5 flex-shrink-0" />
+          <span className="truncate">
+            {formatDate(lead.estimated_close_date || lead.created_at)}
+          </span>
+        </div>
       </div>
 
       {lead.description && (

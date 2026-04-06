@@ -123,7 +123,7 @@ export async function addInternalChatChannelMember(
 
 export async function listInternalChatOrganizationUsers(includeMaster = true): Promise<InternalChatUser[]> {
   const suffix = includeMaster ? '?include_master=true' : '';
-  const res = await authenticatedFetch(`${API_BASE_URL}/api/auth/employees${suffix}`, {
+  const res = await authenticatedFetch(`${API_BASE_URL}/auth/employees${suffix}`, {
     method: 'GET',
   });
 
