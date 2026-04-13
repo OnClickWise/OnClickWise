@@ -1,4 +1,4 @@
-﻿import { getAuthToken } from "@/lib/cookies";
+﻿import { authenticatedFetch } from "@/services/authService";
 import { getApiBaseUrl } from "@/lib/api-url";
 
 const API_BASE_URL = getApiBaseUrl();
@@ -30,20 +30,15 @@ function normalizeList(l: any): List {
 }
 
 export async function getLists(boardId: string): Promise<List[]> {
-  const token = getAuthToken();
-  const res = await fetch(`${API_BASE_URL}/lists?boardId=${boardId}`, {
-    headers: { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) },
-  });
+  const res = await authenticatedFetch(`${API_BASE_URL}/lists?boardId=${boardId}`);
   if (!res.ok) throw new Error("Erro ao buscar listas");
   const data = await res.json();
   return (Array.isArray(data) ? data : []).map(normalizeList);
 }
 
 export async function createList(data: CreateListRequest): Promise<List> {
-  const token = getAuthToken();
-  const res = await fetch(`${API_BASE_URL}/lists`, {
+  const res = await authenticatedFetch(`${API_BASE_URL}/lists`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) },
     body: JSON.stringify({ title: data.title, boardId: data.boardId, position: data.position ?? 0 }),
   });
   if (!res.ok) throw new Error("Erro ao criar lista");
@@ -51,10 +46,8 @@ export async function createList(data: CreateListRequest): Promise<List> {
 }
 
 export async function updateList(listId: string, data: Partial<CreateListRequest>): Promise<List> {
-  const token = getAuthToken();
-  const res = await fetch(`${API_BASE_URL}/lists/${listId}`, {
+  const res = await authenticatedFetch(`${API_BASE_URL}/lists/${listId}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) },
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error("Erro ao atualizar lista");
@@ -62,10 +55,8 @@ export async function updateList(listId: string, data: Partial<CreateListRequest
 }
 
 export async function deleteList(listId: string): Promise<void> {
-  const token = getAuthToken();
-  const res = await fetch(`${API_BASE_URL}/lists/${listId}`, {
+  const res = await authenticatedFetch(`${API_BASE_URL}/lists/${listId}`, {
     method: "DELETE",
-    headers: { ...(token && { Authorization: `Bearer ${token}` }) },
   });
   if (!res.ok) throw new Error("Erro ao excluir lista");
 }

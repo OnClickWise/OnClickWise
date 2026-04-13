@@ -86,6 +86,9 @@ export async function login({ email, password }: { email: string; password: stri
     if (data.refreshToken) setRefreshTokenCookie(data.refreshToken);
     if (typeof window !== "undefined") {
       localStorage.setItem("token", data.accessToken);
+      if (data.refreshToken) {
+        localStorage.setItem("refreshToken", data.refreshToken);
+      }
       if (data.organization) {
         localStorage.setItem("organization", JSON.stringify(data.organization));
       }
@@ -125,6 +128,9 @@ export async function register(data: any) {
     if (resData.refreshToken) setRefreshTokenCookie(resData.refreshToken);
     if (typeof window !== "undefined") {
       localStorage.setItem("token", tokenValue);
+      if (resData.refreshToken) {
+        localStorage.setItem("refreshToken", resData.refreshToken);
+      }
       if (resData.organization) {
         localStorage.setItem("organization", JSON.stringify(resData.organization));
       }
@@ -139,6 +145,8 @@ export async function register(data: any) {
 // ----------------------
 export async function logout() {
   const token = getAuthToken();
+  const currentRefreshToken = getRefreshTokenFromCookie()
+    ?? (typeof window !== "undefined" ? localStorage.getItem("refreshToken") : null);
 
   const res = await fetch(
     `${API_BASE_URL}/auth/logout`,
@@ -148,6 +156,7 @@ export async function logout() {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
+      body: JSON.stringify({ refreshToken: currentRefreshToken }),
       credentials: "include",
     },
   );
@@ -155,6 +164,7 @@ export async function logout() {
   clearAuthCookies();
   if (typeof window !== "undefined") {
     localStorage.removeItem("token");
+    localStorage.removeItem("refreshToken");
     localStorage.removeItem("organization");
   }
 
@@ -170,13 +180,8 @@ export async function logout() {
 // GET CURRENT USER
 // ----------------------
 export async function getCurrentUser() {
-  const token = getAuthToken();
-  const res = await fetch(`${API_BASE_URL}/auth/me`, {
+  const res = await authenticatedFetch(`${API_BASE_URL}/auth/me`, {
     method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
   });
 
   if (!res.ok) {
@@ -223,6 +228,9 @@ export async function refreshToken(): Promise<{ accessToken: string; refreshToke
     if (data.refreshToken) setRefreshTokenCookie(data.refreshToken);
     if (typeof window !== "undefined") {
       localStorage.setItem("token", data.accessToken);
+      if (data.refreshToken) {
+        localStorage.setItem("refreshToken", data.refreshToken);
+      }
     }
     return data;
   }
@@ -261,6 +269,7 @@ export async function authenticatedFetch(
     } catch {
       clearAuthCookies();
       localStorage.removeItem("token");
+      localStorage.removeItem("refreshToken");
       localStorage.removeItem("organization");
       const parts = window.location.pathname.split("/").filter(Boolean);
       const locale = ["pt", "en", "es", "fr"].includes(parts[0]) ? parts[0] : "pt";

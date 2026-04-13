@@ -1,5 +1,4 @@
-import { getAccessTokenFromCookie } from "@/lib/cookies";
-import { getCurrentUser } from "./authService";
+import { authenticatedFetch, getCurrentUser } from "./authService";
 import { getApiOrigin } from "@/lib/api-url";
 
 const API_BASE_URL = getApiOrigin();
@@ -46,11 +45,6 @@ export interface PipelineKanbanBoardResponse {
 }
 
 class PipelineService {
-  private getAuthToken(): string | null {
-    if (typeof window === 'undefined') return null;
-    return getAccessTokenFromCookie() || localStorage.getItem('token');
-  }
-
   /**
    * Helper para obter o ID da organização do usuário logado
    */
@@ -68,18 +62,10 @@ class PipelineService {
       return { success: false, error: 'API calls only available on client side' };
     }
 
-    const token = this.getAuthToken();
-    const config: RequestInit = {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token && { Authorization: `Bearer ${token}` }),
-        ...options.headers,
-      },
-      ...options,
-    };
+    const config: RequestInit = { ...options };
 
     try {
-      const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+      const response = await authenticatedFetch(`${API_BASE_URL}${endpoint}`, config);
 
       if (response.status === 401) {
         return { success: false, error: 'Unauthorized' };

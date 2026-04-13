@@ -1,4 +1,4 @@
-﻿import { getAuthToken } from "@/lib/cookies";
+﻿import { authenticatedFetch } from "@/services/authService";
 import { getApiBaseUrl } from "@/lib/api-url";
 
 const API_BASE_URL = getApiBaseUrl();
@@ -33,29 +33,21 @@ function normalizeBoard(b: any): Board {
 }
 
 export async function getBoards(projectId: string): Promise<Board[]> {
-  const token = getAuthToken();
-  const res = await fetch(`${API_BASE_URL}/boards?projectId=${projectId}`, {
-    headers: { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) },
-  });
+  const res = await authenticatedFetch(`${API_BASE_URL}/boards?projectId=${projectId}`);
   if (!res.ok) throw new Error("Erro ao buscar quadros");
   const data = await res.json();
   return (Array.isArray(data) ? data : []).map(normalizeBoard);
 }
 
 export async function getBoard(boardId: string): Promise<Board> {
-  const token = getAuthToken();
-  const res = await fetch(`${API_BASE_URL}/boards/${boardId}`, {
-    headers: { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) },
-  });
+  const res = await authenticatedFetch(`${API_BASE_URL}/boards/${boardId}`);
   if (!res.ok) throw new Error("Erro ao buscar quadro");
   return normalizeBoard(await res.json());
 }
 
 export async function createBoard(data: CreateBoardRequest): Promise<Board> {
-  const token = getAuthToken();
-  const res = await fetch(`${API_BASE_URL}/boards`, {
+  const res = await authenticatedFetch(`${API_BASE_URL}/boards`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) },
     body: JSON.stringify({ title: data.title, projectId: data.projectId, color: data.color || "ocean", description: data.description }),
   });
   if (!res.ok) throw new Error("Erro ao criar quadro");
@@ -63,10 +55,8 @@ export async function createBoard(data: CreateBoardRequest): Promise<Board> {
 }
 
 export async function updateBoard(boardId: string, data: Partial<CreateBoardRequest>): Promise<Board> {
-  const token = getAuthToken();
-  const res = await fetch(`${API_BASE_URL}/boards/${boardId}`, {
+  const res = await authenticatedFetch(`${API_BASE_URL}/boards/${boardId}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) },
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error("Erro ao atualizar quadro");
@@ -74,10 +64,8 @@ export async function updateBoard(boardId: string, data: Partial<CreateBoardRequ
 }
 
 export async function deleteBoard(boardId: string): Promise<void> {
-  const token = getAuthToken();
-  const res = await fetch(`${API_BASE_URL}/boards/${boardId}`, {
+  const res = await authenticatedFetch(`${API_BASE_URL}/boards/${boardId}`, {
     method: "DELETE",
-    headers: { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) },
   });
   if (!res.ok) throw new Error("Erro ao excluir quadro");
 }

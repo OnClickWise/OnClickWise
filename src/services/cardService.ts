@@ -1,4 +1,4 @@
-﻿import { getAuthToken } from "@/lib/cookies";
+﻿import { authenticatedFetch } from "@/services/authService";
 import { getApiBaseUrl } from "@/lib/api-url";
 
 const API_BASE_URL = getApiBaseUrl();
@@ -50,40 +50,29 @@ function normalizeCard(c: any): Card {
 }
 
 export async function getCardById(cardId: string): Promise<Card> {
-  const token = getAuthToken();
-  const res = await fetch(`${API_BASE_URL}/cards/${cardId}`, {
-    headers: { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) },
-  });
+  const res = await authenticatedFetch(`${API_BASE_URL}/cards/${cardId}`);
   if (!res.ok) throw new Error("Erro ao buscar cartao");
   return normalizeCard(await res.json());
 }
 
 export async function getCards(listId: string): Promise<Card[]> {
-  const token = getAuthToken();
-  const res = await fetch(`${API_BASE_URL}/cards?listId=${listId}`, {
-    headers: { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) },
-  });
+  const res = await authenticatedFetch(`${API_BASE_URL}/cards?listId=${listId}`);
   if (!res.ok) throw new Error("Erro ao buscar cartoes");
   const data = await res.json();
   return (Array.isArray(data) ? data : []).map(normalizeCard);
 }
 
 export async function getCardsByBoard(boardId: string): Promise<Card[]> {
-  const token = getAuthToken();
-  const res = await fetch(`${API_BASE_URL}/cards?boardId=${boardId}`, {
-    headers: { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) },
-  });
+  const res = await authenticatedFetch(`${API_BASE_URL}/cards?boardId=${boardId}`);
   if (!res.ok) throw new Error("Erro ao buscar cartoes do board");
   const data = await res.json();
   return (Array.isArray(data) ? data : []).map(normalizeCard);
 }
 
 export async function createCard(data: CreateCardRequest): Promise<Card> {
-  const token = getAuthToken();
   const metadata = { ...(data.metadata || {}), ...(data.cover ? { cover: data.cover } : {}) };
-  const res = await fetch(`${API_BASE_URL}/cards`, {
+  const res = await authenticatedFetch(`${API_BASE_URL}/cards`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) },
     body: JSON.stringify({ title: data.title, description: data.description, columnId: data.listId, listId: data.listId, position: data.position ?? 0, metadata }),
   });
   if (!res.ok) throw new Error("Erro ao criar cartao");
@@ -91,12 +80,10 @@ export async function createCard(data: CreateCardRequest): Promise<Card> {
 }
 
 export async function updateCard(cardId: string, data: Partial<CreateCardRequest>): Promise<Card> {
-  const token = getAuthToken();
   const body: any = { ...data };
   if (data.listId) { body.columnId = data.listId; body.listId = data.listId; }
-  const res = await fetch(`${API_BASE_URL}/cards/${cardId}`, {
+  const res = await authenticatedFetch(`${API_BASE_URL}/cards/${cardId}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) },
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error("Erro ao atualizar cartao");
@@ -104,10 +91,8 @@ export async function updateCard(cardId: string, data: Partial<CreateCardRequest
 }
 
 export async function deleteCard(cardId: string): Promise<void> {
-  const token = getAuthToken();
-  const res = await fetch(`${API_BASE_URL}/cards/${cardId}`, {
+  const res = await authenticatedFetch(`${API_BASE_URL}/cards/${cardId}`, {
     method: "DELETE",
-    headers: { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) },
   });
   if (!res.ok) throw new Error("Erro ao excluir cartao");
 }
