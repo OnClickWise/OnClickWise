@@ -123,6 +123,35 @@ const mockSelectedEmail = {
   ]
 }
 
+function sanitizeEmailHtml(html: string): string {
+  if (typeof window === 'undefined') return ''
+
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(html, 'text/html')
+
+  // Remove elementos com alto risco de execução/injeção
+  doc.querySelectorAll('script, style, iframe, object, embed, link, meta').forEach((el) => el.remove())
+
+  // Remove atributos perigosos e URLs javascript:
+  doc.querySelectorAll('*').forEach((el) => {
+    for (const attr of Array.from(el.attributes)) {
+      const name = attr.name.toLowerCase()
+      const value = attr.value.trim().toLowerCase()
+
+      if (name.startsWith('on')) {
+        el.removeAttribute(attr.name)
+        continue
+      }
+
+      if ((name === 'href' || name === 'src' || name === 'xlink:href') && value.startsWith('javascript:')) {
+        el.removeAttribute(attr.name)
+      }
+    }
+  })
+
+  return doc.body.innerHTML
+}
+
 export default function EmailPage({
   params,
 }: {
@@ -139,6 +168,10 @@ export default function EmailPage({
   )
 
   const currentEmail = mockEmails.find(email => email.id === selectedEmail)
+  const safeEmailHtml = React.useMemo(
+    () => sanitizeEmailHtml(mockSelectedEmail.content),
+    []
+  )
 
   return (
     <AuthGuard orgSlug={org}>
@@ -285,7 +318,7 @@ export default function EmailPage({
                   <div className="flex-1 overflow-y-auto p-6 bg-white">
                     <div 
                       className="prose max-w-none"
-                      dangerouslySetInnerHTML={{ __html: mockSelectedEmail.content }}
+                      dangerouslySetInnerHTML={{ __html: safeEmailHtml }}
                     />
                     
                     {/* Anexos */}

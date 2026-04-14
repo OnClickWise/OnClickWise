@@ -11,6 +11,9 @@ const nextConfig = {
     const devConnectSrc = isDev
       ? ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:8080', 'http://127.0.0.1:8080']
       : [];
+    const scriptSrc = isDev
+      ? "script-src 'self' 'unsafe-inline' 'unsafe-eval' https:"
+      : "script-src 'self' 'unsafe-inline' https:";
     
     // Adicionar localhost às sources de imagem em desenvolvimento
     const devImgSrc = isDev
@@ -25,7 +28,7 @@ const nextConfig = {
       `img-src 'self' data: blob: https: ${devImgSrc.join(' ')}`.trim(),
       "font-src 'self' data: https:",
       "style-src 'self' 'unsafe-inline' https:",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https:",
+      scriptSrc,
       `connect-src 'self' https: ws: wss: ${devConnectSrc.join(' ')}`.trim(),
       `media-src 'self' data: blob: https://api.onclickwise.com.br https: ${devConnectSrc.join(' ')}`.trim(),
     ].join('; ');

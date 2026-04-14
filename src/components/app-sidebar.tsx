@@ -400,7 +400,6 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
 
   // Function to handle dashboard redirect - all users go to same URL
   const handleDashboardClick = () => {
-    const baseUrl = 'http://localhost:3001'
     let orgSlug = org
     
     // Se org estiver undefined, tentar obter do localStorage
@@ -422,7 +421,7 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
       return
     }
     
-    const dashboardUrl = `${baseUrl}/${orgSlug}/dashboard`
+    const dashboardUrl = `/${locale}/${orgSlug}/dashboard`
     window.location.href = dashboardUrl
   }
 
