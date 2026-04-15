@@ -18,7 +18,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from '@dnd-kit/utilities';
 import { getLists, List, createList, updateList } from "@/services/listService";
-import { getCards, Card, createCard, updateCard } from "@/services/cardService";
+import { getCards, getCardsByBoard, Card, createCard, updateCard, duplicateCard } from "@/services/cardService";
 import { useDeleteList } from "../hooks/useDeleteList";
 import { useDeleteCard } from "../hooks/useDeleteCard";
 import CardModal from "@/components/ui/CardModal";
@@ -103,19 +103,16 @@ export default function BoardKanbanPage() {
     setLoading(true);
     Promise.all([
       getLists(boardId),
-      // Buscando todos os cards de todas as listas depois
     ])
       .then(async ([listsData]) => {
         setLists(listsData);
-        // Buscar todos os cards de todas as listas
-        const allCards: Card[] = [];
-        for (const list of listsData) {
-          try {
-            const cardsData = await getCards(list.id);
-            allCards.push(...cardsData);
-          } catch (e) {}
+        try {
+          const boardCards = await getCardsByBoard(boardId);
+          setCards(boardCards);
+        } catch {
+          const allCards = (await Promise.all(listsData.map((list) => getCards(list.id).catch(() => [] as Card[])))).flat();
+          setCards(allCards);
         }
-        setCards(allCards);
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
@@ -181,6 +178,9 @@ export default function BoardKanbanPage() {
     const ok = await handleDeleteCard(cardId);
     if (ok) {
       setCards((prev) => prev.filter((c) => c.id !== cardId));
+      if (modalCardId === cardId) {
+        setModalCardId(null);
+      }
     }
   }
 
@@ -198,6 +198,15 @@ export default function BoardKanbanPage() {
       setEditingCardId(null);
     } catch (err: any) {
       setCardError((prev) => ({ ...prev, [getCardById(cardId)?.listId || '']: err.message || "Erro ao editar cartão" }));
+    }
+  }
+
+  async function handleDuplicateCard(cardId: string) {
+    try {
+      const duplicate = await duplicateCard(cardId);
+      setCards((prev) => [...prev, duplicate]);
+    } catch (err: any) {
+      alert(err.message || "Erro ao duplicar cartão");
     }
   }
   return (
@@ -318,6 +327,20 @@ export default function BoardKanbanPage() {
                           open={!!modalCardId}
                           onClose={() => setModalCardId(null)}
                           card={modalCardId ? (cards.find(c => c.id === modalCardId) || { id: '', title: '' }) : { id: '', title: '' }}
+                          onEdit={(cardId) => {
+                            const card = cards.find((item) => item.id === cardId);
+                            if (card) {
+                              startEditCard(card);
+                              setModalCardId(null);
+                            }
+                          }}
+                          onDuplicate={(cardId) => {
+                            setModalCardId(null);
+                            void handleDuplicateCard(cardId);
+                          }}
+                          onDelete={(cardId) => {
+                            void onDeleteCard(cardId);
+                          }}
                         />
                   </ul>
                 </SortableContext>

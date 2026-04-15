@@ -21,9 +21,12 @@ interface CardModalProps {
     attachments?: { id: string; name: string; url: string }[];
     comments?: { id: string; user: string; text: string; createdAt: string }[];
   };
+  onEdit?: (cardId: string) => void;
+  onDuplicate?: (cardId: string) => void;
+  onDelete?: (cardId: string) => void;
 }
 
-export default function CardModal({ open, onClose, card }: CardModalProps) {
+export default function CardModal({ open, onClose, card, onEdit, onDuplicate, onDelete }: CardModalProps) {
   const [availableUsers, setAvailableUsers] = useState<ProjectAvailableUser[]>([]);
 
   useEffect(() => {
@@ -54,6 +57,32 @@ export default function CardModal({ open, onClose, card }: CardModalProps) {
         <button onClick={onClose} style={{ position: "absolute", top: 16, right: 16, background: "none", border: "none", fontSize: 24, cursor: "pointer" }}>×</button>
         <h2>{card.title}</h2>
         <div style={{ marginBottom: 16, color: "#666" }}>{card.description}</div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+          {onEdit && (
+            <button
+              onClick={() => onEdit(card.id)}
+              style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #d0d7de", background: "#fff", cursor: "pointer" }}
+            >
+              Editar
+            </button>
+          )}
+          {onDuplicate && (
+            <button
+              onClick={() => onDuplicate(card.id)}
+              style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #d0d7de", background: "#fff", cursor: "pointer" }}
+            >
+              Duplicar
+            </button>
+          )}
+          {onDelete && (
+            <button
+              onClick={() => onDelete(card.id)}
+              style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #f3c4c4", background: "#fff5f5", color: "#b42318", cursor: "pointer" }}
+            >
+              Excluir
+            </button>
+          )}
+        </div>
         {/* Labels */}
         <CardLabels cardId={card.id} />
         <CardDueDate cardId={card.id} />

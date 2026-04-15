@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { getBoard, Board } from "@/services/boardService";
 import { getLists, createList, updateList, deleteList, List } from "@/services/listService";
-import { getCards, getCardsByBoard, createCard, updateCard, Card, deleteCard, getCardById } from "@/services/cardService";
+import { getCards, getCardsByBoard, createCard, updateCard, Card, deleteCard, getCardById, duplicateCard } from "@/services/cardService";
 import CardChecklists from "@/components/ui/CardChecklists";
 import { ColorPickerModal } from "@/components/modals/ColorPickerModal";
 import { ListPickerModal } from "@/components/modals/ListPickerModal";
@@ -744,20 +744,8 @@ export default function BoardPage() {
   }
 
   async function handleDuplicateCard(cardId: string) {
-    const card = cards.find((item) => item.id === cardId);
-    if (!card) return;
-
     try {
-      const duplicate = await createCard({
-        title: `${card.title} (cópia)`,
-        description: card.description,
-        listId: card.listId,
-        position: cardsForList(card.listId).length,
-        metadata: {
-          ...(card.metadata || {}),
-          archived: false,
-        },
-      });
+      const duplicate = await duplicateCard(cardId);
       setCards((prev) => [...prev, duplicate]);
     } catch (e: any) {
       alert("Erro ao copiar cartão: " + e.message);
@@ -1248,6 +1236,12 @@ export default function BoardPage() {
                           className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-[#0c66e4] hover:bg-[#0055cc] disabled:opacity-60 text-white text-sm font-semibold px-3 py-2"
                         >
                           <Check className="w-4 h-4" /> {savingDetails ? "Salvando..." : "Salvar alterações"}
+                        </button>
+                        <button
+                          onClick={() => handleDuplicateCard(selectedCard.id)}
+                          className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-white/70 dark:bg-slate-900/60 hover:bg-white dark:hover:bg-slate-900 text-[#172b4d] dark:text-slate-100 text-sm font-semibold px-3 py-2 border border-white/80 dark:border-white/20"
+                        >
+                          <Copy className="w-4 h-4" /> Duplicar cartão
                         </button>
                         <button
                           onClick={() => handleEditCardDescription(selectedCard.id)}

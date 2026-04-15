@@ -96,3 +96,11 @@ export async function deleteCard(cardId: string): Promise<void> {
   });
   if (!res.ok) throw new Error("Erro ao excluir cartao");
 }
+
+export async function duplicateCard(cardId: string): Promise<Card> {
+  const res = await authenticatedFetch(`${API_BASE_URL}/cards/${cardId}/duplicate`, {
+    method: "POST",
+  });
+  if (!res.ok) throw new Error("Erro ao duplicar cartao");
+  return normalizeCard(await res.json());
+}
