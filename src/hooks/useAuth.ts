@@ -117,40 +117,13 @@ export function useAuth() {
     });
   }, []);
 
-  // Verificar autenticação no localStorage
-  const checkAuth = useCallback(() => {
+  // Verificar autenticação validando a sessão com o backend
+  const checkAuth = useCallback(async () => {
     try {
-      const token = localStorage.getItem('token');
       const organizationStr = localStorage.getItem('organization');
       const lastActivityStr = localStorage.getItem('lastActivity');
-      
-      if (token && organizationStr) {
-        // Validar formato JWT ANTES de usar o token
-        if (!isValidJWT(token)) {
-          console.error('Invalid or malformed JWT token detected, clearing auth');
-          clearAuth();
-          return;
-        }
-        
-        const organization = JSON.parse(organizationStr);
-        const lastActivity = lastActivityStr ? parseInt(lastActivityStr) : Date.now();
-        
-        // Verificar se o usuário está inativo
-        if (isUserInactive(lastActivity)) {
-          // Usuário inativo, fazer logout automático
-          clearAuth();
-          return;
-        }
-        
-        setAuthState({
-          isAuthenticated: true,
-          user: null, // Será preenchido quando necessário
-          organization,
-          token,
-          isLoading: false,
-          lastActivity,
-        });
-      } else {
+
+      if (!organizationStr) {
         setAuthState({
           isAuthenticated: false,
           user: null,
@@ -159,7 +132,31 @@ export function useAuth() {
           isLoading: false,
           lastActivity: null,
         });
+        return;
       }
+
+      const organization = JSON.parse(organizationStr);
+      const lastActivity = lastActivityStr ? parseInt(lastActivityStr) : Date.now();
+
+      if (isUserInactive(lastActivity)) {
+        clearAuth();
+        return;
+      }
+
+      const session = await apiCall('/auth/me', { method: 'GET' });
+      if (!session?.success) {
+        clearAuth();
+        return;
+      }
+
+      setAuthState({
+        isAuthenticated: true,
+        user: session.user || null,
+        organization: session.organization || organization,
+        token: null,
+        isLoading: false,
+        lastActivity,
+      });
     } catch (error) {
       console.error('Error checking auth:', error);
       clearAuth();
@@ -175,18 +172,11 @@ export function useAuth() {
   // Salvar a última URL visitada para este usuário
   const saveLastVisitedUrl = useCallback((url: string) => {
     try {
-      const token = localStorage.getItem('token');
-      const organizationStr = localStorage.getItem('organization');
-      
-      if (!token || !organizationStr) return;
-      
-      const organization = JSON.parse(organizationStr);
-      const parts = token.split('.');
-      if (parts.length !== 3) return;
-      
-      const payload = JSON.parse(atob(parts[1]));
-      const userEmail = payload.email || payload.sub || '';
-      
+      const organization = authState.organization || JSON.parse(localStorage.getItem('organization') || 'null');
+      const userEmail = authState.user?.email || '';
+
+      if (!organization || !userEmail) return;
+
       // Identificador único por usuário
       const userId = `${organization.id}_${userEmail}`.replace(/[^a-zA-Z0-9_-]/g, '_');
       const key = `lastVisitedUrl_${userId}`;
@@ -195,23 +185,16 @@ export function useAuth() {
     } catch (error) {
       console.error('Error saving last visited URL:', error);
     }
-  }, []);
+  }, [authState.organization, authState.user?.email]);
 
   // Obter a última URL visitada para este usuário
   const getLastVisitedUrl = useCallback((orgSlug: string): string | null => {
     try {
-      const token = localStorage.getItem('token');
-      const organizationStr = localStorage.getItem('organization');
-      
-      if (!token || !organizationStr) return null;
-      
-      const organization = JSON.parse(organizationStr);
-      const parts = token.split('.');
-      if (parts.length !== 3) return null;
-      
-      const payload = JSON.parse(atob(parts[1]));
-      const userEmail = payload.email || payload.sub || '';
-      
+      const organization = authState.organization || JSON.parse(localStorage.getItem('organization') || 'null');
+      const userEmail = authState.user?.email || '';
+
+      if (!organization || !userEmail) return null;
+
       // Identificador único por usuário
       const userId = `${organization.id}_${userEmail}`.replace(/[^a-zA-Z0-9_-]/g, '_');
       const key = `lastVisitedUrl_${userId}`;
@@ -226,7 +209,7 @@ export function useAuth() {
       console.error('Error getting last visited URL:', error);
       return null;
     }
-  }, []);
+  }, [authState.organization, authState.user?.email]);
 
   // Fazer logout
   const logout = useCallback(async (orgSlug?: string) => {
@@ -278,7 +261,6 @@ export function useAuth() {
   // Salvar dados de autenticação
   const saveAuthData = useCallback((token: string, organization: Organization) => {
     const now = Date.now();
-    localStorage.setItem('token', token);
     localStorage.setItem('organization', JSON.stringify(organization));
     localStorage.setItem('lastActivity', now.toString());
     
@@ -286,7 +268,7 @@ export function useAuth() {
       isAuthenticated: true,
       user: null,
       organization,
-      token,
+      token: null,
       isLoading: false,
       lastActivity: now,
     });
@@ -299,15 +281,15 @@ export function useAuth() {
 
   // Verificar autenticação na montagem do componente
   useEffect(() => {
-    checkAuth();
+    void checkAuth();
   }, [checkAuth]);
 
   // Escutar mudanças no localStorage (quando token é removido em outra aba)
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
-      // Se o token foi removido ou modificado em outra aba
-      if (e.key === 'token' || e.key === 'organization') {
-        checkAuth();
+      // Se a organização foi removida ou modificada em outra aba
+      if (e.key === 'organization' || e.key === 'lastActivity') {
+        void checkAuth();
       }
     };
 

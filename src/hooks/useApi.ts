@@ -55,6 +55,7 @@ export function useApi() {
 
     const makeConfig = (authToken: string | null): RequestInit => ({
       ...options,
+      credentials: 'include',
       headers: {
         ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
         ...(authToken && { Authorization: `Bearer ${authToken}` }),
@@ -97,8 +98,8 @@ export function useApi() {
 
       if (response.status === 401) {
         try {
-          const refreshed = await refreshToken()
-          const retryConfig = makeConfig(refreshed.accessToken)
+          await refreshToken()
+          const retryConfig = makeConfig(getAuthToken())
           retryConfig.signal = controller.signal
           response = await fetch(`${API_BASE_URL}${endpoint}`, retryConfig)
         } catch {

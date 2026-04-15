@@ -1,13 +1,43 @@
 ﻿import {
   clearAuthCookies,
   getAuthToken,
-  getRefreshTokenFromCookie,
-  setAccessTokenCookie,
-  setRefreshTokenCookie,
 } from "@/lib/cookies";
 import { getApiBaseUrl } from "@/lib/api-url";
 
 const API_BASE_URL = getApiBaseUrl();
+let refreshTokenPromise: Promise<{ success: boolean }> | null = null;
+let redirectScheduled = false;
+
+function isAuthRoute(): boolean {
+  if (typeof window === "undefined") return false;
+
+  const pathname = window.location.pathname;
+  return (
+    pathname.endsWith("/login") ||
+    pathname.endsWith("/register") ||
+    pathname.endsWith("/forgot-password") ||
+    pathname === "/login" ||
+    pathname === "/register" ||
+    pathname === "/forgot-password"
+  );
+}
+
+function redirectToLoginOnce() {
+  if (typeof window === "undefined" || redirectScheduled) return;
+
+  redirectScheduled = true;
+  clearAuthCookies();
+  localStorage.removeItem("token");
+  localStorage.removeItem("refreshToken");
+  localStorage.removeItem("organization");
+
+  if (isAuthRoute()) return;
+
+  const parts = window.location.pathname.split("/").filter(Boolean);
+  const locale = ["pt", "en", "es", "fr"].includes(parts[0]) ? parts[0] : "pt";
+  const org = parts[1] || "";
+  window.location.href = org ? `/${locale}/${org}/login` : "/login";
+}
 
 export interface RegisterResponse {
   success: boolean;
@@ -67,6 +97,7 @@ export async function login({ email, password }: { email: string; password: stri
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({ email, password }),
     },
   );
@@ -81,18 +112,8 @@ export async function login({ email, password }: { email: string; password: stri
 
   const data = await res.json();
 
-  if (data.accessToken) {
-    setAccessTokenCookie(data.accessToken);
-    if (data.refreshToken) setRefreshTokenCookie(data.refreshToken);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("token", data.accessToken);
-      if (data.refreshToken) {
-        localStorage.setItem("refreshToken", data.refreshToken);
-      }
-      if (data.organization) {
-        localStorage.setItem("organization", JSON.stringify(data.organization));
-      }
-    }
+  if (typeof window !== "undefined" && data.organization) {
+    localStorage.setItem("organization", JSON.stringify(data.organization));
   }
 
   return data;
@@ -107,6 +128,7 @@ export async function register(data: any) {
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify(data),
     },
   );
@@ -122,19 +144,8 @@ export async function register(data: any) {
   const resData = await res.json();
 
   // API pode retornar 'accessToken' ou 'token'
-  const tokenValue = resData.accessToken || resData.token;
-  if (tokenValue) {
-    setAccessTokenCookie(tokenValue);
-    if (resData.refreshToken) setRefreshTokenCookie(resData.refreshToken);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("token", tokenValue);
-      if (resData.refreshToken) {
-        localStorage.setItem("refreshToken", resData.refreshToken);
-      }
-      if (resData.organization) {
-        localStorage.setItem("organization", JSON.stringify(resData.organization));
-      }
-    }
+  if (typeof window !== "undefined" && resData.organization) {
+    localStorage.setItem("organization", JSON.stringify(resData.organization));
   }
 
   return resData;
@@ -144,27 +155,16 @@ export async function register(data: any) {
 // LOGOUT
 // ----------------------
 export async function logout() {
-  const token = getAuthToken();
-  const currentRefreshToken = getRefreshTokenFromCookie()
-    ?? (typeof window !== "undefined" ? localStorage.getItem("refreshToken") : null);
-
   const res = await fetch(
     `${API_BASE_URL}/auth/logout`,
     {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ refreshToken: currentRefreshToken }),
       credentials: "include",
     },
   );
 
   clearAuthCookies();
   if (typeof window !== "undefined") {
-    localStorage.removeItem("token");
-    localStorage.removeItem("refreshToken");
     localStorage.removeItem("organization");
   }
 
@@ -202,40 +202,32 @@ export async function getCurrentUser() {
 // ----------------------
 // REFRESH TOKEN
 // ----------------------
-export async function refreshToken(): Promise<{ accessToken: string; refreshToken?: string }> {
-  const currentRefreshToken = getRefreshTokenFromCookie()
-    ?? (typeof window !== "undefined" ? localStorage.getItem("refreshToken") : null);
-  if (!currentRefreshToken) throw new Error("Refresh token nao encontrado");
+export async function refreshToken(): Promise<{ success: boolean }> {
+  refreshTokenPromise = (async () => {
+    const res = await fetch(
+      `${API_BASE_URL}/auth/refresh`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      },
+    );
 
-  const res = await fetch(
-    `${API_BASE_URL}/auth/refresh`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken: currentRefreshToken }),
-    },
-  );
-
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || "Erro ao renovar token");
-  }
-
-  const data = await res.json();
-
-  if (data.accessToken) {
-    setAccessTokenCookie(data.accessToken);
-    if (data.refreshToken) setRefreshTokenCookie(data.refreshToken);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("token", data.accessToken);
-      if (data.refreshToken) {
-        localStorage.setItem("refreshToken", data.refreshToken);
-      }
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || "Erro ao renovar token");
     }
-    return data;
-  }
 
-  throw new Error("Token nao recebido na renovacao");
+    const data = await res.json();
+
+    return data;
+  })();
+
+  try {
+    return await refreshTokenPromise;
+  } finally {
+    refreshTokenPromise = null;
+  }
 }
 
 // ----------------------
@@ -253,10 +245,11 @@ export async function authenticatedFetch(
   const makeRequest = (token: string | null): Promise<Response> =>
     fetch(url, {
       ...options,
+      credentials: "include",
       headers: {
         ...(hasBody ? { "Content-Type": "application/json" } : {}),
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(options.headers as Record<string, string> ?? {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
     });
 
@@ -264,17 +257,14 @@ export async function authenticatedFetch(
 
   if (res.status === 401) {
     try {
-      const refreshed = await refreshToken();
-      res = await makeRequest(refreshed.accessToken);
+      await refreshToken();
+      res = await makeRequest(getAuthToken());
+
+      if (res.status === 401) {
+        throw new Error("Sessao invalida");
+      }
     } catch {
-      clearAuthCookies();
-      localStorage.removeItem("token");
-      localStorage.removeItem("refreshToken");
-      localStorage.removeItem("organization");
-      const parts = window.location.pathname.split("/").filter(Boolean);
-      const locale = ["pt", "en", "es", "fr"].includes(parts[0]) ? parts[0] : "pt";
-      const org = parts[1] || "";
-      window.location.href = org ? `/${locale}/${org}/login` : "/login";
+      redirectToLoginOnce();
     }
   }
 

@@ -1,11 +1,10 @@
 import { io, Socket } from 'socket.io-client';
-import { getAuthToken } from '@/lib/cookies';
 import { getApiOrigin } from '@/lib/api-url';
 
 let socketInstance: Socket | null = null;
 
 function getSocketToken() {
-  return getAuthToken() || (typeof window !== 'undefined' ? localStorage.getItem('token') : null);
+  return typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 }
 
 export function getInternalChatSocket() {
@@ -23,7 +22,7 @@ export function getInternalChatSocket() {
     reconnectionAttempts: Infinity,
     reconnectionDelay: 1000,
     timeout: 10000,
-    auth: { token: tokenLocalStorage },
+    auth: tokenLocalStorage ? { token: tokenLocalStorage } : undefined,
   });
 
   socketInstance.on('connect_error', (err) => {
