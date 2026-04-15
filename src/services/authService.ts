@@ -8,6 +8,23 @@ const API_BASE_URL = getApiBaseUrl();
 let refreshTokenPromise: Promise<{ success: boolean }> | null = null;
 let redirectScheduled = false;
 
+function normalizeAuthErrorMessage(rawMessage: string | undefined, fallback: string): string {
+  const message = (rawMessage || '').trim();
+  const normalized = message.toLowerCase();
+
+  if (!message) return fallback;
+  if (normalized === 'unauthorized' || normalized === 'unauthorizedexception') return 'Acesso não autorizado';
+  if (normalized === 'forbidden' || normalized === 'forbiddenexception') return 'Você não tem permissão para executar esta ação';
+  if (normalized === 'not found' || normalized === 'notfoundexception') return 'Recurso não encontrado';
+  if (normalized === 'bad request' || normalized === 'badrequestexception') return 'Dados inválidos';
+  if (normalized === 'internal server error' || normalized === 'internal server error.') return 'Erro interno do servidor';
+  if (normalized === 'invalid credentials' || normalized === 'credenciais inválidas') return 'Credenciais inválidas';
+  if (normalized === 'refresh token invalid' || normalized === 'refresh token inválido') return 'Refresh token inválido';
+  if (normalized === 'refresh token obrigatório') return 'Refresh token obrigatório';
+
+  return message;
+}
+
 function isAuthRoute(): boolean {
   if (typeof window === "undefined") return false;
 
@@ -64,7 +81,7 @@ export async function forgotPassword(email: string) {
   );
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || "Erro ao solicitar recuperacao de senha");
+    throw new Error(normalizeAuthErrorMessage(data.error || data.message, "Erro ao solicitar recuperacao de senha"));
   }
   return res.json();
 }
@@ -83,7 +100,7 @@ export async function resetPassword({ token, password }: { token: string; passwo
   );
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || "Erro ao redefinir senha");
+    throw new Error(normalizeAuthErrorMessage(data.error || data.message, "Erro ao redefinir senha"));
   }
   return res.json();
 }
@@ -107,7 +124,7 @@ export async function login({ email, password }: { email: string; password: stri
     const msg = Array.isArray(data.message)
       ? data.message.join(', ')
       : (data.message || data.error || 'Erro ao fazer login');
-    throw new Error(msg);
+    throw new Error(normalizeAuthErrorMessage(msg, 'Erro ao fazer login'));
   }
 
   const data = await res.json();
@@ -138,7 +155,7 @@ export async function register(data: any) {
     const msg = Array.isArray(resData.message)
       ? resData.message.join(', ')
       : (resData.message || resData.error || 'Erro ao registrar usuario');
-    throw new Error(msg);
+    throw new Error(normalizeAuthErrorMessage(msg, 'Erro ao registrar usuario'));
   }
 
   const resData = await res.json();
@@ -170,7 +187,7 @@ export async function logout() {
 
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || "Erro ao fazer logout");
+    throw new Error(normalizeAuthErrorMessage(data.error || data.message, "Erro ao fazer logout"));
   }
 
   return res.json();
@@ -186,7 +203,7 @@ export async function getCurrentUser() {
 
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || "Erro ao buscar usuario");
+    throw new Error(normalizeAuthErrorMessage(data.error || data.message, "Erro ao buscar usuario"));
   }
   const data = await res.json();
   return {
@@ -215,7 +232,7 @@ export async function refreshToken(): Promise<{ success: boolean }> {
 
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      throw new Error(data.error || "Erro ao renovar token");
+      throw new Error(normalizeAuthErrorMessage(data.error || data.message, "Erro ao renovar token"));
     }
 
     const data = await res.json();
