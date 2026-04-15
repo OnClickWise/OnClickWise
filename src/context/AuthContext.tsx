@@ -68,8 +68,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
+  const isPublicAuthRoute = () => {
+    if (typeof window === 'undefined') return false;
+    const pathname = window.location.pathname;
+    return (
+      pathname === '/login' ||
+      pathname === '/register' ||
+      pathname === '/forgot-password' ||
+      pathname.endsWith('/login') ||
+      pathname.endsWith('/register') ||
+      pathname.endsWith('/forgot-password')
+    );
+  };
+
   // Inicializa usuário ao carregar a página
   useEffect(() => {
+    if (isPublicAuthRoute()) {
+      setLoading(false);
+      return;
+    }
+
     (async () => {
       try {
         const currentUser = await getCurrentUser();
@@ -101,7 +119,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       const data = await login({ email, password }); // data vem do backend com accessToken e organization
 
-      const currentUser = await getCurrentUser();
+      const currentUser = data.user;
       setUser(currentUser);
 
       return {
@@ -123,12 +141,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     try {
       const result = await register(data);
-      // getCurrentUser é opcional — não deve derrubar o cadastro se falhar
-      try {
-        const currentUser = await getCurrentUser();
-        setUser(currentUser);
-      } catch {
-        // silencia: conta criada, login será feito na próxima tela
+      if (result.user) {
+        setUser(result.user);
       }
       return result;
     } catch (err) {

@@ -1,6 +1,7 @@
 ﻿import {
   clearAuthCookies,
   getAuthToken,
+  getCsrfTokenFromCookie,
 } from "@/lib/cookies";
 import { getApiBaseUrl } from "@/lib/api-url";
 
@@ -172,11 +173,13 @@ export async function register(data: any) {
 // LOGOUT
 // ----------------------
 export async function logout() {
+  const csrfToken = getCsrfTokenFromCookie();
   const res = await fetch(
     `${API_BASE_URL}/auth/logout`,
     {
       method: "POST",
       credentials: "include",
+      headers: csrfToken ? { "x-csrf-token": csrfToken } : undefined,
     },
   );
 
@@ -220,12 +223,16 @@ export async function getCurrentUser() {
 // REFRESH TOKEN
 // ----------------------
 export async function refreshToken(): Promise<{ success: boolean }> {
+  const csrfToken = getCsrfTokenFromCookie();
   refreshTokenPromise = (async () => {
     const res = await fetch(
       `${API_BASE_URL}/auth/refresh`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(csrfToken ? { "x-csrf-token": csrfToken } : {}),
+        },
         credentials: "include",
       },
     );
