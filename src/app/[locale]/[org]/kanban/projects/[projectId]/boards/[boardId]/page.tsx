@@ -515,8 +515,10 @@ export default function BoardPage() {
   const [detailComments, setDetailComments] = useState<CardComment[]>([]);
   const [newCommentText, setNewCommentText] = useState("");
   const [savingDetails, setSavingDetails] = useState(false);
+  const [saveSuccessMessage, setSaveSuccessMessage] = useState<string | null>(null);
   const autosaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastSavedSnapshotRef = useRef<{ title: string; description: string }>({ title: "", description: "" });
+  const saveSuccessTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const [activeType, setActiveType] = useState<"card" | "list" | null>(null);
   const [activeCard, setActiveCard] = useState<Card | null>(null);
@@ -745,10 +747,13 @@ export default function BoardPage() {
 
   async function handleDuplicateCard(cardId: string) {
     try {
+      console.log("[BoardPage] duplicating card", cardId);
       const duplicate = await duplicateCard(cardId);
+      console.log("[BoardPage] duplicate success", duplicate);
       setCards((prev) => [...prev, duplicate]);
     } catch (e: any) {
-      alert("Erro ao copiar cartão: " + e.message);
+      console.error("[BoardPage] duplicate error", e);
+      alert("Erro ao copiar cartão: " + (e?.message || String(e)));
     }
   }
 
@@ -795,6 +800,13 @@ export default function BoardPage() {
       });
 
       setCards((prev) => prev.map((card) => (card.id === selectedCard.id ? updated : card)));
+      setSaveSuccessMessage("Alterações salvas");
+      if (saveSuccessTimerRef.current) {
+        clearTimeout(saveSuccessTimerRef.current);
+      }
+      saveSuccessTimerRef.current = setTimeout(() => {
+        setSaveSuccessMessage(null);
+      }, 3000);
     } catch (e: any) {
       alert("Erro ao salvar detalhes do cartão: " + e.message);
     } finally {
@@ -1171,6 +1183,11 @@ export default function BoardPage() {
                   className="w-full max-w-6xl h-[92vh] rounded-2xl overflow-hidden shadow-2xl border border-white/40 dark:border-white/10 bg-white/35 dark:bg-slate-900/55 backdrop-blur-xl flex flex-col"
                   onClick={(e) => e.stopPropagation()}
                 >
+                  {saveSuccessMessage && (
+                    <div className="absolute left-1/2 top-4 z-[120] -translate-x-1/2 rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-lg">
+                      {saveSuccessMessage}
+                    </div>
+                  )}
                   <div className="relative h-36 px-6 py-4" style={{ background: board ? (BOARD_BG[board.color] || BOARD_BG.ocean) : BOARD_BG.ocean }}>
                     <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/20" />
                     <div className="relative flex items-start justify-between h-full">

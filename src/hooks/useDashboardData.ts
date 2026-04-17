@@ -13,7 +13,33 @@ interface UseDashboardReturn {
   role: UserRole
   data: Omit<DashboardResponse, 'role'>
   loading: boolean
-  error: boolean
+  error: 'connection' | 'auth' | 'unknown' | null
+}
+
+function classifyDashboardError(err: unknown): 'connection' | 'auth' | 'unknown' {
+  const msg = err instanceof Error ? err.message.toLowerCase() : ''
+
+  if (
+    err instanceof TypeError ||
+    msg.includes('failed to fetch') ||
+    msg.includes('network') ||
+    msg.includes('fetch')
+  ) {
+    return 'connection'
+  }
+
+  if (
+    msg.includes('401') ||
+    msg.includes('403') ||
+    msg.includes('nao autorizado') ||
+    msg.includes('não autorizado') ||
+    msg.includes('token') ||
+    msg.includes('erro ao buscar usuario')
+  ) {
+    return 'auth'
+  }
+
+  return 'unknown'
 }
 
 export function useDashboardData(org: string): UseDashboardReturn {
@@ -29,7 +55,7 @@ export function useDashboardData(org: string): UseDashboardReturn {
     pipelineStages: [],
   })
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
+  const [error, setError] = useState<'connection' | 'auth' | 'unknown' | null>(null)
 
   useEffect(() => {
     if (!org) return
@@ -39,7 +65,7 @@ export function useDashboardData(org: string): UseDashboardReturn {
     async function fetchDashboard() {
       try {
         setLoading(true)
-        setError(false)
+        setError(null)
 
         const BASE = getApiBaseUrl()
         const token = getAccessTokenFromCookie() || localStorage.getItem('token')
@@ -112,7 +138,7 @@ export function useDashboardData(org: string): UseDashboardReturn {
       } catch (err: unknown) {
         if ((err as Error).name !== 'AbortError') {
           console.error(err)
-          setError(true)
+          setError(classifyDashboardError(err))
         }
       } finally {
         setLoading(false)

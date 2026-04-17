@@ -1,61 +1,13 @@
 ﻿import {
   clearAuthCookies,
   getAuthToken,
-  getCsrfTokenFromCookie,
+  getRefreshTokenFromCookie,
+  setAccessTokenCookie,
+  setRefreshTokenCookie,
 } from "@/lib/cookies";
 import { getApiBaseUrl } from "@/lib/api-url";
 
 const API_BASE_URL = getApiBaseUrl();
-let refreshTokenPromise: Promise<{ success: boolean }> | null = null;
-let redirectScheduled = false;
-
-function normalizeAuthErrorMessage(rawMessage: string | undefined, fallback: string): string {
-  const message = (rawMessage || '').trim();
-  const normalized = message.toLowerCase();
-
-  if (!message) return fallback;
-  if (normalized === 'unauthorized' || normalized === 'unauthorizedexception') return 'Acesso não autorizado';
-  if (normalized === 'forbidden' || normalized === 'forbiddenexception') return 'Você não tem permissão para executar esta ação';
-  if (normalized === 'not found' || normalized === 'notfoundexception') return 'Recurso não encontrado';
-  if (normalized === 'bad request' || normalized === 'badrequestexception') return 'Dados inválidos';
-  if (normalized === 'internal server error' || normalized === 'internal server error.') return 'Erro interno do servidor';
-  if (normalized === 'invalid credentials' || normalized === 'credenciais inválidas') return 'Credenciais inválidas';
-  if (normalized === 'refresh token invalid' || normalized === 'refresh token inválido') return 'Refresh token inválido';
-  if (normalized === 'refresh token obrigatório') return 'Refresh token obrigatório';
-
-  return message;
-}
-
-function isAuthRoute(): boolean {
-  if (typeof window === "undefined") return false;
-
-  const pathname = window.location.pathname;
-  return (
-    pathname.endsWith("/login") ||
-    pathname.endsWith("/register") ||
-    pathname.endsWith("/forgot-password") ||
-    pathname === "/login" ||
-    pathname === "/register" ||
-    pathname === "/forgot-password"
-  );
-}
-
-function redirectToLoginOnce() {
-  if (typeof window === "undefined" || redirectScheduled) return;
-
-  redirectScheduled = true;
-  clearAuthCookies();
-  localStorage.removeItem("token");
-  localStorage.removeItem("refreshToken");
-  localStorage.removeItem("organization");
-
-  if (isAuthRoute()) return;
-
-  const parts = window.location.pathname.split("/").filter(Boolean);
-  const locale = ["pt", "en", "es", "fr"].includes(parts[0]) ? parts[0] : "pt";
-  const org = parts[1] || "";
-  window.location.href = org ? `/${locale}/${org}/login` : "/login";
-}
 
 export interface RegisterResponse {
   success: boolean;
@@ -77,12 +29,13 @@ export async function forgotPassword(email: string) {
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({ email }),
     },
   );
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(normalizeAuthErrorMessage(data.error || data.message, "Erro ao solicitar recuperacao de senha"));
+    throw new Error(data.error || "Erro ao solicitar recuperacao de senha");
   }
   return res.json();
 }
@@ -96,12 +49,13 @@ export async function resetPassword({ token, password }: { token: string; passwo
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({ token, password }),
     },
   );
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(normalizeAuthErrorMessage(data.error || data.message, "Erro ao redefinir senha"));
+    throw new Error(data.error || "Erro ao redefinir senha");
   }
   return res.json();
 }
@@ -125,13 +79,23 @@ export async function login({ email, password }: { email: string; password: stri
     const msg = Array.isArray(data.message)
       ? data.message.join(', ')
       : (data.message || data.error || 'Erro ao fazer login');
-    throw new Error(normalizeAuthErrorMessage(msg, 'Erro ao fazer login'));
+    throw new Error(msg);
   }
 
   const data = await res.json();
 
-  if (typeof window !== "undefined" && data.organization) {
-    localStorage.setItem("organization", JSON.stringify(data.organization));
+  if (data.accessToken) {
+    setAccessTokenCookie(data.accessToken);
+    if (data.refreshToken) setRefreshTokenCookie(data.refreshToken);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("token", data.accessToken);
+      if (data.refreshToken) {
+        localStorage.setItem("refreshToken", data.refreshToken);
+      }
+      if (data.organization) {
+        localStorage.setItem("organization", JSON.stringify(data.organization));
+      }
+    }
   }
 
   return data;
@@ -156,14 +120,25 @@ export async function register(data: any) {
     const msg = Array.isArray(resData.message)
       ? resData.message.join(', ')
       : (resData.message || resData.error || 'Erro ao registrar usuario');
-    throw new Error(normalizeAuthErrorMessage(msg, 'Erro ao registrar usuario'));
+    throw new Error(msg);
   }
 
   const resData = await res.json();
 
   // API pode retornar 'accessToken' ou 'token'
-  if (typeof window !== "undefined" && resData.organization) {
-    localStorage.setItem("organization", JSON.stringify(resData.organization));
+  const tokenValue = resData.accessToken || resData.token;
+  if (tokenValue) {
+    setAccessTokenCookie(tokenValue);
+    if (resData.refreshToken) setRefreshTokenCookie(resData.refreshToken);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("token", tokenValue);
+      if (resData.refreshToken) {
+        localStorage.setItem("refreshToken", resData.refreshToken);
+      }
+      if (resData.organization) {
+        localStorage.setItem("organization", JSON.stringify(resData.organization));
+      }
+    }
   }
 
   return resData;
@@ -173,24 +148,33 @@ export async function register(data: any) {
 // LOGOUT
 // ----------------------
 export async function logout() {
-  const csrfToken = getCsrfTokenFromCookie();
+  const token = getAuthToken();
+  const currentRefreshToken = getRefreshTokenFromCookie()
+    ?? (typeof window !== "undefined" ? localStorage.getItem("refreshToken") : null);
+
   const res = await fetch(
     `${API_BASE_URL}/auth/logout`,
     {
       method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ refreshToken: currentRefreshToken }),
       credentials: "include",
-      headers: csrfToken ? { "x-csrf-token": csrfToken } : undefined,
     },
   );
 
   clearAuthCookies();
   if (typeof window !== "undefined") {
+    localStorage.removeItem("token");
+    localStorage.removeItem("refreshToken");
     localStorage.removeItem("organization");
   }
 
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(normalizeAuthErrorMessage(data.error || data.message, "Erro ao fazer logout"));
+    throw new Error(data.error || "Erro ao fazer logout");
   }
 
   return res.json();
@@ -206,7 +190,7 @@ export async function getCurrentUser() {
 
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(normalizeAuthErrorMessage(data.error || data.message, "Erro ao buscar usuario"));
+    throw new Error(data.error || "Erro ao buscar usuario");
   }
   const data = await res.json();
   return {
@@ -222,36 +206,41 @@ export async function getCurrentUser() {
 // ----------------------
 // REFRESH TOKEN
 // ----------------------
-export async function refreshToken(): Promise<{ success: boolean }> {
-  const csrfToken = getCsrfTokenFromCookie();
-  refreshTokenPromise = (async () => {
-    const res = await fetch(
-      `${API_BASE_URL}/auth/refresh`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(csrfToken ? { "x-csrf-token": csrfToken } : {}),
-        },
-        credentials: "include",
-      },
-    );
+export async function refreshToken(): Promise<{ accessToken: string; refreshToken?: string }> {
+  const currentRefreshToken = getRefreshTokenFromCookie()
+    ?? (typeof window !== "undefined" ? localStorage.getItem("refreshToken") : null);
+  if (!currentRefreshToken) throw new Error("Refresh token nao encontrado");
 
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      throw new Error(normalizeAuthErrorMessage(data.error || data.message, "Erro ao renovar token"));
-    }
+  const res = await fetch(
+    `${API_BASE_URL}/auth/refresh`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ refreshToken: currentRefreshToken }),
+    },
+  );
 
-    const data = await res.json();
-
-    return data;
-  })();
-
-  try {
-    return await refreshTokenPromise;
-  } finally {
-    refreshTokenPromise = null;
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || "Erro ao renovar token");
   }
+
+  const data = await res.json();
+
+  if (data.accessToken) {
+    setAccessTokenCookie(data.accessToken);
+    if (data.refreshToken) setRefreshTokenCookie(data.refreshToken);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("token", data.accessToken);
+      if (data.refreshToken) {
+        localStorage.setItem("refreshToken", data.refreshToken);
+      }
+    }
+    return data;
+  }
+
+  throw new Error("Token nao recebido na renovacao");
 }
 
 // ----------------------
@@ -264,33 +253,49 @@ export async function authenticatedFetch(
   if (typeof window === "undefined") throw new Error("Client only");
 
   const method = (options.method || "GET").toUpperCase();
-  const hasBody = method !== "GET" && method !== "DELETE" && method !== "HEAD";
+  const hasBody =
+    method !== "GET" &&
+    method !== "DELETE" &&
+    method !== "HEAD" &&
+    options.body !== undefined &&
+    options.body !== null &&
+    options.body !== "";
 
   const makeRequest = (token: string | null): Promise<Response> =>
     fetch(url, {
       ...options,
-      credentials: "include",
+      credentials: options.credentials ?? "include",
       headers: {
         ...(hasBody ? { "Content-Type": "application/json" } : {}),
-        ...(options.headers as Record<string, string> ?? {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(options.headers as Record<string, string> ?? {}),
       },
     });
 
   let res = await makeRequest(getAuthToken());
 
+  // Só tenta refresh se for 401 (token expirado)
   if (res.status === 401) {
     try {
-      await refreshToken();
-      res = await makeRequest(getAuthToken());
-
+      const refreshed = await refreshToken();
+      res = await makeRequest(refreshed.accessToken);
+      // Se retry com novo token falha com 401 novamente, ENTÃO faz logout
       if (res.status === 401) {
-        throw new Error("Sessao invalida");
+        throw new Error("Token refresh loop: still 401 after refresh");
       }
-    } catch {
-      redirectToLoginOnce();
+    } catch (err) {
+      // SÓ logout se refresh falhor
+      clearAuthCookies();
+      localStorage.removeItem("token");
+      localStorage.removeItem("refreshToken");
+      localStorage.removeItem("organization");
+      const parts = window.location.pathname.split("/").filter(Boolean);
+      const locale = ["pt", "en", "es", "fr"].includes(parts[0]) ? parts[0] : "pt";
+      const org = parts[1] || "";
+      window.location.href = org ? `/${locale}/${org}/login` : "/login";
     }
   }
+  // Outros status (404, 500, etc) retornam normalmente - não fazem logout
 
   return res;
 }

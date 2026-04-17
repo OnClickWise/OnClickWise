@@ -2,9 +2,25 @@ import createNextIntlPlugin from 'next-intl/plugin';
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
+function getBackendOrigin() {
+  const configured = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+  return configured.trim().replace(/\/+$/, '').replace(/(?:\/api)+$/i, '');
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+
+  async rewrites() {
+    const backendOrigin = getBackendOrigin();
+
+    return [
+      {
+        source: '/api/:path*',
+        destination: `${backendOrigin}/api/:path*`,
+      },
+    ];
+  },
 
   async headers() {
     const isDev = process.env.NODE_ENV !== 'production';

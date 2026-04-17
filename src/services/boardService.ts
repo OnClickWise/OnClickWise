@@ -69,3 +69,32 @@ export async function deleteBoard(boardId: string): Promise<void> {
   });
   if (!res.ok) throw new Error("Erro ao excluir quadro");
 }
+
+export async function duplicateBoard(boardId: string): Promise<Board> {
+  try {
+    const url = `${API_BASE_URL}/boards/${boardId}/duplicate`;
+    console.log("[boardService] Duplicating board:", { boardId, url });
+    
+    const res = await authenticatedFetch(url, {
+      method: "POST",
+    });
+    
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      console.error("[boardService] Duplicate failed:", { 
+        status: res.status, 
+        statusText: res.statusText, 
+        error: errorData 
+      });
+      const message = errorData.message || errorData.error || `Erro ao duplicar quadro (${res.status})`;
+      throw new Error(message);
+    }
+    
+    const data = await res.json();
+    console.log("[boardService] Duplicate success:", data);
+    return normalizeBoard(data);
+  } catch (err) {
+    console.error("[boardService] Duplicate error:", err);
+    throw err;
+  }
+}

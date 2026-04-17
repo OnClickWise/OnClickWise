@@ -1,13 +1,13 @@
 ﻿"use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { AppSidebar } from "@/components/app-sidebar";
 import AuthGuard from "@/components/AuthGuard";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { Plus, Star, ArrowLeft } from "lucide-react";
-import { getBoards, createBoard, Board } from "@/services/boardService";
-import { getProjectById, getProjects, Project } from "@/services/projectService";
+import { Plus, Star, ArrowLeft, Copy, Pencil, Trash2 } from "lucide-react";
+import { getBoards, createBoard, duplicateBoard, updateBoard, deleteBoard, Board } from "@/services/boardService";
+import { getProjectById, Project } from "@/services/projectService";
 
 const BOARD_COLORS = [
   { id: "ocean",   gradient: "linear-gradient(135deg,#0079bf,#00aecc)" },
@@ -97,21 +97,115 @@ function CreateBoardModal({ open, onClose, projectId, onCreated }: {
   );
 }
 
-function BoardCard({ board, onClick }: { board: Board; onClick: () => void }) {
+function BoardCard({
+  board,
+  onClick,
+  onDuplicate,
+  onEdit,
+  onDelete,
+}: {
+  board: Board;
+  onClick: () => void;
+  onDuplicate: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
   const colorObj = BOARD_COLORS.find((c) => c.id === board.color) || BOARD_COLORS[0];
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    const onOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (menuRef.current?.contains(target)) return;
+      setMenuOpen(false);
+    };
+
+    document.addEventListener("mousedown", onOutside);
+    return () => document.removeEventListener("mousedown", onOutside);
+  }, [menuOpen]);
+
   return (
-    <button
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick();
+        }
+      }}
       className="relative w-full h-[90px] rounded-xl overflow-hidden text-left group hover:opacity-90 transition shadow-sm"
       style={{ background: colorObj.gradient }}
     >
       <span className="absolute bottom-2.5 left-3 text-white text-sm font-semibold drop-shadow line-clamp-2 leading-snug">
         {board.title}
       </span>
-      <span className="absolute top-1.5 right-1.5 p-1 rounded opacity-0 group-hover:opacity-100 text-white hover:bg-black/20 transition">
-        <Star className="w-3.5 h-3.5" />
-      </span>
-    </button>
+      <div className="absolute top-1.5 right-1.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+        <div className="relative" ref={menuRef}>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setMenuOpen((prev) => !prev);
+            }}
+            className="p-1 rounded text-white hover:bg-black/20 transition"
+            title="Ações do quadro"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
+          {menuOpen && (
+            <div className="absolute right-0 mt-1 z-20 min-w-[140px] rounded-md border border-gray-200 bg-white shadow-lg py-1">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpen(false);
+                  onEdit();
+                }}
+                className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+              >
+                Editar
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpen(false);
+                  onDuplicate();
+                }}
+                className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+              >
+                Duplicar
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpen(false);
+                  onDelete();
+                }}
+                className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+              >
+                Excluir
+              </button>
+            </div>
+          )}
+        </div>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onDuplicate();
+          }}
+          className="p-1 rounded text-white hover:bg-black/20 transition"
+          title="Duplicar quadro"
+        >
+          <Copy className="w-3.5 h-3.5" />
+        </button>
+        <span className="p-1 rounded text-white hover:bg-black/20 transition">
+          <Star className="w-3.5 h-3.5" />
+        </span>
+      </div>
+    </div>
   );
 }
 
@@ -146,6 +240,49 @@ export default function ProjectBoardsPage() {
   function handleBoardCreated(board: Board) {
     setBoards((prev) => [board, ...prev]);
     router.push(`/${locale}/${org}/kanban/projects/${projectId}/boards/${board.id}`);
+  }
+
+  async function handleDuplicateBoard(boardId: string) {
+    try {
+      console.log("[BoardsPage] Starting duplicate:", boardId);
+      const duplicated = await duplicateBoard(boardId);
+      console.log("[BoardsPage] Duplicate success:", duplicated);
+      setBoards((prev) => [duplicated, ...prev]);
+    } catch (e: any) {
+      console.error("[BoardsPage] Duplicate error:", e);
+      const errorMsg = e?.message || String(e) || "Erro desconhecido ao duplicar quadro";
+      alert("❌ Erro ao duplicar quadro:\n\n" + errorMsg);
+    }
+  }
+
+  async function handleEditBoard(boardId: string) {
+    const board = boards.find((item) => item.id === boardId);
+    if (!board) return;
+
+    const nextTitle = window.prompt("Novo título do quadro:", board.title || "");
+    if (nextTitle === null) return;
+
+    const normalized = nextTitle.trim();
+    if (!normalized || normalized === board.title) return;
+
+    try {
+      const updated = await updateBoard(boardId, { title: normalized });
+      setBoards((prev) => prev.map((item) => (item.id === boardId ? updated : item)));
+    } catch (e: any) {
+      alert("Erro ao editar quadro: " + (e?.message || "Erro desconhecido"));
+    }
+  }
+
+  async function handleDeleteBoard(boardId: string) {
+    const ok = window.confirm("Deseja excluir este quadro? Esta ação não pode ser desfeita.");
+    if (!ok) return;
+
+    try {
+      await deleteBoard(boardId);
+      setBoards((prev) => prev.filter((item) => item.id !== boardId));
+    } catch (e: any) {
+      alert("Erro ao excluir quadro: " + (e?.message || "Erro desconhecido"));
+    }
   }
 
   return (
@@ -203,6 +340,9 @@ export default function ProjectBoardsPage() {
                       key={board.id}
                       board={board}
                       onClick={() => router.push(`/${locale}/${org}/kanban/projects/${projectId}/boards/${board.id}`)}
+                      onDuplicate={() => void handleDuplicateBoard(board.id)}
+                      onEdit={() => void handleEditBoard(board.id)}
+                      onDelete={() => void handleDeleteBoard(board.id)}
                     />
                   ))}
                 </div>

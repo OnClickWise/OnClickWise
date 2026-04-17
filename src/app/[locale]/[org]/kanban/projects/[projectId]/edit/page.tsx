@@ -12,7 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { ProjectForm } from "@/components/ProjectForm";
 import { useProjectForm } from "@/hooks/useProjectForm";
-import { getProjects, Project } from "@/services/projectService";
+import { getProjectById, Project } from "@/services/projectService";
 import { Loader2 } from "lucide-react";
 
 export default function KanbanProjectEditPage() {
@@ -27,8 +27,9 @@ export default function KanbanProjectEditPage() {
 
   useEffect(() => {
     if (!projectId) return;
-    getProjects()
-      .then((list: Project[]) => setProject(list.find((p) => p.id === projectId)))
+    getProjectById(projectId)
+      .then((item: Project) => setProject(item))
+      .catch(() => setProject(undefined))
       .finally(() => setFetching(false));
   }, [projectId]);
 

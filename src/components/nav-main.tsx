@@ -31,7 +31,7 @@ export function NavMain({
     isActive?: boolean
     items?: {
       title: string
-      url: string
+      url?: string
       icon?: ReactNode
     }[]
   }[]
@@ -53,7 +53,8 @@ export function NavMain({
     return item.items?.some(subItem => pathname === subItem.url) || false
   }
 
-  const isSubItemActive = (subItemUrl: string) => {
+  const isSubItemActive = (subItemUrl?: string) => {
+    if (!subItemUrl) return false
     return pathname === subItemUrl
   }
 
@@ -111,15 +112,24 @@ export function NavMain({
                     <SidebarMenuSub>
                       {item.items?.map((subItem) => (
                         <SidebarMenuSubItem key={subItem.title}>
-                          <SidebarMenuSubButton asChild>
-                            <a 
-                              href={subItem.url} 
-                              className={`cursor-pointer sidebar-submenu-item flex items-center gap-2 ${isSubItemActive(subItem.url) ? 'active' : ''}`}
-                            >
-                              {subItem.icon && <span className="w-4 h-4 flex-shrink-0">{subItem.icon}</span>}
-                              <span>{subItem.title}</span>
-                            </a>
-                          </SidebarMenuSubButton>
+                          {subItem.url ? (
+                            <SidebarMenuSubButton asChild>
+                              <a
+                                href={subItem.url}
+                                className={`cursor-pointer sidebar-submenu-item flex items-center gap-2 ${isSubItemActive(subItem.url) ? 'active' : ''}`}
+                              >
+                                {subItem.icon && <span className="w-4 h-4 flex-shrink-0">{subItem.icon}</span>}
+                                <span>{subItem.title}</span>
+                              </a>
+                            </SidebarMenuSubButton>
+                          ) : (
+                            <SidebarMenuSubButton asChild>
+                              <span className="sidebar-submenu-item flex items-center gap-2 opacity-60 cursor-default">
+                                {subItem.icon && <span className="w-4 h-4 flex-shrink-0">{subItem.icon}</span>}
+                                <span>{subItem.title}</span>
+                              </span>
+                            </SidebarMenuSubButton>
+                          )}
                         </SidebarMenuSubItem>
                       ))}
                     </SidebarMenuSub>

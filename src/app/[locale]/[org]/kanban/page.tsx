@@ -1,16 +1,16 @@
 ﻿"use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { AppSidebar } from "@/components/app-sidebar";
 import AuthGuard from "@/components/AuthGuard";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import {
   Plus, Star, ChevronRight, Layers, Zap, Map, Bug, Calendar, Layout,
-  X, Loader2, FolderPlus, Sparkles, LayoutGrid, MoreHorizontal, Trash2, Pencil, UserPlus,
+  X, Loader2, FolderPlus, Sparkles, LayoutGrid, MoreHorizontal, Trash2, Pencil, UserPlus, Copy,
 } from "lucide-react";
 import { getProjects, createProject, deleteProject, updateProject, getAvailableProjectUsers, Project, ProjectAvailableUser } from "@/services/projectService";
-import { getBoards, createBoard, Board } from "@/services/boardService";
+import { getBoards, createBoard, duplicateBoard, updateBoard, deleteBoard, Board } from "@/services/boardService";
 import { createList } from "@/services/listService";
 
 const BOARD_COLORS = [
@@ -54,22 +54,90 @@ const WS_COLORS = [
 ];
 
 // ─────────────────────── BOARD CARD ───────────────────────
-function BoardCard({ board, onClick }: { board: Board; onClick: () => void }) {
+function BoardCard({
+  board,
+  onClick,
+  onEdit,
+  onDuplicate,
+  onDelete,
+}: {
+  board: Board;
+  onClick: () => void;
+  onEdit: () => void;
+  onDuplicate: () => void;
+  onDelete: () => void;
+}) {
   const colorObj = BOARD_COLORS.find((c) => c.id === board.color) || BOARD_COLORS[0];
   const [starred, setStarred] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    const onOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (menuRef.current?.contains(target)) return;
+      setMenuOpen(false);
+    };
+
+    document.addEventListener("mousedown", onOutside);
+    return () => document.removeEventListener("mousedown", onOutside);
+  }, [menuOpen]);
+
   return (
     <div
-      onClick={onClick}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => e.key === "Enter" && onClick()}
-      className="group relative w-full h-[100px] rounded-2xl overflow-hidden text-left shadow-sm hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
-      style={{ background: colorObj.gradient }}
+      className="group relative w-full h-[100px]"
     >
-      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition duration-200" />
-      <span className="absolute bottom-3 left-3.5 text-white text-sm font-bold drop-shadow-sm line-clamp-2 leading-snug pr-8">
-        {board.title}
-      </span>
+      <div
+        onClick={onClick}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => e.key === "Enter" && onClick()}
+        className="relative h-full rounded-2xl overflow-hidden text-left shadow-sm hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
+        style={{ background: colorObj.gradient }}
+      >
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition duration-200" />
+        <span className="absolute bottom-3 left-3.5 text-white text-sm font-bold drop-shadow-sm line-clamp-2 leading-snug pr-8">
+          {board.title}
+        </span>
+      </div>
+      <div className="absolute top-2 right-8" ref={menuRef}>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); setMenuOpen((prev) => !prev); }}
+          className="p-1 rounded-md text-white opacity-0 group-hover:opacity-100 hover:bg-black/20 transition"
+          title="Ações do quadro"
+        >
+          <Pencil className="w-3.5 h-3.5" />
+        </button>
+        {menuOpen && (
+          <div className="absolute top-full right-0 mt-2 min-w-[170px] rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-xl py-1 z-20 overflow-hidden">
+            <button
+              onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onEdit(); }}
+              className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/60 flex items-center gap-2"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              Editar
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onDuplicate(); }}
+              className="w-full px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700/60 flex items-center gap-2"
+            >
+              <Copy className="w-3.5 h-3.5" />
+              Duplicar
+            </button>
+            <div className="h-px bg-gray-200 dark:bg-gray-700 my-1" />
+            <button
+              onClick={(e) => { e.stopPropagation(); setMenuOpen(false); onDelete(); }}
+              className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Excluir
+            </button>
+          </div>
+        )}
+      </div>
       <button
         type="button"
         onClick={(e) => { e.stopPropagation(); setStarred((s) => !s); }}
@@ -246,6 +314,152 @@ function CreateBoardModal({
   );
 }
 
+// ─────────────────────── EDIT BOARD MODAL ───────────────────────
+function EditBoardModal({
+  open,
+  onClose,
+  board,
+  onSaved,
+}: {
+  open: boolean;
+  onClose: () => void;
+  board: Board | null;
+  onSaved: (b: Board) => void;
+}) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [color, setColor] = useState("ocean");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open || !board) return;
+    setTitle(board.title || "");
+    setDescription(board.description || "");
+    setColor(board.color || "ocean");
+    setError(null);
+  }, [open, board]);
+
+  async function submit() {
+    if (!board || !title.trim()) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const updated = await updateBoard(board.id, {
+        title: title.trim(),
+        description: description.trim() || undefined,
+        color,
+      });
+      onSaved(updated);
+      onClose();
+    } catch (e: any) {
+      setError(e?.message || "Erro ao editar quadro");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!open || !board) return null;
+  const colorObj = BOARD_COLORS.find((c) => c.id === color) || BOARD_COLORS[0];
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(8px)" }}
+      onClick={onClose}
+    >
+      <div
+        className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl w-full max-w-[520px] overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex">
+          <div className="w-[180px] flex-shrink-0 flex flex-col relative overflow-hidden" style={{ background: colorObj.gradient }}>
+            <div className="absolute inset-0 bg-black/10" />
+            <div className="relative z-10 flex flex-col justify-end px-3 pb-4 pt-10 gap-2 h-full">
+              {["Lista 1", "Lista 2", "Lista 3"].map((col, i) => (
+                <div key={i} className="bg-white/20 backdrop-blur rounded-lg px-2.5 py-1.5">
+                  <div className="text-white text-[10px] font-bold truncate">{col}</div>
+                  <div className="mt-1 space-y-0.5">
+                    <div className="h-1.5 bg-white/30 rounded-full w-3/4" />
+                    <div className="h-1.5 bg-white/30 rounded-full w-1/2" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex-1 p-5 flex flex-col gap-4 min-w-0">
+            <div className="flex items-center justify-between">
+              <h2 className="font-bold text-base text-gray-900 dark:text-white">Editar quadro</h2>
+              <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition">
+                <X className="w-4 h-4 text-gray-400" />
+              </button>
+            </div>
+
+            <div>
+              <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Plano de fundo</label>
+              <div className="flex gap-1.5 flex-wrap">
+                {BOARD_COLORS.map((c) => (
+                  <button
+                    key={c.id}
+                    title={c.label}
+                    onClick={() => setColor(c.id)}
+                    className={`w-7 h-7 rounded-lg border-2 transition-transform ${color === c.id ? "border-gray-800 dark:border-white scale-110" : "border-transparent hover:scale-105"}`}
+                    style={{ background: c.gradient }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">
+                Titulo <span className="text-red-400">*</span>
+              </label>
+              <input
+                autoFocus
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && submit()}
+                className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                placeholder="Ex: Sprint 1, Roadmap Q1..."
+              />
+            </div>
+
+            <div>
+              <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1.5 block">Descrição</label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={2}
+                className="w-full resize-none rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                placeholder="Descreva o objetivo deste quadro..."
+              />
+            </div>
+
+            {error && (
+              <p className="text-xs text-red-500 bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-xl border border-red-100 dark:border-red-900">
+                {error}
+              </p>
+            )}
+
+            <button
+              onClick={submit}
+              disabled={saving || !title.trim()}
+              className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-gray-200 dark:disabled:bg-gray-700 disabled:text-gray-400 text-white text-sm font-bold transition flex items-center justify-center gap-2 shadow-md shadow-blue-200 dark:shadow-none"
+            >
+              {saving ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Salvando...</>
+              ) : (
+                <><Sparkles className="w-4 h-4" /> Salvar alterações</>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─────────────────────── CREATE PROJECT MODAL ───────────────────────
 function CreateProjectModal({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: (p: Project) => void }) {
   const [name, setName] = useState("");
@@ -349,6 +563,7 @@ export default function KanbanHomePage() {
   const [loading, setLoading] = useState(true);
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const [createBoardFor, setCreateBoardFor] = useState<{ projectId: string; template?: Template } | null>(null);
+  const [editingBoard, setEditingBoard] = useState<Board | null>(null);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [wsMenuOpen, setWsMenuOpen] = useState<string | null>(null);
   const [wsDeleteConfirm, setWsDeleteConfirm] = useState<string | null>(null);
@@ -406,6 +621,49 @@ export default function KanbanHomePage() {
       [board.projectId]: [...(prev[board.projectId] || []), board],
     }));
     router.push(`/${locale}/${org}/kanban/projects/${board.projectId}/boards/${board.id}`);
+  }
+
+  async function handleDuplicateBoard(boardId: string) {
+    try {
+      const duplicated = await duplicateBoard(boardId);
+      setBoardsByProject((prev) => ({
+        ...prev,
+        [duplicated.projectId]: [duplicated, ...(prev[duplicated.projectId] || [])],
+      }));
+    } catch (e: any) {
+      alert("Erro ao duplicar quadro: " + (e?.message || "Erro desconhecido"));
+    }
+  }
+
+  async function handleEditBoard(boardId: string) {
+    const board = Object.values(boardsByProject).flat().find((item) => item.id === boardId);
+    if (!board) return;
+    setEditingBoard(board);
+  }
+
+  function handleBoardUpdated(updated: Board) {
+    setBoardsByProject((prev) => ({
+      ...prev,
+      [updated.projectId]: (prev[updated.projectId] || []).map((item) => item.id === updated.id ? updated : item),
+    }));
+  }
+
+  async function handleDeleteBoard(boardId: string) {
+    const ok = window.confirm("Deseja excluir este quadro? Esta ação não pode ser desfeita.");
+    if (!ok) return;
+
+    try {
+      await deleteBoard(boardId);
+      setBoardsByProject((prev) => {
+        const next = { ...prev };
+        for (const projectId of Object.keys(next)) {
+          next[projectId] = next[projectId].filter((item) => item.id !== boardId);
+        }
+        return next;
+      });
+    } catch (e: any) {
+      alert("Erro ao excluir quadro: " + (e?.message || "Erro desconhecido"));
+    }
   }
 
   async function handleSaveDescription() {
@@ -639,6 +897,9 @@ export default function KanbanHomePage() {
                               key={board.id}
                               board={board}
                               onClick={() => router.push(`/${locale}/${org}/kanban/projects/${activeProject.id}/boards/${board.id}`)}
+                              onEdit={() => void handleEditBoard(board.id)}
+                              onDuplicate={() => void handleDuplicateBoard(board.id)}
+                              onDelete={() => void handleDeleteBoard(board.id)}
                             />
                           ))}
                           <button
@@ -734,6 +995,13 @@ export default function KanbanHomePage() {
           initialTemplate={createBoardFor.template}
         />
       )}
+
+      <EditBoardModal
+        open={!!editingBoard}
+        onClose={() => setEditingBoard(null)}
+        board={editingBoard}
+        onSaved={handleBoardUpdated}
+      />
 
       {editingProject && (
         <div

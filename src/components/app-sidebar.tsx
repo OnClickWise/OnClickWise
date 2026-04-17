@@ -309,13 +309,12 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
       ],
     },
     {
-      title: t('marketing'),
-      url: `/${locale}/${org}/marketing`,
-      icon: Mail,
+      title: 'ERP',
+      url: `/${locale}/${org}/erp`,
+      icon: Building2,
       items: [
-        { title: t('emailCampaigns'), url: `/${locale}/${org}/marketing/email` },
-        { title: t('socialMedia'), url: `/${locale}/${org}/marketing/social` },
-        { title: t('aiContent'), url: `/${locale}/${org}/marketing/ai` },
+        { title: 'Marketing', url: `/${locale}/${org}/erp?module=marketing` },
+        { title: 'Contabilidade', url: `/${locale}/${org}/erp?module=contabilidade` },
       ],
     },
     {

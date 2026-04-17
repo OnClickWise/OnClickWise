@@ -8,6 +8,7 @@ import MasterDashboard from '@/components/dashboard-components/master/MasterDash
 import EmployeeDashboard from '@/components/dashboard-components/employee/EmployeeDashboard'
 import { useDashboardData } from '@/hooks/useDashboardData'
 import { UserRole } from '@/types/dashboard'
+import { getApiOrigin } from '@/lib/api-url'
 
 export default function DashboardPage() {
   const params = useParams()
@@ -17,6 +18,8 @@ export default function DashboardPage() {
 
   const { role, data, loading, error } =
     useDashboardData(org)
+
+  const apiOrigin = getApiOrigin()
 
   if (!org) {
     return <div>Invalid tenant</div>
@@ -48,8 +51,24 @@ export default function DashboardPage() {
       )}
       {error && (
         <div className="flex flex-col items-center justify-center h-40 gap-3 text-muted-foreground">
-          <p className="text-lg font-medium">Não foi possível conectar ao servidor</p>
-          <p className="text-sm">Verifique se o backend está rodando em <code className="bg-muted px-1 rounded">http://localhost:3000</code></p>
+          {error === 'connection' && (
+            <>
+              <p className="text-lg font-medium">Não foi possível conectar ao servidor</p>
+              <p className="text-sm">Verifique se a API está acessível em <code className="bg-muted px-1 rounded">{apiOrigin}</code></p>
+            </>
+          )}
+          {error === 'auth' && (
+            <>
+              <p className="text-lg font-medium">Sua sessão expirou ou está inválida</p>
+              <p className="text-sm">Faça login novamente para recarregar o dashboard.</p>
+            </>
+          )}
+          {error === 'unknown' && (
+            <>
+              <p className="text-lg font-medium">Erro ao carregar o dashboard</p>
+              <p className="text-sm">Tente atualizar a página em alguns segundos.</p>
+            </>
+          )}
         </div>
       )}
       {!loading && !error && DashboardComponent}

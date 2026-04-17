@@ -86,7 +86,11 @@ export async function updateCard(cardId: string, data: Partial<CreateCardRequest
     method: "PUT",
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error("Erro ao atualizar cartao");
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    const message = errorData.message || errorData.error || `Erro ao atualizar cartao (${res.status})`;
+    throw new Error(message);
+  }
   return normalizeCard(await res.json());
 }
 
@@ -101,6 +105,10 @@ export async function duplicateCard(cardId: string): Promise<Card> {
   const res = await authenticatedFetch(`${API_BASE_URL}/cards/${cardId}/duplicate`, {
     method: "POST",
   });
-  if (!res.ok) throw new Error("Erro ao duplicar cartao");
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    const message = errorData.message || errorData.error || `Erro ao duplicar cartao (${res.status})`;
+    throw new Error(message);
+  }
   return normalizeCard(await res.json());
 }

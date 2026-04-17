@@ -7,6 +7,10 @@ export function getApiOrigin() {
 }
 
 export function getApiBaseUrl() {
+  if (typeof window !== 'undefined') {
+    return '/api'
+  }
+
   return `${getApiOrigin()}/api`
 }
 
