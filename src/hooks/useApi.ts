@@ -51,19 +51,31 @@ export function useApi() {
       return { success: false, error: 'Client only' };
     }
 
-    const token = getAuthToken();
+    const sanitizeToken = (value: string | null | undefined) => {
+      if (!value) return null;
+      const normalized = value.replace(/^Bearer\s+/i, '').trim();
+      if (!normalized || normalized === 'null' || normalized === 'undefined') return null;
+      return normalized;
+    };
+
+    const token = sanitizeToken(getAuthToken());
     const shouldRedirectOnUnauthorized =
       authBehavior?.redirectOnUnauthorized ?? endpoint === '/auth/me';
     const isFormData = options.body instanceof FormData;
 
     const makeConfig = (authToken: string | null): RequestInit => ({
-      ...options,
-      credentials: 'include',
-      headers: {
-        ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
-        ...(authToken && { Authorization: `Bearer ${authToken}` }),
-        ...options.headers,
-      },
+      ...(() => {
+        const normalizedToken = sanitizeToken(authToken);
+        return {
+          ...options,
+          credentials: 'include',
+          headers: {
+            ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+            ...(normalizedToken && { Authorization: `Bearer ${normalizedToken}` }),
+            ...options.headers,
+          },
+        };
+      })(),
     })
 
     const parseResponse = async (response: Response) => {

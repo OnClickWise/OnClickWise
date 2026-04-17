@@ -9,6 +9,15 @@ import { getApiBaseUrl } from "@/lib/api-url";
 
 const API_BASE_URL = getApiBaseUrl();
 
+let refreshInFlight: Promise<{ accessToken: string; refreshToken?: string }> | null = null;
+
+function normalizeAuthToken(token: string | null | undefined): string | null {
+  if (!token) return null;
+  const normalized = token.replace(/^Bearer\s+/i, '').trim();
+  if (!normalized || normalized === 'null' || normalized === 'undefined') return null;
+  return normalized;
+}
+
 export interface RegisterResponse {
   success: boolean;
   token?: string;
@@ -207,40 +216,53 @@ export async function getCurrentUser() {
 // REFRESH TOKEN
 // ----------------------
 export async function refreshToken(): Promise<{ accessToken: string; refreshToken?: string }> {
-  const currentRefreshToken = getRefreshTokenFromCookie()
-    ?? (typeof window !== "undefined" ? localStorage.getItem("refreshToken") : null);
-  if (!currentRefreshToken) throw new Error("Refresh token nao encontrado");
+  if (refreshInFlight) return refreshInFlight;
 
-  const res = await fetch(
-    `${API_BASE_URL}/auth/refresh`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ refreshToken: currentRefreshToken }),
-    },
-  );
+  refreshInFlight = (async () => {
+    const currentRefreshToken = normalizeAuthToken(
+      getRefreshTokenFromCookie()
+      ?? (typeof window !== "undefined" ? localStorage.getItem("refreshToken") : null),
+    );
 
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || "Erro ao renovar token");
-  }
+    if (!currentRefreshToken) throw new Error("Refresh token nao encontrado");
 
-  const data = await res.json();
+    const res = await fetch(
+      `${API_BASE_URL}/auth/refresh`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ refreshToken: currentRefreshToken }),
+      },
+    );
 
-  if (data.accessToken) {
-    setAccessTokenCookie(data.accessToken);
-    if (data.refreshToken) setRefreshTokenCookie(data.refreshToken);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("token", data.accessToken);
-      if (data.refreshToken) {
-        localStorage.setItem("refreshToken", data.refreshToken);
-      }
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || "Erro ao renovar token");
     }
-    return data;
-  }
 
-  throw new Error("Token nao recebido na renovacao");
+    const data = await res.json();
+
+    if (data.accessToken) {
+      setAccessTokenCookie(data.accessToken);
+      if (data.refreshToken) setRefreshTokenCookie(data.refreshToken);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("token", data.accessToken);
+        if (data.refreshToken) {
+          localStorage.setItem("refreshToken", data.refreshToken);
+        }
+      }
+      return data;
+    }
+
+    throw new Error("Token nao recebido na renovacao");
+  })();
+
+  try {
+    return await refreshInFlight;
+  } finally {
+    refreshInFlight = null;
+  }
 }
 
 // ----------------------
@@ -265,16 +287,18 @@ export async function authenticatedFetch(
     options.body !== null &&
     options.body !== "";
 
-  const makeRequest = (token: string | null): Promise<Response> =>
-    fetch(url, {
+  const makeRequest = (token: string | null): Promise<Response> => {
+    const normalizedToken = normalizeAuthToken(token);
+    return fetch(url, {
       ...options,
       credentials: options.credentials ?? "include",
       headers: {
         ...(hasBody ? { "Content-Type": "application/json" } : {}),
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(normalizedToken ? { Authorization: `Bearer ${normalizedToken}` } : {}),
         ...(options.headers as Record<string, string> ?? {}),
       },
     });
+  };
 
   let res = await makeRequest(getAuthToken());
 
