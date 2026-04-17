@@ -44,13 +44,16 @@ export function useApi() {
   const apiCall = async (
     endpoint: string,
     options: RequestInit = {},
-    timeoutMs = 15000
+    timeoutMs = 15000,
+    authBehavior?: { redirectOnUnauthorized?: boolean }
   ) => {
     if (typeof window === 'undefined') {
       return { success: false, error: 'Client only' };
     }
 
     const token = getAuthToken();
+    const shouldRedirectOnUnauthorized =
+      authBehavior?.redirectOnUnauthorized ?? endpoint === '/auth/me';
     const isFormData = options.body instanceof FormData;
 
     const makeConfig = (authToken: string | null): RequestInit => ({
@@ -103,11 +106,14 @@ export function useApi() {
           retryConfig.signal = controller.signal
           response = await fetch(`${API_BASE_URL}${endpoint}`, retryConfig)
         } catch {
-          clearAuthCookies()
-          localStorage.removeItem('organization')
-          localStorage.removeItem('lastActivity')
-          window.location.href = resolveLoginRedirect()
-          return { success: false, error: 'Sessao expirada' }
+          if (shouldRedirectOnUnauthorized) {
+            clearAuthCookies()
+            localStorage.removeItem('organization')
+            localStorage.removeItem('lastActivity')
+            window.location.href = resolveLoginRedirect()
+          }
+
+          return { success: false, error: 'Sessao expirada', unauthorized: true, status: 401 }
         }
       }
 
@@ -115,14 +121,18 @@ export function useApi() {
         const errorText = await response.text();
 
         if (response.status === 401) {
-          clearAuthCookies();
-          localStorage.removeItem('organization');
-          localStorage.removeItem('lastActivity');
-          window.location.href = resolveLoginRedirect();
+          if (shouldRedirectOnUnauthorized) {
+            clearAuthCookies();
+            localStorage.removeItem('organization');
+            localStorage.removeItem('lastActivity');
+            window.location.href = resolveLoginRedirect();
+          }
         }
 
         return {
           success: false,
+          unauthorized: response.status === 401,
+          status: response.status,
           error: `HTTP ${response.status}: ${errorText}`,
         };
       }

@@ -248,9 +248,13 @@ export async function refreshToken(): Promise<{ accessToken: string; refreshToke
 // ----------------------
 export async function authenticatedFetch(
   url: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  authBehavior?: { redirectOnUnauthorized?: boolean }
 ): Promise<Response> {
   if (typeof window === "undefined") throw new Error("Client only");
+
+  const shouldRedirectOnUnauthorized =
+    authBehavior?.redirectOnUnauthorized ?? url.includes('/auth/me');
 
   const method = (options.method || "GET").toUpperCase();
   const hasBody =
@@ -279,12 +283,19 @@ export async function authenticatedFetch(
     try {
       const refreshed = await refreshToken();
       res = await makeRequest(refreshed.accessToken);
-      // Se retry com novo token falha com 401 novamente, ENTÃO faz logout
+      // Se retry continuar 401, só força logout em endpoints críticos de sessão.
       if (res.status === 401) {
+        if (!shouldRedirectOnUnauthorized) {
+          return res;
+        }
         throw new Error("Token refresh loop: still 401 after refresh");
       }
     } catch (err) {
-      // SÓ logout se refresh falhor
+      if (!shouldRedirectOnUnauthorized) {
+        return res;
+      }
+
+      // Só força logout quando a própria sessão está inválida.
       clearAuthCookies();
       localStorage.removeItem("token");
       localStorage.removeItem("refreshToken");
