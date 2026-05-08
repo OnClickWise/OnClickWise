@@ -3,8 +3,17 @@ import createNextIntlPlugin from 'next-intl/plugin';
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
 function getBackendOrigin() {
-  const configured = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-  return configured.trim().replace(/\/+$/, '').replace(/(?:\/api)+$/i, '');
+  const configured = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL;
+
+  if (configured && configured.trim()) {
+    return configured.trim().replace(/\/+$/, '').replace(/(?:\/api)+$/i, '');
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    return 'http://localhost:3001';
+  }
+
+  throw new Error('Missing NEXT_PUBLIC_API_BASE_URL or NEXT_PUBLIC_API_URL in production');
 }
 
 /** @type {import('next').NextConfig} */
@@ -25,7 +34,7 @@ const nextConfig = {
   async headers() {
     const isDev = process.env.NODE_ENV !== 'production';
     const devConnectSrc = isDev
-      ? ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:8080', 'http://127.0.0.1:8080']
+      ? ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3001', 'http://127.0.0.1:3001', 'http://localhost:8080', 'http://127.0.0.1:8080']
       : [];
     const scriptSrc = isDev
       ? "script-src 'self' 'unsafe-inline' 'unsafe-eval' https:"
@@ -33,7 +42,7 @@ const nextConfig = {
     
     // Adicionar localhost às sources de imagem em desenvolvimento
     const devImgSrc = isDev
-      ? ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:8080', 'http://127.0.0.1:8080']
+      ? ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3001', 'http://127.0.0.1:3001', 'http://localhost:8080', 'http://127.0.0.1:8080']
       : [];
 
     const csp = [

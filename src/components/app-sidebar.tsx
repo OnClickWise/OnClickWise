@@ -313,8 +313,35 @@ export function AppSidebar({ org, ...props }: AppSidebarProps) {
       url: `/${locale}/${org}/erp`,
       icon: Building2,
       items: [
+        {
+          title: 'Finanças',
+          items: [
+            { title: 'Dashboard', url: `/${locale}/${org}/finance/dashboard` },
+            { title: 'Tesouraria', url: `/${locale}/${org}/finance/treasury` },
+            { title: 'Contas a Receber', url: `/${locale}/${org}/finance/receivables` },
+            { title: 'Contas a Pagar', url: `/${locale}/${org}/finance/payables` },
+            { title: 'Reconciliação Bancária', url: `/${locale}/${org}/finance/reconciliation` },
+            { title: 'Clientes', url: `/${locale}/${org}/finance/customers` },
+            { title: 'Fornecedores', url: `/${locale}/${org}/finance/suppliers` },
+            { title: 'Câmbios', url: `/${locale}/${org}/finance/exchange-rates` },
+            { title: 'Impostos', url: `/${locale}/${org}/finance/taxes` },
+            { title: 'Configuração', url: `/${locale}/${org}/finance/config` },
+          ],
+        },
+        {
+          title: 'Contabilidade',
+          items: [
+            { title: 'Plano de Contas', url: `/${locale}/${org}/erp/contabilidade` },
+            { title: 'Diários', url: `/${locale}/${org}/erp/contabilidade/diarios` },
+            { title: 'Lançamentos', url: `/${locale}/${org}/erp/contabilidade/lancamentos` },
+            { title: 'Livro Diário', url: `/${locale}/${org}/erp/contabilidade/livro-diario` },
+            { title: 'Livro Razão', url: `/${locale}/${org}/erp/contabilidade/livro-razao` },
+            { title: 'Balancete', url: `/${locale}/${org}/erp/contabilidade/balancete` },
+            { title: 'DRE', url: `/${locale}/${org}/erp/contabilidade/dre` },
+            { title: 'Balanço Patrimonial', url: `/${locale}/${org}/erp/contabilidade/balanco` },
+          ],
+        },
         { title: 'Marketing', url: `/${locale}/${org}/erp?module=marketing` },
-        { title: 'Contabilidade', url: `/${locale}/${org}/erp?module=contabilidade` },
       ],
     },
     {

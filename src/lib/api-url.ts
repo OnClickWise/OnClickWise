@@ -1,7 +1,21 @@
-const DEFAULT_API_ORIGIN = 'http://localhost:3000'
+const DEV_DEFAULT_API_ORIGIN = 'http://localhost:3001'
+
+function resolveConfiguredApiOrigin() {
+  const configured = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL
+
+  if (configured && configured.trim()) {
+    return configured
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    return DEV_DEFAULT_API_ORIGIN
+  }
+
+  throw new Error('Missing NEXT_PUBLIC_API_BASE_URL or NEXT_PUBLIC_API_URL in production')
+}
 
 export function getApiOrigin() {
-  const configured = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || DEFAULT_API_ORIGIN
+  const configured = resolveConfiguredApiOrigin()
   const trimmed = configured.trim().replace(/\/+$/, '')
   return trimmed.replace(/(?:\/api)+$/i, '')
 }
